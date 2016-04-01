@@ -1,3 +1,11 @@
+2016-04-01  Uwe Brauer  <oub@mat.ucm.es>
+
+	* matlab.el (matlab-mode-version): change version to 3.3.5
+
+	* matlab.el (matlab-enable-block-highlighting): Applied patch
+	provided by
+	kaushal_modi@users.sf.net
+
 2016-03-17  Uwe Brauer  <oub@mat.ucm.es>
 
 	* toolbox/dbhotlink.m (dbhotlink): new file
@@ -5,13 +13,13 @@
 2016-03-17  Uwe Brauer  <oub@mat.ucm.es>
 
 	* matlab.el (matlab-shell-mode): Applied patch from  Odd Andersen
-	<odd.andersen@gmail.com>. 
+	<odd.andersen@gmail.com>.
 
 2016-03-16  Uwe Brauer  <oub@mat.ucm.es>
 
 	* dl_emacs_support.m (getfiles): update the url and README-->README.org
 
-2016-02-09  Uwe Brauer  <oub@mat.ucm.es> 
+2016-02-09  Uwe Brauer  <oub@mat.ucm.es>
 
 	* matlab.el (matlab-mode-version): Change version number to
 	3.3.3
