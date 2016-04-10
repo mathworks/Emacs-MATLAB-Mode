@@ -1,3 +1,9 @@
+2016-04-10  Uwe Brauer  <oub@mat.ucm.es>
+
+	* matlab.el: Add an empty line after the first line in matlab.el,
+	maybe this will generate the desired info line when calling
+	package-list-package in GNU emacs. (MELPA).
+
 2016-04-01  Uwe Brauer  <oub@mat.ucm.es>
 
 	* matlab.el (matlab-mode-version): change version to 3.3.5

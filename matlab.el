@@ -1,5 +1,5 @@
 ;;; matlab.el --- major mode for MATLAB(R) dot-m files
-;;
+
 ;; Author: Matt Wette <mwette@alumni.caltech.edu>,
 ;;         Eric M. Ludlam <eludlam@mathworks.com>
 ;; Maintainer: Eric M. Ludlam <eludlam@mathworks.com>
