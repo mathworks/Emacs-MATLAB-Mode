@@ -1,3 +1,10 @@
+2016-04-15  Uwe Brauer  <oub@mat.ucm.es>
+
+	* matlab-pkg.el ("matlab-mode"): New file for the MELPA repo:
+	purpose: add information to the GNU Emacs package system. User of
+	older GNU Emacs versions <24, and Xemacs users can safely ignore
+	this file.
+
 2016-04-10  Uwe Brauer  <oub@mat.ucm.es>
 
 	* matlab.el: Add an empty line after the first line in matlab.el,
