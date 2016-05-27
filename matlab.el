@@ -161,6 +161,15 @@ should be ok."
   :group 'matlab
   :type 'sexp)
 
+(defcustom matlab-align-to-paren t
+  "*Whether continuation lines should be aligned to the opening parenthesis.
+When non-nil, continuation lines are aligned to the opening parenthesis if the
+opening is not followed by only spaces and ellipses.  When nil, continued lines
+are simply indented by `matlab-cont-level'."
+  :group 'matlab
+  :type 'boolean
+  )
+
 (defcustom matlab-indent-function-body 'guess
   "*If non-nil, indent body of function.
 If the global value is nil, do not indent function bodies.
@@ -2502,7 +2511,8 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
 			       ;; this open paren is there, then we
 			       ;; DONT want to indent to it.  Use the
 			       ;; standard indent.
-			       (if (looking-at "\\.\\.\\.\\|$")
+			       (if (or (not matlab-align-to-paren)
+			               (looking-at "\\.\\.\\.\\|$"))
 				   ;; This could happen in another set
 				   ;; of matricies.  Find a current
 				   ;; indentation based on the
