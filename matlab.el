@@ -2391,7 +2391,16 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
                   (beginning-of-line)
                   (looking-at "[ \t]*")
                   (when (= match (match-end 0))
-                    (setq ci (- match (match-beginning 0)))
+                    (let ((match-col-end
+                           (save-excursion
+                             (goto-char match)
+                             (current-column)))
+                          (match-col-beginning
+                           (save-excursion
+                             (goto-char (match-beginning 0))
+                             (current-column)))
+                          )
+                    (setq ci (- match-col-end match-col-beginning)))
                     (throw 'indent nil)))))
             ;; End of special case for end and match after "^[ \t]*".
             (setq ci (+ ci
