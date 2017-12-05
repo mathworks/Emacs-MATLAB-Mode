@@ -87,15 +87,15 @@ in LaTeX mode in title, sections, description, boldified text,  unnumbered equat
 
 (defun matlab-insert-title ()
   (interactive)
-  (beginning-of-buffer nil)
+  (goto-char (point-min))
   (insert "%% TITLE\n")
-  (previous-line 1)
+  (forward-line -1)
   (forward-char 3))
 
 (defun matlab-insert-section ()
   (interactive)
   (insert "%% Section\n")
-  (previous-line 1)
+  (forward-line -1)
   (forward-char 3))
 
 
@@ -103,7 +103,7 @@ in LaTeX mode in title, sections, description, boldified text,  unnumbered equat
   (interactive)
   (insert "%%\n")
   (insert "% DESCRIPTIVE TEXT\n")
-  (previous-line 1)
+  (forward-line -1)
   (forward-char 2))
 
 
@@ -128,14 +128,14 @@ surrounds region by * *."
   (interactive)
   (insert "%%\n")
   (insert "% *BOLD TEXT*\n")
-  (previous-line 1)
+  (forward-line -1)
   (forward-char 2))
 
 (defun matlab-insert-monospaces-text ()
   (interactive)
   (insert "%%\n")
   (insert "% |MONOSPACED TEXT|\n")
-  (previous-line 1)
+  (forward-line -1)
   (forward-char 2))
 
 
@@ -146,7 +146,7 @@ surrounds region by * *."
   (insert "%  PREFORMATTED\n")
   (insert "%  TEXT\n")
   (insert "% \n")
-  (previous-line 3)
+  (forward-line -3)
   (forward-char 3))
 
 (defun matlab-insert-equation ()
@@ -155,7 +155,7 @@ surrounds region by * *."
   (insert "% \n")
   (insert "% $$e^{\pi i} + 1 = 0$$\n")
   (insert "% \n")
-  (previous-line 2)
+  (forward-line -2)
   (forward-char 4))
 
 
@@ -166,7 +166,7 @@ surrounds region by * *."
   (insert "% * ITEM1\n")
   (insert "% * ITEM2\n")
   (insert "% \n")
-  (previous-line 3)
+  (forward-line -3)
   (forward-char 4))
 
 

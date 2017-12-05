@@ -33,6 +33,9 @@
       (require 'semanticdb)
     (error (require 'semantic/db))))
 
+(eval-and-compile
+  (require 'matlab))
+ 
 ;;; Code:
 
 ;; Put all directories which should be recursively scanned for your
@@ -115,8 +118,7 @@ Create one of our special tables that can act as an intermediary."
   "Return non-nil if TABLE's mode is equivalent to BUFFER.
 Equivalent modes are specified by by `semantic-equivalent-major-modes'
 local variable."
-  (save-excursion
-    (set-buffer buffer)
+  (with-current-buffer buffer
     (eq (or mode-local-active-mode major-mode) 'matlab-mode)))
 
 (defmethod semanticdb-full-filename ((obj semanticdb-table-matlab))
@@ -144,7 +146,10 @@ database (if available.)"
 	  ;; we append it in this iteration.
 	  (let ((semanticdb-search-system-databases nil)
 		)
-	    (semanticdb-find-translate-path-default path brutish))))
+            (if (fboundp 'semanticdb-find-translate-path-default)
+                (semanticdb-find-translate-path-default path brutish)
+              (error "semanticdb-find-translate-path-default doesn't exist")
+              ))))
     ;; Don't add anything if BRUTISH is on (it will be added in that fcn)
     ;; or if we aren't supposed to search the system.
     (if (or brutish (not semanticdb-search-system-databases))
@@ -235,6 +240,8 @@ EXCLUDE-PRIVATE, 'private' directories will be skipped."
 	files)
     nil))
 
+(defvar semantic-matlab-dependency-system-include-path) ;; quiet compiler warning
+
 (defun semanticdb-matlab-cache-files ()
   "Cache user and system MATLAB files if necessary."
   ;; car of *-file-cache variables is used as flag
@@ -250,8 +257,10 @@ EXCLUDE-PRIVATE, 'private' directories will be skipped."
 		 semanticdb-matlab-include-paths t nil nil)))
     ;; cache user defined old-style classes
     (setq semanticdb-matlab-user-class-cache
-	  (semantic-matlab-find-oldstyle-classes
-	   (cdr semanticdb-matlab-user-files-cache)))))
+	  (if (fboundp 'semantic-matlab-find-oldstyle-classes)
+              (semantic-matlab-find-oldstyle-classes (cdr semanticdb-matlab-user-files-cache))
+            (error "semantic-matlab-find-oldstyle-classes not found"))
+            )))
 
 (defun semanticdb-matlab-find-name (name &optional type)
   "Find NAME in matlab file names.
@@ -280,11 +289,11 @@ If point is nil, the current buffer location is used."
   (cond
    ((looking-at ".+=")
     '(variable type))
-   ((looking-back "\\(get\\|set\\)([a-zA-Z_0-9]*")
+   ((looking-back "\\(get\\|set\\)([a-zA-Z_0-9]*" nil)
     '(variable type))
-   ((looking-back "\\(get\\|set\\)([a-zA-Z_0-9]+,'[a-zA-Z_0-9]*")
+   ((looking-back "\\(get\\|set\\)([a-zA-Z_0-9]+,'[a-zA-Z_0-9]*" nil)
     '(variable))
-   ((looking-back "\\.[a-zA-Z_0-9]*")
+   ((looking-back "\\.[a-zA-Z_0-9]*" nil)
     '(variable))
    ((looking-at "\\s-*([a-zA-Z_0-9]+,")
     '(function))
@@ -327,7 +336,7 @@ Return a list of tags."
   (if tags (call-next-method)
     (let ((files (semanticdb-matlab-find-name regex 'regex)))
       (delq nil
-	    (mapcar '(lambda (x)
+	    (mapcar #'(lambda (x)
 		       (let ((matlab-vers-on-startup nil))
 			 (car (semanticdb-file-stream x))))
 		    files)))))
@@ -367,9 +376,9 @@ Returns a table of all matching tags."
 	 compshell))
       ;; generate tags
       (delq nil
-	    (mapcar '(lambda (x)
-		       (let ((matlab-vers-on-startup nil))
-			 (car (semanticdb-file-stream x))))
+	    (mapcar #'(lambda (x)
+                        (let ((matlab-vers-on-startup nil))
+                          (car (semanticdb-file-stream x))))
 		    compdb)))))
 
 (provide 'semanticdb-matlab)

@@ -24,6 +24,8 @@
 ;;
 ;; Setup miscelaneous CEDET tools to work with MATLAB.
 
+(defvar srecode-map-load-path) ;; quite compiler warning
+
 ;;; Code:
 ;;;###autoload
 (defun matlab-cedet-setup ()
@@ -50,11 +52,10 @@
       (error (require 'srecode/map)))
 
     (add-to-list 'srecode-map-load-path tmpdir)
-    (srecode-map-update-map t)
-    )
-
-  
-  )
+    (if (fboundp 'srecode-map-update-map)
+        (srecode-map-update-map t)
+      (error "srecode-map-update-map not found"))
+    ))
 
 
 (provide 'cedet-matlab)

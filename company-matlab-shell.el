@@ -1,5 +1,6 @@
 ;;; company-matlab-shell.el --- a matlab-shell-mode completion back-end for AUCTeX
 ;;
+;; Copyright (C) 2016,2017 The MathWorks Inc.
 ;; Copyright (C) 2009 David Engster
 ;;
 ;; This program is free software; you can redistribute it and/or
@@ -18,66 +19,55 @@
 (condition-case nil
     (require 'company)
   (error nil))
+    
 (eval-when-compile (require 'cl))
 (require 'matlab)
 
-;; the following code is mostly taken from matlab.el, (C) Eric M. Ludlam
-(defun company-matlab-shell-tab ()
-   "Send [TAB] to the currently running matlab process and retrieve completion."
-   (goto-char (point-max))
-   (let ((inhibit-field-text-motion t))
-     (beginning-of-line))
-   (re-search-forward comint-prompt-regexp)
-   (let* ((lastcmd (buffer-substring (point) (matlab-point-at-eol)))
-	  (tempcmd lastcmd)
-	  (completions nil)
-	  (limitpos nil))
-     ;; search for character which limits completion, and limit command to it
-     (setq limitpos
-	   (if (string-match ".*\\([( /[,;=']\\)" lastcmd)
-	       (1+ (match-beginning 1))
-	     0))
-     (setq lastcmd (substring lastcmd limitpos))
-     ;; Whack the old command so we can insert it back later.
-     (delete-region (+ (point) limitpos) (matlab-point-at-eol))
-     ;; double every single quote
-     (while (string-match "[^']\\('\\)\\($\\|[^']\\)" tempcmd)
-       (setq tempcmd (replace-match "''" t t tempcmd 1)))
-     ;; collect the list
-     (setq completions (matlab-shell-completion-list tempcmd))
-     (goto-char (point-max))
-     (insert lastcmd)
-     completions))
+(defvar company-matlab-shell--ci (make-hash-table :test 'equal)
+  "Private variable for company-matlab-shell completion info")
 
-(defun company-matlab-shell-grab-symbol ()
-  (when (string= (buffer-name (current-buffer)) (concat "*" matlab-shell-buffer-name "*"))
-    (save-excursion
-      (goto-char (point-max))
-      (let ((inhibit-field-text-motion t))
-	(beginning-of-line))
-      (re-search-forward comint-prompt-regexp)
-      (let* ((lastcmd (buffer-substring (point) (matlab-point-at-eol)))
-	     limitpos)
-	(setq limitpos
-	      (if (string-match ".*\\([( /[,;=']\\)" lastcmd)
-		  (1+ (match-beginning 1))
-		0))
-	(substring-no-properties lastcmd limitpos)))))
+(defun company-matlab-shell-grab-completion-substr ()
+  "Return the completion substring of the command that is to be
+completed in `matlab-shell', or 'stop if completions can't be
+performed at the current point."
+  (when (eq major-mode 'matlab-shell-mode)
+    (if (not (matlab-on-prompt-p))
+        'stop  ;; tell company can't complete when point is not in the prompt
+      (let* ((buf-name (buffer-name (current-buffer)))
+             (ci (matlab-shell-get-completion-info))
+             (common-substr (cdr (assoc 'common-substr ci)))
+             (did-completion (cdr (assoc 'did-completion ci))))
+        ;; If did-completion, then matlab-shell-get-completion-info updated the
+        ;; *MATLAB* buffer by deleting text and calling (insert replacement-text), and
+        ;; we have no more completion info.
+        (if did-completion
+            ;; Tell company to abort completion. This causes "Cannot complete at point" and
+            ;; there doesn't seem to be a way to protect against this message.
+            nil                 
+          (puthash buf-name ci company-matlab-shell--ci)
+          ;; command to be completed
+          common-substr
+          )))))
 
 
 (defun company-matlab-shell-get-completions ()
-  (when (string= (buffer-name (current-buffer)) (concat "*" matlab-shell-buffer-name "*"))
-    (mapcar 'car (company-matlab-shell-tab))))
+  (let* ((ci (if (eq major-mode 'matlab-shell-mode)
+                 (gethash (buffer-name (current-buffer)) company-matlab-shell--ci)))
+         (completions (if ci (cdr (assoc 'completions ci)))))
+    (if ci (remhash (buffer-name (current-buffer)) company-matlab-shell--ci))
+    (mapcar 'car completions)))
 
 ;;;###autoload
 (defun company-matlab-shell (command &optional arg &rest ignored)
-  "A `company-mode' completion back-end for Matlab-Shell."
+  "A `company-mode' completion backend for `matlab-shell'."
   (interactive (list 'interactive))
   (case command
-        ('interactive (company-begin-backend 'company-matlab-shell))
-        ('prefix (company-matlab-shell-grab-symbol))
-        ('candidates (company-matlab-shell-get-completions))
-	('sorted t)))
+    ('interactive (if (fboundp 'company-begin-backend) ;; quiet warning when no company
+                      (company-begin-backend 'company-matlab-shell)
+                    (error "company-begin-backend is missing")))
+    ('prefix (company-matlab-shell-grab-completion-substr))
+    ('candidates (company-matlab-shell-get-completions))
+    ('sorted t)))
 
 (provide 'company-matlab-shell)
 ;;; company-matlab-shell.el ends here

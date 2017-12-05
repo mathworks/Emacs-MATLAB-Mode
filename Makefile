@@ -57,13 +57,14 @@ toolbox:
 Templates:
 	$(MAKE) -C templates
 
+.PHONY: tags
 tags: 
 	$(MAKE) -C toolbox/ $(MFLAGS) $@
 	$(MAKE) -C templates/ $(MFLAGS) $@
 
-
+.PHONY: clean
 clean:
-	rm -f *.elc
+	rm -f *.elc matlab-load.el
 
 .PHONY: dist
 

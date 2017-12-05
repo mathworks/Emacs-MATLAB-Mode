@@ -77,6 +77,14 @@
     (defalias 'linemark-overlay-p 'overlayp)
     ))
 
+(eval-and-compile
+  ;; `object-name-string' is an obsolete function (as of 24.4); use `eieio-object-name-string' instead.
+  (cond ((fboundp 'eieio-object-name-string)
+         (defalias 'linemark-object-name-string 'eieio-object-name-string))
+        (t
+         (defalias 'linemark-object-name-string 'object-name-string)))
+  )
+
 (defgroup linemark nil
   "Line marking/highlighting."
   :group 'tools
@@ -174,7 +182,7 @@ the new instantiation."
 	(lmg linemark-groups))
     ;; Find an old group.
     (while (and (not foundgroup) lmg)
-      (if (string= name (object-name-string (car lmg)))
+      (if (string= name (linemark-object-name-string (car lmg)))
 	  (setq foundgroup (car lmg)))
       (setq lmg (cdr lmg)))
     ;; Which group to use.

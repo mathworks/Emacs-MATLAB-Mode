@@ -1,3 +1,37 @@
+2017-12-05  John Ciolfi <ciolfi@mathworks.com>
+	* TAB: Fixed several problems with TAB completion, and added
+	direct support for company (complete anything) mode tab
+	completion. If company is installed TAB key is bound to use
+	company completion and C-TAB is classic emacs TAB completion.
+	* Debugging: Enabled debugging of matlab code (dbstop, etc.) in
+	R2015b MATLAB and later. This requires using the MATLAB editor
+	instead of emacs because recent MATLAB's are not giving enough
+	info to debug within emacs.
+	* Warnings: Fixed/suppressed all warnings as reported by emacs
+	24.4 (and removed support for emacs 22 and earlier).
+	* Makefile: matlab-load.el is a generated file that should be
+	rebuilt after clean.
+	* matlab-load.el: remove this from the repro. It is generated
+	so it should be rebuilt via GNU make.
+	* company-matlab-shell.el: made completion using company (complete
+	anything) work with new TAB handling paradigm
+	* linemark.el: fixed compiler warnings
+	* matlab-publish.el: fixed compiler warnings
+	* matlab.el: fixed TAB completion handling. Prior to fix, hitting
+	tab would generate noise (new unnecessary ">>" prompts) and it
+	didn't handle certain cases, e.g. ">> ! mv file.<TAB>", ">>
+	set(h,'<TAB>')", etc. would fail to complete.
+	* mlint.el: fixed compiler warnings
+	* cedet-matlab.el, semantic-matlab.el, semanticdb-matlab.el:
+	fixed warnings, though I'm not sure if these files are still
+	usable because some functions they reference no longer exist.
+	* tlc.el: fixed compiler warnings, including autoload issue that
+	was preventing use.
+	* toolbox/emacsdocomplete.m: fixed handling of tab completion for
+	commands with strings
+	* toolbox/emacsinit.m: don't activate emacs-based debugging/
+	dbstop handling in R2015b and later.
+
 2016-04-15  Uwe Brauer  <oub@mat.ucm.es>
 
 	* matlab-pkg.el ("matlab-mode"): New file for the MELPA repo:

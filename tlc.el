@@ -3,13 +3,12 @@
 ;; Author: Eric M. Ludlam <eludlam@mathworks.com>
 ;; Keywords: tlc
 ;; X-Abstract: Major mode for editing tlc files
-;; Version:
 
 (defvar tlc-version "1.2"
   "The current version of TLC mode.")
 
 ;;
-;; Copyright 1997-2005 The MathWorks, Inc.
+;; Copyright 1997-2017 The MathWorks, Inc.
 ;;
 ;; This program is derived from free software; you can redistribute it
 ;; and/or modify it under the terms of the GNU General Public License
@@ -139,7 +138,8 @@
   (setq mode-name "TLC")
   (use-local-map tlc-mode-map)
   (set-syntax-table tlc-syntax-table)
-  (make-variable-buffer-local 'comment-start-skip)
+  (with-no-warnings
+    (make-variable-buffer-local 'comment-start-skip))
   (make-local-variable 'comment-start)
   (make-local-variable 'comment-end)
   (make-local-variable 'comment-column)
@@ -149,7 +149,8 @@
 	comment-end   " %/"
 	comment-multi-line t)
   (setq comment-start-skip "%%\\|/%")
-  (make-variable-buffer-local 'font-lock-comment-start-regexp)
+  (with-no-warnings
+    (make-variable-buffer-local 'font-lock-comment-start-regexp))
   (make-local-variable 'indent-line-function)
   (setq indent-line-function 'tlc-indent)
   (make-local-variable 'font-lock-defaults)
@@ -177,6 +178,8 @@
   (indent-to (tlc-calc-indentation))
   )
 
+(defvar tlc--indent-because-of-continuation nil)
+
 (defun tlc-calc-indentation ()
   "Calculate the indentation of this line."
   (beginning-of-line)
@@ -193,9 +196,9 @@ foreach\\|while\\|function\\)\\|%else\\|%elseif\\|%case\\|%default\\)\\>\\)\
 	    (t 0)))
 	(percent (looking-at "\\s-*%"))
 	(percent-slash (looking-at "\\s-*%/"))
-	(percent-percent (looking-at "\\s-*%%"))
-	(indent-because-of-continuation nil))
+	(percent-percent (looking-at "\\s-*%%")))
 
+    (setq tlc--indent-because-of-continuation nil)
     (if (bobp) (current-indentation)
       (save-excursion
 	(forward-line -1)
@@ -210,7 +213,7 @@ foreach\\|while\\|function\\)\\|%else\\|%elseif\\|%case\\|%default\\)\\>\\)\
 	      (t
 	       (let* ((nexti (tlc-calc-next-indentation)))
 		 (setq i (+ (current-indentation)
-			    (if (and indent-because-of-continuation
+			    (if (and tlc--indent-because-of-continuation
 				     (or (> 0 i) percent-percent))
 				i
 			      (+ i nexti)))))
@@ -242,7 +245,7 @@ foreach\\|while\\|else\\|elseif\\|default\\|function\\)\\>\\)\\|/%\\)"))
 				(or (tlc-assignment-continuation-p)
 				    (progn (forward-char -3)
 					   (looking-at "\\\\$"))))))
-	  (setq indent-because-of-continuation t)
+	  (setq tlc--indent-because-of-continuation t)
 	  2)
 	 ((or (save-excursion (end-of-line)
 			      (= (preceding-char) ?{))
@@ -298,7 +301,7 @@ foreach\\|while\\|else\\|elseif\\|default\\|function\\)\\>\\)\\|/%\\)"))
 
 ;;; Add to mode list
 ;;;###autoload(add-to-list 'auto-mode-alist '("\\.tlc$" . tlc-mode))
-(add-to-list 'auto-mode-alist '("\\.tlc$" .tlc-mode))
+(add-to-list 'auto-mode-alist '("\\.tlc$" . tlc-mode))
 
 (provide 'tlc)
 
