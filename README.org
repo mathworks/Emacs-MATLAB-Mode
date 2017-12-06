@@ -1,5 +1,3 @@
-#+STARTUP: showall
-
 * Matlab-emacs Project:
 
   MATLAB and Emacs integration:
@@ -148,8 +146,5 @@
 
    will open foo in the MATLAB editor for debugging.
 
-# LocalWords:  sourceforge listinfo el unsubscribe Xu xuhe gmail Clelland
-# LocalWords:  mailto mcclelland showall elisp cedet MELPA Xemacs melpa
-# LocalWords:  downloader matlabcentral fileexchange emacsen CDs ci dl EIEIO
-# LocalWords:  nodesktop emacsclient
+#+STARTUP: showall
 
