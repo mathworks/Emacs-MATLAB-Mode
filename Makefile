@@ -64,7 +64,7 @@ tags:
 
 .PHONY: clean
 clean:
-	rm -f *.elc matlab-load.el
+	rm -f *.elc matlab-load.el *~
 
 .PHONY: dist
 

@@ -1,4 +1,9 @@
 2017-12-05  John Ciolfi <ciolfi@mathworks.com>
+	* README.org: Revamp help. Remove stale items.
+	* matlab.el, emacsinit.m: make matlab-shell-emacsclient-command
+	customizable so people can easily tailor the ">> edit file.m" behavior.
+
+2017-12-05  John Ciolfi <ciolfi@mathworks.com>
 	* TAB: Fixed several problems with TAB completion, and added
 	direct support for company (complete anything) mode tab
 	completion. If company is installed TAB key is bound to use

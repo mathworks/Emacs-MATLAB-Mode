@@ -1,5 +1,9 @@
 function emacsinit(clientcommand)
 % EMACSINIT Initialize the current MATLAB session for matlab-shell-mode
+%
+% clientcommand is the emacsclient command used to open files in emacs. It
+% is defined by `matlab-shell-emacsclient-command' in matlab.el. If empty,
+% don't instruct MATLAB to use emacsclient to edit files.
 
     if usejava('jvm')
 
@@ -25,13 +29,10 @@ function emacsinit(clientcommand)
             com.mathworks.services.Prefs.setBooleanPref('EditorGraphicalDebugging', false);
         end
 
-        % Disable the built-in editor for normal editing
-        com.mathworks.services.Prefs.setBooleanPref('EditorBuiltinEditor', false);
-
-        % Use emacsclient no-wait to send edit requests to a running emacs.
-        if nargin == 0
-            clientcommand = 'emacsclient -n';
+        if nargin == 1 && ~isempty(clientcommand)
+            % Use clientcommand (e.g. emacsclient -n) for text editing
+            com.mathworks.services.Prefs.setBooleanPref('EditorBuiltinEditor', false);
+            com.mathworks.services.Prefs.setStringPref('EditorOtherEditor', clientcommand);
         end
-        com.mathworks.services.Prefs.setStringPref('EditorOtherEditor', clientcommand);
     end
 end

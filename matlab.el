@@ -4308,10 +4308,14 @@ Command switches are a list of strings.  Each entry is one switch."
 				(file-name-directory (or mlfile "")))))
     (and mlfile (file-exists-p dir)))
   "Add the `matlab-shell' MATLAB toolbox to the MATLAB path on startup.")
-(defvar matlab-shell-emacsclient-command "emacsclient -n"
-  "The command to use as an external editor for MATLAB.
+
+(defcustom matlab-shell-emacsclient-command "emacsclient -n"
+  "*The command to use as an external editor for MATLAB.
 Using emacsclient allows the currently running Emacs to also be the
-external editor for MATLAB.")
+external editor for MATLAB. Setting this to the empty string
+will disable use emacsclient as the external editor."
+  :group 'matlab-shell
+  :type 'integer)
 
 (defvar matlab-custom-startup-command nil
   "Custom matlab command to be run at startup")
@@ -6233,7 +6237,7 @@ Check `matlab-mode-install-path'" filename))))
 ;; LocalWords:  sexp mmode xemacs fontified setq regex sg Fns Alist elipsis vf
 ;; LocalWords:  functionname vers minibuffer eei featurep facep zmacs defface
 ;; LocalWords:  cellbreak cellbreaks overline keymap stringify ispell torkel
-;; LocalWords:  prog bolp if'd cdr uicontext setcolor pragmas tch lse Wette
+;; LocalWords:  prog bolp if'd cdr uicontext setcolor pragmas tch lse Wette RET
 ;; LocalWords:  ndfunction MUs ght urface rol sw mwette caltech edu Ludlam lear
 ;; LocalWords:  eludlam defconst online easymenu Ee progn defalias fboundp ont
 ;; LocalWords:  itimer defun boundp defvaralias bol eol defmacro defcustom tus
@@ -6264,4 +6268,5 @@ Check `matlab-mode-install-path'" filename))))
 ;; LocalWords:  emacsdocompletion subfield usr fil byteswap bw ignoredups mapc
 ;; LocalWords:  noshow lastcmd dired numberp princ matlabregex stackexchange
 ;; LocalWords:  doesnt stacktop basec sk downcase mfile dirs Stelios Kyriacou
-;; LocalWords:  kyriacou cbmv jhu nexti
+;; LocalWords:  kyriacou cbmv jhu nexti Keybindings ui mcos XGrid YGrid YLabel
+;; LocalWords:  ie ret proc acc misconfigured vdp subexpression
