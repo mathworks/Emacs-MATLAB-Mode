@@ -1,4 +1,7 @@
-2017-12-05  John Ciolfi <ciolfi@mathworks.com>
+2017-12-24 John Ciolfi <ciolfi@mathworks.com>
+	* Makefile: Updated byte compile to work on Emacs 25, other minor cleanups.
+
+2017-12-05 John Ciolfi <ciolfi@mathworks.com>
 	* README.org: Revamp help. Remove stale items.
 	* matlab.el, emacsinit.m: make matlab-shell-emacsclient-command
 	customizable so people can easily tailor the ">> edit file.m" behavior.
