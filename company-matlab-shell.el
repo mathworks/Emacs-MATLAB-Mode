@@ -19,7 +19,7 @@
 (condition-case nil
     (require 'company)
   (error nil))
-    
+
 (eval-when-compile (require 'cl))
 (require 'matlab)
 
@@ -33,21 +33,35 @@ performed at the current point."
   (when (eq major-mode 'matlab-shell-mode)
     (if (not (matlab-on-prompt-p))
         'stop  ;; tell company can't complete when point is not in the prompt
-      (let* ((buf-name (buffer-name (current-buffer)))
-             (ci (matlab-shell-get-completion-info))
-             (common-substr (cdr (assoc 'common-substr ci)))
-             (did-completion (cdr (assoc 'did-completion ci))))
-        ;; If did-completion, then matlab-shell-get-completion-info updated the
-        ;; *MATLAB* buffer by deleting text and calling (insert replacement-text), and
-        ;; we have no more completion info.
-        (if did-completion
-            ;; Tell company to abort completion. This causes "Cannot complete at point" and
-            ;; there doesn't seem to be a way to protect against this message.
-            nil                 
-          (puthash buf-name ci company-matlab-shell--ci)
-          ;; command to be completed
-          common-substr
-          )))))
+      (let ((lastcmd (buffer-substring (point) (matlab-point-at-eol))))
+	;; Kill the rest of the line since completion only works at the end of the line and
+        ;; we'd like it to complete within a line. For example,
+        ;;   h=figure;
+        ;;   h.set('Vis','on')
+        ;;             ^
+        ;;             TAB here results in:
+        ;;   h.set('Visible','on')
+	(delete-region (point) (matlab-point-at-eol))
+	(let* ((buf-name (buffer-name (current-buffer)))
+	       (ci (matlab-shell-get-completion-info))
+	       (common-substr (cdr (assoc 'common-substr ci)))
+	       (did-completion (cdr (assoc 'did-completion ci))))
+	  ;; restore the killed part of the line
+	  (let ((orig-pt (point)))
+	    (insert lastcmd)
+	    (goto-char orig-pt))
+
+	  ;; If did-completion, then matlab-shell-get-completion-info updated the
+	  ;; *MATLAB* buffer by deleting text and calling (insert replacement-text), and
+	  ;; we have no more completion info.
+	  (if did-completion
+	      ;; Tell company to abort completion. This causes "Cannot complete at point" and
+	      ;; there doesn't seem to be a way to protect against this message.
+	      nil
+	    (puthash buf-name ci company-matlab-shell--ci)
+	    ;; command to be completed
+	    common-substr
+	    ))))))
 
 
 (defun company-matlab-shell-get-completions ()

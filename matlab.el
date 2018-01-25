@@ -5705,13 +5705,13 @@ indication that it ran."
           (comint-simple-send (get-buffer-process (current-buffer)) command)
           ;; Wait for the command to finish, by looking for new prompt.
           (goto-char (point-max))
-          ;; Turn on C-g by setting inhibit-quit to nil. This is needed to prevent message:
+          ;; Turn on C-g by using wiht-local-quit. This is needed to prevent message:
           ;;  "Blocking call to accept-process-output with quit inhibited!! [115 times]"
           ;; when using `company-matlab-shell' for TAB completions.
-          (let ((inhibit-quit nil))
-            (while (or (>= (+ pos (string-width command)) (point)) (not (matlab-on-empty-prompt-p)))
-              (accept-process-output (get-buffer-process (current-buffer)))
-              (goto-char (point-max))))
+          (with-local-quit
+	    (while (or (>= (+ pos (string-width command)) (point)) (not (matlab-on-empty-prompt-p)))
+	      (accept-process-output (get-buffer-process (current-buffer)))
+	      (goto-char (point-max))))
 
           ;; Get result of command into str
           (goto-char pos)

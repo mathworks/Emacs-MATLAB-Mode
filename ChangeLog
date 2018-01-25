@@ -1,3 +1,7 @@
+2018-01-25 John Ciolfi <ciolfi@mathworks.com>
+	* matlab.el, company-matlab.el: Allow completion within a line and better
+	quit support. Patch provided by Nate Chodosh.
+
 2017-12-24 John Ciolfi <ciolfi@mathworks.com>
 	* Makefile: Updated byte compile to work on Emacs 25, other minor cleanups.
 
