@@ -1,3 +1,9 @@
+2018-09-28  Uwe Brauer  <oub@mat.ucm.es>
+
+	* matlab.el (matlab-string-start-regexp): Patch provided by Eric
+	Ludlam: adds support for Strings in matlab-mode. b = "string
+	scalar" and b = "string "" scalar" are now highlighted.
+
 2018-01-25 John Ciolfi <ciolfi@mathworks.com>
 	* matlab.el, company-matlab.el: Allow completion within a line and better
 	quit support. Patch provided by Nate Chodosh.

@@ -725,32 +725,47 @@ If font lock is not loaded, lay in wait."
 
 ;;; Font locking keywords =====================================================
 
-(defvar matlab-string-start-regexp "\\(^\\|[^]})a-zA-Z0-9_.']\\)"
+(defvar matlab-string-char-regexp "\\(?9:['\"]\\)"
+  "Regexp used to find a character that starts a char vector or string.
+This remembers what chart was matched via index 9.")
+
+(defvar matlab-string-start-regexp "\\(^\\|[^]})a-zA-Z0-9_.'\"]\\)"
   "Regexp used to represent the character before the string char '.
 The ' character has restrictions on what starts a string which is needed
 when attempting to understand the current context.")
 
 ;; To quote a quote, put two in a row, thus we need an anchored
 ;; first quote.  In addition, we don't want to color strings in comments.
-(defvar matlab-string-end-regexp "[^'\n]*\\(''[^'\n]*\\)*'"
-  "Regexp used to represent the character pattern for ending a string.
-The ' character can be used as a transpose, and can transpose transposes.
-Therefore, to end, we must check all that goop.")
+(defvar matlab-string-content-regexp "[^\\9\n]*\\(?:\\9\\9[^\\9\n]*\\)*"
+  "Regexp that matches the content of a char vector or string.
+Stops matching when end of line, or end of that char vector or string is met.
+depends on `matlab-string-char-regexp' being at the beginning of a compound expression.")
+
+(defvar matlab-string-end-regexp (concat matlab-string-content-regexp "\\9")
+  "Regexp used to represent the character pattern for ending a char vector or string.
+This depends on `matlab-string-char-regexp' being used earlier to specify what
+\9 represents (ie - either ' or \").")
+
+(defun matlab-match-string-end-for-string ()
+  "If the last searched regexp included `matlab-string-char-regexp', then find the end of that string."
+  (let ((strchar (match-string 9)))
+    (re-search-forward (concat "[^" strchar "\n]*\\(?:"  strchar strchar "[^" strchar "\n]*\\)*" strchar)
+                       nil t)))
 
 (defun matlab-font-lock-string-match-normal (limit)
   "When font locking strings, call this function for normal strings.
 Argument LIMIT is the maximum distance to scan."
   (matlab-font-lock-string-match-here
    (concat matlab-string-start-regexp
-	   "\\('" matlab-string-end-regexp "\\)"
-	   "\\([^']\\|$\\)")
+	   "\\(?2:" matlab-string-char-regexp matlab-string-end-regexp "\\)"
+	   "\\([^\\9]\\|$\\)")
    limit))
 
 (defun matlab-font-lock-string-match-unterminated (limit)
   "When font locking strings, call this function for normal strings.
 Argument LIMIT is the maximum distance to scan."
   (matlab-font-lock-string-match-here
-   (concat matlab-string-start-regexp "\\('[^'\n]*\\(''[^'\n]*\\)*\\)$")
+   (concat matlab-string-start-regexp "\\(?2:" matlab-string-char-regexp matlab-string-content-regexp "\\)$")
    limit))
 
 (defun matlab-font-lock-string-match-here (regex limit)
@@ -2211,7 +2226,7 @@ line."
     (narrow-to-region (matlab-point-at-bol) (matlab-point-at-eol))
     (let ((p (1+ (point)))
 	  (returnme nil)
-	  (sregex (concat matlab-string-start-regexp "'")))
+	  (sregex (concat matlab-string-start-regexp matlab-string-char-regexp)))
       (save-excursion
 	(goto-char (point-min))
 	(while (and (re-search-forward
@@ -2229,7 +2244,7 @@ line."
 		    (save-excursion (forward-char -2)
 				    (looking-at sregex)))
 		;; a valid string start, find the end
-		(let ((f (re-search-forward matlab-string-end-regexp nil t)))
+		(let ((f (matlab-match-string-end-for-string)))
 		  (if f
 		      (setq returnme (> (point) p))
 		    (setq returnme t)))
@@ -2265,7 +2280,7 @@ are in what could be a an incomplete string."
       (narrow-to-region (matlab-point-at-bol) (matlab-point-at-eol))
       (let ((p (1+ (point)))
 
-	    (sregex (concat matlab-string-start-regexp "'"))
+	    (sregex (concat matlab-string-start-regexp matlab-string-char-regexp))
 	    (instring nil))
 	(save-excursion
 	  ;; Comment hunters need strings to not call the comment
@@ -2293,7 +2308,7 @@ are in what could be a an incomplete string."
 		      (save-excursion (forward-char -2)
 				      (looking-at sregex)))
 		  ;; a valid string start, find the end
-		  (let ((f (re-search-forward matlab-string-end-regexp nil t)))
+		  (let ((f (matlab-match-string-end-for-string)))
 		    (if (and (not f) incomplete)
 			(setq returnme t)
 		      (setq returnme (> (point) p))
