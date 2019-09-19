@@ -65,6 +65,12 @@ cell_in_strs2_nested = { 'charv { innercell " }' "strinc { innercel ' }" };
 icell_in_strs1_nested = { "strinc  innercel ' }" 'charv  innercell " }' }; % TODO - bad cell match
 icell_in_strs2_nested = { 'charv  innercell " }' "strinc  innercel ' }" };
 
+%% Elipsis as comment
+
+fun_call(); ...  This is a comment
+fun_call(); ...  'charvec in elipsis comment'
+fun_call(); ...  "string in elipsis comment"
+
 %% Indentation protection
 
 icC = 'charv with { in it';
