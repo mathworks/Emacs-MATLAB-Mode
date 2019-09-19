@@ -631,6 +631,7 @@ If font lock is not loaded, lay in wait."
     (modify-syntax-entry ?-  "." st)
     (modify-syntax-entry ?*  "." st)
     (modify-syntax-entry ?'  "." st)
+    (modify-syntax-entry ?\"  "." st)
     (modify-syntax-entry ?/  "." st)
     (modify-syntax-entry ?=  "." st)
     (modify-syntax-entry ?<  "." st)
@@ -725,51 +726,38 @@ If font lock is not loaded, lay in wait."
 
 ;;; Font locking keywords =====================================================
 
-(defvar matlab-string-char-regexp "\\(?9:['\"]\\)"
-  "Regexp used to find a character that starts a char vector or string.
-This remembers what chart was matched via index 9.")
+;;; Font Lock Chracter Vector constant support
 
 (defvar matlab-string-start-regexp "\\(^\\|[^]})a-zA-Z0-9_.'\"]\\)"
-  "Regexp used to represent the character before the string char '.
+  "Regexp used to represent the character before the char vector or string scalars.
 The ' character has restrictions on what starts a string which is needed
 when attempting to understand the current context.")
 
 ;; To quote a quote, put two in a row, thus we need an anchored
 ;; first quote.  In addition, we don't want to color strings in comments.
-(defvar matlab-string-content-regexp "[^\\9\n]*\\(?:\\9\\9[^\\9\n]*\\)*"
-  "Regexp that matches the content of a char vector or string.
-Stops matching when end of line, or end of that char vector or string is met.
-depends on `matlab-string-char-regexp' being at the beginning of a compound expression.")
+(defvar matlab-charvec-end-regexp "[^'\n]*\\(''[^'\n]*\\)*'"
+  "Regexp used to represent the character pattern for ending a character vector.
+The ' character can be used as a transpose, and can transpose transposes.
+Therefore, to end, we must check all that goop.")
 
-(defvar matlab-string-end-regexp (concat matlab-string-content-regexp "\\9")
-  "Regexp used to represent the character pattern for ending a char vector or string.
-This depends on `matlab-string-char-regexp' being used earlier to specify what
-\9 represents (ie - either ' or \").")
-
-(defun matlab-match-string-end-for-string ()
-  "If the last searched regexp included `matlab-string-char-regexp', then find the end of that string."
-  (let ((strchar (match-string 9)))
-    (re-search-forward (concat "[^" strchar "\n]*\\(?:"  strchar strchar "[^" strchar "\n]*\\)*" strchar)
-                       nil t)))
-
-(defun matlab-font-lock-string-match-normal (limit)
-  "When font locking strings, call this function for normal strings.
+(defun matlab-font-lock-charvec-match-normal (limit)
+  "When font locking strings, call this function for normal character vectors.
 Argument LIMIT is the maximum distance to scan."
-  (matlab-font-lock-string-match-here
+  (matlab-font-lock-charvec-match-here
    (concat matlab-string-start-regexp
-	   "\\(?2:" matlab-string-char-regexp matlab-string-end-regexp "\\)"
-	   "\\([^\\9]\\|$\\)")
+	   "\\('" matlab-charvec-end-regexp "\\)"
+	   "\\([^']\\|$\\)")
    limit))
 
-(defun matlab-font-lock-string-match-unterminated (limit)
-  "When font locking strings, call this function for normal strings.
+(defun matlab-font-lock-charvec-match-unterminated (limit)
+  "When font locking character vectors, call this function for normal char vectors.
 Argument LIMIT is the maximum distance to scan."
-  (matlab-font-lock-string-match-here
-   (concat matlab-string-start-regexp "\\(?2:" matlab-string-char-regexp matlab-string-content-regexp "\\)$")
+  (matlab-font-lock-charvec-match-here
+   (concat matlab-string-start-regexp "\\('[^'\n]*\\(''[^'\n]*\\)*\\)$")
    limit))
 
-(defun matlab-font-lock-string-match-here (regex limit)
-  "When font-locking strings, call this function to determine a match.
+(defun matlab-font-lock-charvec-match-here (regex limit)
+  "When font-locking character vectors, call this function to determine a match.
 Argument REGEX is the expression to scan for.  Match 2 must be the string.
 Argument LIMIT is the maximum distance to scan."
   (let (e)
@@ -791,6 +779,55 @@ Argument LIMIT is the maximum distance to scan."
       (goto-char e)
       t)))
 
+;;; Font Lock String Scalar Constants
+
+;; To quote a quote, put two in a row, thus we need an anchored
+;; first quote.  In addition, we don't want to color strings in comments.
+(defvar matlab-stringscalar-end-regexp "[^\"\n]*\\(\"\"[^\"\n]*\\)*\""
+  "Regexp used to represent the character pattern for ending a string scalar.
+Two quotes in a row quote in a quote to the string scalar.")
+
+(defun matlab-font-lock-stringscalar-match-normal (limit)
+  "When font locking strings, call this function for normal character vectors.
+Argument LIMIT is the maximum distance to scan."
+  (matlab-font-lock-stringscalar-match-here
+   (concat matlab-string-start-regexp
+	   "\\(\"" matlab-stringscalar-end-regexp "\\)"
+	   "\\([^\"]\\|$\\)")
+   limit))
+
+(defun matlab-font-lock-stringscalar-match-unterminated (limit)
+  "When font locking character vectors, call this function for normal char vectors.
+Argument LIMIT is the maximum distance to scan."
+  (matlab-font-lock-stringscalar-match-here
+   (concat matlab-string-start-regexp "\\(\"[^\"\n]*\\(\"\"[^\"\n]*\\)*\\)$")
+   limit))
+
+(defun matlab-font-lock-stringscalar-match-here (regex limit)
+  "When font-locking character vectors, call this function to determine a match.
+Argument REGEX is the expression to scan for.  Match 2 must be the string.
+Argument LIMIT is the maximum distance to scan."
+  (let (e)
+    (while (and (re-search-forward regex limit t)
+		(progn
+		  ;; This gets us out of a comment after the string.
+		  (setq e (match-end 2))
+		  (goto-char (match-beginning 2))
+		  (prog1
+		      (or (matlab-cursor-in-comment)
+			  (if (bolp) nil
+			    (save-excursion
+			      (forward-char -1)
+			      (matlab-cursor-in-string))))
+		    (goto-char e))))
+      (setq e nil))
+    (if (not e)
+	nil
+      (goto-char e)
+      t)))
+
+;;; Font Lock Comment and Unreachable Code Matchers
+
 (defun matlab-font-lock-comment-match (limit)
   "When font-locking comments, call this function to determine a match.
 Argument LIMIT is the maximum distance to scan."
@@ -806,6 +843,31 @@ Argument LIMIT is the maximum distance to scan."
 	nil
       (goto-char e)
       t)))
+
+(defun matlab-find-block-comments (limit)
+  "Find code that is commented out with %{ until %}.
+Argument LIMIT is the maximum distance to search."
+  (if (and (< (point) limit)
+	   (re-search-forward "%{" limit t))
+      (let ((b1 (match-beginning 0))
+	    (e1 (match-end 0))
+	    (b2 nil) (e2 nil)
+	    (b3 nil) (e3 nil))
+	(goto-char b1)
+	(forward-char -1)
+	(when (not (matlab-cursor-in-comment))
+	  (setq b2 (re-search-forward "%}" limit t))
+	  (when b2
+	    (setq b2 (match-beginning 0)
+		  e2 (match-end 0))
+	    (set-match-data
+	     (list b1 e2  ; full match
+		   b1 e2  ; the full comment
+		   b1 e1  ; the block start
+		   b2 e2  ; the block end
+		   ))
+	    t
+	    )))))
 
 (defun matlab-find-unreachable-code (limit)
   "Find code that is if'd out with if(0) or if(false), and mark it as a comment.
@@ -852,6 +914,9 @@ Argument LIMIT is the maximum distance to search."
 		     b1 e3))		;body commented out.
 	      t)
 	  (error nil)))))
+
+
+;;; Font Lock MLINT data highlighting
 
 (defun matlab-font-lock-nested-function-keyword-match (limit)
   "Find next nested function/end keyword for font-lock.
@@ -904,31 +969,6 @@ Argument LIMIT is the maximum distance to search."
       nil ;; no matches, stop
       )))
 
-(defun matlab-find-block-comments (limit)
-  "Find code that is commented out with %{ until %}.
-Argument LIMIT is the maximum distance to search."
-  (if (and (< (point) limit)
-	   (re-search-forward "%{" limit t))
-      (let ((b1 (match-beginning 0))
-	    (e1 (match-end 0))
-	    (b2 nil) (e2 nil)
-	    (b3 nil) (e3 nil))
-	(goto-char b1)
-	(forward-char -1)
-	(when (not (matlab-cursor-in-comment))
-	  (setq b2 (re-search-forward "%}" limit t))
-	  (when b2
-	    (setq b2 (match-beginning 0)
-		  e2 (match-end 0))
-	    (set-match-data
-	     (list b1 e2  ; full match
-		   b1 e2  ; the full comment
-		   b1 e1  ; the block start
-		   b2 e2  ; the block end
-		   ))
-	    t
-	    )))))
-
 (defcustom matlab-keyword-list '("global" "persistent" "for" "parfor" "while"
 				 "spmd" "if" "elseif" "else"
 				 "endfunction" "return" "break" "continue"
@@ -965,12 +1005,19 @@ Customizing this variable is only useful if `regexp-opt' is available."
 ;; font-lock keywords
 (defvar matlab-font-lock-keywords
   (list
-   ;; String quote chars are also used as transpose, but only if directly
+   ;; charvec quote chars are also used as transpose, but only if directly
    ;; after characters, numbers, underscores, or closing delimiters.
-   '(matlab-font-lock-string-match-normal 2 font-lock-string-face)
-   ;; A string with no termination is not currently highlighted.
+   '(matlab-font-lock-charvec-match-normal 2 font-lock-string-face)
+   ;; A charvec with no termination is not currently highlighted.
    ;; This will show that the string needs some attention.
-   '(matlab-font-lock-string-match-unterminated
+   '(matlab-font-lock-charvec-match-unterminated
+     2 matlab-unterminated-string-face)
+   ;; Stringscalar quote chars are also used as transpose, but only if directly
+   ;; after characters, numbers, underscores, or closing delimiters.
+   '(matlab-font-lock-stringscalar-match-normal 2 font-lock-string-face)
+   ;; A stringscalar with no termination is not currently highlighted.
+   ;; This will show that the string needs some attention.
+   '(matlab-font-lock-stringscalar-match-unterminated
      2 matlab-unterminated-string-face)
    ;; Comments must occur after the string, that way we can check to see
    ;; if the comment start char has occurred inside our string. (EL)
@@ -1069,7 +1116,7 @@ ui\\(cont\\(ext\\(\\|menu\\)\\|rol\\)\\|menu\\|\
       (1 font-lock-keyword-face) (2 font-lock-reference-face))
     ;; How about a few matlab constants such as pi, infinity, and sqrt(-1)?
     ;; The ^>> is in case I use this in an interactive mode someday
-    '("\\<\\(eps\\|pi\\|inf\\|Inf\\|NaN\\|nan\\|ans\\|i\\|j\\|^>>\\)\\>"
+    '("\\<\\(eps\\|pi\\|inf\\|Inf\\|NaN\\|nan\\|ans\\|i\\|j\\|nat\\|NAT\\|^>>\\)\\>"
       1 font-lock-reference-face)
     '("\\<[0-9]\\.?\\(i\\|j\\)\\>" 1 font-lock-reference-face)
     ;; Define these as variables since this is about as close
@@ -1087,6 +1134,7 @@ ui\\(cont\\(ext\\(\\|menu\\)\\|rol\\)\\|menu\\|\
     ;; Since it's a math language, how bout dem symbols?
     '("\\([<>~]=?\\|\\.[/*^']\\|==\\|\\<xor\\>\\|[-!^&|*+\\/~:]\\)"
       1 font-lock-type-face)
+    '("[]A-Za-z0-9_}']\\('+\\)" 1 font-lock-type-face)
     ;; How about references in the HELP text.
     (list (concat "^" matlab-comment-line-s "\\s-*"
 		  "\\(\\([A-Z]+\\s-*=\\s-+\\|\\[[^]]+]\\s-*=\\s-+\\|\\)"
@@ -2226,11 +2274,11 @@ line."
     (narrow-to-region (matlab-point-at-bol) (matlab-point-at-eol))
     (let ((p (1+ (point)))
 	  (returnme nil)
-	  (sregex (concat matlab-string-start-regexp matlab-string-char-regexp)))
+	  (sregex (concat matlab-string-start-regexp "\\('\\|\"\\)")))
       (save-excursion
 	(goto-char (point-min))
 	(while (and (re-search-forward
-		     (concat "'\\|%\\|" (regexp-quote matlab-elipsis-string))
+		     (concat "'\\|\"\\|%\\|" (regexp-quote matlab-elipsis-string))
 		     nil t)
 		    (<= (point) p))
 	  (if (or (= ?% (preceding-char))
@@ -2244,7 +2292,11 @@ line."
 		    (save-excursion (forward-char -2)
 				    (looking-at sregex)))
 		;; a valid string start, find the end
-		(let ((f (matlab-match-string-end-for-string)))
+		(let ((f (if (= (preceding-char) ?')
+			       ;; We need to know what kind of string we are finishing to
+			       ;; pick the right end construct.
+			       (re-search-forward matlab-charvec-end-regexp nil t)
+			     (re-search-forward matlab-stringscalar-end-regexp nil t))))
 		  (if f
 		      (setq returnme (> (point) p))
 		    (setq returnme t)))
@@ -2271,7 +2323,7 @@ line."
 	       (not (matlab-cursor-in-string))))))))
 
 (defun matlab-cursor-in-string (&optional incomplete)
-  "Return t if the cursor is in a valid MATLAB string.
+  "Return t if the cursor is in a valid MATLAB character vector or string scalar.
 If the optional argument INCOMPLETE is non-nil, then return t if we
 are in what could be a an incomplete string."
   (let ((m (match-data))
@@ -2280,22 +2332,22 @@ are in what could be a an incomplete string."
       (narrow-to-region (matlab-point-at-bol) (matlab-point-at-eol))
       (let ((p (1+ (point)))
 
-	    (sregex (concat matlab-string-start-regexp matlab-string-char-regexp))
+	    (sregex (concat matlab-string-start-regexp "\\('\\|\"\\)" ))
 	    (instring nil))
 	(save-excursion
 	  ;; Comment hunters need strings to not call the comment
 	  ;; identifiers.  Thus, this routines must be savvy of comments
 	  ;; without recursing to them.
 	  (goto-char (point-min))
-	  (while (or (and instring (looking-at "'"))
+	  (while (or (and instring (looking-at "['\"]"))
 		     (and (re-search-forward
-			   (concat "'\\|%\\|"
+			   (concat "'\\|\"\\|%\\|"
 				   (regexp-quote matlab-elipsis-string))
 			   nil t)
 			  (<= (point) p)
 			  ;; Short circuit to fix this.
 			  (progn (setq instring nil) t)))
-	    ;; The next line emulates re-search-forward
+	    ;; The next line emulates re-search-foward
 	    (if instring (goto-char (match-end 0)))
 	    (if (or (= ?% (preceding-char))
 		    (= ?. (preceding-char)))
@@ -2308,7 +2360,11 @@ are in what could be a an incomplete string."
 		      (save-excursion (forward-char -2)
 				      (looking-at sregex)))
 		  ;; a valid string start, find the end
-		  (let ((f (matlab-match-string-end-for-string)))
+		  (let ((f (if (= (preceding-char) ?')
+			       ;; We need to know what kind of string we are finishing to
+			       ;; pick the right end construct.
+			       (re-search-forward matlab-charvec-end-regexp nil t)
+			     (re-search-forward matlab-stringscalar-end-regexp nil t))))
 		    (if (and (not f) incomplete)
 			(setq returnme t)
 		      (setq returnme (> (point) p))
@@ -3745,7 +3801,7 @@ Argument BEGIN and END mark the region boundary."
     (goto-char begin)
     ;; Here we use the font lock function for finding strings.
     ;; Its cheap, fast, and accurate.
-    (while (and (matlab-font-lock-string-match-normal end)
+    (while (and (matlab-font-lock-charvec-match-normal end)
 		(ispell-region (match-beginning 2) (match-end 2))))))
 
 (defun matlab-ispell-strings ()
