@@ -3,6 +3,9 @@
 
 %% Basic strings
 
+'char vector'
+"string"
+
 charvec = 'character vector';
 stringscalar = "string scalar";
 
@@ -62,8 +65,21 @@ cell_in_strs2_nested = { 'charv { innercell " }' "strinc { innercel ' }" };
 icell_in_strs1_nested = { "strinc  innercel ' }" 'charv  innercell " }' }; % TODO - bad cell match
 icell_in_strs2_nested = { 'charv  innercell " }' "strinc  innercel ' }" };
 
+%% Indentation protection
 
-%% String scalar special cases
+icC = 'charv with { in it';
+icS = "strings with { in it";
+
+imC = 'charv with [ in it';
+imS = "strings with [ in it";
+
+
+%% Concatenation
+
+CA = [ 'char' 'vector' 'concat' ];
+CAE = [ 'char'
+        'vect'
+        'conc' ];
 
 SA = [ "array" "of" "scalar" "strings" ];
 SAE = [ "vert"
@@ -82,6 +98,9 @@ F = { 'cell' 'trnspose' }'';
 G = [ "string" "array" "transpose" ]';
 H = A.';
 I = A.'';
+J = A(B')';
+K = 12';
+L = "string transpose"';
 
 % Comment with transpose' in it.
 % Comment with something" in it.
