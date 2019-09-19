@@ -1005,13 +1005,6 @@ Customizing this variable is only useful if `regexp-opt' is available."
      (1 font-lock-string-face nil t)
      (2 matlab-unterminated-string-face nil t)
      (3 font-lock-comment-face nil t))
-   ;; A charvec and string with no termination is not currently highlighted.
-   ;; This will show that the string needs some attention.
-   ;'(matlab-font-lock-allstring-match-unterminated
-   ;  2 matlab-unterminated-string-face)
-   ;; Comments must occur after the string, that way we can check to see
-   ;; if the comment start char has occurred inside our string. (EL)
-   ;'(matlab-font-lock-comment-match 1 font-lock-comment-face)
    ;; Various pragmas should be in different colors.
    ;; I think pragmas are always lower case?
    '("%#\\([a-z]+\\)" (1 'bold prepend))
