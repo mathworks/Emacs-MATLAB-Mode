@@ -814,29 +814,9 @@ Argument LIMIT is the maximum distance to scan."
 	  
       ;; Successful string
       t)))
-  
-
-
-
 
 ;;; Font Lock Comment and Unreachable Code Matchers
 ;;
-
-;(defun matlab-font-lock-comment-match (limit)
-;  "When font-locking comments, call this function to determine a match.
-;Argument LIMIT is the maximum distance to scan."
-;  (let (e)
-;    (while (and (re-search-forward "\\(%[^%\n]*\\)" limit t)
-;		(progn
-;		  (setq e (match-end 1))
-;		  (member (get-text-property (match-beginning 0) 'face)
-;			  '(font-lock-string-face
-;			    matlab-unterminated-string-face))))
-;      (setq e nil))
-;    (if (not e)
-;	nil
-;      (goto-char e)
-;      t)))
 
 (defun matlab-find-block-comments (limit)
   "Find code that is commented out with %{ until %}.
