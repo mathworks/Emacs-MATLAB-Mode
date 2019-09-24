@@ -1079,7 +1079,7 @@ ui\\(cont\\(ext\\(\\|menu\\)\\|rol\\)\\|menu\\|\
       (1 font-lock-keyword-face) (2 font-lock-reference-face))
     ;; How about a few matlab constants such as pi, infinity, and sqrt(-1)?
     ;; The ^>> is in case I use this in an interactive mode someday
-    '("\\<\\(eps\\|pi\\|inf\\|Inf\\|NaN\\|nan\\|ans\\|i\\|j\\|nat\\|NAT\\|^>>\\)\\>"
+    '("\\<\\(eps\\|pi\\|inf\\|Inf\\|NaN\\|nan\\|ans\\|i\\|j\\|NaT\\|^>>\\)\\>"
       1 font-lock-reference-face)
     '("\\<[0-9]\\.?\\(i\\|j\\)\\>" 1 font-lock-reference-face)
     ;; Define these as variables since this is about as close
@@ -2234,6 +2234,7 @@ line."
 Return 'comment if in a comment.
 Return 'string if in a string.
 Return 'charvector if in a character vector
+Return 'elipsis if after an ... elipsis
 Return nil if none of the above.
 Scans from the beginning of line to determine the contenxt."
   (save-match-data
@@ -2241,16 +2242,19 @@ Scans from the beginning of line to determine the contenxt."
       (narrow-to-region (matlab-point-at-bol) (matlab-point-at-eol))
       (let ((p (1+ (point)))
 	    (returnme nil)
-	    (sregex (concat "\\(%\\)\\|" matlab-string-start-regexp "\\('\\|\"\\)"))
+	    (sregex (concat "\\(%\\)\\|" matlab-string-start-regexp "\\('\\|\"\\)\\|\\(\\.\\.\\.\\)"))
 	    (insregex "\\('\\|\"\\)"))
 	(save-excursion
 	  (goto-char (point-min))
 	  (while (and (not (eq returnme 'comment))
+		      (not (eq returnme 'elipsis))
 		      (re-search-forward (if (not returnme) sregex insregex) nil t)
 		      (<= (point) p))
 	    (cond ((eq returnme nil)
 		   (cond ((= (preceding-char) ?%)
 			  (setq returnme 'comment))
+			 ((= (preceding-char) ?.)
+			  (setq returnme 'elipsis))
 			 ((= (preceding-char) ?')
 			  (setq returnme 'charvector))
 			 ((= (preceding-char) ?\")
