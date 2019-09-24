@@ -1,95 +1,97 @@
 %% Tests for char vector and string handling.
 %
+%  #c#
 
 %% Basic strings
 
-'char vector'
-"string"
+'char vector #v#'
+"string #s#"
 
-charvec = 'character vector';
-stringscalar = "string scalar";
+charvec = 'character vector #v#';
+stringscalar = "string scalar #s#";
 
-% Comment with 'character vector' in it.
-% Comment with "string scalar" in it.
+% Comment with 'character vector #c#' in it.
+% Comment with "string scalar #c#" in it.
 
-charvi = 'char vector incomplete
-stringi = "string scalar incomplete
+charvi = 'char vector incomplete #v#
+stringi = "string scalar incomplete #s#
 
-% Comment with 'char vector incomplete
-% Comment with "string scalar incomplete
+% Comment with 'char vector incomplete #c#
+% Comment with "string scalar incomplete #c#
 
 %% Strings in Strings
 
-charvs = 'char vector with "string" in it';
-stringcv = "string scalar with 'char vec' in it";
+charvs = 'char vector with "string #v#" in it';
+stringcv = "string scalar with 'char vec #s#' in it";
 
-chard = 'char vector with '' in it';
-stringd = "string scalar with "" in it";
+chard = 'char vector with '' in it #v#';
+stringd = "string scalar with "" in it #s#";
 
-chardi = 'incomplete char vector with '' in it
-stringdi = "incomplete string scalar with "" in it
+chardi = 'incomplete char vector with '' in it #v#
+stringdi = "incomplete string scalar with "" in it #s#
 
 %% Strings with Comments
 
-charvc = 'char vector with % comment char';
-stringc = "string scalar with % comment char";
+charvc = 'char vector with % comment char #v#';
+stringc = "string scalar with % comment char #s#";
 
-charvci = 'incomplete char vector with % comment char
-stringci = "incomplete string scalar with % comment char
+charvci = 'incomplete char vector with % comment char #v#
+stringci = "incomplete string scalar with % comment char #s#
 
-charvbc = 'char vector with %{ comment char %} ';
-stringbc = "string scalar with %{ comment char %} ";
+charvbc = 'char vector with %{ comment char #v# %} ';
+stringbc = "string scalar with %{ comment char #s# %} ";
 
-charvel = 'char vector with elipsis ... ';
-stringel = "string scalar with elipsis ... ";
+charvel = 'char vector with elipsis ... #v# ';
+stringel = "string scalar with elipsis ...  #s#";
 
 %% Mixed String Char on the same line
 
-charv2str = { 'char vec' "string" };
-str2charv = { "string" 'char vec' };
+charv2str = { 'char vec #v#' "string #s#" };
+str2charv = { "string #s#" 'char vec #v#' };
 
-cv2s_quoted = { 'char vec and ''quote' "string and "" quote" };
-s2cv_quoted = { "string and "" quote" 'char vec and '' quote' };
+cv2s_quoted = { 'char vec and ''quote #v#' "string and "" quote #s#" };
+s2cv_quoted = { "string and "" quote #s#" 'char vec and '' quote #v#' };
 
-cv2s_nested = { 'char vec and " quote' "string and ' quote" };
-s2cv_nested = { "string and ' quote" 'char vec and " quote' };
+cv2s_nested = { 'char vec and " quote #v#' "string and ' quote #s#" };
+s2cv_nested = { "string and ' quote #s#" 'char vec and " quote #v#' };
 
-cv2s_transp = { 'char vec and t" quote' "string and t' quote" };
-s2cv_transp = { "string and t' quote" 'char vec and t" quote' };
+cv2s_transp = { 'char vec and t" quote #v#' "string and t' quote #s#" };
+s2cv_transp = { "string and t' quote #s#" 'char vec and t" quote #v#' };
 
-cell_in_strs = { "strinc { innercel }" 'charv {innercel}' };
+cell_in_strs = { "strinc { innercel #s# }" 'charv {innercel #v#}' };
 
-cell_in_strs1_nested = { "strinc { innercel ' }" 'charv { innercell " }' };
-cell_in_strs2_nested = { 'charv { innercell " }' "strinc { innercel ' }" };
+cell_in_strs1_nested = { "strinc { innercel ' #s# }" 'charv { innercell " #v# }' };
+cell_in_strs2_nested = { 'charv { innercell " #v# }' "strinc { innercel ' #s# }" };
 
-icell_in_strs1_nested = { "strinc  innercel ' }" 'charv  innercell " }' }; % TODO - bad cell match
-icell_in_strs2_nested = { 'charv  innercell " }' "strinc  innercel ' }" };
+icell_in_strs1_nested = { "strinc  innercel ' #s# }" 'charv  innercell " #v# }' };
+icell_in_strs2_nested = { 'charv  innercell " #v# }' "strinc  innercel ' #s# }" };
 
 %% Elipsis as comment
 
-fun_call(); ...  This is a comment
-fun_call(); ...  'charvec in elipsis comment'
-fun_call(); ...  "string in elipsis comment"
+fun_call(); ...  This is a comment after an elipsis #e#
+fun_call(); ...  'charvec in elipsis comment #e#'
+fun_call(); ...  "string in elipsis comment #e#"
+fun_call(); ...  % comment after an elipsis is still elipsis #e#
 
 %% Indentation protection
 
-icC = 'charv with { in it';
-icS = "strings with { in it";
+icC = 'charv with { in it #v#';
+icS = "strings with { in it #s#";
 
-imC = 'charv with [ in it';
-imS = "strings with [ in it";
+imC = 'charv with [ in it #v#';
+imS = "strings with [ in it #s#";
 
 
 %% Concatenation
 
-CA = [ 'char' 'vector' 'concat' ];
+CA = [ 'char' 'vector' 'concat #v#' ];
 CAE = [ 'char'
-        'vect'
+        'vect #v#'
         'conc' ];
 
-SA = [ "array" "of" "scalar" "strings" ];
+SA = [ "array" "of" "scalar" "strings" "#s#" ];
 SAE = [ "vert"
-        "array"
+        "array #s#"
         "of"
         "strings" ];
 
@@ -98,18 +100,18 @@ SAE = [ "vert"
 A = [1 2 3]';
 B = A';
 C = A'';
-D = { 'cell' 'transpose' }';
+D = { 'cell' 'transpose' '#v#' }';
 E = [ 1 2 3 ]'';
 F = { 'cell' 'trnspose' }'';
-G = [ "string" "array" "transpose" ]';
+G = [ "string" "array" "transpose" "#s#" ]';
 H = A.';
 I = A.'';
 J = A(B')';
 K = 12';
-L = "string transpose"';
+L = "string transpose #s#"';
 
-% Comment with transpose' in it.
-% Comment with something" in it.
+% Comment with transpose' in it. #c#
+% Comment with something" in it. #c#
 
 
 %% Unreachable
@@ -121,7 +123,7 @@ if 0
     
 end
 
-%% Block Comments
+%% Block Comments #c#
 
 %{
 
