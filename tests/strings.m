@@ -73,7 +73,21 @@ fun_call(); ...  'charvec in elipsis comment #e#'
 fun_call(); ...  "string in elipsis comment #e#"
 fun_call(); ...  % comment after an elipsis is still elipsis #e#
 
-%% Indentation protection
+%% Elipsis and strings and other comments
+
+Ecv = 'string with ... in #v# it';
+Es = "string with ... in #s# it";
+% Comment with ... in it #c#
+
+x = [ 'foo bar',newline,...
+     '  ''-goo'', ... #v#',newline,...
+     '  ''-bar'', ... #v#',newline];
+
+func_call1('function with charvec', ... #e#
+           'after ellipsis charvec with ellipsis ... #v#');
+func_call2('test indendation here. Should not indent');
+
+%% Indentation protection & confusing cell/string mixing
 
 icC = 'charv with { in it #v#';
 icS = "strings with { in it #s#";
@@ -81,6 +95,8 @@ icS = "strings with { in it #s#";
 imC = 'charv with [ in it #v#';
 imS = "strings with [ in it #s#";
 
+cmC = { 'a b } #v#', 1};
+cmS = { "a b } #s#", 2};
 
 %% Concatenation
 
