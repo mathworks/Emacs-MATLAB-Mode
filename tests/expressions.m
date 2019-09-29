@@ -51,10 +51,12 @@ BM = [ 1 2 3 ... comment
 CC = { 1 2 { 3 4 } 5 6 { 7 { 8 { 9 }} 10 }}; % #2#
 CM = { [ 1 2 ] { [ 3 4 ] 5 } [ 6 7 ] A(1:4) }; % #2#
 
+AA = [];
+
 % >>4
-for i=1:10
+for flv=1:10 
     if i == 1
-        AA = [ 1 2 3 ];
+        AA = [ AA 1 2 3 ]; %#ok  - pragma test
     else
         AB = AA(2:end);
     end
@@ -74,6 +76,7 @@ switch AA
     % >>52
     for i=1:10
         AC = AA(end:-1:1);
+        AD = pi + nan + true;
     end % <<52
     
   case 3
@@ -85,30 +88,6 @@ switch AA
     
   otherwise
 end % <<5
-
-% >>6
-classdef Moose
-    
-% >>61
-    properties
-        AP = [];
-        AB = [];
-    end % <<61
-    
-    % >>62
-    methods
-        
-        function BBB()
-           
-            BB = AP(1:end);
-            
-        end
-        
-    end % <<62
-    
-end % <<6
-
-
 
 % end
 

@@ -136,7 +136,9 @@ if 0
    
     Ac = 'char vector';
     Bs = "string scalar";
+else
     
+    Cs = "not unreachable";
 end
 
 %% Block Comments #c#
@@ -144,7 +146,7 @@ end
 %{
 
    Block Comment:
- 
+
    'char vector'
    "string scalar"
  
