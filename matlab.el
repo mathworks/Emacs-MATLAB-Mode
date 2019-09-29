@@ -316,14 +316,6 @@ amount to use if MAXIMUM is reached."
   :type '(repeat (cons (character :tag "Open List Character")
 		       (sexp :tag "Number (max) or cons (max indent)"))))
 
-(defcustom matlab-handle-simulink t
-  "*If true, add in a few simulink customizations.
-This variable's state is mostly useful when set at load time when
-simulink font lock keywords can be removed.  This will handle
-additional cases as the need arises."
-  :group 'matlab
-  :type 'boolean)
-
 (defcustom matlab-auto-fill t
   "*If true, set variable `auto-fill-function' to our function at startup."
   :group 'matlab
@@ -951,7 +943,7 @@ Argument LIMIT is the maximum distance to search."
 				 "switch" "case" "otherwise" "try"
 				 "catch" "tic" "toc"
 				 ;; MCOS keywords
-				 "classdef" "properties" "methods" "enumeration"
+				 "properties" "methods" "enumeration"
 				 )
   "List of keywords for MATLAB used in highlighting.
 Customizing this variable is only useful if `regexp-opt' is available."
@@ -978,6 +970,33 @@ Customizing this variable is only useful if `regexp-opt' is available."
   :group 'matlab
   :type '(repeat (string :tag "Debug Keyword: ")))
 
+(defcustom matlab-simulink-keywords
+  '("simulink" "get_param" "set_param" "simget" "simset" "sim"
+    "new_system" "open_system" "close_system" "save_system" "find_system"
+    "add_block" "delete_block" "replace_block"
+    "add_line" "delete_line" "replace_line"
+    "bdroot" "bdclose" )
+  ;; Missing this regex "\\(mld\\|ss\\)[A-Z]\\w+\\)"
+  "List of keywords to highlight for simulink"
+  :group 'matlab
+  :type '(repeat (string :tag "Debug Keyword: ")))
+
+
+(defcustom matlab-constants-keyword-list
+  '("eps" "pi" "inf" "Inf" "nan" "NaN" "ans" "i" "j" "NaT" "true" "false")
+  "List of constants and speial variables in MATLAB."
+  :group 'matlab
+  :type '(repeat (string :tag "Debug Keyword: ")))
+
+(defun matlab-font-lock-regexp-opt (keywordlist)
+  "Create a font-lock usable keyword matching regular expression.
+Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
+  (concat "\\<\\("
+	  (if (fboundp 'regexp-opt-foo)
+	      (regexp-opt keywordlist)
+	    (mapconcat (lambda (s) s) keywordlist "\\|"))
+	  "\\)\\>"))
+
 ;; font-lock keywords
 (defvar matlab-font-lock-keywords
   (list
@@ -991,18 +1010,13 @@ Customizing this variable is only useful if `regexp-opt' is available."
    ;; I think pragmas are always lower case?
    '("%#\\([a-z]+\\)" (1 'bold prepend))
    ;; General keywords
-   (list
-    (if (fboundp 'regexp-opt)
-	(concat "\\<\\(" (regexp-opt matlab-keyword-list) "\\)\\>")
-      ;; Original hard-coded value for pre Emacs 20.1
-      "\\<\\(break\\|ca\\(se\\|tch\\)\\|e\\(lse\\(\\|if\\)\\|ndfunction\\)\
-\\|\\(par\\)?for\\|spmd\\|global\\|if\\|otherwise\\|return\\|switch\\|try\\|while\\|tic\\|toc\\)\\>")
-    '(0 font-lock-keyword-face))
+   (list (matlab-font-lock-regexp-opt matlab-keyword-list)
+	 '(0 font-lock-keyword-face))
    ;; The end keyword is only a keyword when not used as an array
    ;; dereferencing part.
    '("\\(^\\|[;,]\\)[ \t]*\\(end\\)\\b"
      2 (if (matlab-valid-end-construct-p) font-lock-keyword-face nil))
-   ;; How about unreachable code?  MUsT BE AFTER KEYWORDS in order to
+   ;; How about unreachable code?  MUST BE AFTER KEYWORDS in order to
    ;; get double-highlighting.
    '(matlab-find-unreachable-code
      (1 'underline prepend)		;if part
@@ -1030,66 +1044,104 @@ Customizing this variable is only useful if `regexp-opt' is available."
       nil  nil (1 font-lock-variable-name-face)))
    ;; Handle graphics stuff
    (list
-    (if (fboundp 'regexp-opt)
-	(concat "\\<\\(" (regexp-opt matlab-handle-graphics-list) "\\)\\>")
-      ;; The original regular expression for pre Emacs 20.1
-      "\\<\\(ax\\(es\\|is\\)\\|figure\\|get\\|image\\|li\\(ght\\|ne\\)\\|\
-patch\\|s\\(et\\(\\|color\\|font\\)\\|urface\\)\\|text\\|\
-ui\\(cont\\(ext\\(\\|menu\\)\\|rol\\)\\|menu\\|\
-\\(toggle\\|push\\)tool\\|toolbar\\)\\)\\>")
+    (matlab-font-lock-regexp-opt matlab-handle-graphics-list)
     '(0 font-lock-type-face))
+   (list
+    ;; How about a few matlab constants such as pi, infinity, and sqrt(-1)?
+    (matlab-font-lock-regexp-opt matlab-constants-keyword-list)
+    1 font-lock-constant-face)
+   ;; Imaginary number support
+   '("\\<[0-9]\\.?\\(i\\|j\\)\\>" 1 font-lock-reference-face)
    )
   "Expressions to highlight in MATLAB mode.")
+
 
 (defconst matlab-function-arguments
   "\\(([^)]*)\\)?\\s-*\\([,;\n%]\\|$\\)")
 
-(defvar matlab-gaudy-font-lock-keywords
-  (append
-   matlab-font-lock-keywords
-   (list
-    ;; defining a function, a (possibly empty) list of assigned variables,
-    ;; function name, and an optional (possibly empty) list of input variables
-    (list (concat "^\\s-*\\(function\\)\\>[ \t\n.]*"
-		  "\\(\\[[^]]*\\]\\|\\sw+\\)[ \t\n.]*"
-		  "=[ \t\n.]*\\(\\sw+\\)[ \t\n.]*"
-                  matlab-function-arguments)
-	  '(1 font-lock-keyword-face append)
-	  '(2 font-lock-variable-name-face append)
-	  '(3 font-lock-function-name-face append))
-    ;; defining a function, a function name, and an optional (possibly
-    ;; empty) list of input variables
-    (list (concat "^\\s-*\\(function\\)[ \t\n.]+"
-		  "\\(\\sw+\\)[ \t\n.]*"
-                  matlab-function-arguments)
-	  '(1 font-lock-keyword-face append)
-	  '(2 font-lock-function-name-face append))
-    ;; Anchor on the function keyword, highlight params
-    (list (concat "^\\s-*function\\>[ \t\n.]*"
-		  "\\(\\(\\[[^]]*\\]\\|\\sw+\\)[ \t\n.]*=[ \t\n.]*\\)?"
-		  "\\sw+\\s-*(")
-	  '("\\s-*\\(\\sw+\\)\\s-*[,)]" nil  nil
-	    (1 font-lock-variable-name-face)))
-    ;; I like variables for FOR loops
-    '("\\<\\(for\\|parfor\\)\\s-+\\(\\sw+\\)\\s-*=\\s-*\
+(defvar matlab-function-font-lock-keywords
+  (list
+   ;; defining a function, a (possibly empty) list of assigned variables,
+   ;; function name, and an optional (possibly empty) list of input variables
+   (list (concat "^\\s-*\\(function\\)\\>[ \t\n.]*"
+		 "\\(\\[[^]]*\\]\\|\\sw+\\)[ \t\n.]*"
+		 "=[ \t\n.]*\\(\\sw+\\)[ \t\n.]*"
+		 matlab-function-arguments)
+	 '(1 font-lock-keyword-face append)
+	 '(2 font-lock-variable-name-face append)
+	 '(3 font-lock-function-name-face append))
+   ;; defining a function, a function name, and an optional (possibly
+   ;; empty) list of input variables
+   (list (concat "^\\s-*\\(function\\)[ \t\n.]+"
+		 "\\(\\sw+\\)[ \t\n.]*"
+		 matlab-function-arguments)
+	 '(1 font-lock-keyword-face append)
+	 '(2 font-lock-function-name-face append))
+   ;; Anchor on the function keyword, highlight params
+   (list (concat "^\\s-*function\\>[ \t\n.]*"
+		 "\\(\\(\\[[^]]*\\]\\|\\sw+\\)[ \t\n.]*=[ \t\n.]*\\)?"
+		 "\\sw+\\s-*(")
+	 '("\\s-*\\(\\sw+\\)\\s-*[,)]" nil  nil
+	   (1 font-lock-variable-name-face)))
+   ;; I like variables for FOR loops
+   '("\\<\\(\\(?:par\\)?for\\)\\s-+\\(\\sw+\\)\\s-*=\\s-*\
 \\(\\([^\n,;%(]+\\|([^\n%)]+)\\)+\\)"
-      (1 font-lock-keyword-face)
-      (2 font-lock-variable-name-face append)
-      (3 font-lock-reference-face append))
-    ;; Items after a switch statements are cool
-    '("\\<\\(case\\|switch\\)\\s-+\\({[^}\n]+}\\|[^,%\n]+\\)"
-      (1 font-lock-keyword-face) (2 font-lock-reference-face))
-    ;; How about a few matlab constants such as pi, infinity, and sqrt(-1)?
-    ;; The ^>> is in case I use this in an interactive mode someday
-    '("\\<\\(eps\\|pi\\|inf\\|Inf\\|NaN\\|nan\\|ans\\|i\\|j\\|NaT\\|^>>\\)\\>"
-      1 font-lock-reference-face)
-    '("\\<[0-9]\\.?\\(i\\|j\\)\\>" 1 font-lock-reference-face)
-    ;; Define these as variables since this is about as close
-    ;; as matlab gets to variables
+     (1 font-lock-keyword-face)
+     (2 font-lock-variable-name-face append)
+     (3 font-lock-reference-face append))
+   ;; Items after a switch statements are cool
+   '("\\<\\(case\\|switch\\)\\s-+\\({[^}\n]+}\\|[^,%\n]+\\)"
+     (1 font-lock-keyword-face) (2 font-lock-reference-face))
+    ;; setparam and waitfor have input variables that can be highlighted.
     (list (concat "\\<" matlab-indent-past-arg1-functions "\\s-*")
 	  '("(\\s-*\\(\\w+\\)\\s-*\\(,\\|)\\)" nil  nil
 	    (1 font-lock-variable-name-face)))
-    ))
+   )
+  "List of font lock keywords for stuff in functions")
+
+(defconst matlab-class-attributes-list-re
+  "\\s-*\\(?2:(\\([^)]+\\))\\|\\)"
+  "Regular expression for matching an attributes block.")
+
+(defvar matlab-class-font-lock-keywords
+  (list
+   ;; Classdefs keyword and the class name
+   (list (concat "^\\s-*\\(classdef\\)"
+		 matlab-class-attributes-list-re
+		 "\\s-+\\(?3:\\sw+\\)")
+	 '(1 font-lock-keyword-face append)
+	 '(3 font-lock-function-name-face)
+	 )
+   ;; Classdef anchor for highlighting all the base classes in inherits from
+   (list (concat "^\\s-*\\(classdef\\)"
+    		 matlab-class-attributes-list-re
+    		 "\\s-+\\(\\sw+\\)")
+    	 '("\\s-*[<&]\\s-*\\(\\(\\sw\\|\\.\\)+\\)" nil nil
+   	   (1 font-lock-constant-face)))
+   ;; Property and Method blocks have attributes to highlight
+   (list "^\\s-*\\(classdef\\|properties\\|methods\\)\\s-*("
+	 '("\\(\\sw+\\)\\s-*\\(=\\s-*[^,)]+\\)?" nil nil
+	   (1 font-lock-type-face)
+	   ))
+   ;; Properties can have a type syntax after them
+   '("^\\s-*\\w+\\s-*\\(([:0-9,]+)\\s-*[^{=\n]+\\)"
+     (1 font-lock-type-face nil nil))
+   ;; Properties blocks are full of variables
+   '("^\\s-*properties\\>"
+     ("^\\s-*\\(\\sw+\\)\\>" ;; This part matches the variable
+      (save-excursion (matlab-forward-sexp nil t) (beginning-of-line) (point)) ;; extend region to match in
+      nil
+      (1 font-lock-variable-name-face t))
+     )
+   )
+  "List of font-lock keywords used when an MATLAB file contains a class.")
+
+(defvar matlab-gaudy-font-lock-keywords
+  (append
+   matlab-font-lock-keywords
+   matlab-function-font-lock-keywords
+   matlab-class-font-lock-keywords
+   )
   "Expressions to highlight in MATLAB mode.")
 
 (defvar matlab-really-gaudy-font-lock-keywords
@@ -1112,23 +1164,19 @@ ui\\(cont\\(ext\\(\\|menu\\)\\|rol\\)\\|menu\\|\
     (list (concat "^" matlab-comment-line-s "\\s-*"
 		  "\\(\\$" "Revision" "[^\n$]+\\$\\)")
 	  '(1 font-lock-reference-face prepend))
-    (list
-     (if (fboundp 'regexp-opt)
-	 (concat "\\<\\(" (regexp-opt matlab-debug-list) "\\)\\>")
-       ;; pre-regexp-opt days.
-       "\\<\\(db\\(c\\(lear\\|ont\\)\\|down\\|mex\\|quit\\|\
-st\\(a\\(ck\\|tus\\)\\|ep\\|op\\)\\|type\\|up\\)\\)\\>")
-     '(0 'bold)))
-   (if matlab-handle-simulink
-       ;; Simulink functions, but only if the user wants it.
-       (list (list (concat "\\<\\(\\([sg]et_param\\|sim\\([gs]et\\)?\\|"
-			   "\\(mld\\|ss\\)[A-Z]\\w+\\)\\|"
-			   "\\(new\\|open\\|close\\|save\\|find\\)_system\\|"
-			   "\\(add\\|delete\\|replace\\)_\\(block\\|line\\)\\|"
-			   "simulink\\|bd\\(root\\|close\\)"
-			   "\\)\\>")
-		   1 matlab-simulink-keyword-face))
-     nil))
+    ;; Debugging Keywords
+    (list (matlab-font-lock-regexp-opt matlab-debug-list)
+	  '(0 'bold))
+    ;; Simulink functions
+    (list (matlab-font-lock-regexp-opt matlab-simulink-keywords)
+	;;(list (list (concat "\\<\\(\\([sg]et_param\\|sim\\([gs]et\\)?\\|"
+	;;		    "\\(mld\\|ss\\)[A-Z]\\w+\\)\\|"
+	;;		    "\\(new\\|open\\|close\\|save\\|find\\)_system\\|"
+	;;		    "\\(add\\|delete\\|replace\\)_\\(block\\|line\\)\\|"
+	;;		    "simulink\\|bd\\(root\\|close\\)"
+	;;		    "\\)\\>")
+	      1 matlab-simulink-keyword-face)
+    ))
   "Expressions to highlight in MATLAB mode.")
 
 (defvar matlab-shell-font-lock-keywords
@@ -1289,6 +1337,9 @@ All Key Bindings:
 			     ;; This puts _ as a word constituent,
 			     ;; simplifying our keywords significantly
 			     ((?_ . "w"))))
+  (setq font-lock-multiline 'undecided)
+
+  ;; Parens mode support
   (if (and (featurep 'paren) (symbolp 'show-paren-data-function) (symbolp show-paren-data-function))
       (progn
 	;; show-paren-mode is nicer than our old thing.
@@ -1925,25 +1976,29 @@ This assumes that expressions do not cross \"function\" at the left margin."
 	      (error "Unstarted END construct"))))
 	returnme))))
 
-(defun matlab-forward-sexp (&optional includeelse)
+(defun matlab-forward-sexp (&optional includeelse autostart)
   "Go forward one balanced set of MATLAB expressions.
-Optional argument INCLUDEELSE will stop on ELSE if it matches the starting IF."
+Optional argument INCLUDEELSE will stop on ELSE if it matches the starting IF.
+If AUTOSTART is non-nil, assume we are already inside a block, and navigate
+forward until we exit that block."
   (interactive "P")
   (let (p) ;; go to here if no error.
     (save-excursion ;; don't go anywhere if there is an error
       (matlab-navigation-syntax
         ;; skip over preceding whitespace
         (skip-chars-forward " \t\n;")
-        (if (or (not (looking-at (concat "\\("
-                                         (matlab-block-beg-pre)
-                                         "\\|"
-                                         (matlab-block-mid-re)
-                                         "\\)\\>")))
-                (matlab-cursor-in-string-or-comment))
+        (if (and (not autostart)
+		 (or 
+		  (not (looking-at (concat "\\("
+					   (matlab-block-beg-pre)
+					   "\\|"
+					   (matlab-block-mid-re)
+					   "\\)\\>")))
+		  (matlab-cursor-in-string-or-comment)))
             ;; Go forwards one simple expression
 	    (matlab-move-simple-sexp-internal 1)
           ;; otherwise go forwards recursively across balanced expressions
-          (forward-word 1)
+	  (unless autostart (forward-word 1))
           (let ((done nil) (s nil)
                 (expr-scan (if includeelse
                                (matlab-block-re)
