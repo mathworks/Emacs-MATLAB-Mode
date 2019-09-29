@@ -1289,8 +1289,15 @@ All Key Bindings:
 			     ;; This puts _ as a word constituent,
 			     ;; simplifying our keywords significantly
 			     ((?_ . "w"))))
-  (matlab-enable-block-highlighting 1)
-  (if window-system (matlab-frame-init))
+  (if (and (featurep 'paren) (symbolp 'show-paren-data-function) (symbolp show-paren-data-function))
+      (progn
+	;; show-paren-mode is nicer than our old thing.
+	(make-local-variable 'show-paren-data-function)
+	(setq show-paren-data-function #'matlab-show-paren-or-block)
+	)
+    ;; Enable our own block highlighting if paren mode not around.
+    (matlab-enable-block-highlighting 1)
+    (if window-system (matlab-frame-init)))
 
   ;; If first function is terminated with an end statement, then functions have
   ;; ends.
@@ -1849,7 +1856,7 @@ If COUNT is negative, travel backward."
 		       ;; At the beginning of a list, matrix, cell, whatever.
 		       (matlab-move-list-sexp-internal count))
 		      (t
-		       (forward-word 1))
+		       (forward-symbol 1))
 		      )
 		(setq count (1- count))
 		)
@@ -1867,7 +1874,7 @@ If COUNT is negative, travel backward."
 		     ;; At the end of a list, matrix, cell, etc
 		     (matlab-move-list-sexp-internal count))
 		    (t
-		     (backward-word 1))
+		     (forward-symbol -1))
 		    ))
 	    (setq count (1+ count))
 	    ))
@@ -3946,6 +3953,155 @@ Created: 14 Feb 2002"
   (font-lock-mode nil)
   (LaTeX-mode)
   (font-lock-mode nil))
+
+
+;;; Show Paren Mode support ==================================================
+
+(defun matlab-show-paren-or-block ()
+  "Function to assign to `show-paren-data-function'.
+Highlights parens and if/end type blocks.
+Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
+  (unless (matlab-cursor-in-string-or-comment) ; Only do this if not in a string.
+    (save-match-data
+      (save-excursion
+	(let ((here-beg nil)
+	      (here-end nil)
+	      (there-beg nil)
+	      (there-end nil)
+	      (mismatch nil)
+	      (noreturn nil)
+	      (here-syntax (syntax-after (point)))
+	      (here-prev-syntax (syntax-after (1- (point))))
+	      (there-syntax nil)
+	      (here-char (char-after))
+	      (here-prev-char (preceding-char))
+	      (there-char nil)
+	      )
+
+	  ;; Notes about fcns used here:
+	  ;; (syntax-after ) returns ( 4 c ) or ( 5 c )
+	  ;; where 4 == open paren and 5 == close paren
+	  ;; and c is the char tht closes the open or close paren
+	  ;; These checks are much faster than regexpx
+	  
+	  ;; Step one - check for parens
+	  (cond ((and here-syntax (= (car here-syntax) 4)) ; open paren
+		 (setq here-beg (point)
+		       here-end (1+ (point)))
+		 (condition-case err
+		     (progn
+		       (matlab-move-simple-sexp-internal 1)
+		       (setq there-beg (- (point) 1)
+			     there-end (point)
+			     there-syntax (syntax-after there-beg)
+			     there-char (char-after there-beg))
+		       (when (or (/= (car there-syntax) 5)
+				 (/= (cdr there-syntax) here-char)
+				 (/= (cdr here-syntax) there-char)) ; this part seems optional
+					;(message "ts = %S  hs=%S tc = %d hc = %d" there-syntax here-syntax there-char here-char)
+			 (setq mismatch t))
+		       )
+		   (setq mismatch t)))
+		((and here-prev-syntax (= (car here-prev-syntax) 5))
+		 (setq here-beg (1- (point))
+		       here-end (point))
+		 (condition-case err
+		     (progn
+		       (matlab-move-simple-sexp-backward-internal 1)
+		       (setq there-end (+ (point) 1)
+			     there-beg (point)
+			     there-syntax (syntax-after there-beg)
+			     there-char (char-after there-beg))
+		       (when (or (/= (car there-syntax) 4)
+				 (/= (cdr there-syntax) here-prev-char)
+				 (/= (cdr here-prev-syntax) there-char)) ; this part seems optional
+			 (setq mismatch t))
+		       )
+		   (setq mismatch t)))
+		(t
+		 ;; Part 2: Are we looking at a block start/end, such as if end;
+
+		 ;; If we are on On a word character, or just after a
+		 ;; word character move back one symbol. This will let
+		 ;; us use the block begin / end matchers to figure
+		 ;; out where we are.
+		 (when (and (not (eobp)) (not (bobp)) (= (car here-prev-syntax) 2))
+		   (forward-symbol -1))
+
+		 (condition-case err
+		     (cond
+		      ((looking-at "function")
+		       ;; We are looking at a 'function' start.  Since functions may not have an end, we need
+		       ;; to handle this case special.
+		       (setq here-beg (match-beginning 0)
+			     here-end (match-end 0))
+		       (matlab-forward-sexp)
+		       (backward-word 1)
+		       (looking-at (concat (matlab-block-end-pre) "\\>"))
+		       (setq there-beg (match-beginning 0)
+			     there-end (match-end 0)
+			     mismatch nil)
+		       )
+		      ((looking-at (concat (matlab-block-beg-re) "\\>"))
+		       ;; We are at the beginning of a block.  Navigate forward to the end
+		       ;; statement.
+		       (setq here-beg (match-beginning 0)
+			     here-end (match-end 0))
+		       (matlab-forward-sexp)
+		       (backward-word 1)
+		       (looking-at (concat (matlab-block-end-pre) "\\>"))
+		       (setq there-beg (match-beginning 0)
+			     there-end (match-end 0)
+			     mismatch nil)
+		       )
+		      ((looking-at (concat (matlab-block-end-pre) "\\>"))
+		       ;; We are at the end of a block.  Navigate to the beginning
+		       (setq here-beg (match-beginning 0)
+			     here-end (match-end 0))
+		       (matlab-backward-sexp t)
+		       (looking-at (concat (matlab-block-beg-re) "\\>"))
+		       (setq there-beg (match-beginning 0)
+			     there-end (match-end 0)
+			     mismatch nil)		       
+		       )
+		      ((looking-at (concat (matlab-block-mid-re) "\\>"))
+		       ;; We are at a middle-block expression, like "else" or "catch'
+		       ;; Ideally we'd show the beginning and the end, but lets just show
+		       ;; the beginning.
+		       (setq here-beg (match-beginning 0)
+			     here-end (match-end 0))
+		       (matlab-backward-sexp t)
+		       (looking-at (concat (matlab-block-beg-re) "\\>"))
+		       (setq there-beg (match-beginning 0)
+			     there-end (match-end 0)
+			     mismatch nil)		       
+		       )
+
+		      ((looking-at (concat (matlab-endless-blocks-re) "\\>"))
+		       ;; We are at a middle-sub-block expression, like "case"
+		       ;; Ideally we'd show the beginning and the end, but lets just show
+		       ;; the beginning.
+		       (setq here-beg (match-beginning 0)
+			     here-end (match-end 0))
+		       (matlab-backward-sexp t)
+		       (looking-at (concat (matlab-block-beg-re) "\\>"))
+		       (setq there-beg (match-beginning 0)
+			     there-end (match-end 0)
+			     mismatch nil)		       
+		       )
+		      
+		      
+		      ;; No block matches, just return nothing.
+		      (t (setq noreturn t))
+		      )
+		   ;; An error orccured.  Assume 'here-*' is set, and setup missmatch.
+		   (setq mismatch t))
+		 
+		 ))
+
+	  (if noreturn
+	      nil
+	    (list here-beg here-end there-beg there-end mismatch) ))))))
 
 
 ;;; Block highlighting ========================================================
