@@ -24,6 +24,16 @@ cmS = { "a b } #s#", 2}; % #2#
 cmCr = { 'a b { #v#', 1}; % #2#
 cmSr = { "a b { #s#", 2}; % #2#
 
+func_A('charvec with ) in it'); % #2#
+func_A('charvec with ( in it'); % #2#
+func_B("string with ) in it"); % #2#
+func_V("string with ( in it"); % #2#
+
+mA = [ 'concat charvec' 'with [ in it' ]; % #2#
+mB = [ 'concat charvec' 'with ] in it' ]; % #2#
+msA = [ "concat strings" "with [ in it" ]; % #2#
+msB = [ "concat strings" "with ] in it" ]; % #2#
+
 % >>2
 if expr2
     ifcmC = { 'a b } #v#', 1}; % #2#
@@ -97,3 +107,8 @@ classdef Moose
     end % <<62
     
 end % <<6
+
+
+
+% end
+

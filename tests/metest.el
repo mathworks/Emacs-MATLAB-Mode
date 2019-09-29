@@ -79,7 +79,7 @@
       (message "Comment and string syntax test: %d points passed" cnt)
       )))
   
-(defvar met-sexptest-files '("expressions.m")
+(defvar met-sexptest-files '("expressions.m" "mclass.m")
   "List of files for running syntactic expression tests.")
 
 (defun metest-sexp-counting-test ()
