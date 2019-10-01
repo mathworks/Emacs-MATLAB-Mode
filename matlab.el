@@ -733,7 +733,8 @@ when attempting to understand the current context.")
 								 "\\|\\(%\\)\\|\\(\\.\\.\\.\\)")
   "Starting matcher for allstring comment font lock")
 
-(defun test-ml-asc ()
+(defun matlab-test-allstring-comment-match ()
+  "Command for testing what the allstring font locker matches."
   (interactive)
   ;(beginning-of-line)
   (matlab-font-lock-allstring-comment-match-normal (point-max))
@@ -992,7 +993,7 @@ Customizing this variable is only useful if `regexp-opt' is available."
   "Create a font-lock usable keyword matching regular expression.
 Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
   (concat "\\<\\("
-	  (if (fboundp 'regexp-opt-foo)
+	  (if (fboundp 'regexp-opt)
 	      (regexp-opt keywordlist)
 	    (mapconcat (lambda (s) s) keywordlist "\\|"))
 	  "\\)\\>"))
