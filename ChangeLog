@@ -1,3 +1,71 @@
+2019-09-30 Eric Ludlam <eludlam@mathworks.com>
+
+	* matlab.el: String & Comment Font Lock Handling
+	(matlab-mode-syntax-table): Add " as puncutation.
+	(matlab-string-char-regexp): New
+	(matlab-string-start-regexp): Add "
+	(matlab-string-content-regexp, matlb-string-end-regexp)
+	(matlb-match-string-end-for-string)
+	(mtlab-font-lock-string-match-normal)
+	(matlab-font-lock-string-match-unterninated)
+	(matlab-font-lock-string-match-here)
+	(matlab-font-lock-comment-match, ): Deleted
+	(matlab-font-lock-string-start-regexp): New
+	(matlab-font-lock-string-and-comment-start-regexp): New
+	(matlab-font-lock-allstring-comment-match-normal): New
+	(matlab-test-allstring-comment-match): New interactive tester for
+	fontlocked strings and comments.
+	* matlab.el Misc Font Lock improvements
+	(matlab-handle-simulink): Remove option.  Always
+	highlight simulink keywords.
+	(matlab-keyword-list): Remove classdef - this is handled diretly.
+	(matlab-simulink-keywords, matlab-constants-keyword-list): New,
+	moved out of explicit font lock expression.
+	(matlab-font-lock-regexp-opt): New fcn used in place of
+	regepxp-opt to simplify font-lock keywords, and maintain
+	compatibility.
+	(matlab-font-lock-keywords): Replace old charvect and comment
+	matchers with new unified string and comment matcher.
+	Replace all calls to regexp-opt with matlab-font-lock-regexp-opt.
+	Replace hard-coded lists of keywords with call to *-regexp-opt.
+	(matlab-function-font-lock-keywords): New, derived from gaudy
+	keywords.
+	(matlab-class-attributes-list-re,matlab-class-font-lock-keywords): New
+	(matlab-gaudy-font-lock-keywords): Now built from function and
+	class keywords list.
+	(matlab-realy-guady-font-lock-keywords): Replace obsolete
+	font-lock-type-face.
+	Remove continuation expression (now handled in combined
+	string/comment highlighter).
+	Replace all calls to regexp-opt with matlab-font-lock-regexp-opt.
+	(matlab-mode): Add support for font-lock-multiline.
+	If show-paren-mode is available, use that instead of built-in
+	block highlighting.
+	(matlab-ispell-strings-region): Use new font lock matcher for strings.
+	* matlab.el Block and Comment navigation
+	(matlab-up-string-or-comment, matlab-backward-up-string-or-comment): New
+	(matlab-move-list-sexp-internal): New (only list like expressions)
+	(matlab-move-simple-sexp-backward-internal): New (call below)
+	(matlab-move-simple-sexp-internal): New, nav comments, strings, and
+	lists.
+	(matlab-backward-sexp, matlab-forward-sexp): Nav simple-sexp (as above)
+	instead of using built-in forward-sexp when not navigating blocks.
+	(matlab-forward-sexp): Add 'autostart' optional input.
+	(matlab-show-cursor-context): New debug command for testing what is
+	under the cursor.
+	(matlab-cursor-comment-string-context): New detector fcn for strings and
+	comments.
+	(matlab-ursor-in-string-or-comment, matlab-cursor-in-comment)
+	(matlab-cursor-in-string): Delete impl, use above detector instead.
+	* matlab.el: show-paren-mode support
+	(matlab-show-paren-or-block): Function called from show-paren-mode to
+	identify what to highlight.  Use new navigation system to identify
+	matching parens and block keywords.
+	* tests/metest.el: New set of Emacs tests.
+	* tests/metest.sh: Shell script to run tests.
+	* tests/strings.el, tests/expressions.m, tests/mclass.m: New MATLAB
+	files with various syntaxes and test tokens used to verify new behavior.
+
 2018-09-28  Uwe Brauer  <oub@mat.ucm.es>
 
 	* matlab.el (matlab-string-start-regexp): Patch provided by Eric
