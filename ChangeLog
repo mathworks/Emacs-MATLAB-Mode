@@ -42,15 +42,19 @@
 	If show-paren-mode is available, use that instead of built-in
 	block highlighting.
 	(matlab-ispell-strings-region): Use new font lock matcher for strings.
+	(matlab-valid-end-construct-p): Don't modify match-data.
 	* matlab.el Block and Comment navigation
 	(matlab-up-string-or-comment, matlab-backward-up-string-or-comment): New
 	(matlab-move-list-sexp-internal): New (only list like expressions)
 	(matlab-move-simple-sexp-backward-internal): New (call below)
 	(matlab-move-simple-sexp-internal): New, nav comments, strings, and
 	lists.
-	(matlab-backward-sexp, matlab-forward-sexp): Nav simple-sexp (as above)
+	(matlab-backward-sexp): Nav simple-sexp (as above).
+	Fix bug with noerror version if there are stacks of incomplete ends.
+	(matlab-forward-sexp): Nav w/ simple-sexp (as above)
 	instead of using built-in forward-sexp when not navigating blocks.
 	(matlab-forward-sexp): Add 'autostart' optional input.
+	(matlab-lattr-block-close): Account for ends in comments and strings.
 	(matlab-show-cursor-context): New debug command for testing what is
 	under the cursor.
 	(matlab-cursor-comment-string-context): New detector fcn for strings and
