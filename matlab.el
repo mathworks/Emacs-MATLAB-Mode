@@ -1509,14 +1509,15 @@ Return nil if it is being used to dereference an array."
   (let ((p (point))
 	(err1 t))
     (condition-case nil
-	(save-restriction
-	  ;; Restrict navigation only to the current command line
-	  (save-excursion
-	    (matlab-beginning-of-command)
-	    (narrow-to-region (point)
-			      (save-excursion
-				(goto-char p)
-				(matlab-point-at-eol))))
+	(save-match-data
+	  (save-restriction
+	    ;; Restrict navigation only to the current command line
+	    (save-excursion
+	      (matlab-beginning-of-command)
+	      (narrow-to-region (point)
+				(save-excursion
+				  (goto-char p)
+				  (matlab-point-at-eol))))
 	    ;; This used to add some sort of protection, but I don't know what
 	    ;; the condition was, or why the simple case doesn't handle it.
 	    ;;
@@ -1529,20 +1530,20 @@ Return nil if it is being used to dereference an array."
 	    ;;			      (setq err1 nil)
 	    ;;			      (error)))
 	    ;;    		(point))))
-	  (save-excursion
-	    ;; beginning of param list
-	    (matlab-up-list -1)
-	    ;; backup over the parens.  If that fails
-	    (condition-case nil
-		(progn
-		  (forward-sexp 1)
-		  ;; If we get here, the END is inside parens, which is not a
-		  ;; valid location for the END keyword.  As such it is being
-		  ;; used to dereference array parameters
-		  nil)
-	      ;; This error means that we have an unterminated paren
-	      ;; block, so this end is currently invalid.
-	      (error nil))))
+	    (save-excursion
+	      ;; beginning of param list
+	      (matlab-up-list -1)
+	      ;; backup over the parens.  If that fails
+	      (condition-case nil
+		  (progn
+		    (forward-sexp 1)
+		    ;; If we get here, the END is inside parens, which is not a
+		    ;; valid location for the END keyword.  As such it is being
+		    ;; used to dereference array parameters
+		    nil)
+		;; This error means that we have an unterminated paren
+		;; block, so this end is currently invalid.
+		(error nil)))))
       ;; an error means the list navigation failed, which also means we are
       ;; at the top-level
       (error err1))))
@@ -1820,7 +1821,8 @@ Returns new location if the cursor is moved.  nil otherwise."
     (when ctxt
       (goto-char (nth 1 bounds))
       (unless (eobp)
-	(when (eq ctxt 'comment) (forward-char 1))))))
+	(when (eq ctxt 'comment) (forward-char 1)))
+      t)))
 
 (defun matlab-backward-up-string-or-comment ()
   "If the cursor is in a string or comment, move cursor to beginning of that syntax.
@@ -1833,7 +1835,7 @@ Returns new location if the cursor is moved.  nil otherwise."
       (unless (bobp)
 	(when (eq ctxt 'comment) (forward-char -1))
 	(when (eq ctxt 'elipsis) (forward-char -3))
-      ))))
+      t))))
 
 (defun matlab-move-list-sexp-internal (dir)
   "Move over one MATLAB list sexp in direction DIR.
@@ -1879,19 +1881,36 @@ If COUNT is negative, travel backward."
   (interactive "P")
   (unless (eq count 0)
     (unless count (setq count 1))
+    ;; Get base whitespace out of the way first.
+    (if (> 0 count)
+	(skip-chars-backward " \t;.")
+      (skip-chars-forward " \t;."))
+    
     (let* ((bounds nil)
-	   (ctxt (matlab-cursor-comment-string-context 'bounds)))
-      (if (and ctxt (not (eolp)) (not (looking-at "%")))
-	  (progn
-	    ;; First, if we are IN a string or comment then there are no
-	    ;; SEXPs other than words, so do that.
-	    (save-restriction
-	      (narrow-to-region (car bounds) (nth 1 bounds))
-	      (forward-word count))
-	    (when (eq (point) (car bounds))
-	      (forward-char (if (> 0 count) -1 1)))
-	    )
+	   (ctxt (matlab-cursor-comment-string-context 'bounds))
+	   (skipnav nil))
+      (when (and ctxt (not (eolp)) (not (looking-at "%")))
+	;; First, if we are IN a string or comment then navigate differently.
 
+	;; To start, if we are at the EDGE of the comment or string, skip
+	;; over it so we can keep going.
+	(cond ((and (> 0 count) (< (- (point) (car bounds)) 3))
+	       ;; Skip out backward
+	       (goto-char (car bounds)))
+	      ((and (< 0 count) (< (- (nth 1 bounds) (point)) 2))
+	       ;; skip out forward
+	       (goto-char (nth 1 bounds)))
+	      (t
+	       ;; Nav over regular words inside.
+	       (save-restriction
+		 (narrow-to-region (car bounds) (nth 1 bounds))
+		 (forward-word count))
+	       (when (eq (point) (car bounds))
+		 (forward-char (if (> 0 count) -1 1)))
+	       (setq skipnav t)
+	       )))
+      
+      (unless skipnav
 	;; Outside of comments and strings, look at our local syntax and decide what to do.
 	;; Skip over whitespace to see what the next interesting thing is.
 	(while (not (= 0 count))
@@ -1968,12 +1987,15 @@ This assumes that expressions do not cross \"function\" at the left margin."
 			nil
 		      ;; we must skip the expression and keep searching
 		      (forward-word 1)
-		      (matlab-backward-sexp))
+		      (unless (matlab-backward-sexp nil noerror)
+			(setq done t
+			      returnme nil)))
 		  (if (not (matlab-cursor-in-string-or-comment))
 		      (setq done t))))
 	    (goto-char start)
 	    (if noerror
-		(setq returnme nil)
+		(setq done t
+		      returnme nil)
 	      (error "Unstarted END construct"))))
 	returnme))))
 
@@ -2345,19 +2367,30 @@ Argument START is where to start searching from."
 			    (point))
 			  (matlab-point-at-eol))
 	(goto-char (point-max))
-	(while (and (re-search-backward (concat "\\<" (matlab-block-end-re) "\\>")
-					nil t)
-		    (not (matlab-cursor-in-string-or-comment))
-		    (matlab-valid-end-construct-p))
-	  (setq v (1+ v))
+
+	;; If in a comment, move out of it first.
+	(matlab-backward-up-string-or-comment)
+
+	;; Count every END in the line, skipping over active blocks
+	(while (re-search-backward (concat "\\<" (matlab-block-end-re) "\\>")
+				   nil t)
 	  (let ((startmove (match-end 0))
 		(nomove (point)))
-	    (condition-case nil
-		(progn
-		  (matlab-backward-sexp t)
-		  (setq v (1- v)))
-	      (error (goto-char nomove)))
-	    ))
+	    (cond
+	     ((matlab-backward-up-string-or-comment)
+	      ;; Above returns t if it was in a string or comment.
+	      ;; In that case, we need to keep going.
+	      nil)
+	     ((not (matlab-valid-end-construct-p))
+	      ;; Not a valid end, just move past it.
+	      (goto-char nomove))
+	     (t
+	      ;; Lets count these end constructs.
+	      (setq v (1+ v))
+	      (if (matlab-backward-sexp t t)
+		  (setq v (1- v))
+		(goto-char nomove)))
+	     )))
 	;; If we can't scoot back, do a cheat-test to see if there
 	;; is a matching else or elseif.
 	(goto-char (point-min))
@@ -4110,16 +4143,17 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 			     there-end (match-end 0)
 			     mismatch nil)
 		       )
-		      ((looking-at (concat (matlab-block-end-pre) "\\>"))
+		      ((and (looking-at (concat (matlab-block-end-pre) "\\>"))
+			    (matlab-valid-end-construct-p))
 		       ;; We are at the end of a block.  Navigate to the beginning
 		       (setq here-beg (match-beginning 0)
 			     here-end (match-end 0))
-		       (matlab-backward-sexp t)
-		       (looking-at (concat (matlab-block-beg-re) "\\>"))
-		       (setq there-beg (match-beginning 0)
-			     there-end (match-end 0)
-			     mismatch nil)		       
-		       )
+		       (when (matlab-backward-sexp t t)
+			 (looking-at (concat (matlab-block-beg-re) "\\>"))
+			 (setq there-beg (match-beginning 0)
+			       there-end (match-end 0)
+			       mismatch nil)		       
+			 ))
 		      ((looking-at (concat (matlab-block-mid-re) "\\>"))
 		       ;; We are at a middle-block expression, like "else" or "catch'
 		       ;; Ideally we'd show the beginning and the end, but lets just show
