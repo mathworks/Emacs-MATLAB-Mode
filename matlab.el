@@ -1834,8 +1834,8 @@ Returns new location if the cursor is moved.  nil otherwise."
       (goto-char (nth 0 bounds))
       (unless (bobp)
 	(when (eq ctxt 'comment) (forward-char -1))
-	(when (eq ctxt 'elipsis) (forward-char -3))
-      t))))
+	(when (eq ctxt 'elipsis) (forward-char -3)))
+      t)))
 
 (defun matlab-move-list-sexp-internal (dir)
   "Move over one MATLAB list sexp in direction DIR.
@@ -4117,77 +4117,80 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 		 (when (and (not (eobp)) (not (bobp)) (= (car here-prev-syntax) 2))
 		   (forward-symbol -1))
 
-		 (condition-case err
-		     (cond
-		      ((looking-at "function")
-		       ;; We are looking at a 'function' start.  Since functions may not have an end, we need
-		       ;; to handle this case special.
-		       (setq here-beg (match-beginning 0)
-			     here-end (match-end 0))
-		       (matlab-forward-sexp)
-		       (backward-word 1)
-		       (looking-at (concat (matlab-block-end-pre) "\\>"))
-		       (setq there-beg (match-beginning 0)
-			     there-end (match-end 0)
-			     mismatch nil)
-		       )
-		      ((looking-at (concat (matlab-block-beg-re) "\\>"))
-		       ;; We are at the beginning of a block.  Navigate forward to the end
-		       ;; statement.
-		       (setq here-beg (match-beginning 0)
-			     here-end (match-end 0))
-		       (matlab-forward-sexp)
-		       (backward-word 1)
-		       (looking-at (concat (matlab-block-end-pre) "\\>"))
-		       (setq there-beg (match-beginning 0)
-			     there-end (match-end 0)
-			     mismatch nil)
-		       )
-		      ((and (looking-at (concat (matlab-block-end-pre) "\\>"))
-			    (matlab-valid-end-construct-p))
-		       ;; We are at the end of a block.  Navigate to the beginning
-		       (setq here-beg (match-beginning 0)
-			     here-end (match-end 0))
-		       (when (matlab-backward-sexp t t)
+		 (matlab-navigation-syntax
+		 
+		   (condition-case err
+		       (cond
+			((looking-at "function\\>")
+			 ;; We are looking at a 'function' start.  Since functions may not have an end, we need
+			 ;; to handle this case special.
+			 (setq here-beg (match-beginning 0)
+			       here-end (match-end 0))
+			 (matlab-forward-sexp)
+			 (backward-word 1)
+			 (looking-at (concat (matlab-block-end-pre) "\\>"))
+			 (setq there-beg (match-beginning 0)
+			       there-end (match-end 0)
+			       mismatch nil)
+			 )
+			((looking-at (concat (matlab-block-beg-re) "\\>"))
+			 ;; We are at the beginning of a block.  Navigate forward to the end
+			 ;; statement.
+			 (setq here-beg (match-beginning 0)
+			       here-end (match-end 0))
+			 (matlab-forward-sexp)
+			 (backward-word 1)
+			 (looking-at (concat (matlab-block-end-pre) "\\>"))
+			 (setq there-beg (match-beginning 0)
+			       there-end (match-end 0)
+			       mismatch nil)
+			 )
+			((and (looking-at (concat "\\(" (matlab-block-end-pre) "\\)\\>"))
+			      (matlab-valid-end-construct-p))
+			 ;; We are at the end of a block.  Navigate to the beginning
+			 (setq here-beg (match-beginning 0)
+			       here-end (match-end 0))
+			 (when (matlab-backward-sexp t t)
+			   (looking-at (concat (matlab-block-beg-re) "\\>"))
+			   (setq there-beg (match-beginning 0)
+				 there-end (match-end 0)
+				 mismatch nil)		       
+			   ))
+			((looking-at (concat (matlab-block-mid-re) "\\>"))
+			 ;; We are at a middle-block expression, like "else" or "catch'
+			 ;; Ideally we'd show the beginning and the end, but lets just show
+			 ;; the beginning.
+			 (setq here-beg (match-beginning 0)
+			       here-end (match-end 0))
+			 (matlab-backward-sexp t)
 			 (looking-at (concat (matlab-block-beg-re) "\\>"))
 			 (setq there-beg (match-beginning 0)
 			       there-end (match-end 0)
 			       mismatch nil)		       
-			 ))
-		      ((looking-at (concat (matlab-block-mid-re) "\\>"))
-		       ;; We are at a middle-block expression, like "else" or "catch'
-		       ;; Ideally we'd show the beginning and the end, but lets just show
-		       ;; the beginning.
-		       (setq here-beg (match-beginning 0)
-			     here-end (match-end 0))
-		       (matlab-backward-sexp t)
-		       (looking-at (concat (matlab-block-beg-re) "\\>"))
-		       (setq there-beg (match-beginning 0)
-			     there-end (match-end 0)
-			     mismatch nil)		       
-		       )
+			 )
 
-		      ((looking-at (concat (matlab-endless-blocks-re) "\\>"))
-		       ;; We are at a middle-sub-block expression, like "case"
-		       ;; Ideally we'd show the beginning and the end, but lets just show
-		       ;; the beginning.
-		       (setq here-beg (match-beginning 0)
-			     here-end (match-end 0))
-		       (matlab-backward-sexp t)
-		       (looking-at (concat (matlab-block-beg-re) "\\>"))
-		       (setq there-beg (match-beginning 0)
-			     there-end (match-end 0)
-			     mismatch nil)		       
-		       )
+			((looking-at (concat (matlab-endless-blocks-re) "\\>"))
+			 ;; We are at a middle-sub-block expression, like "case"
+			 ;; Ideally we'd show the beginning and the end, but lets just show
+			 ;; the beginning.
+			 (setq here-beg (match-beginning 0)
+			       here-end (match-end 0))
+			 (matlab-backward-sexp t)
+			 (looking-at (concat (matlab-block-beg-re) "\\>"))
+			 (setq there-beg (match-beginning 0)
+			       there-end (match-end 0)
+			       mismatch nil)		       
+			 )
 		      
 		      
-		      ;; No block matches, just return nothing.
-		      (t (setq noreturn t))
-		      )
-		   ;; An error orccured.  Assume 'here-*' is set, and setup missmatch.
-		   (setq mismatch t))
+			;; No block matches, just return nothing.
+			(t (setq noreturn t))
+			)
+		     ;; An error orccured.  Assume 'here-*' is set, and setup missmatch.
+		     (setq mismatch t))
 		 
-		 ))
+		 
+		   )))
 
 	  (if noreturn
 	      nil
