@@ -36,7 +36,9 @@
   "Run all the syntax tests in this file."
   (metest-comment-string-syntax-test)
   (metest-sexp-counting-test)
-  (metest-sexp-traversal-test))
+  (metest-sexp-traversal-test)
+  (metest-indents-test)
+  )
 
 (defvar met-stringtest-files '("strings.m")
   "List of files for running string tests on.")
@@ -49,7 +51,7 @@
       (save-excursion
 	(set-buffer buf)
 	(goto-char (point-min))
-	(message "Starting search loop in %S" (current-buffer))
+	(message ">> Starting search loop in %S" (current-buffer))
 	(while (re-search-forward "#\\([csve]\\)#" nil t)
 	  (goto-char (match-end 1))
 	  (let ((md (match-data))
@@ -76,10 +78,11 @@
 	    (setq cnt (1+ cnt))
 	    ))
 	(kill-buffer buf))
-      (message "Comment and string syntax test: %d points passed" cnt)
-      )))
+      (message "<< Comment and string syntax test: %d points passed" cnt)
+      ))
+  (message ""))
   
-(defvar met-sexptest-files '("expressions.m" "mclass.m")
+(defvar met-sexptest-files '("expressions.m" "mclass.m" "indents.m")
   "List of files for running syntactic expression tests.")
 
 (defun metest-sexp-counting-test ()
@@ -90,7 +93,7 @@
       (save-excursion
 	(set-buffer buf)
 	(goto-char (point-min))
-	(message "Starting sexp counting loop in %S" (current-buffer))
+	(message ">> Starting sexp counting loop in %S" (current-buffer))
 	(while (re-search-forward "#\\([0-9]\\)#" nil t)
 	  (save-excursion
 	    (goto-char (match-beginning 0))
@@ -103,7 +106,7 @@
 		(if (not (eq (point) (point-min)))
 		    (save-restriction
 		      (widen)
-		      (error "Backward Sexp miscount at %d: tried %d, point %d, min %d"
+		      (error "error at %d: Backward Sexp miscount tried %d, point %d, min %d"
 			     (line-number-at-pos)
 			     num (point) (point-at-bol))))
 		(skip-chars-forward " \t;.=%")
@@ -112,15 +115,16 @@
 		(if (not (eq (point) (point-max)))
 		    (save-restriction
 		      (widen)
-		      (error "Forward Sexp miscount at %d: tried %d, point %d, dest %d"
+		      (error "Error at %d: Forward Sexp miscount tried %d, point %d, dest %d"
 			     (line-number-at-pos)
 			     num (point) (point-at-eol)))))
 	      ))
 	  (end-of-line)
 	  (setq cnt (1+ cnt))))
       (kill-buffer buf)
-      (message "Sexp counting syntax test: %d points passed" cnt)
-      )))
+      (message "<< Sexp counting syntax test: %d points passed" cnt)
+      ))
+  (message ""))
 
 (defun metest-sexp-traversal-test ()
   "Run a test to make sure high level block navigation works."
@@ -130,7 +134,7 @@
       (save-excursion
 	(set-buffer buf)
 	(goto-char (point-min))
-	(message "Starting sexp traversal loop in %S" (current-buffer))
+	(message ">> Starting sexp traversal loop in %S" (current-buffer))
 	(while (re-search-forward ">>\\([0-9]+\\)" nil t)
 	  (let* ((num (string-to-number (match-string 1)))
 		 (num2 0)
@@ -140,19 +144,53 @@
 	    (matlab-forward-sexp)
 	    (skip-chars-forward " \n\t;%")
 	    (if (not (looking-at "<<\\([0-9]+\\)"))
-		(error "Failed to find matching test end token for %d" num)
+		(error "Error at %d: Failed to find matching test end token for %d"
+		       (line-number-at-pos) num)
 	      (setq num2 (string-to-number (match-string 1)))
 	      (when (/= num num2)
-		(error "Failed to match correct test token. Start is %d, end is %d" num num2)))
+		(error "Error at %d: Failed to match correct test token. Start is %d, end is %d"
+		       (line-number-at-pos) num num2)))
 	    (matlab-backward-sexp)
 	    (when (/= (point) begin)
-		(error "Failed to reverse navigate sexp for %d" num))
+	      (error "Error at %d: Failed to reverse navigate sexp for %d"
+		     (line-number-at-pos) num))
 	    )
 	  (end-of-line)
 	  (setq cnt (1+ cnt))))
       (kill-buffer buf)
-      (message "Sexp counting syntax test: %d points passed" cnt)
-      )))
+      (message "<< Sexp counting syntax test: %d points passed" cnt)
+      ))
+  (message ""))
+
+
+(defvar met-indents-files '("indents.m" "mclass.m")
+  "List of files for running syntactic indentation tests.")
+
+(defun metest-indents-test ()
+  "Run a test to make sure high level block navigation works."
+  (dolist (F met-indents-files)
+    (let ((buf (find-file-noselect (expand-file-name F met-testfile-path)))
+	  (cnt 0))
+      (save-excursion
+	(set-buffer buf)
+	(goto-char (point-min))
+	;; (indent-region (point-min) (point-max))
+	(message ">> Starting indents loop in %S" (current-buffer))
+	(while (re-search-forward "!!\\([0-9]+\\)" nil t)
+	  (let* ((num (string-to-number (match-string 1)))
+		 (calc (matlab-calc-indent))
+		 (begin nil))
+	    (when (not (= num calc))
+	      (error "Error at %d: Indentation found is %d, expected %d"
+		     (line-number-at-pos) calc num))
+	    )
+	  (end-of-line)
+	  (setq cnt (1+ cnt))))
+      (kill-buffer buf)
+      (message "<< Indentation syntax test: %d points passed" cnt)
+      ))
+  (message ""))
+
 
 (provide 'metest)
 
