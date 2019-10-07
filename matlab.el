@@ -62,7 +62,7 @@
         (defalias 'matlab-make-overlay 'make-extent)
         (defalias 'matlab-overlay-put 'set-extent-property)
         (defalias 'matlab-overlay-get 'extent-property)
-        (defalias 'matlab-delete-overlay 'delete-extent)p
+        (defalias 'matlab-delete-overlay 'delete-extent)
         (defalias 'matlab-overlay-start 'extent-start-position)
         (defalias 'matlab-overlay-end 'extent-end-position)
         (defalias 'matlab-previous-overlay-change 'previous-extent-change)
