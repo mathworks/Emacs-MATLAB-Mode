@@ -297,7 +297,9 @@ argument, not the first argument."
 (defcustom matlab-arg1-max-indent-length 15
   "*The maximum length to indent when indenting past arg1.
 If arg1 is exceptionally long, then only this number of characters
-will be indented beyond the open paren starting the parameter list.")
+will be indented beyond the open paren starting the parameter list."
+  :group 'matlab
+  :type 'integer)
 
 (defcustom matlab-maximum-indents '(;; = is a convenience. Don't go too far
 				    (?= . (10 . 4))
@@ -341,7 +343,9 @@ This overcomes situations where the `fill-column' plus the
 
 (defcustom matlab-elipsis-string "..."
   "Text used to perform continuation on code lines.
-This is used to generate and identify continuation lines.")
+This is used to generate and identify continuation lines."
+  :group 'matlab
+  :type 'string)
 
 (defcustom matlab-fill-code t
   "*If true, `auto-fill-mode' causes code lines to be automatically continued."
@@ -351,12 +355,16 @@ This is used to generate and identify continuation lines.")
 (defcustom matlab-fill-count-ellipsis-flag t
   "*Non-nil means to count the ellipsis when auto filling.
 This effectively shortens the `fill-column' by the length of
-`matlab-elipsis-string'.")
+`matlab-elipsis-string'."
+  :group 'matlab
+  :type 'boolean)
 
 (defcustom matlab-fill-strings-flag t
   "*Non-nil means that when auto-fill is on, strings are broken across lines.
 If `matlab-fill-count-ellipsis-flag' is non nil, this shortens the
-`fill-column' by the length of `matlab-elipsis-string'.")
+`fill-column' by the length of `matlab-elipsis-string'."
+  :group 'matlab
+  :type 'boolean)
 
 (defcustom matlab-comment-column 40
   "*The goal comment column in `matlab-mode' buffers."
@@ -671,8 +679,7 @@ If font lock is not loaded, lay in wait."
     (define-key km "F" 'tempo-template-matlab-function)
     (define-key km "'" 'matlab-stringify-region)
     ;; Not really inserts, but auto coding stuff
-    (define-key km "\C-s" 'matlab-ispell-strings)
-    (define-key km "\C-c" 'matlab-ispell-comments)
+    (define-key km "\C-s" 'matlab-ispell-strings-and-comments)
     km)
   "Keymap used for inserting simple texts based on context.")
 
@@ -3991,7 +3998,7 @@ the region.  BEGIN and END mark the region to be stringified."
       (goto-char m)
       (insert "'"))))
 
-(defun matlab-ispell-strings-region (begin end)
+(defun matlab-ispell-strings-and-comments-region (begin end)
   "Spell check valid strings in region with Ispell.
 Argument BEGIN and END mark the region boundary."
   (interactive "r")
@@ -4004,26 +4011,11 @@ Argument BEGIN and END mark the region boundary."
     (while (and (matlab-font-lock-allstring-comment-match-normal end)
 		(ispell-region (match-beginning 0) (match-end 0))))))
 
-(defun matlab-ispell-strings ()
+(defun matlab-ispell-strings-and-comments ()
   "Spell check valid strings in the current buffer with Ispell.
 Calls `matlab-ispell-strings-region'"
   (interactive)
-  (matlab-ispell-strings-region (point-min) (point-max)))
-
-(defun matlab-ispell-comments (&optional arg)
-  "Spell check comments in the current buffer with Ispell.
-Optional ARG means to only check the current comment."
-  (interactive "P")
-  (let ((beg (point-min))
-	(end (point-max)))
-  (if (and arg (matlab-ltype-comm))
-      (setq beg (save-excursion (matlab-beginning-of-command) (point))
-	    end (save-excursion (matlab-end-of-command) (point))))
-  (save-excursion
-    (goto-char beg)
-    (beginning-of-line)
-    (while (and (matlab-font-lock-comment-match end)
-		(ispell-region (match-beginning 1) (match-end 1)))))))
+  (matlab-ispell-strings-and-comments-region (point-min) (point-max)))
 
 (defun matlab-generate-latex ()
   "Convert a MATLAB M file into a Latex document for printing.
@@ -4094,7 +4086,7 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 					;(message "ts = %S  hs=%S tc = %d hc = %d" there-syntax here-syntax there-char here-char)
 			 (setq mismatch t))
 		       )
-		   (setq mismatch t)))
+		   (error (setq mismatch t))))
 		((and here-prev-syntax (= (car here-prev-syntax) 5))
 		 (setq here-beg (1- (point))
 		       here-end (point))
@@ -4110,7 +4102,7 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 				 (/= (cdr here-prev-syntax) there-char)) ; this part seems optional
 			 (setq mismatch t))
 		       )
-		   (setq mismatch t)))
+		   (error (setq mismatch t))))
 		(t
 		 ;; Part 2: Are we looking at a block start/end, such as if end;
 
@@ -4191,7 +4183,7 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 			(t (setq noreturn t))
 			)
 		     ;; An error orccured.  Assume 'here-*' is set, and setup missmatch.
-		     (setq mismatch t))
+		     (error (setq mismatch t)))
 		 
 		 
 		   )))
@@ -4616,8 +4608,7 @@ desired.  Optional argument FAST is not used."
       ]
      ("Auto Fix"
       ["Verify/Fix source" matlab-mode-verify-fix-file t]
-      ["Spell check strings" matlab-ispell-strings t]
-      ["Spell check comments" matlab-ispell-comments t]
+      ["Spell check strings and comments" matlab-ispell-strings-and-comments t]
       ["Quiesce source" matlab-mode-vf-quiesce-buffer t]
       )
      ("Navigate"
@@ -4747,7 +4738,9 @@ will disable use emacsclient as the external editor."
 (defcustom matlab-shell-history-file "~/.matlab/%s/history.m"
   "*Location of the history file.
 A %s is replaced with the MATLAB version release number, such as R12.
-This file is read to initialize the comint input ring.")
+This file is read to initialize the comint input ring."
+  :group 'matlab
+  :type 'filename)
 
 (defcustom matlab-shell-input-ring-size 32
   "*Number of history elements to keep."
