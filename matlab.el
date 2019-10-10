@@ -4094,7 +4094,7 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 					;(message "ts = %S  hs=%S tc = %d hc = %d" there-syntax here-syntax there-char here-char)
 			 (setq mismatch t))
 		       )
-		   (setq mismatch t)))
+		   (error (setq mismatch t))))
 		((and here-prev-syntax (= (car here-prev-syntax) 5))
 		 (setq here-beg (1- (point))
 		       here-end (point))
@@ -4110,7 +4110,7 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 				 (/= (cdr here-prev-syntax) there-char)) ; this part seems optional
 			 (setq mismatch t))
 		       )
-		   (setq mismatch t)))
+		   (error (setq mismatch t))))
 		(t
 		 ;; Part 2: Are we looking at a block start/end, such as if end;
 
@@ -4191,7 +4191,7 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 			(t (setq noreturn t))
 			)
 		     ;; An error orccured.  Assume 'here-*' is set, and setup missmatch.
-		     (setq mismatch t))
+		     (error (setq mismatch t)))
 		 
 		 
 		   )))
