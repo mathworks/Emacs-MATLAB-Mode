@@ -40,6 +40,10 @@ end
 (( "mpclass" type
              ( :type "class" 
                :members (
+               ("X" variable)
+               ("Y" variable)
+               ("A" variable (:protection "private"))
+               ("B" variable (:protection "private"))
                ("mpclass" function (
                    :return ("obj")
                    :arguments ("x" "y")))

@@ -108,7 +108,7 @@ Looks @ first declaration to determine if it is a class or function."
 (defun semantic-matlab-class-tags (&optional buffer)
   "Find the MATLAB class tag, and all methods (functions) in BUFFER.
 Return argument is:
-  (START END NAME BASECLASSES DOCSTRING METHODS LOCALFCN)."
+  (START END NAME BASECLASSES DOCSTRING METHODS PROPS LOCALFCN)."
   (save-excursion
     (if buffer (set-buffer buffer))
     (let ((re semantic-matlab-match-classdef-re)
@@ -159,12 +159,65 @@ Return argument is:
 			    base
 			    doc
 			    (car meth)
+			    (semantic-matlab-properties-tags start end)
 			    (car (semantic-matlab-sort-raw-function-tags (car (cdr meth)) (point-max)))
 			    )
 		      taglist))
 	  )
       (nreverse taglist))))
 
+(defvar semantic-matlab-match-properties-block-re
+  "^\\s-*\\bproperties\\b"
+  "Regular expression for matching the start of a properties block.")
+
+(defun semantic-matlab-properties-tags (start end)
+  "Create a tags list out of properties found between START and END."
+  (save-excursion
+    (goto-char start)
+    (let ((taglist nil)
+	  (tmpend nil)
+	  (attrs nil)
+	  )
+      (while (re-search-forward semantic-matlab-match-properties-block-re nil end)
+	(setq attrs (semantic-matlab-parse-attributes-and-move))
+
+	(save-excursion ;; find end of properties block
+	  (matlab-forward-sexp nil t)
+	  (beginning-of-line)
+	  (setq tmpend (point)))
+
+	(while (re-search-forward "^\\s-*\\(\\w+\\)\\>" tmpend t)
+	  (setq taglist (cons
+			 (append
+			  (apply #'semantic-tag-new-variable (match-string-no-properties 1)
+				 nil nil
+				 attrs)
+			  (list (match-beginning 1) (point-at-eol)))
+			 taglist)))
+
+	(goto-char tmpend)
+	)
+      (nreverse taglist)
+      )))
+
+(defun semantic-matlab-parse-attributes-and-move ()
+  "Parse the properties or method attributes block, and move cursor to end of list."
+  (when (looking-at "\\s-*(")
+    (let ((end (save-excursion
+		 (matlab-forward-sexp)
+		 (point)))
+	  (attrs nil)
+	  (case-fold-search t)
+	  )
+      (save-excursion
+	;; Protection
+	(when (re-search-forward "\\<Access=['\"]\\(\\w+\\)['\"]" end t)
+	  (setq attrs (append (list :protection (match-string-no-properties 1))
+			      attrs)))
+	;; Add next attr here
+	)
+      (goto-char end)
+      attrs)))
 
 ;; FUNCTION Definitions
 
@@ -375,12 +428,13 @@ Each tag returned is a semantic FUNCTION tag.  See
 	    (base (nth 3 tag))
 	    (doc (nth 4 tag))
 	    (meth (nth 5 tag))
-	    (local (nth 6 tag)))
+	    (props (nth 6 tag))
+	    (local (nth 7 tag)))
 	(setq newlist
 	      (cons (append
 		     (semantic-tag-new-type name
 					    "class"
-					    meth
+					    (append props meth)
 					    base
 					    :documentation doc)
 		     (list start end))
