@@ -84,12 +84,87 @@ completions.")
   "^\\s-*\\(classdef\\|function\\)\\>"
   "Regexp to identify if a file represents a class or a function.")
 
+(defun semantic-matlab-guess-buffer-type (&optional buffer)
+  "Guess what kind of MATLAB content BUFFER contains.
+Looks @ first declaration to determine if it is a class or function."
+  (save-excursion
+    (if buffer (set-buffer buffer))
+    (goto-char (point-min))
+    (if (re-search-forward semantic-matlab-match-filetype-re nil t)
+	(let ((key (match-string 1)))
+	  (cond ((string= key "classdef")
+		 'class)
+		((string= key "function")
+		 'function)))
+      'script)))
+
 ;;; TAG MATCHING
 ;;
 ;; CLASS Defintions
 (defvar semantic-matlab-match-classdef-re
-  "^\\s-*classdef\\b\\s-*\\(?:([^\n)])\\)?\\s-*\\(\\w+\\>\\)"
+  "^\\s-*classdef\\b\\s-*\\(?:([^\n)]+)\\)?\\s-*\\<\\(?2:\\w+\\)\\>"
   "Expression to match a class definition start")
+
+(defun semantic-matlab-class-tags (&optional buffer)
+  "Find the MATLAB class tag, and all methods (functions) in BUFFER.
+Return argument is:
+  (START END NAME BASECLASSES DOCSTRING METHODS LOCALFCN)."
+  (save-excursion
+    (if buffer (set-buffer buffer))
+    (let ((re semantic-matlab-match-classdef-re)
+	  start cn end doc base meth
+	  (taglist nil)
+	  )
+      (goto-char (point-min))
+      (when (re-search-forward re nil t)
+	  (setq start (match-beginning 0)
+		cn (buffer-substring-no-properties
+		    (match-beginning 2) (match-end 2))
+		base nil ;; TODO
+		doc (save-excursion
+		      (forward-line)
+		      (beginning-of-line)
+		      ;; snarf doc string
+		      (cond
+		       ;; Mathworks standard
+		       ((looking-at "%[A-Z0-9_]+\\s-+\\(.*\\)\\s-*$")
+			(match-string-no-properties 1))
+		       ;; lookfor string
+		       ((looking-at "%\\s-+\\(.*\\)\\s-*$")
+			(match-string-no-properties 1))
+		       ;; otherwise simply snarf first line of
+		       ;; comments under function declaration
+		       (t
+			(re-search-forward "[^[:blank:][:cntrl:]]" nil t)
+			(backward-char)
+			(if (looking-at "%\\s-+\\(.*\\)")
+			    (match-string-no-properties 1)
+			  nil))))
+		end (save-excursion
+		      (goto-char start)
+		      (if matlab-functions-have-end
+			  (condition-case nil
+			      ;; If we get a failure, we should at least
+			      ;; return whatever we got so far.
+			      (matlab-forward-sexp)
+			    (error (point-max)))
+			(matlab-end-of-defun))
+		      (point))
+		meth (semantic-matlab-sort-raw-function-tags (semantic-matlab-function-tags)
+							     end)
+		)
+	  (setq taglist
+		(cons (list start end
+			    cn
+			    base
+			    doc
+			    (car meth)
+			    (car (semantic-matlab-sort-raw-function-tags (car (cdr meth)) (point-max)))
+			    )
+		      taglist))
+	  )
+      (nreverse taglist))))
+
 
 ;; FUNCTION Definitions
 
@@ -248,9 +323,14 @@ IGNORE any arguments which specify a subregion to parse.
 Each tag returned is a semantic FUNCTION tag.  See
 `semantic-tag-new-function'."
   (semanticdb-matlab-cache-files)
-  (let ((raw (condition-case nil
-		 ;; Errors from here ought not to be propagated.
-		 (semantic-matlab-parse-functions)
+  (let* ((bt (semantic-matlab-guess-buffer-type))
+	 (raw (condition-case nil
+		  ;; Errors from here ought not to be propagated.
+		  (cond ((eq bt 'class)
+			 (semantic-matlab-parse-class))
+			((eq bt 'function)
+			 (semantic-matlab-parse-functions))
+			(t nil))
 	       (error nil)))
 	tags ctags)
     (setq tags (mapcar 'semantic-matlab-expand-tag raw))
@@ -266,6 +346,13 @@ Each tag returned is a semantic FUNCTION tag.  See
   ;;       To be implemented later.
   (semantic-parse-tree-set-needs-rebuild))
 
+(define-mode-local-override semantic-tag-components-with-overlays
+  matlab-mode (tag)
+  "Return the list of subfunctions, or class members in TAG."
+  (or 
+   (semantic-tag-get-attribute tag :members)
+   (semantic-tag-get-attribute tag :subfunctions)))
+
 (defun semantic-matlab-expand-tag (tag)
   "Expand the MATLAB function tag TAG."
   (let ((chil (semantic-tag-components-with-overlays tag)))
@@ -274,14 +361,42 @@ Each tag returned is a semantic FUNCTION tag.  See
          tag :members (mapcar 'semantic-matlab-expand-tag chil)))
     (car (semantic--tag-expand tag))))
 
+(defun semantic-matlab-parse-class (&optional limit)
+  "Pase the class from the current MATLAB buffer."
+  (semantic-matlab-sort-raw-class-tags (semantic-matlab-class-tags)))
+
+(defun semantic-matlab-sort-raw-class-tags (tag-list)
+  "Return a split list of tags from TAG-LIST before END."
+  (let ((newlist nil))
+    (dolist (tag tag-list)
+      (let ((start (car tag))
+	    (end (nth 1 tag))
+	    (name (nth 2 tag))
+	    (base (nth 3 tag))
+	    (doc (nth 4 tag))
+	    (meth (nth 5 tag))
+	    (local (nth 6 tag)))
+	(setq newlist
+	      (cons (append
+		     (semantic-tag-new-type name
+					    "class"
+					    meth
+					    base
+					    :documentation doc)
+		     (list start end))
+		    newlist))
+	(setq newlist (append newlist local))
+	))
+    newlist))
+
 (defun semantic-matlab-parse-functions ()
   "Parse all functions from the current MATLAB buffer."
   (car
-   (semantic-matlab-sort-raw-tags (semantic-matlab-function-tags)
-				  (point-max))
+   (semantic-matlab-sort-raw-function-tags (semantic-matlab-function-tags)
+					   (or limit (point-max)))
    ))
 
-(defun semantic-matlab-sort-raw-tags (tag-list &optional end)
+(defun semantic-matlab-sort-raw-function-tags (tag-list &optional end)
   "Return a split list of tags from TAG-LIST before END.
 Return list is:
   (TAGS-BEFORE-END REMAINING-TAGS)"
@@ -297,7 +412,7 @@ Return list is:
 	     (args (nth 4 tag))
 	     (doc (nth 5 tag))
 	     (builtin (nth 6 tag))
-	     (parts (semantic-matlab-sort-raw-tags (cdr tag-list) end))
+	     (parts (semantic-matlab-sort-raw-function-tags (cdr tag-list) end))
 	     (chil (car parts)))
 	(setq rest (car (cdr parts)))
 	(setq newlist
@@ -479,11 +594,6 @@ where NAME is unique."
 	 tags))
       tags)))
 
-
-(define-mode-local-override semantic-tag-components-with-overlays
-  matlab-mode (tag)
-  "Return the list of subfunctions in TAG."
-  (semantic-tag-get-attribute tag :subfunctions))
 
 (define-mode-local-override semantic-format-tag-prototype matlab-mode
   (tag &optional parent color)
