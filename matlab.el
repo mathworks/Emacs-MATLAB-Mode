@@ -1197,7 +1197,9 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
    (list (concat "^\\s-*function\\>[ \t\n.]*"
 		 "\\(\\(\\[[^]]*\\]\\|\\sw+\\)[ \t\n.]*=[ \t\n.]*\\)?"
 		 "\\sw+\\s-*(")
-	 '("\\s-*\\(\\sw+\\)\\s-*[,)]" nil  nil
+	 '("\\s-*\\(\\sw+\\)\\s-*[,)]"
+	   (save-excursion (matlab-end-of-command) (point))
+	   nil
 	   (1 font-lock-variable-name-face)))
    ;; I like variables for FOR loops
    '("\\<\\(\\(?:par\\)?for\\)\\s-+\\(\\sw+\\)\\s-*=\\s-*\
@@ -2101,7 +2103,8 @@ Optional BEGINNING is where the command starts from."
 	      ;; becomes visible.
 	      (not (save-excursion
 		     (beginning-of-line)
-		     (looking-at (matlab-block-scan-re))))
+		     (and (looking-at (matlab-block-scan-re))
+			  (not (looking-at (matlab-match-function-re))))))
               ;; If we hit the end of the buffer unexpectedly, this test
               ;; will fail and we'll avoid looping forever.  (E.g., this
               ;; is triggered if a continuation line is the last one in
