@@ -2543,7 +2543,8 @@ If there isn't one, then return nil, point otherwise."
   "Indent a line in `matlab-mode'."
   (interactive)
   (let ((i (matlab-calc-indent))
-	(c (current-column)))
+	(ci (current-indentation))
+	(cc (current-column)))
     (save-excursion
       (back-to-indentation)
       (if (= i (current-column))
@@ -2553,9 +2554,7 @@ If there isn't one, then return nil, point otherwise."
 	(indent-to i))
       ;; If line contains a comment, format it.
       (if () (if (matlab-lattr-comm) (matlab-comment))))
-    ;; Note: The below was in for a long time, but in newer emacs it just
-    ;;       puts the cursor in the wrong spot most of the time.
-    ;; (if (<= c i) (move-to-column i))
+    (if (<= cc ci) (move-to-column i))
     ))
 
 (defun matlab-calc-indent ()
