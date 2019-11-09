@@ -2553,7 +2553,10 @@ If there isn't one, then return nil, point otherwise."
 	(indent-to i))
       ;; If line contains a comment, format it.
       (if () (if (matlab-lattr-comm) (matlab-comment))))
-    (if (<= c i) (move-to-column i))))
+    ;; Note: The below was in for a long time, but in newer emacs it just
+    ;;       puts the cursor in the wrong spot most of the time.
+    ;; (if (<= c i) (move-to-column i))
+    ))
 
 (defun matlab-calc-indent ()
   "Return the appropriate indentation for this line as an integer."
@@ -2953,6 +2956,9 @@ Has effect of `matlab-return' with (not matlab-indent-before-return)."
   (newline)
   (matlab-indent-line))
 
+
+;;; Comment management========================================================
+
 (defun matlab-comment-return ()
   "Handle carriage return for MATLAB comment line."
   (interactive)
@@ -2991,13 +2997,12 @@ Argument ARG specifies how many %s to insert."
     ;; The above seems to put the cursor on the %, not after it.
     (skip-chars-forward "%")))
 
-
-;;; Comment management========================================================
-
 (defun matlab-comment ()
   "Add a comment to the current line."
   (interactive)
-  (cond ((matlab-ltype-empty)		; empty line
+  (cond ((region-active-p)
+	 (call-interactively #'comment-or-uncomment-region))
+	((matlab-ltype-empty)		; empty line
 	 (matlab-comm-from-prev)
 	 (if (matlab-lattr-comm)
 	     (skip-chars-forward " \t%")
