@@ -252,7 +252,7 @@ matlab-mode is initialized."
       (setq matlab-functions-have-end t)
     (setq matlab-functions-have-end nil)
     )
-)
+  )
 
 (defvar matlab-defun-regex) ;; Quiet compiler warning (is defined below)
 (defun matlab-do-functions-have-end-p ()
@@ -406,7 +406,7 @@ region."
   :type 'boolean)
 
 (defcustom matlab-mode-verify-fix-functions
-  '(matlab-mode-vf-functionname matlab-mode-vf-classname)
+  '(matlab-mode-vf-functionname matlab-mode-vf-classname matlab-mode-vf-add-ends)
   "List of function symbols which perform a verification and fix to M code.
 Each function gets no arguments, and returns nothing.  They can move
 point, but it will be restored for them."
@@ -414,6 +414,7 @@ point, but it will be restored for them."
   :type '(repeat (choice :tag "Function: "
 			 '(matlab-mode-vf-functionname
 			   matlab-mode-vf-classname
+			   matlab-mode-vf-add-ends
 			   matlab-mode-vf-block-matches-forward
 			   matlab-mode-vf-block-matches-backward
 			   matlab-mode-vf-quiesce-buffer
@@ -804,10 +805,10 @@ If font lock is not loaded, lay in wait."
        (setq matlab-show-periodic-code-details-flag
 	     (not matlab-show-periodic-code-details-flag))
        :style toggle :selected matlab-show-periodic-code-details-flag ]
-      ["Highlight Matching Blocks"
-       (matlab-enable-block-highlighting)
-       :style toggle :selected (member 'matlab-start-block-highlight-timer
-				       post-command-hook) ]
+      ;; ["Highlight Matching Blocks"
+      ;;  (matlab-enable-block-highlighting)
+      ;;  :style toggle :selected (member 'matlab-start-block-highlight-timer
+      ;; 				       post-command-hook) ]
       ["Highlight Cross-Function Variables"
        matlab-toggle-highlight-cross-function-variables
        :active (locate-library "mlint")
@@ -4077,20 +4078,34 @@ Optional argument FAST is ignored."
 		(delete-region begin end)
 		(insert bn))))))))
 
-(defun matlab-mode-vf-block-matches-forward (&optional fast)
+(defun matlab-mode-vf-add-ends (&optional fast)
+  "Verify/Fix adding ENDS to functions.
+Optional argument FAST skips this test in fast mode."
+  (when (and matlab-functions-have-end (not fast))
+    (matlab-mode-vf-block-matches-forward nil t)
+    ))
+
+(defun matlab-mode-vf-block-matches-forward (&optional fast addend)
   "Verify/Fix unterminated (or un-ended) blocks.
 This only checks block regions like if/end.
-Optional argument FAST causes this check to be skipped."
+If `matlab-mode-vf-add-ends' is part of your verify list, this will
+not be needed.
+
+Optional argument FAST causes this check to be skipped.
+Optional argument ADDEND asks to add ends to functions, and is used
+by `matlab-mode-vf-add-ends'"
   (goto-char (point-min))
   (let ((go t)
-	(expr (concat "\\<\\(" (matlab-block-beg-pre) "\\)\\>")))
+	(expr (concat "\\<\\(" (matlab-block-beg-pre) "\\)\\>"))
+	)
     (matlab-navigation-syntax
       (while (and (not fast) go (re-search-forward expr nil t))
 	(forward-word -1)		;back over the special word
-	(let ((s (point)))
+	(let ((s (point))
+	      e)
 	  (condition-case nil
 	      (if (and (not (matlab-cursor-in-string-or-comment))
-		       (not (looking-at "function")))
+		       (or matlab-functions-have-end (not (looking-at "function"))))
 		  (progn
 		    (matlab-forward-sexp)
 		    (forward-word -1)
@@ -4099,12 +4114,40 @@ Optional argument FAST causes this check to be skipped."
 			(setq go nil)))
 		(forward-word 1))
 	    (error (setq go nil)))
-	  (if (and (not go) (goto-char s)
-		   (not (matlab-mode-highlight-ask
-			 (point) (save-excursion (forward-word 1) (point))
-			 "Unterminated block.  Continue anyway?")))
-	      (error "Unterminated Block found!")))
+	  (when (not go)
+	    (goto-char s)
+	    (setq e (save-excursion (forward-word 1) (point)))
+	    ;; Try to add an end to the broken block
+	    (if (and addend
+		     (matlab-mode-highlight-ask
+		      s e
+		      "Unterminated block.  Try to add end?"))
+		(progn
+		  (matlab-mode-vf-add-end-to-this-block)
+		  (setq go t))
+	      ;; We didn't try to add an end.  Should we save.
+	    (if (matlab-mode-highlight-ask
+		 s e
+		 "Unterminated block.  Continue anyway?")
+		nil ;; continue anyway.
+	      (error "Unterminated Block found!")))))
 	(message "Block-check: %d%%" (/ (/ (* 100 (point)) (point-max)) 2))))))
+
+(defun matlab-mode-vf-add-end-to-this-block ()
+  "Add an end to the current block the cursor is on."
+  ;; Our best guess is just in front of a 'function' block, or at the end
+  ;; of the current buffer.
+  ;; Cheat and look for
+  (save-excursion
+    (end-of-line)
+    (if (re-search-forward "^function " nil t)
+	(progn
+	  (beginning-of-line)
+	  (save-excursion (insert "end\n\n"))
+	  (matlab-indent-line))
+      (goto-char (point-max))
+      (save-excursion (insert "end\n\n"))
+      (matlab-indent-line))))
 
 (defun matlab-mode-vf-block-matches-backward (&optional fast)
   "Verify/fix unstarted (or dangling end) blocks.
@@ -4135,6 +4178,7 @@ Optional argument FAST causes this check to be skipped."
 (defun matlab-mode-highlight-ask (begin end prompt)
   "Highlight from BEGIN to END while asking PROMPT as a yes-no question."
   (let ((mo (matlab-make-overlay begin end (current-buffer)))
+	(show-paren-mode nil) ;; this will highlight things we often ask about.  disable.
 	(ans nil))
     (condition-case nil
 	(progn
