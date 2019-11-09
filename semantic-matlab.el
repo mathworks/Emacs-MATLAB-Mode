@@ -120,7 +120,12 @@ Return argument is:
 	  (setq start (match-beginning 0)
 		cn (buffer-substring-no-properties
 		    (match-beginning 2) (match-end 2))
-		base nil ;; TODO
+		base (save-excursion
+		       (let ((tmp nil))
+			 (while (looking-at "\\s-*[<&]\\s-*\\(\\(\\sw\\|\\.\\)+\\)")
+			   (setq tmp (cons (match-string-no-properties 1) tmp))
+			   (goto-char (match-end 0)))
+			 (nreverse tmp)))
 		doc (save-excursion
 		      (forward-line)
 		      (beginning-of-line)
@@ -468,7 +473,7 @@ Each tag returned is a semantic FUNCTION tag.  See
 		     (semantic-tag-new-type name
 					    "class"
 					    (append props meth)
-					    base
+					    (list base)
 					    :documentation doc)
 		     (list start end))
 		    newlist))

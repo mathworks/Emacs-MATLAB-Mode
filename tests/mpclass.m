@@ -40,6 +40,7 @@ end
 %{
 (( "mpclass" type
              ( :type "class" 
+               :superclasses ("handle" "matlab.mixin.SetGetExactNames")
                :members (
                ("X" variable)
                ("Y" variable)
