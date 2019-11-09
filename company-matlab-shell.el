@@ -1,6 +1,6 @@
 ;;; company-matlab-shell.el --- a matlab-shell-mode completion back-end for AUCTeX
 ;;
-;; Copyright (C) 2016,2017 The MathWorks Inc.
+;; Copyright (C) 2016,2017,2019 The MathWorks Inc.
 ;; Copyright (C) 2009 David Engster
 ;;
 ;; This program is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@
 
 (eval-when-compile (require 'cl))
 (require 'matlab)
+(require 'matlab-shell)
 
 (defvar company-matlab-shell--ci (make-hash-table :test 'equal)
   "Private variable for company-matlab-shell completion info")

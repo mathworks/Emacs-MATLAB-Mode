@@ -1,9 +1,8 @@
 ;;; semantic-matlab.el --- Semantic details for MATLAB files
 
-;;; Copyright (C) 2004, 2005, 2008, 2012, 2013 Eric M. Ludlam: The Mathworks, Inc
+;;; Copyright (C) 2004-2013, 2019 Eric M. Ludlam: The Mathworks, Inc
 
 ;; Author: Eric M. Ludlam <eludlam@mathworks.com>
-;; X-RCS: $Id$
 
 ;; This file is not part of GNU Emacs.
 
@@ -30,8 +29,6 @@
 ;; you can only declare functions.  In addition, the language itself is not
 ;; expressable in a yacc style grammar.  It is therefore more expedient
 ;; to scan for regular expressions.
-;;
-;; Caveat: MCOS classes have property declarations. @todo - support them
 
 (require 'mode-local)
 (require 'semantic)
@@ -44,7 +41,10 @@
     (error (require 'semantic/dep)))
   )
 (require 'matlab)
+(require 'matlab-shell)
 (require 'semanticdb-matlab)
+
+
 
 ;;; Code:
 (defvar semantic-matlab-system-paths-include '("toolbox/matlab/funfun" "toolbox/matlab/general")
@@ -78,14 +78,27 @@ completions.")
       (matlab-shell-matlabroot)
     semantic-matlab-root-directory))
 
-;; The version of this variable in MATLAB.el is not condusive to extracting
+;;; File type detection
+;;
+(defvar semantic-matlab-match-filetype-re
+  "^\\s-*\\(classdef\\|function\\)\\>"
+  "Regexp to identify if a file represents a class or a function.")
+
+;;; TAG MATCHING
+;;
+;; CLASS Defintions
+(defvar semantic-matlab-match-classdef-re
+  "^\\s-*classdef\\b\\s-*\\(?:([^\n)])\\)?\\s-*\\(\\w+\\>\\)"
+  "Expression to match a class definition start")
+
+;; FUNCTION Definitions
+
+;; The version of this variable in MATLAB.el is not a condusive to extracting
 ;; the information we need.
 (defvar semantic-matlab-match-function-re
   "\\(^\\s-*function\\b[ \t\n.]*\\)\\(\\[[^]]+\\]\\s-*=\\|\\w+\\s-*=\\|\\)\\s-*\\(\\(\\sw\\|\\s_\\)+\\)\\>"
   "Expression to match a function start line.")
 
-;; This function may someday be a part of matlab.el.
-;; It does the raw scan and split for function tags.
 (defun semantic-matlab-function-tags (&optional buffer)
   "Find all MATLAB function tags in BUFFER.
 Return argument is:

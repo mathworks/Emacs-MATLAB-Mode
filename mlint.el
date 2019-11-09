@@ -7,7 +7,7 @@
 (defvar mlint-version "1.3.1"
   "The current version of mlint minor mode.")
 
-;; Copyright (C) 2002-2005, 2013, 2014, 2016-2017 The MathWorks Inc.
+;; Copyright (C) 2002-2005, 2013, 2014, 2016-2017, 2019 The MathWorks Inc.
 ;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -263,7 +263,9 @@ If BUFFER is nil, use the current buffer."
                     (forward-char (1- (cdr where)))
                     (re-search-backward "function\\b")
                     (setq where (point))
-                    (matlab-forward-sexp)
+		    (condition-case nil
+			(matlab-forward-sexp)
+		      (error (goto-char (point-max))))
                     (if (cadr entry) ; nested
                       (linemark-overlay-put
                        (linemark-make-overlay where (point))

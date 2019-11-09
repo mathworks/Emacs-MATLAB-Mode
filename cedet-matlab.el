@@ -1,6 +1,6 @@
 ;;; cedet-matlab.el --- CEDET Setup support
 ;;
-;; Copyright (C) 2009, 2012 Eric Ludlam
+;; Copyright (C) 2009, 2012, 2019 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <eludlam@mathworks.com>
 ;; X-RCS: $Id$
@@ -24,12 +24,14 @@
 ;;
 ;; Setup miscelaneous CEDET tools to work with MATLAB.
 
-(defvar srecode-map-load-path) ;; quite compiler warning
+(eval-when-compile
+  (require 'semantic)
+  (require 'srecode/map))
 
 ;;; Code:
 ;;;###autoload
 (defun matlab-cedet-setup ()
-  "Update various paths to get SRecode to identify our macros."
+  "Setup support for CEDET tools for use with MATLAB."
   (interactive)
 
   ;; Setup Semantic parser:
@@ -46,10 +48,8 @@
     (when (not tmpdir)
       (error "Unable to locate MATLAB Templates directory"))
 
-    ;; Rig up the map.
-    (condition-case nil
-	(require 'srecode-map)
-      (error (require 'srecode/map)))
+    ;; Rig up the srecode map.
+    (require 'srecode/map)
 
     (add-to-list 'srecode-map-load-path tmpdir)
     (if (fboundp 'srecode-map-update-map)
