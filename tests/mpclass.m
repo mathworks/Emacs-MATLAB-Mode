@@ -16,7 +16,9 @@ classdef (abstract) mpclass < handle & matlab.mixin.SetGetExactNames
             obj.X = x;
             obj.Y = y;
         end
-        
+    end
+    
+    methods (Access='protected')
         function do_thing(obj, a, b)
         % Do a thing for the parse test
             obj.A = a;
@@ -24,7 +26,6 @@ classdef (abstract) mpclass < handle & matlab.mixin.SetGetExactNames
             
             localfunc('hello');
         end
-        
     end
     
 end
@@ -48,6 +49,7 @@ end
                    :return ("obj")
                    :arguments ("x" "y")))
                ("do_thing" function (
+                   :protection "protected"
                    :arguments ("obj" "a" "b"))))))
     ("localfunc" function (
         :arguments ("T"))))

@@ -153,6 +153,7 @@ Return argument is:
 		meth (semantic-matlab-sort-raw-function-tags (semantic-matlab-function-tags)
 							     end)
 		)
+	  (semantic-matlab-methods-update-tags (car meth) start end)
 	  (setq taglist
 		(cons (list start end
 			    cn
@@ -166,11 +167,11 @@ Return argument is:
 	  )
       (nreverse taglist))))
 
-(defvar semantic-matlab-match-properties-block-re
-  "^\\s-*\\bproperties\\b"
+(defvar semantic-matlab-match-methods-block-re
+  "^\\s-*\\bmethods\\b"
   "Regular expression for matching the start of a properties block.")
 
-(defun semantic-matlab-properties-tags (start end)
+(defun semantic-matlab-methods-update-tags (rawtags start end)
   "Create a tags list out of properties found between START and END."
   (save-excursion
     (goto-char start)
@@ -178,27 +179,59 @@ Return argument is:
 	  (tmpend nil)
 	  (attrs nil)
 	  )
-      (while (re-search-forward semantic-matlab-match-properties-block-re nil end)
-	(setq attrs (semantic-matlab-parse-attributes-and-move))
-
+      (while (re-search-forward semantic-matlab-match-methods-block-re nil end)
 	(save-excursion ;; find end of properties block
-	  (matlab-forward-sexp nil t)
-	  (beginning-of-line)
+	  (goto-char (match-beginning 0))
+	  (matlab-forward-sexp nil nil)
 	  (setq tmpend (point)))
 
-	(while (re-search-forward "^\\s-*\\(\\w+\\)\\>" tmpend t)
-	  (setq taglist (cons
-			 (append
-			  (apply #'semantic-tag-new-variable (match-string-no-properties 1)
-				 nil nil
-				 attrs)
-			  (list (match-beginning 1) (point-at-eol)))
-			 taglist)))
+	(setq attrs (semantic-matlab-parse-attributes-and-move))
 
+	(while (and rawtags (< (nth 5 (car rawtags)) tmpend))
+
+	  (while attrs
+	    (semantic-tag-put-attribute (car rawtags) (car attrs) (car (cdr attrs)))
+	    (setq attrs (cdr (cdr attrs))))
+	  (setq rawtags (cdr rawtags))))
+	
 	(goto-char tmpend)
 	)
-      (nreverse taglist)
-      )))
+      ))
+
+(defvar semantic-matlab-match-properties-block-re
+  "^\\s-*\\bproperties\\b"
+  "Regular expression for matching the start of a properties block.")
+
+(defun semantic-matlab-properties-tags (start end)
+  "Create a tags list out of properties found between START and END."
+  (save-excursion
+    (save-match-data
+      (goto-char start)
+      (let ((taglist nil)
+	    (tmpend nil)
+	    (attrs nil)
+	    )
+	(while (re-search-forward semantic-matlab-match-properties-block-re nil end)
+	  (setq attrs (semantic-matlab-parse-attributes-and-move))
+
+	  (save-excursion ;; find end of properties block
+	    (matlab-forward-sexp nil t)
+	    (beginning-of-line)
+	    (setq tmpend (point)))
+
+	  (while (re-search-forward "^\\s-*\\(\\w+\\)\\>" tmpend t)
+	    (setq taglist (cons
+			   (append
+			    (apply #'semantic-tag-new-variable (match-string-no-properties 1)
+				   nil nil
+				   attrs)
+			    (list (match-beginning 1) (point-at-eol)))
+			   taglist)))
+
+	  (goto-char tmpend)
+	  )
+	(nreverse taglist)
+	))))
 
 (defun semantic-matlab-parse-attributes-and-move ()
   "Parse the properties or method attributes block, and move cursor to end of list."
