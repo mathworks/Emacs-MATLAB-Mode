@@ -30,7 +30,8 @@
 (eval-and-compile
   (require 'gud)
   (require 'comint)
-  (require 'shell))
+  (require 'shell)
+  )
 
 ;;; Customizations
 ;;
@@ -284,14 +285,14 @@ in a popup buffer.
       (progn
 	(gud-def gud-break  "dbstop at %l in %f"  "\C-b" "Set breakpoint at current line.")
 	(gud-def gud-remove "dbclear at %l in %f" "\C-d" "Remove breakpoint at current line")
-	(gud-def gud-step   "dbstep in;\ndbhotlink(1)"           "\C-s" "Step one source line, possibly into a function.")
-	(gud-def gud-next   "dbstep %p;\ndbhotlink(1)"           "\C-n" "Step over one source line.")
-	(gud-def gud-cont   "dbcont;\ndbhotlink(1)"              "\C-r" "Continue with display.")
+	(gud-def gud-step   "dbstep in"           "\C-s" "Step one source line, possibly into a function.")
+	(gud-def gud-next   "dbstep %p"           "\C-n" "Step over one source line.")
+	(gud-def gud-cont   "dbcont"              "\C-r" "Continue with display.")
 	(gud-def gud-finish "dbquit"              "\C-f" "Finish executing current function.")
 	;; (gud-def gud-up     "dbup %p;\ndbhotlink()"             "<"    "Up N stack frames (numeric arg).")
 	;; (gud-def gud-down   "dbdown %p;\ndbhotlink()"           ">"    "Down N stack frames (numeric arg).")
-	(gud-def gud-up     "dbup;\n[~,a___]=dbstack;\ndbhotlink(a___)"             "<"    "Up N stack frames (numeric arg).")
-	(gud-def gud-down   "dbdown;\n[~,a___]=dbstack;\ndbhotlink(a___)"           ">"    "Down N stack frames (numeric arg).")
+	(gud-def gud-up     "dbup"                "<"    "Up N stack frames (numeric arg).")
+	(gud-def gud-down   "dbdown"              ">"    "Down N stack frames (numeric arg).")
 	(gud-def gud-print  "%e"                  "\C-p" "Evaluate M expression at point.")
 	(if (fboundp 'gud-make-debug-menu)
 	    (gud-make-debug-menu))
@@ -480,7 +481,7 @@ Argument STR is the string to examine for version information."
 ;;
 ;; Scan output for text, and turn into navigable links.
 
-(defvar gud-matlab-marker-regexp-prefix "error:\\|opentoline"
+(defvar gud-matlab-marker-regexp-prefix "error:\\|opentoline\\|dbhot"
   "A prefix to scan for to know if output might be scarfed later.")
 
 (defvar matlab-shell-html-map
@@ -655,6 +656,10 @@ Argument STR is the text that might have errors in it."
 Please note: The leading > character represents the current stack frame, so if
 there are several frames, this makes sure we pick the right one to popup.")
 
+(defvar gud-matlab-dbhotlink nil
+  "Track if we've sent a dbhotlink request.")
+(make-variable-buffer-local 'gud-matlab-dbhotlink)
+
 (defun gud-matlab-massage-args (file args)
   "Argument message for starting matlab file.
 I don't think I have to do anything, but I'm not sure.
@@ -710,30 +715,69 @@ FILE is ignored, and ARGS is returned."
   (setq gud-marker-acc (concat gud-marker-acc string))
   (let ((output "") (frame nil))
 
-    (when (not frame)
-      (when (string-match gud-matlab-marker-regexp-1 gud-marker-acc)
-	(when (not frame)
-	  ;; If there is a debug prompt, and no frame currently set,
-	  ;; go find one.
-	  (let ((url gud-marker-acc)
-		ef el)
-	    (cond
-	     ((string-match "^error:\\(.*\\),\\([0-9]+\\),\\([0-9]+\\)$" url)
-	      (setq ef (substring url (match-beginning 1) (match-end 1))
-		    el (substring url (match-beginning 2) (match-end 2)))
-	      )
-	     ((string-match "opentoline('\\([^']+\\)',\\([0-9]+\\),\\([0-9]+\\))" url)
-	      (setq ef (substring url (match-beginning 1) (match-end 1))
-		    el (substring url (match-beginning 2) (match-end 2)))
-	      )
-	     ;; If we have the prompt, but no match (as above),
-	     ;; perhaps it is already dumped out into the buffer.  In
-	     ;; that case, look back through the buffer.
+    (when (string-match gud-matlab-marker-regexp-1 gud-marker-acc)
+      ;; If there is a debug prompt, and no frame currently set,
+      ;; go find one.
+      (let ((url gud-marker-acc)
+	    ef el)
+	(cond
+	 ((string-match "^error:\\(.*\\),\\([0-9]+\\),\\([0-9]+\\)$" url)
+	  (setq ef (substring url (match-beginning 1) (match-end 1))
+		el (substring url (match-beginning 2) (match-end 2)))
+	  )
+	 ((string-match "opentoline('\\([^']+\\)',\\([0-9]+\\),\\([0-9]+\\))" url)
+	  (setq ef (substring url (match-beginning 1) (match-end 1))
+		el (substring url (match-beginning 2) (match-end 2)))
+	  )
+	 ;; If we have the prompt, but no match (as above),
+	 ;; perhaps it is already dumped out into the buffer.  In
+	 ;; that case, look back through the buffer.
 
-	     )
-	    (when ef
-	      (setq frame (cons ef (string-to-number el)))))))
+	 )
+	(when ef
+	  (setq frame (cons ef (string-to-number el)))))
+
+      ;; Newer MATLABs don't print useful info.  We'll have to
+      ;; search backward for the previous line to see if a frame was
+      ;; displayed.
+      (when (and (not frame) (not gud-matlab-dbhotlink))
+	(process-send-string
+	 (get-buffer-process gud-comint-buffer)
+	 "dbhotlink()%%%\n")
+	(setq gud-matlab-dbhotlink t)
+	)
       )
+
+    ;; If we're forced to ask for a stack hotlink, we will see it come in via the
+    ;; process output.  Don't output anything until a K prompt is seen after the display
+    ;; of the dbhotlink command.
+    (when gud-matlab-dbhotlink
+      (let ((start (string-match "dbhotlink()%%%" gud-marker-acc))
+	    (endprompt nil))
+	(if start
+	    (progn
+	      (setq output (substring gud-marker-acc 0 start)
+		    gud-marker-acc (substring gud-marker-acc start))
+
+	      ;; The hotlink text will persist until we see the K prompt.
+	      (when (string-match "^K?>> " gud-marker-acc)
+		(setq endprompt (match-end 0))
+		;; We're done with the text!  Remove it from the accumulator.
+		(setq gud-marker-acc (substring gud-marker-acc endprompt))
+		;; If we got all this at the same time, push output back onto the accumulator for
+		;; the next code bit to push it out.
+		(setq gud-marker-acc (concat output gud-marker-acc)
+		      output ""
+		      gud-matlab-dbhotlink nil)
+		))
+	  ;; Else, waiting for a link, but hasn't shown up yet.
+	  ;; TODO - what can I do here to fix var setting if it gets
+	  ;; locked?
+	  (when (string-match "^>> " gud-marker-acc)
+	    ;; A non-k prompt showed up.  We're not going to get out request.
+	    (setq gud-matlab-dbhotlink nil))
+	  )))
+    
     ;; This if makes sure that the entirety of an error output is brought in
     ;; so that matlab-shell-mode doesn't try to display a file that only partially
     ;; exists in the buffer.  Thus, if MATLAB output:
@@ -742,14 +786,10 @@ FILE is ignored, and ARGS is returned."
     ;; the first half of that file name.
     ;; The below used to match against the prompt, not \n, but then text that
     ;; had error: in it for some other reason wouldn't display at all.
-    (if (and matlab-prompt-seen ;; Don't collect during boot
-	     (not frame) ;; don't collect debug stuff
-	     (let ((start (string-match gud-matlab-marker-regexp-prefix gud-marker-acc)))
-	       (and start
-		    (not (string-match "\n" gud-marker-acc start))
-		    ;;(not (string-match "^K?>>\\|\\?\\?\\?\\s-Error while evaluating" gud-marker-acc start))
-		    )))
-	;; We could be collecting something.  Wait for a while.
+    (if (and matlab-prompt-seen ;; don't pause output if prompt not seen
+	     gud-matlab-dbhotlink ;; pause output if waiting on debugger
+	     )
+	;; We could be collecting debug info.  Wait before output.
 	nil
       ;; Finish off this part of the output.  None of our special stuff
       ;; ends with a \n, so display those as they show up...
@@ -757,10 +797,12 @@ FILE is ignored, and ARGS is returned."
 	(setq output (concat output (substring gud-marker-acc 0 (match-end 0)))
 	      gud-marker-acc (substring gud-marker-acc (match-end 0))))
 
-      (setq output (concat output gud-marker-acc)
-	  gud-marker-acc "")
+      (if (string-match "^K?>> $" gud-marker-acc)
+	  (setq output (concat output gud-marker-acc)
+		gud-marker-acc ""))
+      
       ;; Check our output for a prompt, and existence of a frame.
-      ;; If t his is true, throw out the debug arrow stuff.
+      ;; If this is true, throw out the debug arrow stuff.
       (if (and (string-match "^>> $" output)
 	       gud-last-last-frame)
 	  (progn
@@ -773,7 +815,7 @@ FILE is ignored, and ARGS is returned."
     (if frame (setq gud-last-frame frame))
 
     ;;(message "[%s] [%s]" output gud-marker-acc)
-
+    
     output))
 
 
@@ -1055,7 +1097,7 @@ to show using classing emacs tab completion."
 (defun matlab-shell-tab ()
   "Send [TAB] to the currently running matlab process and retrieve completion."
   (interactive)
-  (if (and matlab-shell-tab-company-available matlab-shell-tab-use-company)
+  (if (and matlab-shell-tab-company-available matlab-shell-tab-use-company company-mode)
       ;; We don't add to company-backends because we bind TAB to matlab-shell-tab
       ;; which means completions must be explicitly requested. The default
       ;; company-complete tries to complete as you type which doesn't work
@@ -1256,6 +1298,7 @@ Snatched and hacked from dired-x.el"
 	    start (match-end 0)))
     count))
 
+(declare-function matlab-shell-help-mode "matlab-topic")
 (defun matlab-output-to-temp-buffer (buffer output)
   "Print output to temp buffer, or a message if empty string.
 BUFFER is the buffer to output to, and OUTPUT is the text to insert."
