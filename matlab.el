@@ -52,7 +52,6 @@
 ;;; Code:
 
 (require 'easymenu)
-(require 'tempo)
 (require 'derived)
 
 ;; compatibility
@@ -611,9 +610,6 @@ If font lock is not loaded, lay in wait."
 
 ;;; MATLAB mode variables =====================================================
 
-(defvar matlab-tempo-tags nil
-  "List of templates used in MATLAB mode.")
-
 ;; syntax table
 (defvar matlab-mode-syntax-table
   (let ((st (make-syntax-table (standard-syntax-table))))
@@ -661,23 +657,6 @@ If font lock is not loaded, lay in wait."
     km)
   "The help key map for `matlab-mode' and `matlab-shell-mode'.")
 
-(defvar matlab-insert-map
-  (let ((km (make-sparse-keymap)))
-    (define-key km "c" 'matlab-insert-next-case)
-    (define-key km "e" 'matlab-insert-end-block)
-    (define-key km "i" 'tempo-template-matlab-if)
-    (define-key km "I" 'tempo-template-matlab-if-else)
-    (define-key km "f" 'tempo-template-matlab-for)
-    (define-key km "s" 'tempo-template-matlab-switch)
-    (define-key km "t" 'tempo-template-matlab-try)
-    (define-key km "w" 'tempo-template-matlab-while)
-    (define-key km "F" 'tempo-template-matlab-function)
-    (define-key km "'" 'matlab-stringify-region)
-    ;; Not really inserts, but auto coding stuff
-    (define-key km "\C-s" 'matlab-ispell-strings-and-comments)
-    km)
-  "Keymap used for inserting simple texts based on context.")
-
 ;; mode map
 (defvar matlab-mode-map
   (let ((km (make-sparse-keymap)))
@@ -686,7 +665,7 @@ If font lock is not loaded, lay in wait."
     (define-key km "\C-c;" 'matlab-comment-region)
     (define-key km "\C-c:" 'matlab-uncomment-region)
     (define-key km [(control c) return] 'matlab-comment-return)
-    (define-key km [(control c) (control c)] matlab-insert-map)
+    (define-key km [(control c) (control c)] 'matlab-insert-map-fcn)
     (define-key km [(control c) (control f)] 'matlab-fill-comment-line)
     (define-key km [(control c) (control j)] 'matlab-justify-line)
     (define-key km [(control c) (control q)] 'matlab-fill-region)
@@ -770,20 +749,21 @@ If font lock is not loaded, lay in wait."
       ["Comment Region" matlab-comment-region t]
       ["Uncomment Region" matlab-uncomment-region t]
       ["Indent Syntactic Block" matlab-indent-sexp])
-     ("Insert"
-      ["Complete Symbol" matlab-complete-symbol t]
-      ["Comment" matlab-comment t]
-      ["if end" tempo-template-matlab-if t]
-      ["if else end" tempo-template-matlab-if-else t]
-      ["for end" tempo-template-matlab-for t]
-      ["switch otherwise end" tempo-template-matlab-switch t]
-      ["Next case" matlab-insert-next-case t]
-      ["try catch end" tempo-template-matlab-try t]
-      ["while end" tempo-template-matlab-while t]
-      ["End of block" matlab-insert-end-block t]
-      ["Function" tempo-template-matlab-function t]
-      ["Stringify Region" matlab-stringify-region t]
-      )
+;; TODO - how to autoload these?  Do we want this menu?
+;;     ("Insert"
+;;      ["Complete Symbol" matlab-complete-symbol t]
+;;      ["Comment" matlab-comment t]
+;;      ["if end" tempo-template-matlab-if t]
+;;      ["if else end" tempo-template-matlab-if-else t]
+;;      ["for end" tempo-template-matlab-for t]
+;;      ["switch otherwise end" tempo-template-matlab-switch t]
+;;      ["Next case" matlab-insert-next-case t]
+;;      ["try catch end" tempo-template-matlab-try t]
+;;      ["while end" tempo-template-matlab-while t]
+;;      ["End of block" matlab-insert-end-block t]
+;;      ["Function" tempo-template-matlab-function t]
+;;      ["Stringify Region" matlab-stringify-region t]
+;;      )
      ("Customize"
 ;      ["Auto Fill Counts Elipsis"
 ;       (lambda () (setq matlab-fill-count-ellipsis-flag
@@ -1431,9 +1411,6 @@ All Key Bindings:
   ;; It also lets us fix mistakes before a `save-and-go'.
   (make-local-variable 'write-contents-hooks)
   (add-hook 'write-contents-hooks 'matlab-mode-verify-fix-file-fn)
-  ;; Tempo tags
-  (make-local-variable 'tempo-local-tags)
-  (setq tempo-local-tags (append matlab-tempo-tags tempo-local-tags))
   ;; give each file it's own parameter history
   (make-local-variable 'matlab-shell-save-and-go-history)
   (make-local-variable 'font-lock-defaults)
@@ -3503,204 +3480,6 @@ ARG is passed to `fill-paragraph' and will justify the text."
 	(t
 	 (message "Paragraph Fill not supported in this context."))))
 
-;;; Semantic text insertion and management ====================================
-
-(defun matlab-insert-end-block (&optional reindent)
-  "Insert and END block based on the current syntax.
-Optional argument REINDENT indicates if the specified block should be re-indented."
-  (interactive "P")
-  (if (not (matlab-ltype-empty)) (progn (end-of-line) (insert "\n")))
-  (let ((valid t) (begin nil))
-    (save-excursion
-      (condition-case nil
-	  (progn
-	    (matlab-backward-sexp t)
-	    (setq begin (point)
-		  valid (buffer-substring-no-properties
-			 (point) (save-excursion
-				   (re-search-forward "[\n,;.]" nil t)
-				   (point)))))
-	(error (setq valid nil))))
-    (if (not valid)
-	(error "No block to end")
-      (insert "end")
-      (if (stringp valid) (insert " % " valid))
-      (matlab-indent-line)
-      (if reindent (indent-region begin (point) nil)))))
-
-(tempo-define-template
- "matlab-for"
- '("for " p "=" p "," > n>
-     r> &
-     "end" > %)
- "for"
- "Insert a MATLAB for statement"
- 'matlab-tempo-tags
- )
-
-(tempo-define-template
- "matlab-while"
- '("while (" p ")," > n>
-     r> &
-     "end" > %)
- "while"
- "Insert a MATLAB while statement"
- 'matlab-tempo-tags
- )
-
-(tempo-define-template
- "matlab-if"
- '("if " p > n
-     r>
-     "end" > n)
- "if"
- "Insert a MATLAB if statement"
- 'matlab-tempo-tags
- )
-
-(tempo-define-template
- "matlab-if-else"
- '("if " p > n
-     r>
-     "else" > n
-     "end" > n)
- "if"
- "Insert a MATLAB if statement"
- 'matlab-tempo-tags
- )
-
-(tempo-define-template
- "matlab-try"
- '("try " > n
-     r>
-     "catch" > n
-     p > n
-     "end" > n)
- "try"
- "Insert a MATLAB try catch statement"
- 'matlab-tempo-tags
- )
-
-(tempo-define-template
- "matlab-switch"
- '("switch " p > n
-     "otherwise" > n
-     r>
-     "end" > n)
- "switch"
- "Insert a MATLAB switch statement with region in the otherwise clause."
- 'matlab-tempo-tags)
-
-(defun matlab-insert-next-case ()
-  "Insert a case statement inside this switch statement."
-  (interactive)
-  ;; First, make sure we are where we think we are.
-  (let ((valid t))
-    (save-excursion
-      (condition-case nil
-	  (progn
-	   (matlab-backward-sexp t)
-	   (setq valid (looking-at "switch")))
-	(error (setq valid nil))))
-    (if (not valid)
-	(error "Not in a switch statement")))
-  (if (not (matlab-ltype-empty)) (progn (end-of-line) (insert "\n")))
-  (indent-to 0)
-  (insert "case ")
-  (matlab-indent-line))
-
-(tempo-define-template
- "matlab-function"
- '("function "
-     (P "output argument(s): " output t)
-     ;; Insert brackets only if there is more than one output argument
-     (if (string-match "," (tempo-lookup-named 'output))
-	 '(l "[" (s output) "]")
-       '(l (s output)))
-     ;; Insert equal sign only if there is output argument(s)
-     (if (= 0 (length (tempo-lookup-named 'output))) nil
-       " = ")
-     ;; The name of a function, as defined in the first line, should
-     ;; be the same as the name of the file without .m extension
-     (if (= 1 (count-lines 1 (point)))
-	 (tempo-save-named
-	  'fname
-	  (file-name-nondirectory (file-name-sans-extension
-				   (buffer-file-name))))
-       '(l (P "function name: " fname t)))
-     (tempo-lookup-named 'fname)
-     "("  (P "input argument(s): ") ")" n
-     "% " (upcase (tempo-lookup-named 'fname)) " - " (P "H1 line: ") n
-     "%   " p n
-     (if matlab-functions-have-end
-         '(l "end" n)))
- "function"
- "Insert a MATLAB function statement"
- 'matlab-tempo-tags
- )
-
-(defun matlab-stringify-region (begin end)
-  "Put MATLAB 's around region, and quote all quotes in the string.
-Stringification allows you to type in normal MATLAB code, mark it, and
-then turn it into a MATLAB string that will output exactly what's in
-the region.  BEGIN and END mark the region to be stringified."
-  (interactive "r")
-  (save-excursion
-    (goto-char begin)
-    (if (re-search-forward "\n" end t)
-	(error
-	 "You may only stringify regions that encompass less than one line"))
-    (let ((m (make-marker)))
-      (move-marker m end)
-      (goto-char begin)
-      (insert "'")
-      (while (re-search-forward "'" m t)
-	(insert "'"))
-      (goto-char m)
-      (insert "'"))))
-
-(defun matlab-ispell-strings-and-comments-region (begin end)
-  "Spell check valid strings in region with Ispell.
-Argument BEGIN and END mark the region boundary."
-  (interactive "r")
-  (require 'ispell)
-  (save-excursion
-    (goto-char begin)
-    ;; Here we use the font lock function for finding strings.
-    ;; Its cheap, fast, and accurate.
-    ;; NOTE: This now also does comments
-    (while (and (matlab-font-lock-allstring-comment-match-normal end)
-		(ispell-region (match-beginning 0) (match-end 0))))))
-
-(defun matlab-ispell-strings-and-comments ()
-  "Spell check valid strings in the current buffer with Ispell.
-Calls `matlab-ispell-strings-region'"
-  (interactive)
-  (matlab-ispell-strings-and-comments-region (point-min) (point-max)))
-
-(defun matlab-generate-latex ()
-  "Convert a MATLAB M file into a Latex document for printing.
-Author: Uwe Brauer oub@eucmos.sim.ucm.es
-Created: 14 Feb 2002"
-  (interactive "*")
-  (save-restriction
-    (save-excursion
-      (goto-char (point-min))
-      (insert "\\documentclass[12pt]{report}\n
-\\usepackage{listings}
-\\lstloadlanguages{Matlab}
-\\lstset{language=Matlab,keywordstyle=\\bfseries,labelstep=1,escapechar=\\#}
-\\begin{document}
-\\begin{lstlisting}{}")
-      (newline)
-      (goto-char (point-max))
-      (insert "\n\\end{lstlisting}\n\\end{document}")
-      (widen)))
-  (font-lock-mode nil)
-  (LaTeX-mode)
-  (font-lock-mode nil))
-
-
 ;;; Show Paren Mode support ==================================================
 
 (defun matlab-show-paren-or-block ()
@@ -4172,7 +3951,6 @@ by `matlab-mode-vf-add-ends'"
   "Add an end to the current block the cursor is on."
   ;; Our best guess is just in front of a 'function' block, or at the end
   ;; of the current buffer.
-  ;; Cheat and look for
   (save-excursion
     (end-of-line)
     (if (re-search-forward "^function " nil t)

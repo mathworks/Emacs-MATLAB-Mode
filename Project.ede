@@ -17,7 +17,7 @@
     (ede-proj-target-elisp "ede-proj-target-elisp"
       :name "lisp"
       :path ""
-      :source '("matlab.el" "matlab-shell.el" "matlab-complete.el" "matlab-topic.el" "mlint.el" "tlc.el" "matlab-publish.el" "linemark.el")
+      :source '("matlab.el" "matlab-shell.el" "matlab-complete.el" "matlab-cgen.el" "matlab-publish.el" "matlab-topic.el" "mlint.el" "tlc.el" "linemark.el")
       :versionsource '("matlab.el")
       :aux-packages '("matlab"))
     (ede-proj-target-elisp "ede-proj-target-elisp"
