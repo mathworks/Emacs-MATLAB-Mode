@@ -395,6 +395,7 @@ The last type of semantic used while completing things.")
 (defvar matlab-completion-search-state nil
   "List of searching things we will be doing.")
 
+;;;###autoload
 (defun matlab-complete-symbol (&optional arg)
   "Complete a partially typed symbol in a MATLAB mode buffer.
 If the previously entered command was also `matlab-complete-symbol'

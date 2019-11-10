@@ -928,6 +928,8 @@ Argument LIMIT is the maximum distance to scan."
 
 ;;; Font Lock Comment and Unreachable Code Matchers
 ;;
+(defvar font-lock-beg) (defvar font-lock-end) ; quiet compiler.
+
 (defun matlab-font-lock-extend-region ()
   "Called by font-lock to extend the region if we are in a multi-line block."
   ;; Only deal with block comments for now.
@@ -1324,6 +1326,7 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
 (declare-function mlint-buffer "mlint.el")
 (declare-function mlint-clear-warnings "mlint.el")
 (declare-function mlint-clear-cross-function-variable-highlighting "mlint.el")
+(defvar show-paren-data-function)
 
 ;;;###autoload
 (defun matlab-mode ()
