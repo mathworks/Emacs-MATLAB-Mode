@@ -38,6 +38,7 @@ end
 %% >> SEMANTIC TEST EXPECTED OUTPUT
 
 %{
+
 (( "mpclass" type
              ( :type "class" 
                :superclasses ("handle" "matlab.mixin.SetGetExactNames")
@@ -55,3 +56,6 @@ end
     ("localfunc" function (
         :arguments ("T"))))
 %}
+
+
+%% End

@@ -928,6 +928,16 @@ Argument LIMIT is the maximum distance to scan."
 
 ;;; Font Lock Comment and Unreachable Code Matchers
 ;;
+(defun matlab-font-lock-extend-region ()
+  "Called by font-lock to extend the region if we are in a multi-line block."
+  ;; Only deal with block comments for now.
+
+  (let ((pos (matlab-ltype-block-comm)))
+    (when pos
+      (setq font-lock-beg (min font-lock-beg (car pos))
+	    font-lock-end (max font-lock-end (cdr pos)))
+      t)))      
+
 
 (defun matlab-find-block-comments (limit)
   "Find code that is commented out with %{ until %}.
@@ -1434,6 +1444,7 @@ All Key Bindings:
 			     ;; simplifying our keywords significantly
 			     ((?_ . "w"))))
   (setq font-lock-multiline 'undecided)
+  (add-to-list 'font-lock-extend-region-functions #'matlab-font-lock-extend-region t)
 
   ;; Parens mode support
   (if (and (featurep 'paren) (symbolp 'show-paren-data-function) (symbolp show-paren-data-function))
@@ -2153,13 +2164,32 @@ Return the symbol 'blockcomm if it is a block comment start."
       (matlab-ltype-function-definition))))
 
 (defun matlab-ltype-block-comm ()
-  "Return t if we are in a block comment."
+  "Return start positions of block comment if we are in a block comment."
   (save-excursion
-    (if (looking-at "%{")
-        t
-      (when (re-search-backward "\\%\\([{}]\\)" nil t)
-        (let ((ms (match-string 1)))
-          (if (string= ms "{") t nil))))))
+    (let ((start nil)
+	  (end nil))
+      (if (looking-at "%{")
+	  (setq start (match-beginning 0))
+	(while (and (re-search-backward "\\%\\([{}]\\)" nil t)
+		    (matlab-cursor-in-string-or-comment))
+	  nil)
+      
+	(if (looking-at "%{")
+	    (setq start (match-beginning 0))))
+
+      (when start
+	(while (and (re-search-forward "\\%}" nil t)
+		    (matlab-cursor-in-string t))
+	  nil)
+	
+	(if (looking-at "%{")
+	    (setq end (match-end 0))
+	  (setq end (point-max))))
+
+      (when (and start end)
+	(cons start end)))))
+
+      
 
 (defun matlab-ltype-continued-comm ()
   "Return column of previous line's comment start, or nil."
@@ -3674,7 +3704,8 @@ Created: 14 Feb 2002"
   "Function to assign to `show-paren-data-function'.
 Highlights parens and if/end type blocks.
 Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
-  (unless (matlab-cursor-in-string-or-comment) ; Only do this if not in a string.
+  (unless (or (matlab-cursor-in-string-or-comment) ; Only do this if not in a string.
+	      (matlab-ltype-block-comm))
     (save-match-data
       (save-excursion
 	(let ((here-beg nil)
@@ -4105,6 +4136,7 @@ by `matlab-mode-vf-add-ends'"
 	      e)
 	  (condition-case nil
 	      (if (and (not (matlab-cursor-in-string-or-comment))
+		       (not (matlab-ltype-block-comm))
 		       (or matlab-functions-have-end (not (looking-at "function"))))
 		  (progn
 		    (matlab-forward-sexp)
