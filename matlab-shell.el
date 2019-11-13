@@ -118,7 +118,6 @@ When nil, complete against file names."
   :group 'matlab-shell
   :type 'boolean)
 
-
 ;;; Font Lock
 ;;
 ;; Extra font lock keywords for the MATLAB shell.
@@ -646,6 +645,9 @@ Argument STR is the text that might have errors in it."
 ;; MATLAB's process filter handles output from the MATLAB process and
 ;; inteprets it for formatting text, and for running the debugger.
 
+(defvar gud-matlab-marker-regexp-plain-prompt "^K?>>"
+  "Regular expression for finding a prompt.")
+
 (defvar gud-matlab-marker-regexp-1 "^K>>"
   "Regular expression for finding a file line-number.")
 
@@ -679,6 +681,10 @@ FILE is ignored, and ARGS is returned."
       (if (fboundp 'gud-make-debug-menu)
 	  (gud-make-debug-menu))
       buf)))
+
+(defvar matlab-shell-prompt-appears-hook nil
+  "Hooks run each time a prompt is seen and sent to display.
+If multiple prompts are seen together, only call this once.")
 
 (defun gud-matlab-marker-filter (string)
   "Filters STRING for the Unified Debugger based on MATLAB output."
@@ -716,8 +722,7 @@ FILE is ignored, and ARGS is returned."
   (let ((output "") (frame nil))
 
     (when (string-match gud-matlab-marker-regexp-1 gud-marker-acc)
-      ;; If there is a debug prompt, and no frame currently set,
-      ;; go find one.
+      ;; Look for any frames for case of a debug prompt.
       (let ((url gud-marker-acc)
 	    ef el)
 	(cond
@@ -815,6 +820,15 @@ FILE is ignored, and ARGS is returned."
     (if frame (setq gud-last-frame frame))
 
     ;;(message "[%s] [%s]" output gud-marker-acc)
+
+    ;; (string-match gud-matlab-marker-regexp-plain-prompt ">>")
+    
+    (when (string-match gud-matlab-marker-regexp-plain-prompt output)
+      ;; Now that we are about to dump this, run our prompt hook.
+      ;;(message "PROMPT!")
+      (run-hooks 'matlab-shell-prompt-appears-hook)
+      )
+
     
     output))
 
@@ -1674,63 +1688,9 @@ Similar to  `comint-send-input'."
 	(matlab-shell-add-to-input-history cmd)
 	(matlab-shell-send-string (concat cmd "\n"))))))
 
-(defun matlab-shell-run-region (beg end &optional noshow)
-  "Run region from BEG to END and display result in MATLAB shell.
-If NOSHOW is non-nil, replace newlines with commas to suppress output.
-This command requires an active MATLAB shell."
-  (interactive "r")
-  (if (> beg end) (let (mid) (setq mid beg  beg end  end mid)))
-
-  (let ((command
-	 (let ((str (concat (buffer-substring beg end) "\n")))
-	   ;; Remove comments
-	   (with-temp-buffer
-	     (insert str)
-	     (goto-char (point-min))
-	     (while (search-forward "%" nil t)
-	       (when (not (matlab-cursor-in-string))
-		 (delete-region (1- (point)) (matlab-point-at-eol))))
-	     (setq str (buffer-substring-no-properties (point-min) (point-max))))
-	   (while (string-match "\n\\s-*\n" str)
-	     (setq str (concat (substring str 0 (match-beginning 0))
-			       "\n"
-			       (substring str (match-end 0)))))
-	   (when noshow
-	     ;; Remove continuations
-	     (while (string-match
-		     (concat "\\s-*"
-			     (regexp-quote matlab-elipsis-string)
-			     "\\s-*\n")
-		     str)
-	       (setq str (replace-match " " t t str)))
-	     (while (string-match "\n" str)
-	       (setq str (replace-match ", " t t str)))
-	     (setq str (concat str "\n")))
-	   str))
- 	(msbn nil)
- 	(lastcmd)
-	(inhibit-field-text-motion t))
-    (if (matlab-with-emacs-link)
-	;; Run the region w/ Emacs Link
-	(when (fboundp 'matlab-eei-eval-region) (matlab-eei-eval-region beg end))
-
-      (save-excursion
-	(setq msbn (matlab-shell-buffer-barf-not-running))
-	(set-buffer msbn)
-	(if (not (matlab-on-prompt-p))
-	    (error "MATLAB shell must be non-busy to do that"))
-	;; Save the old command
-	(beginning-of-line)
-	(re-search-forward comint-prompt-regexp)
-	(setq lastcmd (buffer-substring (point) (matlab-point-at-eol)))
-	(delete-region (point) (matlab-point-at-eol))
-	;; We are done error checking, run the command.
-	(matlab-shell-send-string command)
-	(insert lastcmd))
-      (set-buffer msbn)
-      (goto-char (point-max))
-      (display-buffer msbn nil "visible"))
-    ))
+;;; Running buffer subset
+;;
+;; Run some subset of the buffer in matlab-shell.
 
 (defun matlab-shell-run-cell ()
   "Run the cell the cursor is in."
@@ -1761,6 +1721,172 @@ This command requires an active MATLAB shell."
    (matlab-shell-run-region (matlab-point-at-bol) (matlab-point-at-eol))))
 
 
+(defun matlab-shell-run-region (beg end &optional noshow)
+  "Run region from BEG to END and display result in MATLAB shell.
+If NOSHOW is non-nil, replace newlines with commas to suppress output.
+This command requires an active MATLAB shell."
+  (interactive "r")
+  (if (> beg end) (let (mid) (setq mid beg  beg end  end mid)))
+
+  (let ((command (matlab-shell-region-command beg end noshow))
+ 	(msbn nil)
+ 	(lastcmd)
+	(inhibit-field-text-motion t))
+    (if (matlab-with-emacs-link)
+	;; Run the region w/ Emacs Link
+	(when (fboundp 'matlab-eei-eval-region) (matlab-eei-eval-region beg end))
+
+      (save-excursion
+	(setq msbn (matlab-shell-buffer-barf-not-running))
+	(set-buffer msbn)
+	(if (not (matlab-on-prompt-p))
+	    (error "MATLAB shell must be non-busy to do that"))
+	;; Save the old command
+	(beginning-of-line)
+	(re-search-forward comint-prompt-regexp)
+	(setq lastcmd (buffer-substring (point) (matlab-point-at-eol)))
+	(delete-region (point) (matlab-point-at-eol))
+	;; We are done error checking, run the command.
+	(matlab-shell-send-string command)
+	(insert lastcmd))
+      (set-buffer msbn)
+      (goto-char (point-max))
+      (display-buffer msbn nil "visible"))
+    ))
+
+;;; Convert regions to runnable text
+;;
+;; There are two techniques.
+;; Option 1: Convert the region into a single command line, suppress output, and eval.
+;; Option 2: Copy into a script, and run the script.
+(defun matlab-shell-region-command (beg end &optional noshow)
+  "Convert the region between BEG and END into a MATLAB command.
+Picks between different options for running the commands."
+  ;; OLD WAY
+  ;;(matlab-shell-region->commandline beg end noshow)
+
+  ;; NEW WAY
+  (matlab-shell-extract-region-to-tmp-file beg end noshow)
+
+  ;; TODO - if we just have a simple line of code, don't extract
+  ;;      into a new file, just do it.  How to decide?
+  )
+
+(defun matlab-shell-region->commandline (beg end &optional noshow)
+  "Convert the region between BEG and END into a MATLAB command.
+Squeeze out newlines.
+When NOSHOW is non-nil, supress output by adding ; to commands."
+  ;; Assume beg & end are in the right order.
+  (let ((str (concat (buffer-substring beg end) "\n")))
+    ;; Remove comments
+    (with-temp-buffer
+      (insert str)
+      (goto-char (point-min))
+      ;; Delete all the comments
+      (while (search-forward "%" nil t)
+	(when (not (matlab-cursor-in-string))
+	  (delete-region (1- (point)) (matlab-point-at-eol))))
+      (setq str (buffer-substring-no-properties (point-min) (point-max))))
+
+    ;; Strip out blank lines
+    (while (string-match "^\\s-*\n" str)
+      (setq str (concat (substring str 0 (match-beginning 0))
+			(substring str (match-end 0)))))
+    ;; Strip out large chunks of whitespace
+    (while (string-match "\\s-\\s-+" str)
+      (setq str (concat (substring str 0 (match-beginning 0))
+			(substring str (match-end 0)))))
+    (when noshow
+      ;; Remove continuations
+      (while (string-match
+	      (concat "\\s-*"
+		      (regexp-quote matlab-elipsis-string)
+		      "\\s-*\n")
+	      str)
+	(setq str (replace-match " " t t str)))
+      (while (string-match "\n" str)
+	(setq str (replace-match ", " t t str)))
+      (setq str (concat str "\n")))
+    str))
+
+
+(defun matlab-shell-extract-region-to-tmp-file (beg end &optional noshow)
+  "Extract region between BEG & END into a temporary M file.
+The tmp file name is based on the name of the current buffer.
+The extracted region is unmodifed from src buffer unless NOSHOW is non-nil,
+in which case ; are added to quiece the buffer.
+Scan the extracted region for any functions that are in the original
+buffer,and include them.
+Return the name of the temporary file."
+  (interactive "r")
+  (let* ((start (count-lines (point-min) beg))
+	 (len (count-lines beg end))
+	 (stem (file-name-sans-extension (file-name-nondirectory
+					  (buffer-file-name))))
+	 (orig (current-buffer))
+	 (newf (concat stem "_" (number-to-string start) "_"
+		       (number-to-string len)))
+	 (bss (buffer-substring-no-properties beg end))
+	 (buff (find-file-noselect (concat newf ".m")))
+	 (intro "%% Automatically craeted temporary file created to run-region")
+	 ;; These variables are for script / fcn tracking
+	 (functions (semantic-find-tags-by-class 'function (current-buffer)))
+	 )
+
+    ;; TODO : if the directory in which the current buffer is in is READ ONLY
+    ;; we should write our tmp buffer to /tmp instead.
+    
+    (save-excursion
+     
+      (set-buffer buff)
+      (goto-char (point-min))
+      
+      ;; Clean up old extracted regions.
+      (when (looking-at intro) (delete-region (point-min) (point-max)))
+      ;; Don't stomp on old code.
+      (when (not (= (point-min) (point-max)))
+	(error "Region extract to tmp file: Temp file not empty!"))
+
+      (insert intro "\n\n" bss "\n%%\n")
+
+      ;; Some scripts call local functions from the script.  Find them
+      ;; and copy those local scripts over.
+      (goto-char (point-min))
+      (dolist (F functions)
+	(save-excursion
+	  (when (re-search-forward (semantic-tag-name F) nil t)
+	    ;; Found, copy it in.
+	    (let ((ft (with-current-buffer orig
+			(buffer-substring-no-properties (semantic-tag-start F)
+							(semantic-tag-end F)))))
+	      (goto-char (point-max))
+	      (insert "% Copy of " (semantic-tag-name F) "\n\n")
+	      (insert ft)
+	      (insert "\n%%\n"))))
+	)
+
+      ;; Save buffer, and setup ability to run this new script.
+      (save-buffer)
+
+      ;; This sets us up to cleanup our file after it's done running.
+      (add-hook 'matlab-shell-prompt-appears-hook `(lambda () (matlab-shell-cleanup-extracted-region ,(buffer-file-name buff))))
+
+      (kill-buffer)
+      )
+
+    ;; Return the command.
+    (concat "run('" (expand-file-name newf) "')\n")))
+
+(defun matlab-shell-cleanup-extracted-region (fname)
+  "Cleanup the file created when we previously extracted a region."
+  (condition-case nil
+      (delete-file fname)
+    (error nil))
+
+  (remove-hook 'matlab-shell-prompt-appears-hook
+	       ;; The below needs to be a perfect match to the setter.
+	       `(lambda () (matlab-shell-cleanup-extracted-region ,fname)))
+  )
 
 ;;; M File path stuff =========================================================
 
