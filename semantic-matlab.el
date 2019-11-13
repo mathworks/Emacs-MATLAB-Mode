@@ -481,7 +481,7 @@ Each tag returned is a semantic FUNCTION tag.  See
 	))
     newlist))
 
-(defun semantic-matlab-parse-functions ()
+(defun semantic-matlab-parse-functions (&optional limit)
   "Parse all functions from the current MATLAB buffer."
   (car
    (semantic-matlab-sort-raw-function-tags (semantic-matlab-function-tags)
