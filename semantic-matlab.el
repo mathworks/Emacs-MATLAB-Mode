@@ -374,70 +374,72 @@ START=END=0 and no arguments or return values."
 		      taglist))))
 	(nreverse taglist))))
 
-(defun semantic-matlab-parse-oldstyle-class (tags &optional buffer)
-  "Check if BUFFER with current TAGS is the constructor of a class.
-If this is the case, retrieve attributes from the buffer and scan
-the whole directory for methods.  The function returns a single tag
-describing the class.  This means that in semantic-matlab, the
-old-style MATLAB classes are linked to the constructor file."
-  (let* ((name (buffer-file-name buffer))
-	 class method methods retval attributes)
-    (when (string-match ".*/@\\(.*?\\)/\\(.*?\\)\\.m" name)
-      ;; this buffer is part of a class - check
-      (setq class (match-string 1 name))
-      (setq method (match-string 2 name))
-      (when (string= class method)	; is this the constructor?
-	;; get attributes of the class
-	;; TODO - we blindly assume the constructor is correctly defined
-	(setq retval (semantic-tag-get-attribute (car tags) :return))
-	(goto-char (point-min))
-	;; search for attributes
-	(while (re-search-forward
-		(concat "^\\s-*" (car retval)
-			"\\.\\([A-Za-z0-9_]+\\)\\s-*=\\s-*\\(.+\\);")
-		nil t)
-	  (push (list (match-string-no-properties 1) ; name
-		      (match-string-no-properties 2)) ; default value
-		attributes))
-	;; now scan the methods
-	(dolist (cur (delete class
-			     (nthcdr 2
-				     (assoc class semanticdb-matlab-user-class-cache))))
-	  (push
-	   (semantic-tag-put-attribute
-	    (car (semanticdb-file-stream
-		  (concat
-		   (file-name-directory name)
-		   cur ".m")))
-	    :typemodifiers '("public"))
-	   methods))
-	;; generate tag
-	(semantic-tag-new-type
-	 class
-	 "class"
-	 (append
-	  (mapcar (lambda (cur)
-		    (semantic-tag-new-variable
-		      (car cur) nil (cdr cur)
-		      :typemodifiers '("public")))
-		  attributes)
-	  methods)
-	 nil
-	 :typemodifiers '("public"))))))
+;; TODO - commented out the below.  See if anything breaks, then delete.
 
-(defun semantic-matlab-find-oldstyle-classes (files)
-  "Scan FILES for old-style Matlab class system.
-Returns an alist with elements (CLASSNAME LOCATION METHODS)."
-  (let (classes temp tags)
-    (dolist (cur files)
-      ;; scan file path for @-directory
-      (when (string-match "\\(.*\\)/@\\(.*?\\)/\\(.*?\\)\\.m" cur)
-	(if (setq temp
-		  (assoc (match-string 2 cur) classes))
-	    (nconc temp `(,(match-string 3 cur)))
-	  (push `( ,(match-string 2 cur) ,(match-string 1 cur)
-		   ,(match-string 3 cur)) classes))))
-    classes))
+;; (defun semantic-matlab-parse-oldstyle-class (tags &optional buffer)
+;;   "Check if BUFFER with current TAGS is the constructor of a class.
+;; If this is the case, retrieve attributes from the buffer and scan
+;; the whole directory for methods.  The function returns a single tag
+;; describing the class.  This means that in semantic-matlab, the
+;; old-style MATLAB classes are linked to the constructor file."
+;;   (let* ((name (buffer-file-name buffer))
+;; 	 class method methods retval attributes)
+;;     (when (string-match ".*/@\\(.*?\\)/\\(.*?\\)\\.m" name)
+;;       ;; this buffer is part of a class - check
+;;       (setq class (match-string 1 name))
+;;       (setq method (match-string 2 name))
+;;       (when (string= class method)	; is this the constructor?
+;; 	;; get attributes of the class
+;; 	;; TODO - we blindly assume the constructor is correctly defined
+;; 	(setq retval (semantic-tag-get-attribute (car tags) :return))
+;; 	(goto-char (point-min))
+;; 	;; search for attributes
+;; 	(while (re-search-forward
+;; 		(concat "^\\s-*" (car retval)
+;; 			"\\.\\([A-Za-z0-9_]+\\)\\s-*=\\s-*\\(.+\\);")
+;; 		nil t)
+;; 	  (push (list (match-string-no-properties 1) ; name
+;; 		      (match-string-no-properties 2)) ; default value
+;; 		attributes))
+;; 	;; now scan the methods
+;; 	(dolist (cur (delete class
+;; 			     (nthcdr 2
+;; 				     (assoc class semanticdb-matlab-user-class-cache))))
+;; 	  (push
+;; 	   (semantic-tag-put-attribute
+;; 	    (car (semanticdb-file-stream
+;; 		  (concat
+;; 		   (file-name-directory name)
+;; 		   cur ".m")))
+;; 	    :typemodifiers '("public"))
+;; 	   methods))
+;; 	;; generate tag
+;; 	(semantic-tag-new-type
+;; 	 class
+;; 	 "class"
+;; 	 (append
+;; 	  (mapcar (lambda (cur)
+;; 		    (semantic-tag-new-variable
+;; 		      (car cur) nil (cdr cur)
+;; 		      :typemodifiers '("public")))
+;; 		  attributes)
+;; 	  methods)
+;; 	 nil
+;; 	 :typemodifiers '("public"))))))
+
+;; (defun semantic-matlab-find-oldstyle-classes (files)
+;;   "Scan FILES for old-style Matlab class system.
+;; Returns an alist with elements (CLASSNAME LOCATION METHODS)."
+;;   (let (classes temp tags)
+;;     (dolist (cur files)
+;;       ;; scan file path for @-directory
+;;       (when (string-match "\\(.*\\)/@\\(.*?\\)/\\(.*?\\)\\.m" cur)
+;; 	(if (setq temp
+;; 		  (assoc (match-string 2 cur) classes))
+;; 	    (nconc temp `(,(match-string 3 cur)))
+;; 	  (push `( ,(match-string 2 cur) ,(match-string 1 cur)
+;; 		   ,(match-string 3 cur)) classes))))
+;;     classes))
 
 ;;; BEGIN PARSER
 ;;
@@ -459,10 +461,9 @@ Each tag returned is a semantic FUNCTION tag.  See
 	tags ctags)
     (setq tags (mapcar 'semantic-matlab-expand-tag raw))
     ;; check if this is a class constructor
-    (setq ctags (list (semantic-matlab-parse-oldstyle-class tags)))
-    (if (car ctags)
-	ctags
-      tags)))
+    ;; (setq ctags (list (semantic-matlab-parse-oldstyle-class tags)))
+    ;;(if (car ctags) ctags
+    tags))
 
 (defun semantic-matlab-parse-changes ()
   "Parse all changes for the current MATLAB buffer."
