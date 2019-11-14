@@ -1809,6 +1809,9 @@ When NOSHOW is non-nil, supress output by adding ; to commands."
       (setq str (concat str "\n")))
     str))
 
+(declare-function matlab-semantic-get-local-functions-for-script "semantic-matlab")
+(declare-function matlab-semantic-tag-text "semantic-matlab")
+(declare-function semantic-tag-name "semantic/tag")
 
 (defun matlab-shell-extract-region-to-tmp-file (beg end &optional noshow)
   "Extract region between BEG & END into a temporary M file.
@@ -1819,6 +1822,7 @@ Scan the extracted region for any functions that are in the original
 buffer,and include them.
 Return the name of the temporary file."
   (interactive "r")
+  (require 'semantic-matlab)
   (let* ((start (count-lines (point-min) beg))
 	 (len (count-lines beg end))
 	 (stem (file-name-sans-extension (file-name-nondirectory
@@ -1830,18 +1834,14 @@ Return the name of the temporary file."
 	 (buff (find-file-noselect (concat newf ".m")))
 	 (intro "%% Automatically craeted temporary file created to run-region")
 	 ;; These variables are for script / fcn tracking
-	 (functions
-	  (save-excursion
-	    (semantic-refresh-tags-safe)
-	    (semantic-find-tags-by-class 'function (current-buffer))))
+	 (functions (matlab-semantic-get-local-functions-for-script (current-buffer)))
 	 )
 
     ;; TODO : if the directory in which the current buffer is in is READ ONLY
     ;; we should write our tmp buffer to /tmp instead.
     
-    (save-excursion
-     
-      (set-buffer buff)
+    (with-current-buffer buff
+
       (goto-char (point-min))
       
       ;; Clean up old extracted regions.
@@ -1859,9 +1859,7 @@ Return the name of the temporary file."
 	(save-excursion
 	  (when (re-search-forward (semantic-tag-name F) nil t)
 	    ;; Found, copy it in.
-	    (let ((ft (with-current-buffer orig
-			(buffer-substring-no-properties (semantic-tag-start F)
-							(semantic-tag-end F)))))
+	    (let ((ft (matlab-semantic-tag-text F orig)))
 	      (goto-char (point-max))
 	      (insert "% Copy of " (semantic-tag-name F) "\n\n")
 	      (insert ft)

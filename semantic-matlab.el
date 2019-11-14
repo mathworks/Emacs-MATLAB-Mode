@@ -44,9 +44,42 @@
 (require 'matlab-shell)
 (require 'semanticdb-matlab)
 
-
-
 ;;; Code:
+
+;;; Utilities
+;;
+;; These functions wrap behavior provided by semantic for use in parts of matlab mode
+;; that need them.  Take care of users who don't have cedet/semantic enabled by default.
+
+(defun matlab-semantic-get-local-functions-for-script (&optional buffer)
+  "Return the list of functions (as semantic tags) for BuFFER.
+If semantic-mode is not enabled, do something hacky to make it work."
+  (save-excursion
+    (when buffer (set-buffer buffer))
+    
+    (let ((tags (save-excursion
+		  (semantic-refresh-tags-safe)
+		  (semantic-find-tags-by-class 'function (current-buffer)))))
+      (when (and (not tags) (not semantic-mode))
+	;; We got no tags, and semantic isn't enabled.
+	;; Lets fake it.
+
+	;; call the parse region function.  It won't be cached, so we have to do the work every
+	;; time, but hopefully it is fast enough for matlab-shell and cell scripts.
+	(setq tags (semantic-matlab-parse-region))
+	
+	)
+      tags)))
+
+(defun matlab-semantic-tag-text (tag buffer)
+  "Return the text string for TAG."
+  (with-current-buffer buffer
+    (buffer-substring-no-properties (semantic-tag-start tag)
+				    (semantic-tag-end tag))))
+
+;;; Configuration
+;;
+
 (defvar semantic-matlab-system-paths-include '("toolbox/matlab/funfun" "toolbox/matlab/general")
   "List of include paths under `semantic-matlab-root-directory'.
 These paths will be parsed recursively by semantic.  Class and
@@ -823,12 +856,13 @@ This will include a list of type/field names when applicable."
 	;; semantic-command-separation-character "."
 	semantic-type-relation-separator-character '(".")
 	semantic-symbol->name-assoc-list '((function . "Function")
+					   (type . "Class")
 					   )
-	semantic-imenu-expandable-tag-classes '(function)
+	semantic-imenu-expandable-tag-classes '(function type)
 	semantic-imenu-bucketize-file nil
 	semantic-imenu-bucketize-type-members nil
 	senator-step-at-start-end-tag-classes '(function)
-	semantic-stickyfunc-sticky-classes '(function)
+	semantic-stickyfunc-sticky-classes '(function type)
 	)
   )
 
