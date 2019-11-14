@@ -1830,7 +1830,10 @@ Return the name of the temporary file."
 	 (buff (find-file-noselect (concat newf ".m")))
 	 (intro "%% Automatically craeted temporary file created to run-region")
 	 ;; These variables are for script / fcn tracking
-	 (functions (semantic-find-tags-by-class 'function (current-buffer)))
+	 (functions
+	  (save-excursion
+	    (semantic-refresh-tags-safe)
+	    (semantic-find-tags-by-class 'function (current-buffer))))
 	 )
 
     ;; TODO : if the directory in which the current buffer is in is READ ONLY
@@ -1868,6 +1871,9 @@ Return the name of the temporary file."
       ;; Save buffer, and setup ability to run this new script.
       (save-buffer)
 
+      ;; Flush any pending MATLAB stuff.
+      (accept-process-output)
+      
       ;; This sets us up to cleanup our file after it's done running.
       (add-hook 'matlab-shell-prompt-appears-hook `(lambda () (matlab-shell-cleanup-extracted-region ,(buffer-file-name buff))))
 
