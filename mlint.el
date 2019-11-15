@@ -484,8 +484,9 @@ Subclasses fulfill the duty of actually fixing the code."
   "Calculate the new fix description for THIS.
 Optional argument FIELDS are the initialization arguments."
   ;; After basic initialization, update the fix description.
-  (oset this fix-description (concat (oref mlint-lm-replace-focus fix-description)
-				     (oref this new-text))))
+  (oset this fix-description
+	(concat (oref-default mlint-lm-replace-focus fix-description)
+		(oref this new-text))))
 
 (defmethod mlint-fix-entry ((ent mlint-lm-replace-focus))
   "Replace the focus area with :new-text"
@@ -513,8 +514,9 @@ Optional argument FIELDS are the initialization arguments."
 	 (newfcn (when junk (downcase (substring warn (match-beginning 1) (match-end 1))))))
     (oset this new-text newfcn)
     ;; After basic initialization, update the fix description.
-    (oset this fix-description (concat (oref mlint-lm-replace-focus fix-description)
-				       newfcn))
+    (oset this fix-description
+	  (concat (oref-default mlint-lm-replace-focus fix-description)
+		  newfcn))
     ))
   
 (defclass mlint-lm-entry-logicals (mlint-lm-entry)
@@ -613,7 +615,7 @@ This includes nested-function and cross-function-variables."
   (mlint-clear-nested-function-info-overlays)
   (if (and (boundp 'global-font-lock-mode) global-font-lock-mode
 	   (not font-lock-mode))
-      (font-lock-fontify-buffer)))
+      (font-lock-flush (point-min) (point-max))))
 
 (defun mlint-buffer ()
   "Run mlint on the current buffer.
