@@ -91,6 +91,7 @@ Maintain state in our topic browser buffer."
 
 (defvar matlab-shell-help-mode-menu) ;; Quiet compiler warning (var is defined below)
 
+;;;###autoload
 (define-derived-mode matlab-shell-help-mode
   view-major-mode "M-Help"
   "Major mode for viewing MATLAB help text.
