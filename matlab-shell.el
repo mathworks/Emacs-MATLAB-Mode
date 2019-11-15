@@ -33,6 +33,8 @@
   (require 'shell)
   )
 
+(declare-function company-mode "company")
+
 ;;; Customizations
 ;;
 ;; Options to configure using matlab-shell
@@ -436,7 +438,12 @@ Try C-h f matlab-shell RET"))
 
     ;; Comint and GUD both try to set the mode.  Now reset it to
     ;; matlab mode.
-    (matlab-shell-mode)))
+    (matlab-shell-mode)
+
+    (when (and matlab-shell-tab-use-company
+	       matlab-shell-tab-company-available) ;; for tab completion
+      (company-mode))
+    ))
 
 ;;; STARTUP / VERSION 
 ;;
@@ -1065,6 +1072,8 @@ to show using classing emacs tab completion."
   (interactive)
   (let ((matlab-shell-tab-company-available nil))
     (matlab-shell-tab)))
+
+(defvar company-mode) ;; Slience warning. Variable comes from company.el
 
 ;; matlab-shell-tab,
 ;;   This sends the command text at the prompt to emacsdocomplete.m which returns a list
