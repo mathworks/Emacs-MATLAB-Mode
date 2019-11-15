@@ -672,6 +672,7 @@ If font lock is not loaded, lay in wait."
     (define-key km [(control c) (control s)] 'matlab-shell-save-and-go)
     (define-key km [(control c) (control r)] 'matlab-shell-run-region)
     (define-key km [(meta control return)] 'matlab-shell-run-cell)
+    (define-key km [(control return)] 'matlab-shell-run-region-or-line)
     (define-key km [(control c) (control t)] 'matlab-show-line-info)
     (define-key km [(control c) ?. ] 'matlab-find-file-on-path)
     (define-key km [(control h) (control m)] matlab-help-map)
