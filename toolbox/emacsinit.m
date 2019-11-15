@@ -7,6 +7,10 @@ function emacsinit(clientcommand)
 
     if usejava('jvm')
 
+        %{
+        % Leaving in old hot-link code and description (see below)
+        % in case someone with older MATLAB's need to use this.
+        
         v = ver('MATLAB');
         if str2double(v.Version) < 8.5
             % In 8.5 (R2015b) the MATLAB removed the ability to display hot link's when
@@ -28,7 +32,16 @@ function emacsinit(clientcommand)
             % Disable built-in editor showing up for debugging
             com.mathworks.services.Prefs.setBooleanPref('EditorGraphicalDebugging', false);
         end
+        %}
 
+        % Starting in matlab-emacs v 4.0, we can simulate debugging
+        % hot links, so we should always disable graphical
+        % debugging.
+        
+        % Disable built-in editor showing up for debugging
+        com.mathworks.services.Prefs.setBooleanPref('EditorGraphicalDebugging', false);
+        
+        
         if nargin == 1 && ~isempty(clientcommand)
             % Use clientcommand (e.g. emacsclient -n) for text editing
             com.mathworks.services.Prefs.setBooleanPref('EditorBuiltinEditor', false);
