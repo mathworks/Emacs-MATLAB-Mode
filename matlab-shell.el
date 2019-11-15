@@ -1725,9 +1725,9 @@ Similar to  `comint-send-input'."
 pIf region is not active run the current line.
 This command requires an active MATLAB shell."
   (interactive)
- (if (and transient-mark-mode mark-active)
-     (matlab-shell-run-region (mark) (point))
-   (matlab-shell-run-region (matlab-point-at-bol) (matlab-point-at-eol))))
+  (if (and transient-mark-mode mark-active)
+      (matlab-shell-run-region (mark) (point))
+    (matlab-shell-run-region (matlab-point-at-bol) (matlab-point-at-eol))))
 
 
 (defun matlab-shell-run-region (beg end &optional noshow)
@@ -1771,15 +1771,16 @@ This command requires an active MATLAB shell."
 (defun matlab-shell-region-command (beg end &optional noshow)
   "Convert the region between BEG and END into a MATLAB command.
 Picks between different options for running the commands."
-  ;; OLD WAY
-  ;;(matlab-shell-region->commandline beg end noshow)
+  (let ((cnt (count-lines beg end)))
 
-  ;; NEW WAY
-  (matlab-shell-extract-region-to-tmp-file beg end noshow)
+    (if (< cnt 2)
+	;; OLD WAY
+	(matlab-shell-region->commandline beg end noshow)
 
-  ;; TODO - if we just have a simple line of code, don't extract
-  ;;      into a new file, just do it.  How to decide?
-  )
+      ;; else
+      ;; NEW WAY
+      (matlab-shell-extract-region-to-tmp-file beg end noshow))
+    ))
 
 (defun matlab-shell-region->commandline (beg end &optional noshow)
   "Convert the region between BEG and END into a MATLAB command.
