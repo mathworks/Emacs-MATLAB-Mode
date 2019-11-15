@@ -3960,7 +3960,7 @@ by `matlab-mode-vf-add-ends'"
 	  (save-excursion (insert "end\n\n"))
 	  (matlab-indent-line))
       (goto-char (point-max))
-      (save-excursion (insert "end\n\n"))
+      (save-excursion (insert "\nend\n\n"))
       (matlab-indent-line))))
 
 (defun matlab-mode-vf-block-matches-backward (&optional fast)
