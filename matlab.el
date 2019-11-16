@@ -915,7 +915,7 @@ Argument LIMIT is the maximum distance to scan."
   "Called by font-lock to extend the region if we are in a multi-line block."
   ;; Only deal with block comments for now.
 
-  (let ((pos (matlab-ltype-block-comm)))
+  (let ((pos (matlab-ltype-block-comm t)))
     (when pos
       (setq font-lock-beg (min font-lock-beg (car pos))
 	    font-lock-end (max font-lock-end (cdr pos)))
@@ -933,7 +933,12 @@ Argument LIMIT is the maximum distance to search."
 	    (b3 nil) (e3 nil))
 	(goto-char b1)
 	(forward-char -1)
-	(when (not (matlab-cursor-in-comment))
+	(if (matlab-cursor-in-string-or-comment)
+	    (progn
+	      (goto-char e1) ;; skip over this one.
+	      nil)
+	  ;; Else, find the end.  We will certianly be in
+	  ;; a comment, so no need to check on the end.
 	  (setq b2 (re-search-forward "%}" limit t))
 	  (when b2
 	    (setq b2 (match-beginning 0)
@@ -944,6 +949,7 @@ Argument LIMIT is the maximum distance to search."
 		   b1 e1  ; the block start
 		   b2 e2  ; the block end
 		   ))
+	    (goto-char e2); move to end
 	    t
 	    )))))
 
@@ -2144,29 +2150,37 @@ Return the symbol 'blockcomm if it is a block comment start."
 	(beginning-of-line))
       (matlab-ltype-function-definition))))
 
-(defun matlab-ltype-block-comm ()
+(defun matlab-ltype-block-comm (&optional linebounds)
   "Return start positions of block comment if we are in a block comment."
   (save-excursion
     (let ((start nil)
+	  (good t)
 	  (end nil))
-      (if (looking-at "%{")
+      (if (and (looking-at "%{")
+	       (not (matlab-cursor-in-string-or-comment)))
 	  (setq start (match-beginning 0))
-	(while (and (re-search-backward "\\%\\([{}]\\)" nil t)
+	(while (and (setq good (re-search-backward "\\%\\([{}]\\)" nil t))
 		    (matlab-cursor-in-string-or-comment))
 	  nil)
       
-	(if (looking-at "%{")
-	    (setq start (match-beginning 0))))
+	(when (and good (looking-at "%{"))
+	  (setq start (match-beginning 0))))
 
       (when start
-	(while (and (re-search-forward "\\%}" nil t)
+	(while (and (setq good (re-search-forward "\\%}" nil t))
 		    (matlab-cursor-in-string t))
 	  nil)
 	
-	(if (looking-at "%{")
+	(if (and good (looking-at "%{"))
 	    (setq end (match-end 0))
 	  (setq end (point-max))))
 
+      (when (and linebounds start)
+	(goto-char start)
+	(setq start (point-at-bol))
+	(goto-char end)
+	(setq end (point-at-eol)))
+      
       (when (and start end)
 	(cons start end)))))
 
