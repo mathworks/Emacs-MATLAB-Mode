@@ -85,22 +85,8 @@ If semantic-mode is not enabled, do something hacky to make it work."
 These paths will be parsed recursively by semantic.  Class and
 private directories will be omitted here.")
 
-(defvar semantic-matlab-root-directory
-  (let* ((mlab (locate-file "matlab" exec-path))
-	 (mlint (and (boundp 'mlint-program)
-		     mlint-program))
-	 (exe (or mlab mlint)))
-    (if exe
-	(let ((dir
-	       (or (file-symlink-p exe)
-		   exe)))
-	  ;; If we have a dir, take everything until /bin as root dir.
-	  (string-match "\\(.*\\)/bin.*" dir)
-	  (match-string 1 dir))
-      (message "semantic-matlab: Could not find MATLAB executable in path.")
-      nil))
+(defvar semantic-matlab-root-directory (matlab-mode-determine-matlabroot)
   "Root directory of MATLAB installation.
-Will be automatically determined by MATLAB or mlint executable.
 Use `semantic-matlab-system-paths-include' to let semantic know
 which system directories you would like to include when doing
 completions.")

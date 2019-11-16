@@ -26,10 +26,11 @@
 
 ;;; Code:
 (require 'matlab)
+(require 'matlab-compat)
+(require 'comint)
 
 (eval-and-compile
   (require 'gud)
-  (require 'comint)
   (require 'shell)
   )
 
@@ -125,6 +126,18 @@ When nil, complete against file names."
 ;; Extra font lock keywords for the MATLAB shell.
 (defvar matlab-shell-font-lock-keywords
   (list
+   ;; Startup notices
+   ;; Various notices
+   '(" M A T L A B " 0 'underline)
+   '("All Rights Reserved" 0 'italic)
+   '("\\(\\(?:(c)\\)?\\s-+Copyright[^\n]+\\)" 1 font-lock-comment-face)
+   '("\\(Version\\)\\s-+\\([^\n]+\\)"
+     (1 font-lock-function-name-face) (2 font-lock-variable-name-face))
+   '("\\(R[0-9]+[ab]\\(?: Update [0-9]+\\)\\) \\([^\n]+\\)"
+     (1 font-lock-function-name-face) (2 font-lock-variable-name-face))
+   '("^To get started, type doc.$" 0 font-lock-comment-face prepend)
+   '("For product information, [^\n]+" 0 font-lock-comment-face)
+
    ;; How about Errors?
    '("^\\(Error in\\|Syntax error in\\)\\s-+==>\\s-+\\(.+\\)$"
      (1 font-lock-comment-face) (2 font-lock-string-face))
@@ -136,12 +149,6 @@ When nil, complete against file names."
    '("\\<\\(demo\\|whatsnew\\|info\\|subscribe\\|help\\|doc\\|lookfor\\|what\
 \\|whos?\\|cd\\|clear\\|load\\|save\\|helpdesk\\|helpwin\\)\\>"
      1 font-lock-keyword-face)
-   ;; Various notices
-   '(" M A T L A B " 0 'underline)
-   '("All Rights Reserved" 0 'italic)
-   '("\\((c)\\s-+Copyright[^\n]+\\)" 1 font-lock-comment-face)
-   '("\\(Version\\)\\s-+\\([^\n]+\\)"
-     (1 font-lock-function-name-face) (2 font-lock-variable-name-face))
    )
   "Additional keywords used by MATLAB when reporting errors in interactive\
 mode.")
@@ -170,12 +177,95 @@ mode.")
   :type '(choice (const :tag "None" nil)
 		 (file :tag "File" "")))
 
+;;; ROOT
+;;
+(defun matlab-mode-determine-matlabroot ()
+  "Return the MATLABROOT for the 'matlab-shell-command'."
+  (let ((path (file-name-directory matlab-shell-command)))
+    ;; if we don't have a path, find the MATLAB executable on our path.
+    (when (not path)
+      (setq path  (matlab-find-executible-directory matlab-shell-command)))
+    (when path
+      ;; When we find the path, we need to massage it to identify where
+      ;; the M files are that we need for our completion lists.
+      (if (string-match "/bin/?$" path)
+	  (setq path (substring path 0 (match-beginning 0)))))
+    path))
+
+
+;;; Keymaps & Menus
+;;
+(defvar matlab-shell-mode-map
+  (let ((km (make-sparse-keymap 'matlab-shell-mode-map)))
+    ;; Mostly use comint mode's map.
+    (matlab-set-keymap-parent km comint-mode-map)
+
+    ;; We can jump to errors, so take over this keybinding.
+    (substitute-key-definition 'next-error 'matlab-shell-last-error
+			       km global-map)
+    
+    (define-key km [(control h) (control m)]
+      matlab-help-map)
+    
+    ;; TODO - deal with this mess - too many things about company mode
+    ;; being repeated in different places.  I suspect we just need to
+    ;; have one command to do either.
+    (if (not matlab-shell-tab-company-available)
+        (progn
+          (define-key km "\C-i" 'matlab-shell-c-tab)
+          (define-key km (kbd "TAB") 'matlab-shell-c-tab)) ;; classic emacs tab complete
+      ;; else have both company (popup) tab complete and classic tab complete
+      (define-key km (kbd "TAB") 'matlab-shell-tab)
+      (define-key km "\C-i" 'matlab-shell-tab)
+      (define-key km (kbd "<C-tab>") 'matlab-shell-c-tab))
+
+    (define-key km [(control up)] 'comint-previous-matching-input-from-input)
+    (define-key km [(control down)] 'comint-next-matching-input-from-input)
+    (define-key km [up] 'matlab-shell-previous-matching-input-from-input)
+    (define-key km [down] 'matlab-shell-next-matching-input-from-input)
+
+    (define-key km [(control return)] 'comint-kill-input)
+    (define-key km "\C-?" 'matlab-shell-delete-backwards-no-prompt)
+    (define-key km [(backspace)] 'matlab-shell-delete-backwards-no-prompt)
+
+    (define-key km "\C-c." 'matlab-find-file-on-path)
+
+    km)
+
+  "Keymap used in `matlab-shell-mode'.")
+
+(easy-menu-define matlab-shell-menu
+  matlab-shell-mode-map
+  "MATLAB shell menu"
+  '("MATLAB"
+    ["Goto last error" matlab-shell-last-error t]
+    "----"
+    ["Stop On Errors" matlab-shell-dbstop-error t]
+    ["Don't Stop On Errors" matlab-shell-dbclear-error t]
+    "----"
+    ["Run Command" matlab-shell-run-command t]
+    ["Describe Variable" matlab-shell-describe-variable t]
+    ["Describe Command" matlab-shell-describe-command t]
+    ["Lookfor Command" matlab-shell-apropos t]
+    ["Topic Browser" matlab-shell-topic-browser t]
+    "----"
+    ["Complete command" matlab-shell-c-tab t]
+    ["Popup complete command" matlab-shell-tab :visible matlab-shell-tab-company-available]
+    "----"
+    ["Demos" matlab-shell-demos t]
+    ["Close Current Figure" matlab-shell-close-current-figure t]
+    ["Close Figures" matlab-shell-close-figures t]
+    "----"
+    ["Customize" (customize-group 'matlab-shell)
+     (and (featurep 'custom) (fboundp 'custom-declare-variable))
+     ]
+    ["Exit" matlab-shell-exit t]))
+(easy-menu-add matlab-shell-menu matlab-shell-mode-map)
+
 
 ;;; MODE
 ;;
 ;; The Emacs major mode for interacting with the matlab shell process.
-(defvar matlab-shell-mode-map ()
-  "Keymap used in `matlab-shell-mode'.")
 
 (defvar matlab-shell-last-error-anchor) ;; Quiet compiler warning
 
@@ -253,34 +343,6 @@ in a popup buffer.
   (if (fboundp 'comint-read-input-ring)
       (comint-read-input-ring t))
   (make-local-variable 'gud-marker-acc)
-  (easy-menu-define
-   matlab-shell-menu
-   matlab-shell-mode-map
-   "MATLAB shell menu"
-   '("MATLAB"
-     ["Goto last error" matlab-shell-last-error t]
-     "----"
-     ["Stop On Errors" matlab-shell-dbstop-error t]
-     ["Don't Stop On Errors" matlab-shell-dbclear-error t]
-     "----"
-     ["Run Command" matlab-shell-run-command t]
-     ["Describe Variable" matlab-shell-describe-variable t]
-     ["Describe Command" matlab-shell-describe-command t]
-     ["Lookfor Command" matlab-shell-apropos t]
-     ["Topic Browser" matlab-shell-topic-browser t]
-     "----"
-     ["Complete command" matlab-shell-c-tab t]
-     ["Popup complete command" matlab-shell-tab :visible matlab-shell-tab-company-available]
-     "----"
-     ["Demos" matlab-shell-demos t]
-     ["Close Current Figure" matlab-shell-close-current-figure t]
-     ["Close Figures" matlab-shell-close-figures t]
-     "----"
-     ["Customize" (customize-group 'matlab-shell)
-      (and (featurep 'custom) (fboundp 'custom-declare-variable))
-      ]
-     ["Exit" matlab-shell-exit t]))
-  (easy-menu-add matlab-shell-menu matlab-shell-mode-map)
 
   (if matlab-shell-enable-gud-flag
       (progn
@@ -373,42 +435,6 @@ Try C-h f matlab-shell RET"))
       nil
     ;; Clean up crufty state
     (kill-all-local-variables)
-    ;; Build keymap here in case someone never uses comint mode
-    (if matlab-shell-mode-map
-	()
-      (setq matlab-shell-mode-map
-	    (let ((km (make-sparse-keymap 'matlab-shell-mode-map)))
-	      (if (fboundp 'set-keymap-parent)
-		  (set-keymap-parent km comint-mode-map)
-		;; 19.31 doesn't have set-keymap-parent
-		(setq km (nconc km comint-mode-map)))
-	      (substitute-key-definition 'next-error 'matlab-shell-last-error
-					 km global-map)
-	      (define-key km [(control h) (control m)]
-		matlab-help-map)
-              (define-key km "\C-c." 'matlab-find-file-on-path)
-              (if (not matlab-shell-tab-company-available)
-                  (progn
-                    (define-key km "\C-i" 'matlab-shell-c-tab)
-                    (define-key km (kbd "TAB") 'matlab-shell-c-tab)) ;; classic emacs tab complete
-                ;; else have both company (popup) tab complete and classic tab complete
-                (define-key km (kbd "TAB") 'matlab-shell-tab)
-                (define-key km "\C-i" 'matlab-shell-tab)
-                (define-key km (kbd "<C-tab>") 'matlab-shell-c-tab))
-	      (define-key km [(control up)]
-		'comint-previous-matching-input-from-input)
-	      (define-key km [(control down)]
-		'comint-next-matching-input-from-input)
-	      (define-key km [up]
-		'matlab-shell-previous-matching-input-from-input)
-	      (define-key km [down]
-		'matlab-shell-next-matching-input-from-input)
-	      (define-key km [(control return)] 'comint-kill-input)
-	      (define-key km "\C-?"
-		'matlab-shell-delete-backwards-no-prompt)
-	      (define-key km [(backspace)]
-		'matlab-shell-delete-backwards-no-prompt)
-	      km)))
     (switch-to-buffer
      ;; Thx David Chappaz for reminding me about this patch.
      (let* ((windowid (frame-parameter (selected-frame) 'outer-window-id))
@@ -1235,8 +1261,7 @@ non-nil if FCN is a builtin."
 	(string-match "$" output)
 	(cons (substring output 0 (match-beginning 0)) nil))))))
 
-
-;;; TODO - only used in matlab-semantic
+;;; TODO - only used in semantic-matlab
 (defun matlab-shell-matlabroot ()
   "Get the location of this shell's root.
 Returns a string path to the root of the executing MATLAB."
@@ -1904,29 +1929,9 @@ Return the name of the temporary file."
 
 ;;; M File path stuff =========================================================
 
-(defun matlab-mode-determine-mfile-path ()
-  "Create the path in `matlab-mode-install-path'."
-  (let ((path (file-name-directory matlab-shell-command)))
-    ;; if we don't have a path, find the MATLAB executable on our path.
-    (if (not path)
-	(let ((pl exec-path))
-	  (while (and pl (not path))
-	    (if (and (file-exists-p (concat (car pl) "/" matlab-shell-command))
-		     (not (car (file-attributes (concat (car pl) "/"
-							matlab-shell-command)))))
-		(setq path (car pl)))
-	    (setq pl (cdr pl)))))
-    (if (not path)
-	nil
-      ;; When we find the path, we need to massage it to identify where
-      ;; the M files are that we need for our completion lists.
-      (if (string-match "/bin$" path)
-	  (setq path (substring path 0 (match-beginning 0))))
-      ;; Everything stems from toolbox (I think)
-      (setq path (concat path "/toolbox/")))
-    path))
-
-(defcustom matlab-mode-install-path (list (matlab-mode-determine-mfile-path))
+(defcustom matlab-mode-install-path
+  (list
+   (expand-file-name "toolbox" (matlab-mode-determine-matlabroot)))
   "Base path pointing to the locations of all the m files used by matlab.
 All directories under each element of `matlab-mode-install-path' are
 checked, so only top level toolbox directories need be added.

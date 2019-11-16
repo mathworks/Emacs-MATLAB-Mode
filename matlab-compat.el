@@ -115,7 +115,37 @@
            (save-excursion (end-of-line) (point)))))
   )
 
+;; Keymaps
+(if (fboundp 'set-keymap-parent)
+    (defalias 'matlab-set-keymap-parent 'set-keymap-parent)
+      ;; 19.31 doesn't have set-keymap-parent
 
+  (eval-when-compile
+    (require 'comint))
+  
+  (defun matlab-set-keymap-parent (keymap parent)
+    "Set KEYMAP's parent to be PARENT."
+    (nconc keymap comint-mode-map)))
+  
+
+;; Finding executibles
+(defun matlab-find-executible-directory (program)
+  "find the executable PROGRAM on the exec path, following any links.
+Return the base directory it is in."
+  (let ((dir nil))
+    
+    (dolist (P exec-path)
+      (let ((nm (expand-file-name program P)))
+	(when (and (file-exists-p nm) (file-executable-p nm))
+	  (let* ((fa (file-attributes nm))
+		 (lnk (car fa)))
+	    (if lnk
+		;; We have a link - use that as our directory.
+		(setq dir (file-name-directory lnk))
+	      ;; No link - just use this path.
+	      (setq dir P)))
+	  )))
+    dir))
 
 (provide 'matlab-compat)
 
