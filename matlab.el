@@ -3947,19 +3947,24 @@ by `matlab-mode-vf-add-ends'"
 	    (goto-char s)
 	    (setq e (save-excursion (forward-word 1) (point)))
 	    ;; Try to add an end to the broken block
-	    (if (and addend
-		     (matlab-mode-highlight-ask
-		      s e
-		      "Unterminated block.  Try to add end?"))
-		(progn
-		  (matlab-mode-vf-add-end-to-this-block)
-		  (setq go t))
-	      ;; We didn't try to add an end.  Should we save.
-	    (if (matlab-mode-highlight-ask
-		 s e
-		 "Unterminated block.  Continue anyway?")
-		nil ;; continue anyway.
-	      (error "Unterminated Block found!")))))
+	    (if addend
+		(if (matlab-mode-highlight-ask
+		     s e "Unterminated block.  Try to add end?")
+		    (progn
+		      (matlab-mode-vf-add-end-to-this-block)
+		      (setq go t))
+		  ;; Else, mark this buffer as not needing ends.
+		  (setq matlab-functions-have-end nil)
+		  (message "Marking buffer as not needing END for this session.")
+		  (sit-for 1)
+		  )
+	      ;; We aren't in addend mode then we are in plain verify
+	      ;; mode
+	      (if (matlab-mode-highlight-ask
+		   s e
+		   "Unterminated block.  Continue anyway?")
+		  nil ;; continue anyway.
+		(error "Unterminated Block found!")))))
 	(message "Block-check: %d%%" (/ (/ (* 100 (point)) (point-max)) 2))))))
 
 (defun matlab-mode-vf-add-end-to-this-block ()
