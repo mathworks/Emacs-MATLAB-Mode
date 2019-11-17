@@ -170,6 +170,7 @@ mode.")
 
 ;;; ROOT
 ;;
+;;;###autoload
 (defun matlab-mode-determine-matlabroot ()
   "Return the MATLABROOT for the 'matlab-shell-command'."
   (let ((path (file-name-directory matlab-shell-command)))

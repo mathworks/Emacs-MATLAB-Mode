@@ -4,7 +4,7 @@
 ;; Maintainer: Eric M. Ludlam <eludlam@mathworks.com>
 ;; Created: June 25, 2002
 
-(defvar mlint-version "1.3.1"
+(defvar mlint-version "1.3.2"
   "The current version of mlint minor mode.")
 
 ;; Copyright (C) 2002-2005, 2013, 2014, 2016-2017, 2019 The MathWorks Inc.
@@ -40,6 +40,13 @@
         (t
          (defalias 'mlint-object-name-string 'object-name-string)))
   )
+
+;; If we can't find an mlint program this fcn wil lbe needed.
+(autoload 'matlab-mode-determine-matlabroot "matlab-shell" "\
+Return the MATLABROOT for the 'matlab-shell-command'.
+
+\(fn)" nil nil)
+
 
 ;; `goto-line' is for interactive use only; use `forward-line' instead.
 (defun mlint-goto-line (n) (goto-char (point-min)) (forward-line (1- n)))
@@ -108,8 +115,10 @@ This value can be automatically set by `mlint-programs'.")
 (defun mlint-reset-program ()
   "Reset `mlint-program'."
   (setq mlint-program
-	(let ((mlp mlint-programs)
-	      (ans nil))
+	(let* ((root (matlab-mode-determine-matlabroot))
+	       (bin (expand-file-name "bin" root))
+	       (mlp mlint-programs)
+	       (ans nil))
 	  (while (and mlp (not ans))
 	    (cond ((null (car mlp))
 		   nil)
@@ -117,6 +126,9 @@ This value can be automatically set by `mlint-programs'.")
 		   (setq ans (car mlp)))
 		  ((executable-find (car mlp))
 		   (setq ans (executable-find (car mlp))))
+		  ;; Use the matlabroot found by matlab-shell
+		  ((file-executable-p (expand-file-name (car mlp) bin))
+		   (setq ans (expand-file-name (car mlp) bin)))
 		  (t nil))
 	    (setq mlp (cdr mlp)))
 	  ans)))
