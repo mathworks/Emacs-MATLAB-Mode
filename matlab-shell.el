@@ -101,6 +101,12 @@ will disable use emacsclient as the external editor."
 
 ;;
 ;; Completion handling
+(defcustom matlab-shell-ask-MATLAB-for-completions t
+  "When Non-nil, ask MATLAB for a completion list.
+When nil, complete against file names."
+  :group 'matlab-shell
+  :type 'boolean)
+
 (defcustom matlab-shell-tab-use-company t
   "*Use `company' (complete anything) for TAB completions in
 MATLAB shell when `company' is installed. Note, when you type to
@@ -109,17 +115,9 @@ you can try turning this off."
   :group 'matlab-shell
   :type 'boolean)
 
-(defvar matlab-shell-tab-company-available nil
+(defvar matlab-shell-tab-company-available (if (locate-library "company") t nil)
   "If we have `company' (completion anything) use it to show
 `matlab-shell' completions when `matlab-shell-tab-use-company' is t.")
-(when (require 'company nil 'noerror)
-  (setq matlab-shell-tab-company-available t))
-
-(defcustom matlab-shell-ask-MATLAB-for-completions t
-  "When Non-nil, ask MATLAB for a completion list.
-When nil, complete against file names."
-  :group 'matlab-shell
-  :type 'boolean)
 
 ;;; Font Lock
 ;;
@@ -165,17 +163,6 @@ mode.")
   (append matlab-shell-font-lock-keywords-2
 	  matlab-really-gaudy-font-lock-keywords)
   "Keyword symbol used for really gaudy font-lock symbols.")
-
-;; Startup logo information
-(defcustom matlab-shell-logo
-  (if (fboundp 'locate-data-file)
-      ;; Starting from XEmacs 20.4 use locate-data-file
-      (locate-data-file "matlab.xpm")
-    (expand-file-name "matlab.xpm" data-directory))
-  "*The MATLAB logo file."
-  :group 'matlab-shell
-  :type '(choice (const :tag "None" nil)
-		 (file :tag "File" "")))
 
 ;;; ROOT
 ;;
@@ -313,11 +300,6 @@ in a popup buffer.
   (require 'shell)
   (if (fboundp 'shell-directory-tracker)
       (add-hook 'comint-input-filter-functions 'shell-directory-tracker nil t)) ;; patch Eli Merriam
-  ;; Add a spiffy logo if we are running XEmacs
-  (if (and (string-match "XEmacs" emacs-version)
-	   (stringp matlab-shell-logo)
-	   (file-readable-p matlab-shell-logo))
-      (add-hook 'comint-output-filter-functions 'matlab-shell-hack-logo))
   ;; Add a version scraping logo identification filter.
   (add-hook 'comint-output-filter-functions 'matlab-shell-version-scrape)
   ;; Add pseudo html-renderer
@@ -466,30 +448,20 @@ Try C-h f matlab-shell RET"))
     ;; matlab mode.
     (matlab-shell-mode)
 
+    ;; Company mode can be used to display completions for MATLAB in matlab-shell.
+    ;; This block enables company mode for this shell, and turns off the idle timer
+    ;; so users must press TAB to get the menu.
     (when (and matlab-shell-tab-use-company
-	       matlab-shell-tab-company-available) ;; for tab completion
+	       matlab-shell-tab-company-available)
+      
+      ;; Only do popup when users presses TAB
+      (set (make-local-variable 'company-idle-delay) nil)
       (company-mode))
     ))
 
 ;;; STARTUP / VERSION 
 ;;
 ;; Handlers for startup output / version scraping
-
-(defun matlab-shell-hack-logo (str)
-  "Replace the text logo with a real logo.
-STR is passed from the commint filter."
-  (when (string-match "< M A T L A B >" str)
-    (save-excursion
-      (when (re-search-backward "^[ \t]+< M A T L A B (R) >" (point-min) t)
- 	(delete-region (match-beginning 0) (match-end 0))
- 	(insert (make-string 16 ? ))
-        (when (fboundp 'set-extent-begin-glyph)
-          (set-extent-begin-glyph (when (fboundp 'make-extent) (make-extent (point) (point)))
-                                  (when (fboundp 'make-glyph) (make-glyph matlab-shell-logo))))))
-          ;; Remove this function from `comint-output-filter-functions'
-      (remove-hook 'comint-output-filter-functions
- 		 'matlab-shell-hack-logo))
-  )
 
 (defun matlab-shell-version-scrape (str)
   "Scrape the MATLAB Version from the MATLAB startup text.
@@ -966,10 +938,6 @@ STR is a command substring to complete."
             (cons 'completions (nreverse completions)))
       )))
 
-(defvar matlab-shell-window-exists-for-display-completion-flag nil
-  "Non-nil means there was an 'other-window' available when `display-completion-list' is called.")
-
-
 (defun matlab-shell-get-completion-limit-pos (last-cmd completions)
   "Used by `matlab-shell-tab' to get the starting location within last-cmd
 of the common substring used in matching the completions, i.e.
@@ -992,8 +960,9 @@ is the common starting substring of each completion in completions."
     limit-pos))
 
 (defun matlab-shell-get-completion-info ()
-  "Helper function for `matlab-shell-tab' and `company-matlab-shell' to get completion
-information for item at point"
+  "Compute completions needed for `matlab-shell-tab' and `company-matlab-shell'.
+Completions are computed based on the prefix on the last command prompt.
+No completions are provided anywhere else in the buffer."
   (if (or (not (= (point) (point-max)))
           (not (matlab-on-prompt-p)))
       nil ;; no completions. We can only complete when typing a command.
@@ -1083,14 +1052,6 @@ information for item at point"
             (cons 'did-completion         did-completion)
       ))))
 
-
-(defun matlab-display-completion-list (completions common-substring)
-  ;; In emacs 24.4 the common-substring is no longer needed
-  (let ((args (if (or (< emacs-major-version 24)
-                      (and (= emacs-major-version 24) (< emacs-minor-version 4)))
-                  (list completions common-substring)
-                (list completions))))
-    (apply 'display-completion-list args)))
 
 (defun matlab-shell-c-tab ()
   "Send [TAB] to the currently running matlab process and retrieve completion
@@ -1184,25 +1145,17 @@ to show using classing emacs tab completion."
                          (and (stringp try)
                               (string= try common-substr)))
                      (insert common-substr)
-                     ;; Before displaying the completions buffer, check to see if
-                     ;; the completions window is already displayed, or if there is
-                     ;; a next window to display.  This determines how to remove the
-                     ;; completions later.
-                     (if (get-buffer-window "*Completions*")
-                         nil ;; Recycle old value of the display flag.
-                       ;; Else, reset this variable.
-                       (setq matlab-shell-window-exists-for-display-completion-flag
-                             ;; Else, it isn't displayed, save an action.
-                             (if (eq (next-window) (selected-window))
-                                 ;; If there is no other window, the post action is
-                                 ;; to delete.
-                                 'delete
-                               ;; If there is a window to display, the post
-                               ;; action is to bury.
-                               'bury)))
-                     (with-output-to-temp-buffer "*Completions*"
-                       (matlab-display-completion-list (mapcar 'car completions)
-                                                       common-substr)))
+		     (let ((cbuff (get-buffer-create "*Completions*")))
+		       (with-output-to-temp-buffer cbuff
+			 (matlab-display-completion-list (mapcar 'car completions)
+							 common-substr))
+		       (display-buffer
+			cbuff
+			'((display-buffer-below-selected display-buffer-at-bottom)
+			  (inhibit-same-window . t)
+			  (window-height . fit-window-to-buffer))
+			)
+		       ))
                     ((stringp try)
                      (insert try)
                      (matlab-shell-tab-hide-completions))
@@ -1212,19 +1165,9 @@ to show using classing emacs tab completion."
 
 (defun matlab-shell-tab-hide-completions ()
   "Hide any completion windows for `matlab-shell-tab'."
-  (cond ((eq matlab-shell-window-exists-for-display-completion-flag 'delete)
-	 (when (get-buffer "*Completions*")
-	   (delete-windows-on "*Completions*")))
-	((eq matlab-shell-window-exists-for-display-completion-flag 'bury)
-	 (let ((orig (selected-window))
-	       (bw nil))
-	   (while (setq bw (get-buffer-window "*Completions*"))
-	     (select-window bw)
-	     (bury-buffer))
-	   (select-window orig)))
-	)
-  ;; Reset state.
-  (setq matlab-shell-window-exists-for-display-completion-flag nil))
+  (let ((bw (get-buffer-window "*Completions*")))
+    (when bw
+      (quit-window nil (get-buffer-window "*Completions*")))))
 
 ;;; SUPPORT
 ;;
