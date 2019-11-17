@@ -302,8 +302,7 @@ in a popup buffer.
   (add-hook 'comint-output-filter-functions 'matlab-shell-version-scrape)
   ;; Add pseudo html-renderer
   (add-hook 'comint-output-filter-functions 'matlab-shell-render-html-anchor nil t)
-  ;(add-hook 'comint-output-filter-functions 'matlab-shell-render-html-txt-format nil t)
-  ;(add-hook 'comint-output-filter-functions 'matlab-shell-render-errors-as-anchor nil t)
+  (add-hook 'comint-output-filter-functions 'matlab-shell-render-errors-as-anchor nil t)
   ;; Scroll to bottom after running cell/region
   (add-hook 'comint-output-filter-functions 'comint-postoutput-scroll-to-bottom)
 
@@ -527,76 +526,72 @@ Argument STR is the text for the anchor."
             (delete-region anchor-beg-start anchor-beg-finish)
             ))))
   )
-
-;;; TEXT FORMATTING
-;;
-(defvar matlab-txt-format-beg "<\\(strong\\|u\\)>"
-  "Beginning of html text formatting signal in HTML.")
-
-(defvar matlab-txt-format-end "</%s>"
-  "End of some html text formatter.
-Includes a %s to match the kind of text format start regexp.")
-
-(defun matlab-shell-render-html-txt-format (str)
-  "Render html text format inserted into the MATLAB shell buffer.
-Argument STR is the text for the text formatter."
-  (if (string-match "</\\w+>" str)
-      (save-excursion
-        (while (re-search-backward matlab-txt-format-beg
-				   ;; Arbitrary back-buffer.  We don't
-				   ;; usually get text in such huge chunks
-				   (max (point-min) (- (point-max) 8192))
-				   t)
-          (let* ((txt-format-beg-start (match-beginning 0))
-                 (txt-format-beg-finish (match-end 0))
-                 (txt-format-text (match-string 1))
-                 (txt-format-end-finish
-		  ;; The finish combines the text from the start to get an
-		  ;; exact match.
-		  (search-forward (format matlab-txt-format-end txt-format-text)))
-                 (txt-format-end-start (match-beginning 0))
-                 (o (matlab-make-overlay txt-format-beg-finish txt-format-end-start)))
-	    (cond ((string= txt-format-text "strong")
-		   (upcase-region txt-format-beg-finish txt-format-end-start)
-		   (matlab-overlay-put o 'face 'bold))
-		  ((string= txt-format-text "u")
-		   (matlab-overlay-put o 'face 'underline))
-		  (t
-		   ;; If we don't match, delete the overlay instead.
-		   (matlab-delete-overlay o)
-		   (setq o nil)
-		   ))
-	    (when o
-	      (delete-region txt-format-end-start txt-format-end-finish)
-	      (delete-region txt-format-beg-start txt-format-beg-finish))
-            ))))
-  )
-
 ;;; ERROR HANDLING
 ;;
 
-;; The regular expression covers the following form:
-;; Errors:  Error in ==> <function name>
-;;          On line # ==> <command_name>
-;; Errors:  Error using ==> <function name> at <#>
-;; Syntax:  Syntax error in ==> <filename>
-;;          On line # ==> <sample-text>
-;; Warning: In <filename> at line # <stuff>
+;; The regular expression covers to forms in tests/erroexamples.shell.m
 ;;
-;; New Error Formats:
-;; Errors:  Error in <function name> (line <#>)
-(defvar gud-matlab-error-regexp
-  (if nil
-      ;; Newer MATLAB's use this.  Debug and merge with below.
-      (concat "\\(Error \\(?:in\\|using\\)\\|Syntax error in\\) "
-              "\\([-@.a-zA-Z_0-9/\\\\:]+\\)[\n ]*(line "
-              "\\([0-9]+\\)) ?")
-    ;; else
-    (concat "\\(Error \\(?:in\\|using\\) ==>\\|Syntax error in ==>\\|In\\) "
-            "\\([-@.a-zA-Z_0-9/ \\\\:]+\\)\\(?:>[^ ]+\\)?.*[\n ]\\(?:On\\|at\\)\\(?: line\\)? "
-            "\\([0-9]+\\) ?")
-    ) ;; end if
-  "Regular expression finding where an error occurred.")
+(defvar matlab-shell-error-anchor-expression
+  (concat "^\\(\\(Error \\(in\\|using\\) \\|Syntax error in \\)\\(?:==> \\)?\\|"
+	  "In \\|Error: File: \\|Warning: [^\n]+\n\\)")
+  
+  "Expressions used to find errors in MATLAB process output.
+This variable contains the anchor, or starting text before
+a typical error.  See `matlab-shell-error-location-expression' for
+a list of expressions for identifying where the error is
+after this anchor.")
+
+(defvar matlab-shell-error-location-expression
+  (list
+   ;; Pulled from R2019b
+   "\\(?:^> In \\)?\\([-@.a-zA-Z_0-9/ \\\\:]+\\) (line \\([0-9]+\\))"
+
+   "\\([-@.a-zA-Z_0-9/ \\\\:]+\\) Line: \\([0-9]+\\) Column: \\([0-9]+\\)"
+   
+   ;; Oldest I have examples for:
+   (concat "\\([-@.a-zA-Z_0-9/ \\\\:]+\\)\\(?:>[^ ]+\\)?.*[\n ]\\(?:On\\|at\\)\\(?: line\\)? "
+	   "\\([0-9]+\\) ?")
+   )
+  "List of Expressions to search for after an error anchor is found.
+These expressions are listed as matching from newer MATLAB versions
+to older MATLABs.
+Each expression should have the following match strings:
+  1 - The matlab function
+  2 - The line number
+  3 - The column number (if available)")
+
+;; (global-set-key [f8] 'matlab-shell-scan-for-error)
+
+(defun matlab-shell-scan-for-error (limit)
+  "Scan backward for a MATLAB error in the current buffer.
+Uses `matlab-shell-error-anchor-expression' to find the error.
+Uses `matlab-shell-error-location-expression' to find where the error is.
+Returns a list of the form:
+  ( STARTPT ENDPT FILE LINE COLUMN )"
+  (interactive)
+  (let ((ans nil)
+	(beginning nil))
+    (when (re-search-backward matlab-shell-error-anchor-expression 
+			      limit
+			      t)
+      (save-excursion
+	(setq beginning (match-beginning 0))
+	(goto-char (match-end 0))
+	(dolist (EXP matlab-shell-error-location-expression)
+	  (when (looking-at EXP)
+	    (setq ans (list beginning
+			    (match-end 0)
+			    (match-string-no-properties 1)
+			    (match-string-no-properties 2)
+			    (match-string-no-properties 3)
+			    )))))
+      )
+    ;; This is for interactiv debugging.
+    (when (called-interactively-p 'any)
+      (when ans
+	(pulse-momentary-highlight-region (car ans) (car (cdr ans))))
+      (message "Found: %S" ans))
+    ans))
 
 (defvar matlab-shell-last-error-anchor nil
   "Last point where an error anchor was set.")
@@ -604,23 +599,24 @@ Argument STR is the text for the text formatter."
   ;; NOTE: this isn't being used yet.
   "The last error anchor saved, represented as a debugger frame.")
 
-(defun matlab-shell-render-errors-as-anchor (str)
+(defun matlab-shell-render-errors-as-anchor (&optional str)
+  ;; TODO: Not sure why this takes STR.  Probably a comint thing?
+  ;;    delete this todo.
   "Detect non-url errors, and treat them as if they were url anchors.
 Argument STR is the text that might have errors in it."
   (save-excursion
     ;; We have found an error stack to investigate.
     (let ((first nil)
+	  (ans nil)
 	  (overlaystack nil))
-      (while (re-search-backward gud-matlab-error-regexp
-				 (if matlab-shell-last-error-anchor
-				     (min matlab-shell-last-error-anchor (point))
-				   (point))
-				 t)
-	(let* ((err-start (match-beginning 0))
-	       (err-end (match-end 0))
-	       (err-text (match-string 0))
-	       (err-file (match-string 2))
-	       (err-line (match-string 3))
+      (while (setq ans (matlab-shell-scan-for-error (if matlab-shell-last-error-anchor
+							(min matlab-shell-last-error-anchor (point))
+						      (point))))
+	(let* ((err-start (nth 0 ans))
+	       (err-end (nth 1 ans))
+	       (err-file (nth 2 ans))
+	       (err-line (nth 3 ans))
+	       (err-col (nth 4 ans))
 	       (o (matlab-make-overlay err-start err-end))
 	       (url (concat "opentoline('" err-file "'," err-line ",0)"))
 	       )
@@ -1203,11 +1199,11 @@ This should work in version before `completion-in-region' was available."
     (when bw
       (quit-window nil (get-buffer-window "*Completions*")))))
 
-;;; SUPPORT
+;;; Find Files
 ;;
-;; Support CEDET/Semantic tool
+;; Finding Files with MATLAB shell.
+;; Originally for use with semantic-matlab, but now used in more places.
 
-;;; TODO - used by semanticdb-matlab.el
 (defun matlab-shell-which-fcn (fcn)
   "Get the location of FCN's M file.
 Returns an alist: ( LOCATION . BUILTINFLAG )
@@ -1515,16 +1511,47 @@ show up in reverse order."
 		(matlab-url-at p))))
       url)))
 
+(defvar matlab-shell-mref-converters
+  '(
+    ;; Does it work as is?
+    (lambda (mref) mref)
+    ;; p files
+    (lambda (mref) (when (string-match "\\.\\(p\\)$" mref)
+		     (replace-match "m" nil t mref 1)))
+    ;; Function name, no extension.
+    (lambda (mref) (when (not (string-match "\\.m$" mref)) (concat mref ".m")))
+    ;; Copied from old code, not sure what it matches.
+    (lambda (mref) (when (string-match ">" mref)
+		     (concat (substring fileref 0 (match-beginning 0)) ".m")))
+    ;; Ask matlab where it came from.  Keep last b/c expensive, or won't
+    ;; work if ML is busy.
+    (lambda (mref) (car (matlab-shell-which-fcn mref)))
+    )
+  "List of converters to convert MATLAB file references into a filename.
+Each element is a function that accepts a file ref, and returns
+a file name, or nil if no conversion done.")
+
+(defun matlab-shell-mref-to-filename (fileref)
+  "Convert the MATLAB file reference FILEREF into an actual file name.
+MATLAB can refer to functions on the path by a short name, or by a .p 
+extension, and a host of different ways.  Convert this reference into
+something Emacs can load."
+  (interactive "sFileref: ")
+  (let ((C matlab-shell-mref-converters)
+	(ans nil))
+    (while (and C (not ans))
+      (let ((tmp (funcall (car C) fileref)))
+	(when (and tmp (file-exists-p tmp))
+	  (setq ans tmp))
+	)
+      (setq C (cdr C)))
+    (when (called-interactively-p 'any) (message "Found: %S" ans))
+    ans))
+
 (defun matlab-find-other-window-file-line-column (ef el ec &optional debug)
   "Find file EF in other window and to go line EL and 1-basec column EC.
 If DEBUG is non-nil, then setup GUD debugging features."
-  (cond ((file-exists-p ef)
-	 nil);; keep ef the same
-	((file-exists-p (concat ef ".m"))
-	 (setq ef (concat ef ".m"))) ;; Displayed w/out .m?
-	((string-match ">" ef)
-	 (setq ef (concat (substring ef 0 (match-beginning 0)) ".m")))
-	)
+  (setq ef (matlab-shell-mref-to-filename ef))
   (find-file-other-window ef)
   (with-no-warnings
     (goto-line (string-to-number el)))
@@ -1561,13 +1588,12 @@ To reference old errors, put the cursor just after the error text."
           (progn (matlab-find-other-window-via-url url) (throw 'done nil))
         (save-excursion
           (end-of-line) ;; In case we are before the line number 1998/06/05 16:54sk
-          (if (not (re-search-backward gud-matlab-error-regexp nil t))
-              (error "No errors found!"))
-          (let ((ef (buffer-substring-no-properties
-                     (match-beginning 2) (match-end 2)))
-                (el (buffer-substring-no-properties
-                     (match-beginning 3) (match-end 3))))
-            (matlab-find-other-window-file-line-column ef el "0")))))))
+	  (let ((err (matlab-shell-scan-for-error (point-min))))
+	    (when (not err) (error "No errors found!"))
+	    (let ((ef (nth 2 err))
+		  (el (nth 3 err))
+		  (ec (or (nth 4 err) "0")))
+	      (matlab-find-other-window-file-line-column ef el ec))))))))
 
 (defun matlab-shell-html-click (e)
   "Go to the error at the location of event E."
