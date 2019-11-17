@@ -34,7 +34,8 @@
     (error (require 'semantic/db))))
 
 (eval-and-compile
-  (require 'matlab))
+  (require 'matlab)
+  (require 'matlab-shell))
  
 ;;; Code:
 
@@ -255,12 +256,7 @@ EXCLUDE-PRIVATE, 'private' directories will be skipped."
 	  (cons t
 		(semanticdb-matlab-scan-directories
 		 semanticdb-matlab-include-paths t nil nil)))
-    ;; cache user defined old-style classes
-    (setq semanticdb-matlab-user-class-cache
-	  (if (fboundp 'semantic-matlab-find-oldstyle-classes)
-              (semantic-matlab-find-oldstyle-classes (cdr semanticdb-matlab-user-files-cache))
-            (error "semantic-matlab-find-oldstyle-classes not found"))
-            )))
+    ))
 
 (defun semanticdb-matlab-find-name (name &optional type)
   "Find NAME in matlab file names.

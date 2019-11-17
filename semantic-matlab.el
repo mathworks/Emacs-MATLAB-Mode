@@ -742,12 +742,16 @@ cannot derive an argument list for them."
 
 (defcustom-mode-local-semantic-dependency-system-include-path
   matlab-mode semantic-matlab-dependency-system-include-path
-  (if semantic-matlab-root-directory
+  (when (and semantic-matlab-root-directory
+	     (file-exists-p semantic-matlab-root-directory))
+    (let ((path nil))
       (mapcar (lambda (cur)
-		(concat (file-name-as-directory semantic-matlab-root-directory)
-			cur))
+		(let ((tmp (expand-file-name
+			    cur semantic-matlab-root-directory)))
+		  (when (file-exists-p tmp)
+		    (push tmp path))))
 	      semantic-matlab-system-paths-include)
-    nil)
+      path))
   "The system include paths from MATLAB.")
 
 (defvar semantic-idle-summary-function) ;; quiet compiler warning (not sure where this is defined)
