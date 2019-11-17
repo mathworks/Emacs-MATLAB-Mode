@@ -34,7 +34,11 @@
   (require 'shell)
   )
 
+;; Slience warnings from company.el
 (declare-function company-mode "company")
+(defvar company-idle-delay)
+(defvar company-mode)
+
 
 ;;; Customizations
 ;;
@@ -190,31 +194,26 @@ mode.")
     ;; We can jump to errors, so take over this keybinding.
     (substitute-key-definition 'next-error 'matlab-shell-last-error
 			       km global-map)
-    
-    (define-key km [(control h) (control m)]
-      matlab-help-map)
-    
-    ;; TODO - deal with this mess - too many things about company mode
-    ;; being repeated in different places.  I suspect we just need to
-    ;; have one command to do either.
-    (if (not matlab-shell-tab-company-available)
-        (progn
-          (define-key km "\C-i" 'matlab-shell-c-tab)
-          (define-key km (kbd "TAB") 'matlab-shell-c-tab)) ;; classic emacs tab complete
-      ;; else have both company (popup) tab complete and classic tab complete
-      (define-key km (kbd "TAB") 'matlab-shell-tab)
-      (define-key km "\C-i" 'matlab-shell-tab)
-      (define-key km (kbd "<C-tab>") 'matlab-shell-c-tab))
 
+    ;; Help system
+    (define-key km [(control h) (control m)] matlab-help-map)
+
+    ;; Completion
+    (define-key km (kbd "TAB") 'matlab-shell-tab)
+    (define-key km "\C-i" 'matlab-shell-tab)
+    (define-key km (kbd "<C-tab>") 'matlab-shell-c-tab)
+
+    ;; Command history
     (define-key km [(control up)] 'comint-previous-matching-input-from-input)
     (define-key km [(control down)] 'comint-next-matching-input-from-input)
     (define-key km [up] 'matlab-shell-previous-matching-input-from-input)
     (define-key km [down] 'matlab-shell-next-matching-input-from-input)
 
+    ;; Editing
     (define-key km [(control return)] 'comint-kill-input)
-    (define-key km "\C-?" 'matlab-shell-delete-backwards-no-prompt)
     (define-key km [(backspace)] 'matlab-shell-delete-backwards-no-prompt)
 
+    ;; Files
     (define-key km "\C-c." 'matlab-find-file-on-path)
 
     km)
@@ -236,8 +235,7 @@ mode.")
     ["Lookfor Command" matlab-shell-apropos t]
     ["Topic Browser" matlab-shell-topic-browser t]
     "----"
-    ["Complete command" matlab-shell-c-tab t]
-    ["Popup complete command" matlab-shell-tab :visible matlab-shell-tab-company-available]
+    ["Complete command" matlab-shell-tab t]
     "----"
     ["Demos" matlab-shell-demos t]
     ["Close Current Figure" matlab-shell-close-current-figure t]
@@ -877,11 +875,11 @@ Optional argument ARG describes the number of chars to delete."
 	(delete-char numchars)
       (error "Beginning of line"))))
 
-
+
 ;;; COMPLETION
 ;;
-;; Do completion at the MATLAB prompt.  Tries to ask subprocess for
-;; completions, and wait for the output.
+;; Requet list of completions from MATLAB.
+;; Support classic emacs in-place completion, or company mode if available.
 
 (defun matlab-shell-completion-list (str)
   "Get a list of completions from MATLAB.
@@ -1060,8 +1058,6 @@ to show using classing emacs tab completion."
   (let ((matlab-shell-tab-company-available nil))
     (matlab-shell-tab)))
 
-(defvar company-mode) ;; Slience warning. Variable comes from company.el
-
 ;; matlab-shell-tab,
 ;;   This sends the command text at the prompt to emacsdocomplete.m which returns a list
 ;;   of possible completions. To do this we use comint to 'type' emacsdocomplete(command)
@@ -1105,63 +1101,101 @@ to show using classing emacs tab completion."
 ;;   >> vdp
 ;;   >> get_param('vdp','Pos<TAB>    Should show several completions
 (defun matlab-shell-tab ()
-  "Send [TAB] to the currently running matlab process and retrieve completion."
-  (interactive)
-  (if (and matlab-shell-tab-company-available matlab-shell-tab-use-company company-mode)
-      ;; We don't add to company-backends because we bind TAB to matlab-shell-tab
-      ;; which means completions must be explicitly requested. The default
-      ;; company-complete tries to complete as you type which doesn't work
-      ;; so well because it can take MATLAB a bit to compute completions.
-      (call-interactively 'company-matlab-shell)
-    (if (not matlab-shell-ask-MATLAB-for-completions)
-        (call-interactively 'comint-dynamic-complete-filename)
-      (let* ((inhibit-field-text-motion t)
-             (completion-info        (matlab-shell-get-completion-info))
-             (last-cmd               (cdr (assoc 'last-cmd completion-info)))
-             (common-substr          (cdr (assoc 'common-substr completion-info)))
-             (limit-pos              (cdr (assoc 'limit-pos completion-info)))
-             (completions            (cdr (assoc 'completions completion-info)))
-             (common-substr-start-pt (cdr (assoc 'common-substr-start-pt completion-info)))
-             (common-substr-end-pt   (cdr (assoc 'common-substr-end-pt completion-info)))
-             (did-completion         (cdr (assoc 'did-completion completion-info))))
+  "Perform completions at the `matlab-shell' command prompt.
+By default, uses matlab-shell toolbox command emacsdocomplete.m to get
+completions.
 
-        (when (not did-completion)
-          ;; Whack the old command 'substring' that is starting part of the
-          ;; completions so we can insert it back later
-          (delete-region common-substr-start-pt common-substr-end-pt)
-          (goto-char (point-max))
-          ;; Process the completions
-          (if (eq (length completions) 1)
-              ;; If there is only one, then there is an obvious thing to do.
-              (progn
-                (insert (car (car completions)))
-                ;; kill completions buffer if still visible
-                (matlab-shell-tab-hide-completions))
-            ;; else handle multiple completions
-            (let ((try nil))
-              (setq try (try-completion common-substr completions))
-              ;; Insert in a good completion.
-              (cond ((or (eq try nil) (eq try t)
-                         (and (stringp try)
-                              (string= try common-substr)))
-                     (insert common-substr)
-		     (let ((cbuff (get-buffer-create "*Completions*")))
-		       (with-output-to-temp-buffer cbuff
-			 (matlab-display-completion-list (mapcar 'car completions)
-							 common-substr))
-		       (display-buffer
-			cbuff
-			'((display-buffer-below-selected display-buffer-at-bottom)
-			  (inhibit-same-window . t)
-			  (window-height . fit-window-to-buffer))
-			)
-		       ))
-                    ((stringp try)
-                     (insert try)
-                     (matlab-shell-tab-hide-completions))
-                    (t
-                     (insert common-substr))))
-            ))))))
+If `matlab-shell-ask-MATLAB-for-completions' is nil, then use
+`comint-dynamic-complete-filename' instead.
+
+If `matlab-shell-tab-use-company' is non-nil, and if `company-mode' is
+installed, then use company to display completions in a popup window.
+"
+  (interactive)
+  (cond
+   ;; If we aren't supposed to ask MATLAB for completions, then use
+   ;; comint basics.
+   ((not matlab-shell-ask-MATLAB-for-completions)
+    (call-interactively 'comint-dynamic-complete-filename))
+
+   ;; If company mode is available and we ask for it, use that.
+   ((and matlab-shell-tab-company-available matlab-shell-tab-use-company company-mode)
+    ;; We don't add to company-backends because we bind TAB to matlab-shell-tab
+    ;; which means completions must be explicitly requested. The default
+    ;; company-complete tries to complete as you type which doesn't work
+    ;; so well because it can take MATLAB a bit to compute completions.
+    (call-interactively 'company-matlab-shell))
+
+   ;; Starting in Emacs 23, completion-in-region has everything we need for basic
+   ;; in-buffer completion
+   ((fboundp 'completion-in-region)
+    (matlab-shell-do-completion-light))
+
+   ;; Old school completion
+   (t
+    (matlab-shell-do-completion))
+   ))
+
+(defun matlab-shell-do-completion-light ()
+  "Perform completion using `completion-in-region'."
+  (let* ((inhibit-field-text-motion t)
+         (completion-info        (matlab-shell-get-completion-info))
+         (completions            (cdr (assoc 'completions completion-info)))
+         (common-substr-start-pt (cdr (assoc 'common-substr-start-pt completion-info)))
+         (common-substr-end-pt   (cdr (assoc 'common-substr-end-pt completion-info)))
+	 )
+    (completion-in-region common-substr-start-pt common-substr-end-pt completions)))
+
+(defun matlab-shell-do-completion ()
+  "Perform completion using Emacs buffers.
+This should work in version before `completion-in-region' was available."
+  (let* ((inhibit-field-text-motion t)
+         (completion-info        (matlab-shell-get-completion-info))
+         ;;(last-cmd               (cdr (assoc 'last-cmd completion-info)))
+         (common-substr          (cdr (assoc 'common-substr completion-info)))
+         (limit-pos              (cdr (assoc 'limit-pos completion-info)))
+         (completions            (cdr (assoc 'completions completion-info)))
+         (common-substr-start-pt (cdr (assoc 'common-substr-start-pt completion-info)))
+         (common-substr-end-pt   (cdr (assoc 'common-substr-end-pt completion-info)))
+         (did-completion         (cdr (assoc 'did-completion completion-info))))
+
+    (when (not did-completion)
+      ;; Whack the old command 'substring' that is starting part of the
+      ;; completions so we can insert it back later
+      (delete-region common-substr-start-pt common-substr-end-pt)
+      (goto-char (point-max))
+      ;; Process the completions
+      (if (eq (length completions) 1)
+	  ;; If there is only one, then there is an obvious thing to do.
+          (progn
+            (insert (car (car completions)))
+	    ;; kill completions buffer if still visible
+            (matlab-shell-tab-hide-completions))
+	;; else handle multiple completions
+        (let ((try nil))
+          (setq try (try-completion common-substr completions))
+	  ;; Insert in a good completion.
+          (cond ((or (eq try nil) (eq try t)
+                     (and (stringp try)
+                          (string= try common-substr)))
+                 (insert common-substr)
+		 (let ((cbuff (get-buffer-create "*Completions*")))
+		   (with-output-to-temp-buffer cbuff
+		     (matlab-display-completion-list (mapcar 'car completions)
+						     common-substr))
+		   (display-buffer
+		    cbuff
+		    '((display-buffer-below-selected display-buffer-at-bottom)
+		      (inhibit-same-window . t)
+		      (window-height . fit-window-to-buffer))
+		    )
+		   ))
+                ((stringp try)
+                 (insert try)
+                 (matlab-shell-tab-hide-completions))
+                (t
+                 (insert common-substr))))
+        ))))
 
 (defun matlab-shell-tab-hide-completions ()
   "Hide any completion windows for `matlab-shell-tab'."
