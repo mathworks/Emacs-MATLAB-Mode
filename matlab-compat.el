@@ -147,6 +147,17 @@ Return the base directory it is in."
 	  )))
     dir))
 
+;; Completion Tools
+(defun matlab-display-completion-list (completions common-substring)
+  ;; In emacs 24.4 the common-substring is no longer needed
+  (let ((args (if (or (< emacs-major-version 24)
+                      (and (= emacs-major-version 24) (< emacs-minor-version 4)))
+                  (list completions common-substring)
+                (list completions))))
+    (apply 'display-completion-list args)))
+
+
+
 (provide 'matlab-compat)
 
 ;;; matlab-compat.el ends here
