@@ -1336,7 +1336,7 @@ All Key Bindings:
     ;; Enable our own block highlighting if paren mode not around.
     (matlab-enable-block-highlighting 1))
   
-  (if window-system (matlab-frame-init)))
+  (if window-system (matlab-frame-init))
 
   ;; built-in sexp navigation
   (make-local-variable 'forward-sexp-function)
