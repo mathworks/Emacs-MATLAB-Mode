@@ -225,11 +225,6 @@ amount to use if MAXIMUM is reached."
   :type '(repeat (cons (character :tag "Open List Character")
 		       (sexp :tag "Number (max) or cons (max indent)"))))
 
-(defcustom matlab-auto-fill t
-  "*If true, set variable `auto-fill-function' to our function at startup."
-  :group 'matlab
-  :type 'boolean)
-
 (defcustom matlab-fill-fudge 10
   "Number of characters around `fill-column' we can fudge filling.
 Basically, there are places that are very convenient to fill at, but
@@ -1261,9 +1256,8 @@ Variables:
   `matlab-indent-function-body' If non-nil, indents body of MATLAB functions.
   `matlab-functions-have-end'	If non-nil, MATLAB functions terminate with end.
   `matlab-return-function'	Customize RET handling with this function.
-  `matlab-auto-fill'            Non-nil, do auto-fill at startup.
-  `matlab-fill-code'            Non-nil, auto-fill code.
-  `matlab-fill-strings'         Non-nil, auto-fill strings.
+  `matlab-fill-code'            Non-nil, auto-fill code in auto-fill-mode.
+  `matlab-fill-strings'         Non-nil, auto-fill strings in auto-fill-mode.
   `matlab-verify-on-save-flag'  Non-nil, enable code checks on save.
   `matlab-highlight-block-match-flag'
                                 Enable matching block begin/end keywords.
@@ -1304,10 +1298,9 @@ All Key Bindings:
   (setq add-log-current-defun-function 'matlab-current-defun)
   (make-local-variable 'fill-column)
   (setq fill-column matlab-fill-column)
-  (make-local-variable 'auto-fill-function)
-  (if matlab-auto-fill (setq auto-fill-function 'matlab-auto-fill))
-  ;; Emacs 20 supports this variable.  This lets users turn auto-fill
-  ;; on and off and still get the right fill function.
+  ;; Emacs 20 supports this variable.
+  ;; This lets users turn auto-fill on and off and still get the right
+  ;; fill function.
   (make-local-variable 'normal-auto-fill-function)
   (setq normal-auto-fill-function 'matlab-auto-fill)
   (make-local-variable 'fill-prefix)
@@ -1341,8 +1334,9 @@ All Key Bindings:
 	(setq show-paren-data-function #'matlab-show-paren-or-block)
 	)
     ;; Enable our own block highlighting if paren mode not around.
-    (matlab-enable-block-highlighting 1)
-    (if window-system (matlab-frame-init)))
+    (matlab-enable-block-highlighting 1))
+  
+  (if window-system (matlab-frame-init)))
 
   ;; built-in sexp navigation
   (make-local-variable 'forward-sexp-function)
