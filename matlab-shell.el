@@ -28,6 +28,7 @@
 (require 'matlab)
 (require 'matlab-compat)
 (require 'comint)
+(require 'server)
 
 (eval-and-compile
   (require 'gud)
@@ -326,17 +327,17 @@ in a popup buffer.
 
   (if matlab-shell-enable-gud-flag
       (progn
-	(gud-def gud-break  "dbstop at %l in %f"  "\C-b" "Set breakpoint at current line.")
-	(gud-def gud-remove "dbclear at %l in %f" "\C-d" "Remove breakpoint at current line")
+	(gud-def gud-break  "dbstop in %d/%f at %l"  "\C-b" "Set breakpoint at current line.")
+	(gud-def gud-remove "dbclear in %d/%f at %l" "\C-d" "Remove breakpoint at current line.")
 	(gud-def gud-step   "dbstep in"           "\C-s" "Step one source line, possibly into a function.")
 	(gud-def gud-next   "dbstep %p"           "\C-n" "Step over one source line.")
 	(gud-def gud-cont   "dbcont"              "\C-r" "Continue with display.")
+        (gud-def gud-stop-subjob "dbquit"         nil    "Quit debugging.") ;; gud toolbar stop
 	(gud-def gud-finish "dbquit"              "\C-f" "Finish executing current function.")
-	;; (gud-def gud-up     "dbup %p;\ndbhotlink()"             "<"    "Up N stack frames (numeric arg).")
-	;; (gud-def gud-down   "dbdown %p;\ndbhotlink()"           ">"    "Down N stack frames (numeric arg).")
 	(gud-def gud-up     "dbup"                "<"    "Up N stack frames (numeric arg).")
 	(gud-def gud-down   "dbdown"              ">"    "Down N stack frames (numeric arg).")
-	(gud-def gud-print  "%e"                  "\C-p" "Evaluate M expression at point.")
+        ;; using (gud-def gud-print  "%e" "\C-p" "Eval expression at point") fails
+	(gud-def gud-print  "% gud-print not available" "\C-p" "gud-print not available.")
 	(if (fboundp 'gud-make-debug-menu)
 	    (gud-make-debug-menu))
 	(if (fboundp 'gud-overload-functions)
@@ -686,6 +687,18 @@ FILE is ignored, and ARGS is returned."
   "Hooks run each time a prompt is seen and sent to display.
 If multiple prompts are seen together, only call this once.")
 
+(defun matlab-shell--get-emacsclient-command ()
+  (if (server-running-p)
+      (concat matlab-shell-emacsclient-command
+              " -s " (expand-file-name server-name server-socket-dir))
+    (message "Emacs server is not running. This means
+  >> edit file.m
+will not open in the current Emacs session.
+You can use `M-x server-start' to start the Emacs server prior to running matlab-shell.
+To have it automatically started, add to your ~/.emacs: (server-start)")
+    (sit-for 5)
+    matlab-shell-emacsclient-command))
+
 (defun gud-matlab-marker-filter (string)
   "Filters STRING for the Unified Debugger based on MATLAB output."
   (if matlab-prompt-seen
@@ -699,7 +712,7 @@ If multiple prompts are seen together, only call this once.")
 		   (expand-file-name "toolbox"
 				     (file-name-directory
 				      (locate-library "matlab")))
-		   matlab-shell-emacsclient-command))
+		   (matlab-shell--get-emacsclient-command)))
         ;; Setup is misconfigured - we need emacsinit because it tells us how to debug
         (error "unable to initialize matlab, emacsinit.m and other files missing"))
       (if matlab-custom-startup-command
