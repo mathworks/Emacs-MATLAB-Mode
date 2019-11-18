@@ -3774,7 +3774,7 @@ Optional argument FAST is ignored."
 	  (if (not (string= func bn))
 	      (if (not (matlab-mode-highlight-ask
 			begin end
-			"Function and file names are different. Fix?"))
+			"Function and file names are different. Fix function name?"))
 		  nil
 		(goto-char begin)
 		(delete-region begin end)
@@ -3800,7 +3800,7 @@ Optional argument FAST is ignored."
 	  (if (not (string= class bn))
 	      (if (not (matlab-mode-highlight-ask
 			begin end
-			"Class name and file names are different. Fix?"))
+			"Class name and file names are different. Fix class name?"))
 		  nil
 		(goto-char begin)
 		(delete-region begin end)
