@@ -1709,35 +1709,32 @@ Similar to  `comint-send-input'."
 	(setq param (read-string "Parameters: "
 				 (car matlab-shell-save-and-go-history)
 				 'matlab-shell-save-and-go-history)))
-    (if (matlab-with-emacs-link)
-	;; Execute the current file in MATLAB
-	(when (fboundp 'matlab-eei-run) (matlab-eei-run)) ;; XXX where is matlab-eei-run?
 
-      ;; No buffer?  Make it!
-      (if (not (get-buffer msbn)) (matlab-shell))
-      ;; Ok, now fun the function in the matlab shell
-      (if (get-buffer-window msbn t)
-	  (select-window (get-buffer-window msbn t))
-	(switch-to-buffer (concat "*" matlab-shell-buffer-name "*")))
+    ;; No buffer?  Make it!
+    (if (not (get-buffer msbn)) (matlab-shell))
+    ;; Ok, now fun the function in the matlab shell
+    (if (get-buffer-window msbn t)
+	(select-window (get-buffer-window msbn t))
+      (switch-to-buffer (concat "*" matlab-shell-buffer-name "*")))
 
-      ;; change current directory?
-      (if change-cd
-          (let ((cmd (progn
-                       (mapc
-                        (lambda (e)
-                          (while (string-match (car e) dir)
-                            (setq dir (replace-match
-                                       (format "', char(%s), '" (cdr e)) t t dir))))
-                        '(("ô" . "244")
-                          ("é" . "233")
-                          ("è" . "232")
-                          ("à" . "224")))
-                       dir)))
-            (matlab-shell-send-string (concat "cd(['" cmd "'])\n"))))
+    ;; change current directory?
+    (if change-cd
+        (let ((cmd (progn
+                     (mapc
+                      (lambda (e)
+                        (while (string-match (car e) dir)
+                          (setq dir (replace-match
+                                     (format "', char(%s), '" (cdr e)) t t dir))))
+                      '(("ô" . "244")
+                        ("é" . "233")
+                        ("è" . "232")
+                        ("à" . "224")))
+                     dir)))
+          (matlab-shell-send-string (concat "cd(['" cmd "'])\n"))))
 
-      (let ((cmd (concat fn-name " " param)))
-	(matlab-shell-add-to-input-history cmd)
-	(matlab-shell-send-string (concat cmd "\n"))))))
+    (let ((cmd (concat fn-name " " param)))
+      (matlab-shell-add-to-input-history cmd)
+      (matlab-shell-send-string (concat cmd "\n")))))
 
 ;;; Running buffer subset
 ;;
@@ -1783,27 +1780,24 @@ This command requires an active MATLAB shell."
  	(msbn nil)
  	(lastcmd)
 	(inhibit-field-text-motion t))
-    (if (matlab-with-emacs-link)
-	;; Run the region w/ Emacs Link
-	(when (fboundp 'matlab-eei-eval-region) (matlab-eei-eval-region beg end))
 
-      (save-excursion
-	(setq msbn (matlab-shell-buffer-barf-not-running))
-	(set-buffer msbn)
-	(if (not (matlab-on-prompt-p))
-	    (error "MATLAB shell must be non-busy to do that"))
-	;; Save the old command
-	(beginning-of-line)
-	(re-search-forward comint-prompt-regexp)
-	(setq lastcmd (buffer-substring (point) (matlab-point-at-eol)))
-	(delete-region (point) (matlab-point-at-eol))
-	;; We are done error checking, run the command.
-	(matlab-shell-send-string command)
-	(insert lastcmd))
+    (save-excursion
+      (setq msbn (matlab-shell-buffer-barf-not-running))
       (set-buffer msbn)
-      (goto-char (point-max))
-      (display-buffer msbn nil "visible"))
-    ))
+      (if (not (matlab-on-prompt-p))
+	  (error "MATLAB shell must be non-busy to do that"))
+      ;; Save the old command
+      (beginning-of-line)
+      (re-search-forward comint-prompt-regexp)
+      (setq lastcmd (buffer-substring (point) (matlab-point-at-eol)))
+      (delete-region (point) (matlab-point-at-eol))
+      ;; We are done error checking, run the command.
+      (matlab-shell-send-string command)
+      (insert lastcmd))
+      
+    (set-buffer msbn)
+    (goto-char (point-max))
+    (display-buffer msbn nil "visible") ))
 
 ;;; Convert regions to runnable text
 ;;

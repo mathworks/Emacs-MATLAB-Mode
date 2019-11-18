@@ -338,11 +338,6 @@ This will only work if `matlab-highlight-block-match-flag' is non-nil."
   :group 'matlab
   :type 'boolean)
 
-(defcustom matlab-use-eei t
-  "*Use Emacs Link for save-and-go and run-region."
-  :group 'matlab
-  :type 'boolean)
-
 (defcustom matlab-mode-hook nil
   "*List of functions to call on entry to MATLAB mode."
   :group 'matlab
@@ -613,9 +608,12 @@ If font lock is not loaded, lay in wait."
      ["Switch to MATLAB" matlab-shell
       :active (and (not (matlab-with-emacs-link)) (matlab-shell-active-p))
       :visible (matlab-shell-active-p) ]
-     ["Save and go" matlab-shell-save-and-go t]
-     ["Run Region" matlab-shell-run-region t]
-     ["Run Cell" matlab-shell-run-cell t]
+     ["Save and go" matlab-shell-save-and-go
+      :active (matlab-shell-active-p) ]
+     ["Run Region" matlab-shell-run-region 
+      :active (matlab-shell-active-p) ]
+     ["Run Cell" matlab-shell-run-cell 
+      :active (matlab-shell-active-p) ]
      ["Version" matlab-show-version t]
      "----"
      ["Find M file" matlab-find-file-on-path t]
@@ -645,6 +643,25 @@ If font lock is not loaded, lay in wait."
       ["Comment Region" matlab-comment-region t]
       ["Uncomment Region" matlab-uncomment-region t]
       ["Indent Syntactic Block" matlab-indent-sexp])
+     ("Debug"
+      ["dbstop in FILE at point" gud-break (matlab-shell-active-p)
+       :help "When MATLAB debugger is active, set break point at current M-file point"]
+      ["dbclear in FILE at point" gud-remove (matlab-shell-active-p)
+       :help "When MATLAB debugger is active, clear break point at current M-file point"]
+      ["dbstep in" gud-step (matlab-shell-active-p)
+       :help "When MATLAB debugger is active, step into line"]
+      ["dbstep" gud-next (matlab-shell-active-p)
+       :help "When MATLAB debugger is active, step one line"]
+      ["dbup" gud-up (matlab-shell-active-p)
+       :help "When MATLAB debugger is active and at break point, go up a frame"]
+      ["dbdown" gud-down (matlab-shell-active-p)
+       :help "When MATLAB debugger is active and at break point, go down a frame"]
+      ["dbcont" gud-cont (matlab-shell-active-p)
+       :help "When MATLAB debugger is active, run to next break point or finish"]
+      ["dbquit" gud-finish (matlab-shell-active-p)
+       :help "When MATLAB debugger is active, stop debugging"]
+      )
+
 ;; TODO - how to autoload these?  Do we want this menu?
 ;;     ("Insert"
 ;;      ["Complete Symbol" matlab-complete-symbol t]
@@ -3962,20 +3979,6 @@ desired.  Optional argument FAST is not used."
 		    (insert ";")))))
 	(forward-line 1))))
   (message "Scanning .... done"))
-
-
-
-;;; EEI stuff =================================================================
-
-;; XXX is the eei code still in use?
-;; XXX ans - not that I know of.
-
-(defvar matlab-eei-process) ;; quiet compiler warning. XXX where is matlab-eei-process
-(defun matlab-with-emacs-link ()
-  "Return non-nil if Emacs Link is running and user wants to use it."
-  (and (featurep 'matlab-eei)   ;; XXX where is matlab-eei
-       matlab-use-eei
-       matlab-eei-process))
 
 
 
