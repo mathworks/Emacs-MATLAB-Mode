@@ -4,6 +4,8 @@
 *~
 \#*\#
 .\#*
+*.orig
+*.rej
 
 # matlab-load.el is generated
 matlab-load.el
