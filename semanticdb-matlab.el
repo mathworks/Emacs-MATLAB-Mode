@@ -1,6 +1,6 @@
 ;;; semanticdb-matlab.el --- Semantic database extensions for MATLAB
 
-;;; Copyright (C) 2008, 2012, 2013 David Engster
+;;; Copyright (C) 2008, 2012, 2013, 2019 David Engster
 
 ;; Author: David Engster <dengste@eml.cc>
 ;; based heavily on semanticdb-skel.el (C) Eric Ludlam
@@ -36,7 +36,7 @@
 (eval-and-compile
   (require 'matlab)
   (require 'matlab-shell))
- 
+
 ;;; Code:
 
 ;; Put all directories which should be recursively scanned for your
@@ -147,10 +147,10 @@ database (if available.)"
 	  ;; we append it in this iteration.
 	  (let ((semanticdb-search-system-databases nil)
 		)
-            (if (fboundp 'semanticdb-find-translate-path-default)
-                (semanticdb-find-translate-path-default path brutish)
-              (error "semanticdb-find-translate-path-default doesn't exist")
-              ))))
+	    (if (fboundp 'semanticdb-find-translate-path-default)
+		(semanticdb-find-translate-path-default path brutish)
+	      (error "semanticdb-find-translate-path-default doesn't exist")
+	      ))))
     ;; Don't add anything if BRUTISH is on (it will be added in that fcn)
     ;; or if we aren't supposed to search the system.
     (if (or brutish (not semanticdb-search-system-databases))
@@ -318,12 +318,12 @@ Return a list of tags."
 		  name ".m")))))
       (unless (car where)
 	;; Fall back to home-made database.
-	(setq where 
+	(setq where
 	      (list (car (semanticdb-matlab-find-name name)))))
       (if (car where)
 	  (list (car (semanticdb-file-stream (car where))))
 	nil))))
-      
+
 (defmethod semanticdb-find-tags-by-name-regexp-method
   ((table semanticdb-table-matlab) regex &optional tags)
   "Find all tags with name matching REGEX in TABLE.
@@ -350,19 +350,20 @@ Returns a table of all matching tags."
       ;; ...and from MATLAB shell, if available
       (when (matlab-shell-active-p)
 	(setq compshell
-	      (mapcar 
+	      (mapcar
 	       (lambda (x)
-		 (let ((where (matlab-shell-which-fcn (car x))))
-		   ;; correct name for builtin functions
-		   (when (and (cdr where)
-			      (string-match 
-			       "\\(.*\\)/@.*\\(/[A-Za-z_0-9]+\\.m\\)" 
-			       (car where)))
-		     (setq where
-			   (list 
-			    (concat (match-string 1 (car where)) 
-				    (match-string 2 (car where))))))
-		   (list (car where))))
+		 (when (stringp x)
+		   (let ((where (matlab-shell-which-fcn (car x))))
+		     ;; correct name for builtin functions
+		     (when (and (cdr where)
+				(string-match
+				 "\\(.*\\)/@.*\\(/[A-Za-z_0-9]+\\.m\\)"
+				 (car where)))
+		       (setq where
+			     (list
+			      (concat (match-string 1 (car where))
+				      (match-string 2 (car where))))))
+		     (list (car where)))))
 	       (matlab-shell-completion-list prefix)))
 	;; combine results
 	(mapc
@@ -373,8 +374,8 @@ Returns a table of all matching tags."
       ;; generate tags
       (delq nil
 	    (mapcar #'(lambda (x)
-                        (let ((matlab-vers-on-startup nil))
-                          (car (semanticdb-file-stream x))))
+			(let ((matlab-vers-on-startup nil))
+			  (car (semanticdb-file-stream x))))
 		    compdb)))))
 
 (provide 'semanticdb-matlab)
