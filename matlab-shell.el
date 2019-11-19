@@ -688,16 +688,21 @@ FILE is ignored, and ARGS is returned."
 If multiple prompts are seen together, only call this once.")
 
 (defun matlab-shell--get-emacsclient-command ()
-  (if (server-running-p)
-      (concat matlab-shell-emacsclient-command
-              " -s " (expand-file-name server-name server-socket-dir))
-    (message "Emacs server is not running. This means
-  >> edit file.m
-will not open in the current Emacs session.
-You can use `M-x server-start' to start the Emacs server prior to running matlab-shell.
-To have it automatically started, add to your ~/.emacs: (server-start)")
-    (sit-for 5)
-    matlab-shell-emacsclient-command))
+  (when (not (server-running-p))
+    ;; We need an Emacs server for ">> edit foo.m" which leverages to
+    ;; emacsclient to open the file in the current Emacs session. Be
+    ;; safe and start a server with a unique name. This ensures that
+    ;; we don't have multiple emacs sessions stealing the server from
+    ;; each other.
+    (setq server-name (format "server-%d" (emacs-pid)))
+    (message "matlab-shell: starting server with name %s" server-name)
+    (server-start)
+    (when (not (server-running-p))
+      (user-error "Unable to start server with name %s" server-name)))
+  (concat matlab-shell-emacsclient-command
+          (if server-use-tcp
+              (concat " -f " (expand-file-name server-name server-auth-dir))
+            (concat " -s " (expand-file-name server-name server-socket-dir)))))
 
 (defun gud-matlab-marker-filter (string)
   "Filters STRING for the Unified Debugger based on MATLAB output."
