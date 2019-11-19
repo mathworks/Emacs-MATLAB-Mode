@@ -16,11 +16,11 @@ Error using buggy (line 7)
 You encounered an error in buggy.m
 
 % Syntax
-Error: File: /home/eludlam/WORK/matlab-emacs-src/toolbox/syntaxerr.m Line: 8 Column: 12
+Error: File: /home/eludlam/WORK/matlab-emacs-src/tests/syntaxerr.m Line: 8 Column: 12
 Invalid expression. When calling a function or indexing a variable, use parentheses. Otherwise, check for mismatched delimiters.
 
 % Syntax
-Error: File: /home/eludlam/WORK/matlab-emacs-src/toolbox/syntaxerr.m Line: 4 Column: 9
+Error: File: /home/eludlam/WORK/matlab-emacs-src/tests/syntaxerr.m Line: 4 Column: 9
 Character vector is not terminated properly.
     
 

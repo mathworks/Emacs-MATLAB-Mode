@@ -546,13 +546,13 @@ after this anchor.")
 (defvar matlab-shell-error-location-expression
   (list
    ;; Pulled from R2019b
-   "\\(?:^> In \\)?\\([-@.a-zA-Z_0-9/ \\\\:]+\\) (line \\([0-9]+\\))"
+   "\\(?:^> In \\)?\\([-+@.a-zA-Z_0-9/ \\\\:]+\\) (line \\([0-9]+\\))"
 
-   "\\([-@.a-zA-Z_0-9/ \\\\:]+\\) Line: \\([0-9]+\\) Column: \\([0-9]+\\)"
+   "\\([-+@.a-zA-Z_0-9/ \\\\:]+\\) Line: \\([0-9]+\\) Column: \\([0-9]+\\)"
    
    ;; Oldest I have examples for:
-   (concat "\\([-@.a-zA-Z_0-9/ \\\\:]+\\)\\(?:>[^ ]+\\)?.*[\n ]\\(?:On\\|at\\)\\(?: line\\)? "
-	   "\\([0-9]+\\) ?")
+   (concat "\\([-+@.a-zA-Z_0-9/ \\\\:]+\\)\\(?:>[^ ]+\\)?.*[\n ]"
+	   "\\(?:On\\|at\\)\\(?: line\\)? \\([0-9]+\\) ?")
    )
   "List of Expressions to search for after an error anchor is found.
 These expressions are listed as matching from newer MATLAB versions
@@ -562,7 +562,15 @@ Each expression should have the following match strings:
   2 - The line number
   3 - The column number (if available)")
 
-;; (global-set-key [f8] 'matlab-shell-scan-for-error)
+;; (global-set-key [f8] 'matlab-shell-scan-for-error-test)
+(defun matlab-shell-scan-for-error-test ()
+  "Interactively try out the error scanning feature."
+  (interactive)
+  (let ((ans (matlab-shell-scan-for-error (point-min))))
+    (when ans
+      (pulse-momentary-highlight-region (car ans) (car (cdr ans))))
+    (message "Found: %S" ans)))
+    
 
 (defun matlab-shell-scan-for-error (limit)
   "Scan backward for a MATLAB error in the current buffer.
@@ -570,7 +578,6 @@ Uses `matlab-shell-error-anchor-expression' to find the error.
 Uses `matlab-shell-error-location-expression' to find where the error is.
 Returns a list of the form:
   ( STARTPT ENDPT FILE LINE COLUMN )"
-  (interactive)
   (let ((ans nil)
 	(beginning nil))
     (when (re-search-backward matlab-shell-error-anchor-expression 
@@ -588,11 +595,6 @@ Returns a list of the form:
 			    (match-string-no-properties 3)
 			    )))))
       )
-    ;; This is for interactiv debugging.
-    (when (called-interactively-p 'any)
-      (when ans
-	(pulse-momentary-highlight-region (car ans) (car (cdr ans))))
-      (message "Found: %S" ans))
     ans))
 
 (defvar matlab-shell-last-error-anchor nil
