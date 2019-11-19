@@ -603,11 +603,11 @@ If font lock is not loaded, lay in wait."
    "MATLAB menu"
    '("MATLAB"
      ["Start MATLAB" matlab-shell
-      :active (not (or (matlab-with-emacs-link) (matlab-shell-active-p)))
+      :active (not (matlab-shell-active-p))
       :visible (not (matlab-shell-active-p)) ]
      ["Switch to MATLAB" matlab-shell
-      :active (and (not (matlab-with-emacs-link)) (matlab-shell-active-p))
-      :visible (matlab-shell-active-p) ]
+      :active (matlab-shell-active-p)
+      :visible (matlab-shell-active-p)]
      ["Save and go" matlab-shell-save-and-go
       :active (matlab-shell-active-p) ]
      ["Run Region" matlab-shell-run-region 
@@ -644,21 +644,29 @@ If font lock is not loaded, lay in wait."
       ["Uncomment Region" matlab-uncomment-region t]
       ["Indent Syntactic Block" matlab-indent-sexp])
      ("Debug"
-      ["dbstop in FILE at point" gud-break (matlab-shell-active-p)
+      ["dbstop in FILE at point" gud-break
+       :active (matlab-shell-active-p)
        :help "When MATLAB debugger is active, set break point at current M-file point"]
-      ["dbclear in FILE at point" gud-remove (matlab-shell-active-p)
+      ["dbclear in FILE at point" gud-remove
+       :active (matlab-shell-active-p)
        :help "When MATLAB debugger is active, clear break point at current M-file point"]
-      ["dbstep in" gud-step (matlab-shell-active-p)
+      ["dbstep in" gud-step
+       :active (matlab-shell-active-p)
        :help "When MATLAB debugger is active, step into line"]
-      ["dbstep" gud-next (matlab-shell-active-p)
+      ["dbstep" gud-next
+       :active (matlab-shell-active-p)
        :help "When MATLAB debugger is active, step one line"]
-      ["dbup" gud-up (matlab-shell-active-p)
+      ["dbup" gud-up
+       :active (matlab-shell-active-p)
        :help "When MATLAB debugger is active and at break point, go up a frame"]
-      ["dbdown" gud-down (matlab-shell-active-p)
+      ["dbdown" gud-down
+       :active (matlab-shell-active-p)
        :help "When MATLAB debugger is active and at break point, go down a frame"]
-      ["dbcont" gud-cont (matlab-shell-active-p)
+      ["dbcont" gud-cont
+       :active (matlab-shell-active-p)
        :help "When MATLAB debugger is active, run to next break point or finish"]
-      ["dbquit" gud-finish (matlab-shell-active-p)
+      ["dbquit" gud-finish
+       :active (matlab-shell-active-p)
        :help "When MATLAB debugger is active, stop debugging"]
       )
 
