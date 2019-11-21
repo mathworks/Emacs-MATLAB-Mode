@@ -1236,7 +1236,7 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
 (defvar show-paren-data-function)
 
 ;;;###autoload
-(defun matlab-mode ()
+(define-derived-mode matlab-mode prog-mode "MATLAB" ()
   "MATLAB(R) mode is a major mode for editing MATLAB dot-m files.
 \\<matlab-mode-map>
 Convenient editing commands are:
@@ -1291,7 +1291,6 @@ Variables:
 
 All Key Bindings:
 \\{matlab-mode-map}"
-  (interactive)
   (kill-all-local-variables)
   (use-local-map matlab-mode-map)
   (setq major-mode 'matlab-mode)
