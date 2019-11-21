@@ -1810,7 +1810,9 @@ This command requires an active MATLAB shell."
 ;;
 ;; There are two techniques.
 ;; Option 1: Convert the region into a single command line, suppress output, and eval.
-;; Option 2: Copy into a script, and run the script.
+;; Option 2: Newer emacs, use `emacsrunregion.m' to use Editor hack for running regions out of a file.
+;; Option 3: Older emacs, or if buffer isn't saved in a file. Copy into a script, and run the script.
+
 (defun matlab-shell-region-command (beg end &optional noshow)
   "Convert the region between BEG and END into a MATLAB command.
 Picks between different options for running the commands."
@@ -1821,8 +1823,14 @@ Picks between different options for running the commands."
 	(matlab-shell-region->commandline beg end noshow)
 
       ;; else
-      ;; NEW WAY
-      (matlab-shell-extract-region-to-tmp-file beg end noshow))
+      ;; NEW WAYS
+      (if (file-exists-p (buffer-file-name (current-buffer)))
+	  (progn
+	    (save-buffer)
+	    (matlab-shell-run-region-internal beg end noshow))
+	
+	;; No file, or older emacs, run region as tmp file.
+	(matlab-shell-extract-region-to-tmp-file beg end noshow)))
     ))
 
 (defun matlab-shell-region->commandline (beg end &optional noshow)
@@ -1861,6 +1869,16 @@ When NOSHOW is non-nil, supress output by adding ; to commands."
 	(setq str (replace-match ", " t t str)))
       (setq str (concat str "\n")))
     str))
+
+
+(defun matlab-shell-run-region-internal (beg end &optional noshow)
+  "Create a command to run the region between BEG and END.
+Uses internal MATLAB API to execute the code keeping breakpoints
+and local functions active."
+  (format "emacsrunregion('%s',%d,%d)\n"
+	  (buffer-file-name (current-buffer))
+	  beg end))
+
 
 (declare-function matlab-semantic-get-local-functions-for-script "semantic-matlab")
 (declare-function matlab-semantic-tag-text "semantic-matlab")
