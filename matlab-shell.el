@@ -546,12 +546,12 @@ after this anchor.")
 (defvar matlab-shell-error-location-expression
   (list
    ;; Pulled from R2019b
-   "\\(?:^> In \\)?\\([-+@.a-zA-Z_0-9/ \\\\:]+\\) (line \\([0-9]+\\))"
+   "\\(?:^> In \\)?\\([-+>@.a-zA-Z_0-9/ \\\\:]+\\) (line \\([0-9]+\\))"
 
-   "\\([-+@.a-zA-Z_0-9/ \\\\:]+\\) Line: \\([0-9]+\\) Column: \\([0-9]+\\)"
+   "\\([-+>@.a-zA-Z_0-9/ \\\\:]+\\) Line: \\([0-9]+\\) Column: \\([0-9]+\\)"
    
    ;; Oldest I have examples for:
-   (concat "\\([-+@.a-zA-Z_0-9/ \\\\:]+\\)\\(?:>[^ ]+\\)?.*[\n ]"
+   (concat "\\([-+>@.a-zA-Z_0-9/ \\\\:]+\\)\\(?:>[^ ]+\\)?.*[\n ]"
 	   "\\(?:On\\|at\\)\\(?: line\\)? \\([0-9]+\\) ?")
    )
   "List of Expressions to search for after an error anchor is found.
