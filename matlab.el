@@ -1291,7 +1291,6 @@ Variables:
 
 All Key Bindings:
 \\{matlab-mode-map}"
-  (interactive)
   (kill-all-local-variables)
   (use-local-map matlab-mode-map)
   (setq major-mode 'matlab-mode)
