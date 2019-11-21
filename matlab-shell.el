@@ -612,10 +612,14 @@ Argument STR is the text that might have errors in it."
     ;; We have found an error stack to investigate.
     (let ((first nil)
 	  (ans nil)
-	  (overlaystack nil))
-      (while (setq ans (matlab-shell-scan-for-error (if matlab-shell-last-error-anchor
-							(min matlab-shell-last-error-anchor (point))
-						      (point))))
+	  (overlaystack nil)
+	  (starting-anchor matlab-shell-last-error-anchor)
+	  (newest-anchor matlab-shell-last-error-anchor)
+	  )
+      (while (setq ans (matlab-shell-scan-for-error
+			(if starting-anchor
+			    (min starting-anchor (point))
+			  (point))))
 	(let* ((err-start (nth 0 ans))
 	       (err-end (nth 1 ans))
 	       (err-file (nth 2 ans))
@@ -635,13 +639,16 @@ Argument STR is the text that might have errors in it."
 	  ;; Save as a frame
 	  (setq matlab-shell-last-anchor-as-frame
 		(cons err-file err-line))
+	  (setq newest-anchor (max newest-anchor err-end))
 	  ))
       ;; Keep track of the very first error in this error stack.
       ;; It will represent the "place to go" for "go-to-last-error".
       (dolist (O overlaystack)
 	(matlab-overlay-put O 'first-in-error-stack first))
       ;; Once we've found something, don't scan it again.
-      (setq matlab-shell-last-error-anchor (point-marker)))))
+      (setq matlab-shell-last-error-anchor (save-excursion
+					     (goto-char newest-anchor)
+					     (point-marker))))))
 
 ;;; FILTER
 ;;
@@ -1532,6 +1539,32 @@ show up in reverse order."
 		(matlab-url-at p))))
       url)))
 
+;; (matlab-shell-class-mref-to-file "eltest.EmacsTest/throwerr")
+
+(defun matlab-shell-class-mref-to-file (mref)
+  "Convert a class like references to a file name."
+  (let* ((S (split-string mref "\\."))
+	 (L (last S))
+	 (ans nil))
+    (if (member L '("mlx" "m"))
+	nil
+      ;; Not a . from a .m file, probbly a class ??
+      (while S
+	(when (= (length S) 1)
+	  ;; Is there is a method? strip it off.
+	  (let ((meth (split-string (car S) "/")))
+	    (setq S (list (car meth)))))
+	;; Append the parts together.
+	(setq ans (concat ans
+			  (if (> (length S) 1) "+"
+			    (concat "@" (car S) "/"))
+			  (car S)))
+	(setq S (cdr S))
+	(if S (setq ans (concat ans "/"))
+	  (setq ans (concat ans ".m")))
+	))
+    ans))
+
 (defvar matlab-shell-mref-converters
   '(
     ;; Does it work as is?
@@ -1541,6 +1574,9 @@ show up in reverse order."
 		     (replace-match "m" nil t mref 1)))
     ;; Function name, no extension.
     (lambda (mref) (when (not (string-match "\\.m$" mref)) (concat mref ".m")))
+    ;; Methods in a class
+    (lambda (mref) (when (string-match "\\." mref)
+		     (matlab-shell-class-mref-to-file mref)))
     ;; Copied from old code, not sure what it matches.
     (lambda (mref) (when (string-match ">" mref)
 		     (concat (substring fileref 0 (match-beginning 0)) ".m")))
