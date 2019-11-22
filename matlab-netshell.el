@@ -60,15 +60,62 @@
   (delete-process matlab-netshell-name)
   )
 
+(defvar matlab-netshell-acc ""
+  "Text Accumulator for MATLAB's netshell.")
+(make-variable-buffer-local 'matlab-netshell-acc)
+
 (defun matlab-netshell-filter (proc string)
   "Filter used for MATLAB Netshell processes."
-  ;; We recieved a command from PROC.  Interpret the command.
-  (cond ((string-match "^init" string)
+  ;; Accumulate from the process
+  (setq matlab-netshell-acc (concat matlab-netshell-acc string))
+  ;; Wait for a NULL command terminator.
+  (while (string-match "\0" matlab-netshell-acc)
+    (let* ((cmdstr (substring matlab-netshell-acc 0 (match-beginning 0))))
+      ;; Trim off our new command from accumulator.
+      (setq matlab-netshell-acc (substring matlab-netshell-acc (match-end 0)))
+
+      ;; Is this a test packet?  If so, we're done.
+      (when (not (string= cmdstr ""))
+      
+	;; Find the newline.
+	(unless (string-match "\n" cmdstr)
+	  (message "Unable to find command in MATLAB command.  Ignoring."))
+	
+	(let ((cmd (substring cmdstr 0 (match-beginning 0)))
+	      (data
+	       (let ((me (match-end 0)))
+		 (if (> (length cmdstr) me)
+		     (substring cmdstr me)
+		   ""))))
+	  (matlab-netshell-execute-command proc cmd data)
+	  )))))
+  
+(defun matlab-netshell-execute-command (proc cmd data)
+  "For MATLAB associated with PROC, execute CMD with DATA.
+The CMD is a request from MATLAB to do something in Emacs.
+A common command might be to display data to the user as a
+response from some Emacs based request."
+  ;; Log the command
+  (with-current-buffer (process-buffer proc)
+    (goto-char (point-max))
+    (when (not (= (current-column) 0))
+      (insert "\n"))
+    (insert "Command: " cmd "\n")
+    (when (not (string= data ""))
+      (insert "Data: :" data "\n"))
+    )
+  ;; Interpret the command.
+  (cond ((string= "init" cmd)
 	 nil ; Yep, thanks for letting me know
 	 (message "MATLAB connection initialized.")
 	 )
+	((string= "ack" cmd)
+	 (message "Ack recieved.  Send ACK back.")
+	 (matlab-netshell-send "nowledge" ""))
+	((string= "nowledge" cmd)
+	 (message "Acknowledgement recieved."))
 	(t
-	 (message "Unknown command from matlab: %S" string)
+	 (message "Unknown command from matlab: %S" cmd)
 	 )))
 
 (defun matlab-netshell-sentinel (proc msg)
@@ -77,23 +124,37 @@ Identify when a connection is lost, and close down services."
   (cond ((string-match "^open from " msg)
 	 ;; New connection - set it up.
 	 (setq matlab-netshell-clients (cons proc matlab-netshell-clients))
+	 (let ((newbuff (get-buffer-create (process-name proc))))
+	   (set-process-buffer proc newbuff))
 	 (message "MATLAB Has connected!"))
   
 	((string= msg "connection broken by remote peer\n")
 	 (setq matlab-netshell-clients (delq proc matlab-netshell-clients))
-	 (message (format "MATLAB has dropped its connecction" proc)))
+	 (message (format "MATLAB has dropped its connecction")))
 
 	(t
-	 (message "Unhandle event."))))
+	 (message "Unhandled event."))))
 
-(defun matlab-netshell-send (msg)
-  "Send MSG to the active MATLAB shell connection."
+(defun matlab-netshell-send(cmd data)
+  "Send a command to MATLAB shell connection with DATA."
+  (let ((C (car matlab-netshell-clients)))
+    (if C
+	(process-send-string C (concat cmd "\n" data "\0"))
+      (error "No MATLAB network connection to send to."))))
+
+(defun matlab-netshell-eval (msg)
+  "Send MSG to the active MATLAB shell connection to eval."
   (interactive "sMsg: ")
   (let ((C (car matlab-netshell-clients)))
     (if C
-	(process-send-string C (concat msg "\n"))
-      (error "No MATLAB network connection to send to.")
-      )))
+	(process-send-string C (concat "eval\n" msg "\0"))
+      (error "No MATLAB network connection to send to."))))
+
+(defun matlab-netshell-ack ()
+  "Send an ACK to MATLAB to see if it can respond."
+  (interactive)
+  (matlab-netshell-send "ack" ""))
+  
 
 ;;(matlab-netshell-server-start)
 ;;(sleep-for 300)
