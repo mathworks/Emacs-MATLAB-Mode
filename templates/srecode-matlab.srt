@@ -61,8 +61,6 @@ end
 	   
         end
     end
-end
-
 {{/FILE_CLASS}}
 end
 ----
