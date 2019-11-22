@@ -1167,7 +1167,8 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
    ;; Properties blocks are full of variables
    '("^\\s-*properties\\>"
      ("^\\s-*\\(\\sw+\\)\\>" ;; This part matches the variable
-      (save-excursion (matlab-forward-sexp nil t) (beginning-of-line) (point)) ;; extend region to match in
+      ;; extend region to match in
+      (save-excursion (matlab-forward-sexp nil t) (beginning-of-line) (point))
       nil
       (1 font-lock-variable-name-face t))
      )
@@ -1895,17 +1896,25 @@ forward until we exit that block."
       (matlab-navigation-syntax
         ;; skip over preceding whitespace
         (skip-chars-forward " \t\n;")
-        (if (and (not autostart)
-		 (or 
-		  (not (looking-at (concat "\\("
-					   (matlab-block-beg-pre)
-					   "\\|"
-					   (matlab-block-mid-re)
-					   "\\)\\>")))
-		  (matlab-cursor-in-string-or-comment)))
-            ;; Go forwards one simple expression
-	    (matlab-move-simple-sexp-internal 1)
-          ;; otherwise go forwards recursively across balanced expressions
+        (cond
+	 ;; No autostart, and looking at a block keyword.
+	 ((and (not autostart)
+	       (or (not (looking-at (concat "\\("
+					    (matlab-block-beg-pre)
+					    "\\|"
+					    (matlab-block-mid-re)
+					    "\\)\\>")))
+		   (matlab-cursor-in-string-or-comment)))
+          ;; Go forwards one simple expression
+	  (matlab-move-simple-sexp-internal 1))
+
+	 ;; Yes autostart, but already looking @ the END!
+	 ((and autostart (looking-at (matlab-block-end-re)))
+	  (goto-char (match-end 0)))
+
+	 ;; Default behavior.
+	 (t
+          ;; Not autostart, skip next word.
 	  (unless autostart (forward-word 1))
           (let ((done nil) (s nil)
                 (expr-scan (if includeelse
@@ -1928,7 +1937,7 @@ forward until we exit that block."
                          (matlab-valid-end-construct-p))
                     (setq done t))))
             (if (not s)
-                (error "Unterminated block"))))
+                (error "Unterminated block")))))
         (setq p (point)))) ;; really go here
     (goto-char p)))
 
