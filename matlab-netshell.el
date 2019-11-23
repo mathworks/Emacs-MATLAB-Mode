@@ -31,18 +31,25 @@
 (defvar matlab-netshell-listen-port 32475
   "Port used for the Emacs server listening for MATLAB connections.")
 
-(defvar matlab-netshell-name "*MATLAB netshell*"
+(defvar matlab-netshell-server-name "*MATLAB netshell*"
   "Name used for the Netshell server")
 
 (defvar matlab-netshell-clients nil
   "List of clients created from the MATLAB netshell server.")
 
 ;;;###autoload
-(defun matlab-netshell-server-start nil
+(defun matlab-netshell-server-active-p ()
+  "Return non-nil if there is an active MATLAB netshell server."
+  (let ((buff (get-buffer matlab-netshell-server-name)))
+    (when (and buff (get-buffer-process buff))
+      t)))
+
+;;;###autoload
+(defun matlab-netshell-server-start ()
     "Start the MATLAB netshell server."
     (interactive)
-    (make-network-process :name matlab-netshell-name
-			  :buffer "*MATLAB Netshell*" :family 'ipv4 :host 'local
+    (make-network-process :name matlab-netshell-server-name
+			  :buffer matlab-netshell-server-name :family 'ipv4 :host 'local
 			  :service matlab-netshell-listen-port
 			  :filter #'matlab-netshell-filter
 			  :sentinel #'matlab-netshell-sentinel
@@ -62,7 +69,7 @@
   (dolist (C matlab-netshell-clients)
     (delete-process C))
   (setq matlab-netshell-clients nil)
-  (delete-process matlab-netshell-name)
+  (delete-process matlab-netshell-server-name)
   )
 
 (defvar matlab-netshell-acc ""
