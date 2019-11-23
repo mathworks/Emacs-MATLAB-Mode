@@ -397,6 +397,7 @@ This name will have *'s surrounding it.")
 
 (declare-function matlab-netshell-client "matlab-netshell")
 (declare-function matlab-netshell-server-start "matlab-netshell")
+(declare-function matlab-netshell-server-active-p "matlab-netshell")
 (declare-function matlab-netshell-eval "matlab-netshell")
 (defun matlab-netshell-active-p ()
   "Return t if the MATLAB netshell is active."
