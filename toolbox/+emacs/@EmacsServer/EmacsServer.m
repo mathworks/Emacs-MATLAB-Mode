@@ -33,7 +33,9 @@ classdef EmacsServer < handle
         end
         
         function delete(ES)
-            stop(ES.timer);
+            try
+                stop(ES.timer);
+            end
 
             delete(ES.tcpclient);
             delete(ES.timer);            
@@ -106,15 +108,32 @@ classdef EmacsServer < handle
                 
               case 'ack'
                 disp('Ack Recieved.  Sending ack back.');
-                write(ES.tcpclient, uint8('nowledge'));
+                ES.SendCommand('nowledge');
                 
               case 'eval'
+                try
+                    disp(['>> ' data]);
+                    eval(data);
+                catch ERR
+                    disp(ERR.message);
+                    ES.SendCommand('error', ERR.message);
+                end
+                
+              case 'evalc'
+                disp('Evalc request.');
                 try           
                     OUT = evalc(data);
                 catch ERR
                     OUT = ERR.message;
                 end
-                write(ES.tcpclient, uint8(OUT));
+                if ~isempty(OUT)
+                    ES.SendCommand('output',uint8(OUT));
+                else
+                    disp('No output');
+                end
+                
+              otherwise
+                disp('Unknown command from Emacs');
             end
         end
         
