@@ -1,4 +1,4 @@
-function emacsinit(clientcommand)
+function emacsinit(clientcommand, startnetshell)
 % EMACSINIT Initialize the current MATLAB session for matlab-shell-mode
 %
 % clientcommand is the emacsclient command used to open files in emacs. It
@@ -47,5 +47,13 @@ function emacsinit(clientcommand)
             com.mathworks.services.Prefs.setBooleanPref('EditorBuiltinEditor', false);
             com.mathworks.services.Prefs.setStringPref('EditorOtherEditor', clientcommand);
         end
+    else
+        % TODO - how to specify this preference w/out Java ?
+        
+    end
+    
+    % If requested, start the Emacs netshell interface.
+    if nargin >= 2 && startnetshell
+        emacsnetshell init
     end
 end
