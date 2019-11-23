@@ -426,7 +426,9 @@ Try C-h f matlab-shell RET"))
   (require 'gud)
 
   ;; Make sure netshell is started if it is wanted.
-  (when matlab-shell-autostart-netshell (matlab-netshell-server-start))
+  (when (and matlab-shell-autostart-netshell
+	     (not (matlab-netshell-server-active-p)))
+    (matlab-netshell-server-start))
   
   ;; Make sure this is safe to use gud to debug MATLAB
   (when (and matlab-shell-enable-gud-flag (not (fboundp 'gud-def)))
@@ -668,10 +670,12 @@ Argument STR is the text that might have errors in it."
       ;; It will represent the "place to go" for "go-to-last-error".
       (dolist (O overlaystack)
 	(matlab-overlay-put O 'first-in-error-stack first))
+
       ;; Once we've found something, don't scan it again.
-      (setq matlab-shell-last-error-anchor (save-excursion
-					     (goto-char newest-anchor)
-					     (point-marker))))))
+      (when overlaystack
+	(setq matlab-shell-last-error-anchor (save-excursion
+					       (goto-char newest-anchor)
+					       (point-marker)))))))
 
 ;;; FILTER
 ;;
@@ -745,11 +749,14 @@ If multiple prompts are seen together, only call this once.")
 	  ;; Use our local toolbox directory.
 	  (process-send-string
 	   (get-buffer-process gud-comint-buffer)
-	   (format "addpath('%s','-begin'); rehash; emacsinit('%s');\n"
+	   (format "addpath('%s','-begin'); rehash; emacsinit('%s'%s);\n"
 		   (expand-file-name "toolbox"
 				     (file-name-directory
 				      (locate-library "matlab")))
-		   (matlab-shell--get-emacsclient-command)))
+		   (matlab-shell--get-emacsclient-command)
+		   (if matlab-shell-autostart-netshell
+		       ", true" "")
+		   ))
         ;; Setup is misconfigured - we need emacsinit because it tells us how to debug
         (error "unable to initialize matlab, emacsinit.m and other files missing"))
       (if matlab-custom-startup-command
