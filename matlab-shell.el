@@ -82,7 +82,7 @@ This file is read to initialize the comint input ring."
   :group 'matlab
   :type 'filename)
 
-(defcustom matlab-shell-autostart-netshell t
+(defcustom matlab-shell-autostart-netshell nil
   "Use the netshell side-channel for communicating with MATLAB."
   :group 'matlab
   :type 'boolean)
