@@ -47,7 +47,7 @@
   (metest-parse-test)
   )
 
-(defvar met-stringtest-files '("strings.m")
+(defvar met-stringtest-files '("stringtest.m")
   "List of files for running string tests on.")
 
 (defun metest-comment-string-syntax-test ()
