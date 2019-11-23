@@ -8,4 +8,4 @@
     (ede-proj-target-makefile-miscelaneous "ede-proj-target-makefile-miscelaneous"
       :name "matlab"
       :path ""
-      :source '("emacsinit.m" "opentoline.m" "emacsdocomplete.m" "dbhotlink.m"))))
+      :source '("emacsinit.m" "opentoline.m" "emacsdocomplete.m" "dbhotlink.m" "emacsnetshell.m" "emacsrunregion.m" "+emacs/@EmacsServer/EmacsServer.m"))))
