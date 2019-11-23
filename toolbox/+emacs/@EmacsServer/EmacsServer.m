@@ -54,8 +54,6 @@ classdef EmacsServer < handle
                 write(ES.tcpclient, uint8(data));
             end
             write(ES.tcpclient, uint8(0));
-        
-            disp([ 'Sent: ' cmd uint8(0)])
         end
     end
     
