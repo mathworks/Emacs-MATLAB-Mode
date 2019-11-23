@@ -606,14 +606,14 @@ If font lock is not loaded, lay in wait."
       :active (not (matlab-shell-active-p))
       :visible (not (matlab-shell-active-p)) ]
      ["Switch to MATLAB" matlab-shell
-      :active (matlab-shell-active-p)
-      :visible (matlab-shell-active-p)]
+      :active (matlab-any-shell-active-p)
+      :visible (matlab-any-shell-active-p)]
      ["Save and go" matlab-shell-save-and-go
-      :active (matlab-shell-active-p) ]
+      :active (matlab-any-shell-active-p) ]
      ["Run Region" matlab-shell-run-region 
-      :active (matlab-shell-active-p) ]
+      :active (matlab-any-shell-active-p) ]
      ["Run Cell" matlab-shell-run-cell 
-      :active (matlab-shell-active-p) ]
+      :active (matlab-any-shell-active-p) ]
      ["Version" matlab-show-version t]
      "----"
      ["Find M file" matlab-find-file-on-path t]

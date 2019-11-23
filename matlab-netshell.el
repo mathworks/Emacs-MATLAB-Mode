@@ -37,6 +37,7 @@
 (defvar matlab-netshell-clients nil
   "List of clients created from the MATLAB netshell server.")
 
+;;;###autoload
 (defun matlab-netshell-server-start nil
     "Start the MATLAB netshell server."
     (interactive)
@@ -50,6 +51,10 @@
     
 
     )
+
+(defun matlab-netshell-client ()
+  "Return a netshell client."
+  (car matlab-netshell-clients))
 
 (defun matlab-netshell-server-stop nil
   "Stop the MATLAB Netshell server."
@@ -114,6 +119,10 @@ response from some Emacs based request."
 	 (matlab-netshell-send "nowledge" ""))
 	((string= "nowledge" cmd)
 	 (message "Acknowledgement recieved."))
+	((string= "output" cmd)
+	 (message "Ouput: %S" data))
+	((string= "error" cmd)
+	 (message "MATLAB Error: %s" data))
 	(t
 	 (message "Unknown command from matlab: %S" cmd)
 	 )))
@@ -142,12 +151,20 @@ Identify when a connection is lost, and close down services."
 	(process-send-string C (concat cmd "\n" data "\0"))
       (error "No MATLAB network connection to send to."))))
 
-(defun matlab-netshell-eval (msg)
+(defun matlab-netshell-eval (mcode)
   "Send MSG to the active MATLAB shell connection to eval."
-  (interactive "sMsg: ")
+  (interactive "sMCode: ")
   (let ((C (car matlab-netshell-clients)))
     (if C
-	(process-send-string C (concat "eval\n" msg "\0"))
+	(process-send-string C (concat "eval\n" mcode "\0"))
+      (error "No MATLAB network connection to send to."))))
+
+(defun matlab-netshell-evalc (mcode)
+  "Send MSG to the active MATLAB shell connection to eval."
+  (interactive "sMCode: ")
+  (let ((C (car matlab-netshell-clients)))
+    (if C
+	(process-send-string C (concat "evalc\n" mcode "\0"))
       (error "No MATLAB network connection to send to."))))
 
 (defun matlab-netshell-ack ()

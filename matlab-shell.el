@@ -82,6 +82,11 @@ This file is read to initialize the comint input ring."
   :group 'matlab
   :type 'filename)
 
+(defcustom matlab-shell-autostart-netshell t
+  "Use the netshell side-channel for communicating with MATLAB."
+  :group 'matlab
+  :type 'boolean)
+
 ;;
 ;; Edit from MATLAB
 (defcustom matlab-shell-emacsclient-command "emacsclient -n"
@@ -381,6 +386,7 @@ This name will have *'s surrounding it.")
 ;;
 ;; Predicate for use by matlab buffers
 (declare-function comint-check-proc "comint.el" (buffer))
+
 (defun matlab-shell-active-p ()
   "Return t if the MATLAB shell is active."
   (let ((msbn (get-buffer (concat "*" matlab-shell-buffer-name "*"))))
@@ -388,6 +394,19 @@ This name will have *'s surrounding it.")
         (with-current-buffer msbn
           (if (comint-check-proc (current-buffer))
               (current-buffer))))))
+
+(declare-function matlab-netshell-client "matlab-netshell")
+(declare-function matlab-netshell-server-start "matlab-netshell")
+(declare-function matlab-netshell-eval "matlab-netshell")
+(defun matlab-netshell-active-p ()
+  "Return t if the MATLAB netshell is active."
+  (when (featurep 'matlab-netshell)
+    (matlab-netshell-client)))
+
+(defun matlab-any-shell-active-p ()
+  "Return non-nil of any of the matlab connections are active."
+  (or (matlab-netshell-active-p) (matlab-shell-active-p)))
+
 ;;;###autoload
 (defun matlab-shell ()
   "Create a buffer with MATLAB running as a subprocess.
@@ -406,6 +425,9 @@ Try C-h f matlab-shell RET"))
   (require 'shell)
   (require 'gud)
 
+  ;; Make sure netshell is started if it is wanted.
+  (when matlab-shell-autostart-netshell (matlab-netshell-server-start))
+  
   ;; Make sure this is safe to use gud to debug MATLAB
   (when (and matlab-shell-enable-gud-flag (not (fboundp 'gud-def)))
     (message "Your emacs is missing `gud-def' which means matlab-shell won't work correctly.")
@@ -1499,6 +1521,16 @@ indication that it ran."
           ;; return result 'string' from executing MATLAB command
           str)))))
 
+(defun matlab-shell-send-command (command)
+  "Send STRING to a MATLAB process.
+If there is a `matlab-shell', send it to the command prompt.
+If there is only a `matlab-netshell', send it to the netshell."
+  (if (matlab-shell-active-p)
+      (matlab-shell-send-string (concat command "\n"))
+
+    ;; As a backup, use netshell.
+    (matlab-netshell-eval command)))
+
 (defun matlab-shell-send-string (string)
   "Send STRING to the currently running matlab process."
   (if (not matlab-shell-echoes)
@@ -1737,10 +1769,11 @@ Similar to  `comint-send-input'."
       (error "Save and go is only useful in a MATLAB buffer!"))
   (if (not (buffer-file-name (current-buffer)))
       (call-interactively 'write-file))
-  (let ((fn-name (file-name-sans-extension
+  (let* ((fn-name (file-name-sans-extension
 		  (file-name-nondirectory (buffer-file-name))))
 	(msbn (concat "*" matlab-shell-buffer-name "*"))
-        (dir (file-name-directory buffer-file-name))
+        (dir (expand-file-name (file-name-directory buffer-file-name)))
+	(edir dir)
         (change-cd matlab-change-current-directory)
 	(param ""))
     (save-buffer)
@@ -1754,31 +1787,42 @@ Similar to  `comint-send-input'."
 				 (car matlab-shell-save-and-go-history)
 				 'matlab-shell-save-and-go-history)))
 
-    ;; No buffer?  Make it!
-    (if (not (get-buffer msbn)) (matlab-shell))
-    ;; Ok, now fun the function in the matlab shell
-    (if (get-buffer-window msbn t)
-	(select-window (get-buffer-window msbn t))
-      (switch-to-buffer (concat "*" matlab-shell-buffer-name "*")))
+    ;; No buffer?  No net connection?  Make a shell!
+    (if (and (not (get-buffer msbn)) (not (matlab-netshell-active-p)))
+	(matlab-shell))
 
-    ;; change current directory?
-    (if change-cd
-        (let ((cmd (progn
-                     (mapc
-                      (lambda (e)
-                        (while (string-match (car e) dir)
-                          (setq dir (replace-match
-                                     (format "', char(%s), '" (cdr e)) t t dir))))
-                      '(("ô" . "244")
-                        ("é" . "233")
-                        ("è" . "232")
-                        ("à" . "224")))
-                     dir)))
-          (matlab-shell-send-string (concat "cd(['" cmd "'])\n"))))
+    (when (get-buffer msbn)
+      ;; Ok, now fun the function in the matlab shell
+      (if (get-buffer-window msbn t)
+	  (select-window (get-buffer-window msbn t))
+	(switch-to-buffer (concat "*" matlab-shell-buffer-name "*"))))
 
-    (let ((cmd (concat fn-name " " param)))
-      (matlab-shell-add-to-input-history cmd)
-      (matlab-shell-send-string (concat cmd "\n")))))
+    ;; Fixup DIR to be a valid MATLAB command
+    (mapc
+     (lambda (e)
+       (while (string-match (car e) dir)
+         (setq dir (replace-match
+                    (format "', char(%s), '" (cdr e)) t t dir))))
+     '(("ô" . "244")
+       ("é" . "233")
+       ("è" . "232")
+       ("à" . "224")))
+    
+    ;; change current directory? - only w/ matlab-shell active.
+    (if (and change-cd (get-buffer msbn))
+	(progn
+          (matlab-shell-send-command (concat "cd(['" dir "'])"))
+
+	  (let ((cmd (concat fn-name " " param)))
+	    (matlab-shell-add-to-input-history cmd)
+	  
+	    (matlab-shell-send-string (concat cmd "\n"))
+	    ))
+      
+      ;; If not chaning dir, maybe we need to use 'run' command instead?
+      (let ((cmd (concat "run('" dir fn-name "')")))
+	(matlab-shell-send-command cmd)))
+    ))
 
 ;;; Running buffer subset
 ;;
@@ -1825,23 +1869,31 @@ This command requires an active MATLAB shell."
  	(lastcmd)
 	(inhibit-field-text-motion t))
 
-    (save-excursion
-      (setq msbn (matlab-shell-buffer-barf-not-running))
+    (if (matlab-netshell-active-p)
+	;; Use netshell to run the command.
+	(matlab-netshell-eval command)
+
+      ;; else, send to the command line.
+      (save-excursion
+	(setq msbn (matlab-shell-buffer-barf-not-running))
+	(set-buffer msbn)
+	(if (not (matlab-on-prompt-p))
+	    (error "MATLAB shell must be non-busy to do that"))
+	;; Save the old command
+	(beginning-of-line)
+	(re-search-forward comint-prompt-regexp)
+	(setq lastcmd (buffer-substring (point) (matlab-point-at-eol)))
+	(delete-region (point) (matlab-point-at-eol))
+	;; We are done error checking, run the command.
+	(matlab-shell-send-string command)
+	(insert lastcmd)))
+
+    ;; Regardless of how we send it, if there is a shell buffer, show it.
+    (setq msbn (matlab-shell-active-p))
+    (when msbn
       (set-buffer msbn)
-      (if (not (matlab-on-prompt-p))
-	  (error "MATLAB shell must be non-busy to do that"))
-      ;; Save the old command
-      (beginning-of-line)
-      (re-search-forward comint-prompt-regexp)
-      (setq lastcmd (buffer-substring (point) (matlab-point-at-eol)))
-      (delete-region (point) (matlab-point-at-eol))
-      ;; We are done error checking, run the command.
-      (matlab-shell-send-string command)
-      (insert lastcmd))
-      
-    (set-buffer msbn)
-    (goto-char (point-max))
-    (display-buffer msbn nil "visible") ))
+      (goto-char (point-max))
+      (display-buffer msbn nil "visible") )))
 
 ;;; Convert regions to runnable text
 ;;
