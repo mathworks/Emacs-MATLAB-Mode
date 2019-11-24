@@ -643,9 +643,7 @@ Argument STR is the text that might have errors in it."
 	  (newest-anchor matlab-shell-last-error-anchor)
 	  )
       (while (setq ans (matlab-shell-scan-for-error
-			(if starting-anchor
-			    (min starting-anchor (point))
-			  (point))))
+			(or starting-anchor (point-min))))
 	(let* ((err-start (nth 0 ans))
 	       (err-end (nth 1 ans))
 	       (err-file (nth 2 ans))
@@ -665,7 +663,7 @@ Argument STR is the text that might have errors in it."
 	  ;; Save as a frame
 	  (setq matlab-shell-last-anchor-as-frame
 		(cons err-file err-line))
-	  (setq newest-anchor (max newest-anchor err-end))
+	  (setq newest-anchor (max (or newest-anchor (point-min)) err-end))
 	  ))
       ;; Keep track of the very first error in this error stack.
       ;; It will represent the "place to go" for "go-to-last-error".
@@ -1582,7 +1580,7 @@ show up in reverse order."
 
 ;; (matlab-shell-class-mref-to-file "eltest.EmacsTest/throwerr")
 
-(defun matlab-shell-class-mref-to-file (mref)
+(defun matlab-shell-class-mref-to-file (mref &optional fcn-p)
   "Convert a class like references to a file name."
   (let* ((S (split-string mref "\\."))
 	 (L (last S))
@@ -1591,14 +1589,15 @@ show up in reverse order."
 	nil
       ;; Not a . from a .m file, probbly a class ??
       (while S
-	(when (= (length S) 1)
+	(when (and (= (length S) 1) (not fcn-p))
 	  ;; Is there is a method? strip it off.
 	  (let ((meth (split-string (car S) "/")))
 	    (setq S (list (car meth)))))
 	;; Append the parts together.
 	(setq ans (concat ans
 			  (if (> (length S) 1) "+"
-			    (concat "@" (car S) "/"))
+			    (unless fcn-p
+			      (concat "@" (car S) "/")))
 			  (car S)))
 	(setq S (cdr S))
 	(if S (setq ans (concat ans "/"))
@@ -1618,6 +1617,9 @@ show up in reverse order."
     ;; Methods in a class
     (lambda (mref) (when (string-match "\\." mref)
 		     (matlab-shell-class-mref-to-file mref)))
+    ;; A function in a package
+    (lambda (mref) (when (string-match "\\." mref)
+		     (matlab-shell-class-mref-to-file mref t)))
     ;; Copied from old code, not sure what it matches.
     (lambda (mref) (when (string-match ">" mref)
 		     (concat (substring fileref 0 (match-beginning 0)) ".m")))
