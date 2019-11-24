@@ -117,7 +117,9 @@ Commands:
   [(control h) (control m)] matlab-help-map)
 (if (string-match "XEmacs" emacs-version)
     (define-key matlab-shell-help-mode-map [button2] 'matlab-shell-topic-click)
-  (define-key matlab-shell-help-mode-map [mouse-2] 'matlab-shell-topic-click))
+  (define-key matlab-shell-help-mode-map [mouse-2] 'matlab-shell-topic-click)
+  (define-key matlab-shell-help-mode-map [mouse-1] 'matlab-shell-topic-click)
+  )
 
 (defvar mode-motion-hook) ;; quiet compiler warning (used in XEmacs)
 (easy-menu-define
@@ -163,17 +165,23 @@ Commands:
 
 (defun matlab-shell-topic-browser-create-contents (subtopic)
   "Fill in a topic browser with the output from SUBTOPIC."
-  (matlab-read-only-mode -1)
-  (erase-buffer)
-  (insert (matlab-shell-collect-command-output (concat "help " subtopic)))
-  (goto-char (point-min))
-  (forward-line 1)
-  (delete-region (point-min) (point))
-  (setq matlab-shell-topic-current-topic subtopic)
-  (if (not (string-match "XEmacs" emacs-version))
-      (matlab-shell-topic-mouse-highlight-subtopics))
-  (matlab-read-only-mode 1)
-  )
+  (let ((inhibit-read-only t))
+    (erase-buffer)
+    (insert (matlab-shell-collect-command-output (concat "help " subtopic)))
+    (goto-char (point-min))
+    (forward-line 1)
+    (delete-region (point-min) (point))
+    (setq matlab-shell-topic-current-topic subtopic)
+    (if (not (string-match "XEmacs" emacs-version))
+	(matlab-shell-topic-mouse-highlight-subtopics))
+
+    ;; In emacs 27 (not sure about earlier) this is needed
+    ;; to make font lock color the buffer correctly
+    ;; Even so, only do this if font-lock-ensure is in this version of emacs.
+    (when (fboundp 'font-lock-ensure)
+      (sit-for 0)
+      (font-lock-ensure))
+    ))
 
 (defun matlab-shell-topic-click (e)
   "Click on an item in a MATLAB topic buffer we want more information on.
@@ -198,22 +206,26 @@ buffer."
 	  (if (and (not (looking-at "^[ \t]+See also"))
 		   (not (save-excursion (forward-char -2)
 					(looking-at ",$"))))
-	      (error "You did not click on a subtopic, function or reference")
+	      ;;(error "You did not click on a subtopic, function or reference")
+	      nil
 	    (goto-char p)
 	    (forward-word -1)
 	    (if (not (looking-at "\\(\\(\\w\\|_\\)+\\)\\([.,]\\| and\\|\n\\)"))
-		(error "You must click on a reference")
+		;;(error "You must click on a reference")
+		nil
 	      (setq topic (match-string 1)))))))
-    (message "Opening item %s..." (or topic fun))
+    ;;(message "Opening item %s..." (or topic fun))
     (if topic
 	(matlab-shell-topic-browser-create-contents (downcase topic))
-      (matlab-shell-describe-command fun))
+      (when fun
+	(matlab-shell-describe-command fun)))
     ))
 
 (defun matlab-shell-topic-mouse-highlight-subtopics ()
   "Put a `mouse-face' on all clickable targets in this buffer."
   (save-excursion
-    (let ((el matlab-shell-topic-mouse-face-keywords))
+    (let ((el matlab-shell-topic-mouse-face-keywords)
+	  (inhibit-read-only t))
       (while el
 	(goto-char (point-min))
 	(while (re-search-forward (car (car el)) nil t)
