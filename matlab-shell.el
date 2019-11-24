@@ -1651,15 +1651,17 @@ something Emacs can load."
 (defun matlab-find-other-window-file-line-column (ef el ec &optional debug)
   "Find file EF in other window and to go line EL and 1-basec column EC.
 If DEBUG is non-nil, then setup GUD debugging features."
-  (setq ef (matlab-shell-mref-to-filename ef))
-  (find-file-other-window ef)
-  (with-no-warnings
-    (goto-line (string-to-number el)))
-  (when debug
-    (setq gud-last-frame (cons (buffer-file-name) (string-to-number el)))
-    (gud-display-frame))
-  (setq ec (string-to-number ec))
-  (if (> ec 0) (forward-char (1- ec))))
+  (let ((ef-converted (matlab-shell-mref-to-filename ef)))
+    (when (not ef-converted)
+      (error "Failed to translate %s into a filename." ef))
+    (find-file-other-window ef-converted)
+    (with-no-warnings
+      (goto-line (string-to-number el)))
+    (when debug
+      (setq gud-last-frame (cons (buffer-file-name) (string-to-number el)))
+      (gud-display-frame))
+    (setq ec (string-to-number ec))
+    (if (> ec 0) (forward-char (1- ec)))))
 
 (defun matlab-find-other-window-via-url (url &optional debug)
   "Find other window using matlab URL and optionally set DEBUG cursor."
