@@ -664,12 +664,16 @@ Argument STR is the text that might have errors in it."
 	       (err-line (nth 3 ans))
 	       (err-col (nth 4 ans))
 	       (o (matlab-make-overlay err-start err-end))
-	       (url (concat "opentoline('" err-file "'," err-line ",0)"))
+	       (err-full-file (expand-file-name
+			       (matlab-shell-mref-to-filename err-file)))
+	       (url (concat "opentoline('" (or err-full-file err-file) "'," err-line ",0)"))
 	       )
+	  ;; Setup the overlay with the URL.
 	  (matlab-overlay-put o 'mouse-face 'highlight)
 	  (matlab-overlay-put o 'face 'underline)
 	  ;; The url will recycle opentoline code.
 	  (matlab-overlay-put o 'matlab-url url)
+	  (matlab-overlay-put o 'matlab-fullfile err-full-file)
 	  (matlab-overlay-put o 'keymap matlab-shell-html-map)
 	  (matlab-overlay-put o 'help-echo (concat "Jump to error at " err-file "."))
 	  (setq first url)
