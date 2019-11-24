@@ -296,6 +296,7 @@ in a popup buffer.
 	comint-delimiter-argument-list (list [ 59 ]) ; semi colon
 	comint-dynamic-complete-functions '(comint-replace-by-expanded-history)
 	comint-process-echoes matlab-shell-echoes
+	comint-get-old-input #'matlab-comint-get-old-input
 	)
   ;; matlab-shell variable setup
   (make-local-variable 'matlab-shell-last-error-anchor)
@@ -359,6 +360,19 @@ in a popup buffer.
   (matlab-show-version)
   )
 
+(defun matlab-comint-get-old-input ()
+  "Compute text from the current line to evluate with MATLAB.
+This function checks to make sure the line is on a prompt.  If not,
+it returns empty string"
+  (let ((inhibit-field-text-motion t))
+    (save-excursion
+      (beginning-of-line)
+      (save-match-data
+	(if (looking-at comint-prompt-regexp)
+	    ;; We'll send this line.
+	    (buffer-substring-no-properties (match-end 0) (point-at-eol))
+	  ;; Otherwise, it's probably junk that is useless.  Don't do it.
+	  "")))))
 
 ;;; MATLAB SHELL
 ;;
