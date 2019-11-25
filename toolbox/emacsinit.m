@@ -47,6 +47,9 @@ function emacsinit(clientcommand, startnetshell)
             com.mathworks.services.Prefs.setBooleanPref('EditorBuiltinEditor', false);
             com.mathworks.services.Prefs.setStringPref('EditorOtherEditor', clientcommand);
         end
+
+        % Disable wrapping of text lines.  Emacs will wrap or not based on user preference.
+        com.mathworks.services.Prefs.setBooleanPref('WrapLines',false)
     else
         % TODO - how to specify this preference w/out Java ?
         
