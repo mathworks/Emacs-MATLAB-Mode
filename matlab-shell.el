@@ -1293,6 +1293,7 @@ non-nil if FCN is a builtin."
 	   builtin
 	   )
       (set-buffer msbn)
+      (goto-char (point-max))
       (if (not (matlab-on-prompt-p))
 	  (error "MATLAB shell must be non-busy to do that"))
       (setq output (matlab-shell-collect-command-output cmd))
