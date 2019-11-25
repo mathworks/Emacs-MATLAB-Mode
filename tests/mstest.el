@@ -38,7 +38,7 @@
 ;;; Code:
 (defun mstest-run-all-tests ()
   "Run all the tests in this test file."
-  (toggle-debug-on-error)
+  ;;(toggle-debug-on-error)
   (mstest-start)
   (mstest-completion)
   (mstest-error-parse)
@@ -90,6 +90,26 @@
 	  (error "MATLAB Shell failed to initialize with matlab-emacs as first entry on path."))
 	(message "PASS")
 	)
+
+      ;; Make sure we have a ROOT
+      (message "MATLABROOT TEST")
+      (let ((txt (matlab-shell-matlabroot)))
+	(message "Computed MATLAB ROOT as : %S" txt)
+	(when (or (not txt) (string= txt ""))
+	  (mstest-savestate)
+	  (error "Failed to find MATLABROOT."))
+	)
+      (message "PASS")
+      
+      ;; Make sure that 'WHICH' works correctly.
+      (message "WHICH TEST: ls")
+      (let ((txt (car (matlab-shell-which-fcn "ls")))
+	    (exp (expand-file-name "toolbox/matlab/general/ls.m" (matlab-shell-matlabroot))))
+	(if (string= txt exp)
+	    (message "PASS")
+	  (mstest-savestate)
+	  (error "Expected %s, but found %s" exp txt)))
+      
       )))
 
 ;;; Command Sending Tests
@@ -115,6 +135,7 @@
 		CL (cdr CL)
 		EXP (cdr EXP))))
       (message "PASS")
+
       )))
 
 ;;; Error Parsing
@@ -127,31 +148,53 @@
     (with-current-buffer msb
       (goto-char (point-max))
 
-      (message "TEST ERRORS: buggy basics")
-      (mstest-get-command-output "buggy err")
-      (goto-char (point-max))
+      (mstest-error-command-check "buggy err" "buggy.m" 7)
 
-      (save-excursion
-	(condition-case nil
-	    (matlab-shell-last-error)
-	  (error
-	   (mstest-savestate)
-	   (error "Error not found")))
-	(let ((bfn (file-name-nondirectory (buffer-file-name)))
-	      (ln (count-lines (point-min) (1+ (point))))
-	      )
-	  
-	  (when (not (string= bfn "buggy.m"))
-	    (mstest-savestate)
-	    (error "Expected last error in buggy.m.  Found myself in %s" bfn))
-	  (when (not (= ln 7))
-	    (mstest-savestate)
-	    (error "Expected last error in buggy on line 7.  Found on line %d" ln))
+      (mstest-error-command-check "buggy cmderr" "ls.m" 39)
 
-	  ))
-      (message "PASS")
+      (mstest-error-command-check "buggy warn" "buggy.m" 15)
+
+      (mstest-error-command-check "eltest.utils.testme" "testme.m" 4)
+
+      (mstest-error-command-check "et=eltest.EmacsTest; et.throwerr()" "EmacsTest.m" 17)
+
+      ;; This must occur after assignment into variable et.
+      (mstest-error-command-check "et.throwprop()" "EmacsTest.m" 22)
 
       )))
+
+(defun mstest-error-command-check (command file line)
+  "Check that COMMAND produces an error that visits FILE at LINE.
+Assume we are in the MATLAB process buffer."
+
+  (message "TEST ERRORS: %s" command)
+  (mstest-get-command-output command)
+  (goto-char (point-max))
+  
+  (save-excursion
+    (condition-case ERR
+	(matlab-shell-last-error)
+      (error
+       (mstest-savestate)
+       (error "Error not found"))
+      (t (error "%S" ERR)))
+    
+    (let* ((bfn (buffer-file-name))
+	   (bfnd (if bfn (file-name-nondirectory bfn)
+		   (buffer-name)))
+	   (ln (count-lines (point-min) (min (1+ (point)) (point-max))))
+	   )
+      
+      (when (not (string= bfnd file))
+	(mstest-savestate)
+	(error "Expected last error in %s.  Found myself in %s" file (buffer-name)))
+      (when (not (= ln line))
+	(mstest-savestate)
+	(error "Expected last error in buggy on line %d.  Found on line %d" line ln))
+      
+      ))
+  (message "PASS"))
+  
 
       
 ;;; UTILITIES
@@ -204,8 +247,8 @@ Searches for the text between the last prompt, and the previous prompt."
 		   (temporary-file-directory)
 		 temporary-file-directory))
 	   (fn (expand-file-name "MATLABSHELL-BUFFER-CONTENST.txt" td)))
-    (write-file fn nil)
-    (message "Content of *MATLAB* buffer saved in %s" fn))))
+      (write-file fn nil)
+      (message "Content of *MATLAB* buffer saved in %s" fn))))
 
 (provide 'mstest)
 
