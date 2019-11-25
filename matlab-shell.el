@@ -665,8 +665,8 @@ Argument STR is the text that might have errors in it."
 	       (err-line (nth 3 ans))
 	       (err-col (nth 4 ans))
 	       (o (matlab-make-overlay err-start err-end))
-	       (err-full-file (expand-file-name
-			       (matlab-shell-mref-to-filename err-file)))
+	       (err-mref-deref (matlab-shell-mref-to-filename err-file))
+	       (err-full-file (when err-mref-deref (expand-file-name err-mref-deref)))
 	       (url (concat "opentoline('" (or err-full-file err-file) "'," err-line ",0)"))
 	       )
 	  ;; Setup the overlay with the URL.
@@ -1311,7 +1311,10 @@ non-nil if FCN is a builtin."
 	(string-match "$" output)
 	(cons (substring output 0 (match-beginning 0)) nil))))))
 
-;;; TODO - only used in semantic-matlab
+(defvar matlab-shell-matlabroot-run nil
+  "Cache of MATLABROOT in this shell.")
+(make-variable-buffer-local 'matlab-shell-matlabroot-run)
+
 (defun matlab-shell-matlabroot ()
   "Get the location of this shell's root.
 Returns a string path to the root of the executing MATLAB."
@@ -1323,18 +1326,19 @@ Returns a string path to the root of the executing MATLAB."
 	   builtin
 	   )
       (set-buffer msbn)
-
-      (if (and (boundp 'matlab-shell-matlabroot-run)
-	       matlab-shell-matlabroot-run)
+      (goto-char (point-max))
+      
+      (if matlab-shell-matlabroot-run
 	  matlab-shell-matlabroot-run
+	
 	;; If we haven't cached it, calculate it now.
-
 	(if (not (matlab-on-prompt-p))
 	    (error "MATLAB shell must be non-busy to do that"))
 	(setq output (matlab-shell-collect-command-output cmd))
 
 	(string-match "$" output)
-	(substring output 0 (match-beginning 0))))))
+	(setq matlab-shell-matlabroot-run
+	      (substring output 0 (match-beginning 0)))))))
 
 
 
@@ -1515,30 +1519,36 @@ indication that it ran."
           (delete-region (point) (matlab-point-at-eol))
           ;; We are done error checking, run the command.
           (setq pos (point))
-          ;; Note, comint-simple-send in emacs 24.4 appends a newline and code below assumes
-          ;; one prompt indicates command completed, so don't append a newline.
-          (comint-simple-send (get-buffer-process (current-buffer)) command)
-          ;; Wait for the command to finish, by looking for new prompt.
-          (goto-char (point-max))
-          ;; Turn on C-g by using wiht-local-quit. This is needed to prevent message:
-          ;;  "Blocking call to accept-process-output with quit inhibited!! [115 times]"
-          ;; when using `company-matlab-shell' for TAB completions.
-          (with-local-quit
-	    (while (or (>= (+ pos (string-width command)) (point)) (not (matlab-on-empty-prompt-p)))
-	      (accept-process-output (get-buffer-process (current-buffer)))
-	      (goto-char (point-max))))
+	  (let ((output-start-char
+		 ;; We didn't get enough output until we are past the starting point.
+		 ;; Starting point depends on if we echo or not.
+		 (if matlab-shell-echoes
+		     (+ pos 1 (string-width command)) ; 1 is newline
+		   pos)))
+            ;; Note, comint-simple-send in emacs 24.4 appends a newline and code below assumes
+            ;; one prompt indicates command completed, so don't append a newline.
+            (comint-simple-send (get-buffer-process (current-buffer)) command)
+            ;; Wait for the command to finish, by looking for new prompt.
+            (goto-char (point-max))
+            ;; Turn on C-g by using wiht-local-quit. This is needed to prevent message:
+            ;;  "Blocking call to accept-process-output with quit inhibited!! [115 times]"
+            ;; when using `company-matlab-shell' for TAB completions.
+            (with-local-quit
+	      (while (or (>= output-start-char (point)) (not (matlab-on-empty-prompt-p)))
+		(accept-process-output (get-buffer-process (current-buffer)))
+		(goto-char (point-max))))
 
-          ;; Get result of command into str
-          (goto-char pos)
-          (setq str (buffer-substring-no-properties (save-excursion
-                                                      (goto-char pos)
-                                                      (beginning-of-line)
-                                                      (forward-line 1)
-                                                      (point))
-                                                    (save-excursion
-                                                      (goto-char (point-max))
-                                                      (beginning-of-line)
-                                                      (point))))
+            ;; Get result of command into str
+            (goto-char pos)
+            (setq str (buffer-substring-no-properties (save-excursion
+							(goto-char output-start-char)
+							(point))
+                                                      (save-excursion
+							(goto-char (point-max))
+							(beginning-of-line)
+							(point))))
+	    )
+	  
           ;; delete the result of command
           (delete-region pos (point-max))
           ;; restore contents of buffer so it looks like nothing happened.
@@ -1626,6 +1636,18 @@ show up in reverse order."
 	))
     ans))
 
+(defun matlab-shell-mref-which-fcn (ref)
+  "Try to run 'which' on REF to find actual file location.
+If the MATLAB shell isn't ready to run a which command, skip and
+return nil."
+  (save-excursion
+    (let* ((msbn (matlab-shell-buffer-barf-not-running)))
+      (set-buffer msbn)
+      (goto-char (point-max))
+      (if (matlab-on-prompt-p)
+	  (matlab-shell-which-fcn ref)
+	nil))))
+
 (defvar matlab-shell-mref-converters
   '(
     ;; Does it work as is?
@@ -1646,7 +1668,7 @@ show up in reverse order."
 		     (concat (substring fileref 0 (match-beginning 0)) ".m")))
     ;; Ask matlab where it came from.  Keep last b/c expensive, or won't
     ;; work if ML is busy.
-    (lambda (mref) (car (matlab-shell-which-fcn mref)))
+    (lambda (mref) (car (matlab-shell-mref-which-fcn mref)))
     )
   "List of converters to convert MATLAB file references into a filename.
 Each element is a function that accepts a file ref, and returns
