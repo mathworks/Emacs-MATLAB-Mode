@@ -1,3 +1,8 @@
+2019-11-25  Uwe Brauer  <oub@mat.ucm.es>
+
+	* NEWS.org (Changes and New Features in matlab-emacs): New file,
+	add News for 4.0
+
 2019-09-30 Eric Ludlam <eludlam@mathworks.com>
 
 	* matlab.el: String & Comment Font Lock Handling
