@@ -399,7 +399,7 @@ This name will have *'s surrounding it.")
 
 ;;
 ;; Predicate for use by matlab buffers
-(declare-function comint-check-proc "comint.el" (buffer))
+(declare-function comint-check-proc "comint" (buffer))
 
 (defun matlab-shell-active-p ()
   "Return t if the MATLAB shell is active."
@@ -464,6 +464,7 @@ Try C-h f matlab-shell RET"))
               nil matlab-shell-command-switches)))
 
     (setq shell-dirtrackp t)
+    ;; TODO - the below isn't needed based on behavior of make-comint  Check if I can remove it.
     (comint-mode)
 
     (when matlab-shell-enable-gud-flag
@@ -1550,7 +1551,8 @@ indication that it ran."
 If there is a `matlab-shell', send it to the command prompt.
 If there is only a `matlab-netshell', send it to the netshell."
   (if (matlab-shell-active-p)
-      (matlab-shell-send-string (concat command "\n"))
+      (with-current-buffer (matlab-shell-active-p)
+	(matlab-shell-send-string (concat command "\n")))
 
     ;; As a backup, use netshell.
     (matlab-netshell-eval command)))
