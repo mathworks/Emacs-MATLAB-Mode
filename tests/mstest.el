@@ -161,6 +161,7 @@
       ;; This must occur after assignment into variable et.
       (mstest-error-command-check "et.throwprop()" "EmacsTest.m" 22)
 
+      
       )))
 
 (defun mstest-error-command-check (command file line)
@@ -190,10 +191,47 @@ Assume we are in the MATLAB process buffer."
 	(error "Expected last error in %s.  Found myself in %s" file (buffer-name)))
       (when (not (= ln line))
 	(mstest-savestate)
-	(error "Expected last error in buggy on line %d.  Found on line %d" line ln))
+	(error "Expected last error in %s on line %d.  Found on line %d" file line ln))
       
       ))
-  (message "PASS"))
+  (message "PASS")
+
+  ;; Now CD someplace where these files are no longer on the path.
+  (message "TEST ERRORS NOT ON PATH ANYMORE: %s" command)
+  (mstest-get-command-output "cd('..')")
+
+  ;; Re-do our last-error test to make sure it works when not on path.
+  (save-excursion
+    (condition-case ERR
+	(matlab-shell-last-error)
+      (error
+       (mstest-savestate)
+       (error "Error not found"))
+      (t (error "%S" ERR)))
+    
+    (let* ((bfn (buffer-file-name))
+	   (bfnd (if bfn (file-name-nondirectory bfn)
+		   (buffer-name)))
+	   (ln (count-lines (point-min) (min (1+ (point)) (point-max))))
+	   )
+      
+      (when (not (string= bfnd file))
+	(mstest-savestate)
+	(error "Expected last error in %s.  Found myself in %s" file (buffer-name)))
+      (when (not (= ln line))
+	(mstest-savestate)
+	(error "Expected last error in %s on line %d.  Found on line %d" file line ln))
+      
+      ))
+
+  (mstest-get-command-output "cd('tests')")
+  
+  (message "PASS")
+  
+
+
+
+  )
   
 
       
