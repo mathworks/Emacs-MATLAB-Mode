@@ -1,4 +1,4 @@
-function buggy(input)
+function buggy(input,n)
 % The purpose of this function is to have bugs for creating errors
 % tha matlab-shell needs to detect.
     
@@ -13,6 +13,16 @@ function buggy(input)
     
       case 'warn'
         warning('You enountered a warning in buggy.m');
+
+      case 'stack'
+        
+        if nargin == 1
+            buggy('stack',3);
+        elseif n == 1
+            buggy('err');
+        else
+            buggy('stack',n-1);
+        end
         
     end
     
