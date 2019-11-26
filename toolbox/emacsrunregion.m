@@ -19,6 +19,6 @@ function emacsrunregion(file, startchar, endchar)
     end
 
     txt = fileread(file);
-    evalTxt = txt(startchar:endchar);
+    evalTxt = txt(startchar:min(endchar,length(txt)));
     evalin('base',evalTxt);
 end
