@@ -38,7 +38,12 @@
 ;;; Code:
 (defun mstest-run-all-tests ()
   "Run all the tests in this test file."
-  ;;(toggle-debug-on-error)
+
+  ;; When debugging the test suite, make sure we can access the debugger.
+  (unless noninteractive
+    (toggle-debug-on-error)
+    (toggle-debug-on-quit))
+
   (mstest-start)
   (mstest-completion)
   (mstest-error-parse)
@@ -57,7 +62,7 @@
   
   (let ((msb (matlab-shell-active-p)))
     (when (not msb) (error "MATLAB Shell command failed to create a shell buffer."))
-    (accept-process-output)
+    (accept-process-output nil 1)
     (save-excursion
       (set-buffer msb)
       (when (not (get-buffer-process msb)) (error "MATLAB Shell buffer failed to start process."))
@@ -69,15 +74,16 @@
 	  (setq elapsed (float-time (time-subtract nil start)))
 	  (when (> elapsed 20)
 	    (error "MATLAB Shell took to long (20s) to produce a prompt."))
-	  (accept-process-output)
+	  (accept-process-output nil 1)
+	  (redisplay)
 	  (sit-for 1)))
-
+      
       ;; Make sure MATLAB things we have enough columns to display the rest of our tests.
       ;; Without the right number of columns, future tests will fail.
       (let ((txt (mstest-get-command-output "disp(get(0,'CommandWindowSize'))")))
 	(when (< (string-to-number txt) 80)
 	  (mstest-savestate)	  
-	  (error "COLUNS TEST: Expecting a minimum of 80 columns, found %S" txt)))
+	  (error "COLUMNS TEST: Expecting a minimum of 80 columns, found %S" txt)))
       
       ;; Check that our path was added.
       (let ((txt (mstest-get-command-output "P=split(path,':');disp(P{1});"))
@@ -99,6 +105,14 @@
 	  (mstest-savestate)
 	  (error "Failed to find MATLABROOT."))
 	)
+      (message "PASS")
+
+      ;; Turn off beeps, because during tests they are annoying.
+      (message "BEEP OFF TEST: ")
+      (let ((txt (mstest-get-command-output "beep off; stat = beep; disp(stat)")))
+	(when (or (not txt) (not (string= txt "off")))
+	  (mstest-savestate)
+	  (error "Expected BEEPS to be off, but found %S" txt)))
       (message "PASS")
       
       ;; Make sure that 'WHICH' works correctly.
@@ -123,7 +137,12 @@
 
       ;; TEST completion fcn
       (message "COMPLETION TEST: emacs")
-      (let* ((CLO (matlab-shell-completion-list "emacs"))
+      (let* ((CLO
+	      (condition-case ERR
+		  (matlab-shell-completion-list "emacs")
+		(error
+		 (mstest-savestate)
+		 (error "%S" ERR))))
 	     (CL (cdr (nth 2 CLO)))
 	     (EXP '("emacs" "emacsdocomplete" "emacsinit" "emacsnetshell" "emacsrunregion"))
 	     (cnt 1))
@@ -161,6 +180,7 @@
       ;; This must occur after assignment into variable et.
       (mstest-error-command-check "et.throwprop()" "EmacsTest.m" 22)
 
+      (mstest-error-command-check "syntaxerr" "syntaxerr.m" 8)
       
       )))
 
@@ -169,69 +189,69 @@
 Assume we are in the MATLAB process buffer."
 
   (message "TEST ERRORS: %s" command)
-  (mstest-get-command-output command)
-  (goto-char (point-max))
+  (let ((txt (mstest-get-command-output command)))
+    (goto-char (point-max))
   
-  (save-excursion
-    (condition-case ERR
-	(matlab-shell-last-error)
-      (error
-       (mstest-savestate)
-       (error "Error not found"))
-      (t (error "%S" ERR)))
+    (save-window-excursion
+      (condition-case ERR
+	  (matlab-shell-last-error)
+	(error
+	 (mstest-savestate)
+	 (message "matlab-shell-last-error produced n error:")
+	 (error "%S" ERR))
+	(t (error "%S" ERR)))
     
-    (let* ((bfn (buffer-file-name))
-	   (bfnd (if bfn (file-name-nondirectory bfn)
-		   (buffer-name)))
-	   (ln (count-lines (point-min) (min (1+ (point)) (point-max))))
-	   )
+      (let* ((bfn (buffer-file-name))
+	     (bfnd (if bfn (file-name-nondirectory bfn)
+		     (buffer-name)))
+	     (ln (count-lines (point-min) (min (1+ (point)) (point-max))))
+	     )
       
-      (when (not (string= bfnd file))
-	(mstest-savestate)
-	(error "Expected last error in %s.  Found myself in %s" file (buffer-name)))
-      (when (not (= ln line))
-	(mstest-savestate)
-	(error "Expected last error in %s on line %d.  Found on line %d" file line ln))
+	(when (not (string= bfnd file))
+	  (mstest-savestate)
+	  (message "Err Text Generated:\n%S" txt)
+	  (error "Expected last error in %s.  Found myself in %s" file (buffer-name)))
+	(when (not (= ln line))
+	  (mstest-savestate)
+	  (message "Err Text Generated:\n\n%S\n" txt)
+	  (error "Expected last error in %s on line %d.  Found on line %d" file line ln))
       
-      ))
-  (message "PASS")
+	))
+    (message "PASS")
 
-  ;; Now CD someplace where these files are no longer on the path.
-  (message "TEST ERRORS NOT ON PATH ANYMORE: %s" command)
-  (mstest-get-command-output "cd('..')")
+    ;; Now CD someplace where these files are no longer on the path.
+    (message "TEST ERRORS NOT ON PATH ANYMORE: %s" command)
+    (mstest-get-command-output "cd('..')")
 
-  ;; Re-do our last-error test to make sure it works when not on path.
-  (save-excursion
-    (condition-case ERR
-	(matlab-shell-last-error)
-      (error
-       (mstest-savestate)
-       (error "Error not found"))
-      (t (error "%S" ERR)))
+    ;; Re-do our last-error test to make sure it works when not on path.
+    (save-window-excursion
+      (condition-case ERR
+	  (matlab-shell-last-error)
+	(error
+	 (mstest-savestate)
+	 (error "Error not found"))
+	(t (error "%S" ERR)))
     
-    (let* ((bfn (buffer-file-name))
-	   (bfnd (if bfn (file-name-nondirectory bfn)
-		   (buffer-name)))
-	   (ln (count-lines (point-min) (min (1+ (point)) (point-max))))
-	   )
+      (let* ((bfn (buffer-file-name))
+	     (bfnd (if bfn (file-name-nondirectory bfn)
+		     (buffer-name)))
+	     (ln (count-lines (point-min) (min (1+ (point)) (point-max))))
+	     )
       
-      (when (not (string= bfnd file))
-	(mstest-savestate)
-	(error "Expected last error in %s.  Found myself in %s" file (buffer-name)))
-      (when (not (= ln line))
-	(mstest-savestate)
-	(error "Expected last error in %s on line %d.  Found on line %d" file line ln))
+	(when (not (string= bfnd file))
+	  (mstest-savestate)
+	  (error "Expected last error in %s.  Found myself in %s" file (buffer-name)))
+	(when (not (= ln line))
+	  (mstest-savestate)
+	  (error "Expected last error in %s on line %d.  Found on line %d" file line ln))
       
-      ))
+	))
 
-  (mstest-get-command-output "cd('tests')")
+    (mstest-get-command-output "cd('tests')")
   
-  (message "PASS")
+    (message "PASS")
   
-
-
-
-  )
+    ))
   
 
       
@@ -257,10 +277,20 @@ Searches for the text between the last prompt, and the previous prompt."
        )
     
       ;; Wait.
-      (while (or (= (point) start)
-		 (not (matlab-on-empty-prompt-p)))
-	(accept-process-output)
-	(goto-char (point-max))))
+      (let ((starttime (current-time))
+	    (totaltime nil)
+	    (matlab-shell-cco-testing t))
+	(while (or (= (point) start)
+		   (not (matlab-on-empty-prompt-p)))
+	  (setq totaltime (float-time (time-subtract nil starttime)))
+	  (when (> totaltime 10)
+	    (mstest-savestate)
+	    (error "Timeout waiting for prompt. (%d elapsed seconds)" totaltime))
+	  (redisplay)
+	  ;; Some filters also call accept-process-output inside this one
+	  ;; which causes it to not time out.
+	  (accept-process-output nil .5)
+	  (goto-char (point-max)))))
     
     ;; Get the text from last prompt.
     (save-excursion
@@ -285,7 +315,7 @@ Searches for the text between the last prompt, and the previous prompt."
 		   (temporary-file-directory)
 		 temporary-file-directory))
 	   (fn (expand-file-name "MATLABSHELL-BUFFER-CONTENST.txt" td)))
-      (write-file fn nil)
+      (write-region (point-min) (point-max) fn)
       (message "Content of *MATLAB* buffer saved in %s" fn))))
 
 (provide 'mstest)
