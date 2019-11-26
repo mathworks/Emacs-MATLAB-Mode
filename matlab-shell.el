@@ -1752,11 +1752,12 @@ show up in reverse order."
 		(matlab-url-at p))))
       url)))
 
-;; (matlab-shell-class-mref-to-file "eltest.EmacsTest/throwerr")
+;; (matlab-shell-mref-to-filename "eltest.utils.testme>localfcn")
 
 (defun matlab-shell-class-mref-to-file (mref &optional fcn-p)
   "Convert a class like references to a file name."
-  (let* ((S (split-string mref "\\."))
+  (let* ((LF (split-string mref ">"))
+	 (S (split-string (car LF) "\\."))
 	 (L (last S))
 	 (ans nil))
     (if (member L '("mlx" "m"))
@@ -1817,22 +1818,25 @@ return nil."
 Each element is a function that accepts a file ref, and returns
 a file name, or nil if no conversion done.")
 
+;; (matlab-shell-mref-to-filename "eltest.utils.testme>localfcn")
+
 (defun matlab-shell-mref-to-filename (fileref)
   "Convert the MATLAB file reference FILEREF into an actual file name.
 MATLAB can refer to functions on the path by a short name, or by a .p 
 extension, and a host of different ways.  Convert this reference into
 something Emacs can load."
   (interactive "sFileref: ")
-  (let ((C matlab-shell-mref-converters)
-	(ans nil))
-    (while (and C (not ans))
-      (let ((tmp (funcall (car C) fileref)))
-	(when (and tmp (file-exists-p tmp))
-	  (setq ans tmp))
-	)
-      (setq C (cdr C)))
-    (when (called-interactively-p 'any) (message "Found: %S" ans))
-    ans))
+  (with-current-buffer (matlab-shell-active-p)
+    (let ((C matlab-shell-mref-converters)
+	  (ans nil))
+      (while (and C (not ans))
+	(let ((tmp (funcall (car C) fileref)))
+	  (when (and tmp (file-exists-p tmp))
+	    (setq ans tmp))
+	  )
+	(setq C (cdr C)))
+      (when (called-interactively-p 'any) (message "Found: %S" ans))
+      ans)))
 
 (defun matlab-find-other-window-file-line-column (ef el ec &optional debug)
   "Find file EF in other window and to go line EL and 1-basec column EC.

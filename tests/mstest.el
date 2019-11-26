@@ -173,7 +173,9 @@
 
       (mstest-error-command-check "buggy warn" "buggy.m" 15)
 
-      (mstest-error-command-check "eltest.utils.testme" "testme.m" 4)
+      (mstest-error-command-check "eltest.utils.testme" "testme.m" 7)
+
+      (mstest-error-command-check "eltest.utils.testme(true)" "testme.m" 14)
 
       (mstest-error-command-check "et=eltest.EmacsTest; et.throwerr()" "EmacsTest.m" 17)
 
