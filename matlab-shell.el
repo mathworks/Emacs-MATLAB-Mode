@@ -539,15 +539,20 @@ Try C-h f matlab-shell RET"))
   ;; but ONLY when we have an empty prompt and can ask MATLAB more questions.
   ;; We need this filter to provide a hook on prompt display when everything
   ;; has been processed.
-  
-  (if matlab-shell-enable-gud-flag 
-      (gud-filter proc string)
-    (comint-output-filter proc string))
 
-  (when matlab-shell-prompt-hook-cookie
-    (setq matlab-shell-prompt-hook-cookie nil)
-    (run-hooks 'matlab-shell-prompt-appears-hook))
-  )
+  (let ((buff (process-buffer proc)))
+
+    (with-current-buffer buff
+      (if matlab-shell-enable-gud-flag 
+	  (gud-filter proc string)
+	(comint-output-filter proc string)))
+
+    ;; In case things get switched around on us
+    (with-current-buffer buff
+      (when matlab-shell-prompt-hook-cookie
+	(setq matlab-shell-prompt-hook-cookie nil)
+	(run-hooks 'matlab-shell-prompt-appears-hook))
+      )))
 
 (defun matlab-shell-wrapper-sentinel (proc string)
   "MATLAB Shell's process sentinel.  This wraps the GUD and COMINT filters."
@@ -971,7 +976,7 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
 
     (if frame (setq gud-last-frame frame))
 
-    ;;(message "[%s] [%s]" output gud-marker-acc)
+    ;;(message "ph=%S [%s] [%s]" matlab-shell-suppress-prompt-hooks output gud-marker-acc)
 
     ;;(message "Looking for prompt in %S" output)
     (when (and (not matlab-shell-suppress-prompt-hooks)
@@ -2022,6 +2027,7 @@ This command requires an active MATLAB shell."
 	(delete-region (point) (matlab-point-at-eol))
 	;; We are done error checking, run the command.
 	(matlab-shell-send-string command)
+	;; Put the old command back.
 	(insert lastcmd)))
 
     ;; Regardless of how we send it, if there is a shell buffer, show it.
@@ -2029,7 +2035,11 @@ This command requires an active MATLAB shell."
     (when msbn
       (set-buffer msbn)
       (goto-char (point-max))
-      (display-buffer msbn nil "visible") )))
+      (display-buffer msbn
+		      '((display-buffer-reuse-window display-buffer-at-bottom)
+			(reusable-frames . visible)
+			))
+      )))
 
 ;;; Convert regions to runnable text
 ;;
