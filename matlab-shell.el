@@ -129,6 +129,28 @@ you can try turning this off."
   "If we have `company' (completion anything) use it to show
 `matlab-shell' completions when `matlab-shell-tab-use-company' is t.")
 
+(defvar matlab-shell-errorscanning-syntax-table
+  (let ((st (copy-syntax-table matlab-mode-syntax-table)))
+    ;; Make \n be whitespace when scanning output.
+    (modify-syntax-entry ?\n  " " st)
+    st)
+  "Syntax table used when scanning MATLAB output.
+In this case, comment and \n are not special, as word-wrap can get in the way.")
+
+(defvar matlab-shell-prompt-appears-hook nil
+  "Hooks run each time a prompt is seen and sent to display.
+If multiple prompts are seen together, only call this once.")
+
+(defvar matlab-shell-prompt-hook-cookie nil
+  "Cookie used to transfer info about detected prompts from inner filter to outer.")
+(make-variable-buffer-local 'matlab-shell-prompt-hook-cookie)
+
+(defvar matlab-shell-suppress-prompt-hooks nil
+  "Non-nil to suppress running prompt hooks.")
+
+(defvar matlab-shell-cco-testing nil
+  "Non nil when testing matlab-shell.")
+
 ;;; Font Lock
 ;;
 ;; Extra font lock keywords for the MATLAB shell.
@@ -307,13 +329,18 @@ in a popup buffer.
   (if (fboundp 'shell-directory-tracker)
       (add-hook 'comint-input-filter-functions 'shell-directory-tracker nil t)) ;; patch Eli Merriam
   ;; Add a version scraping logo identification filter.
-  (add-hook 'comint-output-filter-functions 'matlab-shell-version-scrape)
+  (add-hook 'comint-output-filter-functions 'matlab-shell-version-scrape nil t)
   ;; Add pseudo html-renderer
   (add-hook 'comint-output-filter-functions 'matlab-shell-render-html-anchor nil t)
-  (add-hook 'comint-output-filter-functions 'matlab-shell-render-errors-as-anchor nil t)
   ;; Scroll to bottom after running cell/region
-  (add-hook 'comint-output-filter-functions 'comint-postoutput-scroll-to-bottom)
+  (add-hook 'comint-output-filter-functions 'comint-postoutput-scroll-to-bottom nil t)
 
+  ;; Add error renderer to prompt hook so the prompt is available for resolving names.
+  (add-hook 'matlab-shell-prompt-appears-hook 'matlab-shell-render-errors-as-anchor nil t)
+
+  ;; Add hook for finding the very first prompt - so we know when the buffer is ready to use.
+  (add-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-first-prompt-fcn)
+  
   (make-local-variable 'comment-start)
   (setq comment-start "%")
   (use-local-map matlab-shell-mode-map)
@@ -476,12 +503,13 @@ Try C-h f matlab-shell RET"))
       (make-local-variable 'gud-find-file)
       (setq gud-find-file 'gud-matlab-find-file)
 
-      (set-process-filter (get-buffer-process (current-buffer))
-                          'gud-filter)
-      (set-process-sentinel (get-buffer-process (current-buffer))
-                            'gud-sentinel)
       (gud-set-buffer))
 
+    ;; Init our filter and sentinel
+    (set-process-filter (get-buffer-process (current-buffer))
+                        'matlab-shell-wrapper-filter)
+    (set-process-sentinel (get-buffer-process (current-buffer))
+                          'matlab-shell-wrapper-sentinel)
 
     ;; Comint and GUD both try to set the mode.  Now reset it to
     ;; matlab mode.
@@ -497,6 +525,34 @@ Try C-h f matlab-shell RET"))
       (set (make-local-variable 'company-idle-delay) nil)
       (company-mode))
     ))
+
+;;; PROCESS FILTERS & SENTINEL
+;;
+(defun matlab-shell-wrapper-filter (proc string)
+  "MATLAB Shell's process filter.  This wraps the GUD and COMINT filters."
+  ;; A few words about process sentinel's in the MATLAB shell buffer:
+  ;; Our filter calls the GUD filter.
+  ;; The GUD filter calls the COMINT filter.
+  ;; The COMINT filter writes output to the buffer and runs filters.
+
+  ;; We need to run our error anchor commands AFTER all of the above is done,
+  ;; but ONLY when we have an empty prompt and can ask MATLAB more questions.
+  ;; We need this filter to provide a hook on prompt display when everything
+  ;; has been processed.
+  
+  (if matlab-shell-enable-gud-flag 
+      (gud-filter proc string)
+    (comint-output-filter proc string))
+
+  (when matlab-shell-prompt-hook-cookie
+    (setq matlab-shell-prompt-hook-cookie nil)
+    (run-hooks 'matlab-shell-prompt-appears-hook))
+  )
+
+(defun matlab-shell-wrapper-sentinel (proc string)
+  "MATLAB Shell's process sentinel.  This wraps the GUD and COMINT filters."
+  (if matlab-shell-enable-gud-flag 
+      (gud-sentinel proc string)))
 
 ;;; STARTUP / VERSION 
 ;;
@@ -547,8 +603,9 @@ Argument STR is the string to examine for version information."
 (defun matlab-shell-render-html-anchor (str)
   "Render html anchors inserted into the MATLAB shell buffer.
 Argument STR is the text for the anchor."
-  (if (string-match matlab-anchor-end str)
-      (save-excursion
+  (when (string-match matlab-anchor-end str)
+    (save-excursion
+      (with-syntax-table matlab-shell-errorscanning-syntax-table
         (while (re-search-backward matlab-anchor-beg
 				   ;; Arbitrary back-buffer.  We don't
 				   ;; usually get text in such huge chunks
@@ -567,16 +624,16 @@ Argument STR is the text for the anchor."
 	    (matlab-overlay-put o 'help-echo anchor-text)
             (delete-region anchor-end-start anchor-end-finish)
             (delete-region anchor-beg-start anchor-beg-finish)
-            ))))
-  )
+            ))))))
+
 ;;; ERROR HANDLING
 ;;
 
 ;; The regular expression covers to forms in tests/erroexamples.shell.m
 ;;
 (defvar matlab-shell-error-anchor-expression
-  (concat "^\\(\\(Error \\(in\\|using\\) \\|Syntax error in \\)\\(?:==> \\)?\\|"
-	  "In \\|Error: File: \\|Warning: [^\n]+\n\\)")
+  (concat "^\\(\\(Error \\(in\\|using\\)\\s-+\\|Syntax error in \\)\\(?:==> \\)?\\|"
+	  "In\\s-+\\|Error:\\s-+File:\\s-+\\|Warning:\\s-+[^\n]+\n\\)")
   
   "Expressions used to find errors in MATLAB process output.
 This variable contains the anchor, or starting text before
@@ -587,9 +644,9 @@ after this anchor.")
 (defvar matlab-shell-error-location-expression
   (list
    ;; Pulled from R2019b
-   "\\(?:^> In \\)?\\([-+>@.a-zA-Z_0-9/ \\\\:]+\\) (line \\([0-9]+\\))"
+   "\\(?:^> In\\s-+\\)?\\([-+>@.a-zA-Z_0-9/ \\\\:]+\\)\\s-+(line \\([0-9]+\\))"
 
-   "\\([-+>@.a-zA-Z_0-9/ \\\\:]+\\) Line: \\([0-9]+\\) Column: \\([0-9]+\\)"
+   "\\([-+>@.a-zA-Z_0-9/ \\\\:]+\\)\\s-+Line:\\s-+\\([0-9]+\\)\\s-+Column:\\s-+\\([0-9]+\\)"
    
    ;; Oldest I have examples for:
    (concat "\\([-+>@.a-zA-Z_0-9/ \\\\:]+\\)\\(?:>[^ ]+\\)?.*[\n ]"
@@ -619,24 +676,25 @@ Uses `matlab-shell-error-anchor-expression' to find the error.
 Uses `matlab-shell-error-location-expression' to find where the error is.
 Returns a list of the form:
   ( STARTPT ENDPT FILE LINE COLUMN )"
-  (let ((ans nil)
-	(beginning nil))
-    (when (re-search-backward matlab-shell-error-anchor-expression 
-			      limit
-			      t)
-      (save-excursion
-	(setq beginning (match-beginning 0))
-	(goto-char (match-end 0))
-	(dolist (EXP matlab-shell-error-location-expression)
-	  (when (looking-at EXP)
-	    (setq ans (list beginning
-			    (match-end 0)
-			    (match-string-no-properties 1)
-			    (match-string-no-properties 2)
-			    (match-string-no-properties 3)
-			    )))))
-      )
-    ans))
+  (with-syntax-table matlab-shell-errorscanning-syntax-table
+    (let ((ans nil)
+	  (beginning nil))
+      (when (re-search-backward matlab-shell-error-anchor-expression 
+				limit
+				t)
+	(save-excursion
+	  (setq beginning (match-beginning 0))
+	  (goto-char (match-end 0))
+	  (dolist (EXP matlab-shell-error-location-expression)
+	    (when (looking-at EXP)
+	      (setq ans (list beginning
+			      (match-end 0)
+			      (match-string-no-properties 1)
+			      (match-string-no-properties 2)
+			      (match-string-no-properties 3)
+			      )))))
+	)
+      ans)))
 
 (defvar matlab-shell-last-error-anchor nil
   "Last point where an error anchor was set.")
@@ -645,10 +703,8 @@ Returns a list of the form:
   "The last error anchor saved, represented as a debugger frame.")
 
 (defun matlab-shell-render-errors-as-anchor (&optional str)
-  ;; TODO: Not sure why this takes STR.  Probably a comint thing?
-  ;;    delete this todo.
-  "Detect non-url errors, and treat them as if they were url anchors.
-Argument STR is the text that might have errors in it."
+  "Hook function run when process filter sees a prompt.
+Detect non-url errors, and treat them as if they were url anchors."
   (save-excursion
     ;; We have found an error stack to investigate.
     (let ((first nil)
@@ -676,7 +732,7 @@ Argument STR is the text that might have errors in it."
 	  (matlab-overlay-put o 'matlab-url url)
 	  (matlab-overlay-put o 'matlab-fullfile err-full-file)
 	  (matlab-overlay-put o 'keymap matlab-shell-html-map)
-	  (matlab-overlay-put o 'help-echo (concat "Jump to error at " err-file "."))
+	  (matlab-overlay-put o 'help-echo (concat "Jump to error at " (or err-full-file err-file) "."))
 	  (setq first url)
 	  (push o overlaystack)
 	  ;; Save as a frame
@@ -737,10 +793,6 @@ FILE is ignored, and ARGS is returned."
 	  (gud-make-debug-menu))
       buf)))
 
-(defvar matlab-shell-prompt-appears-hook nil
-  "Hooks run each time a prompt is seen and sent to display.
-If multiple prompts are seen together, only call this once.")
-
 (defun matlab-shell--get-emacsclient-command ()
   (when (not (server-running-p))
     ;; We need an Emacs server for ">> edit foo.m" which leverages to
@@ -758,39 +810,64 @@ If multiple prompts are seen together, only call this once.")
               (concat " -f " (expand-file-name server-name server-auth-dir))
             (concat " -s " (expand-file-name server-name server-socket-dir)))))
 
+(defun matlab-shell-first-prompt-fcn ()
+  "Hook run when the first prompt is seen.
+Sends commands to the MATLAB shell to initialize the MATLAB process."
+  ;; Don't do this again
+  (remove-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-first-prompt-fcn)
+
+  ;; Init this session of MATLAB.
+  (if matlab-shell-use-emacs-toolbox
+      ;; Use our local toolbox directory.
+      (matlab-shell-send-command
+       (format "addpath('%s','-begin'); rehash; emacsinit('%s'%s);"
+	       (expand-file-name "toolbox"
+				 (file-name-directory
+				  (locate-library "matlab")))
+	       (matlab-shell--get-emacsclient-command)
+	       (if matlab-shell-autostart-netshell
+		   ", true" "")
+	       ))
+    
+    ;; Setup is misconfigured - we need emacsinit because it tells us how to debug
+    (error "unable to initialize matlab, emacsinit.m and other files missing"))
+
+  ;; Init any user commands
+  (if matlab-custom-startup-command
+      ;; Wait for next prompt, then send.
+      (add-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-user-startup-fcn)
+
+    ;; No user startup command?  Wait for final prompt to signal we are done.
+    (add-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-second-prompt-fcn)
+    ))
+
+(defun matlab-shell-user-startup-fcn ()
+  "Hook run on second prompt to run user specified startup funtions."
+  ;; Remove ourselves
+  (remove-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-user-startup-fcn)
+  
+  ;; Run user's startup
+  (matlab-shell-send-command (concat matlab-custom-startup-command ""))
+
+  ;; Wait for the next prompt to appear and finally set that we are ready.
+  (add-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-second-prompt-fcn)
+  )
+
+(defun matlab-shell-second-prompt-fcn ()
+  "Hook to run when the first prompt AFTER the call to emacsinit."
+  (remove-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-first-prompt-fcn)
+  (setq matlab-prompt-seen t))
+
 (defun gud-matlab-marker-filter (string)
   "Filters STRING for the Unified Debugger based on MATLAB output."
-  (if matlab-prompt-seen
-      nil
-    (when (string-match ">> " string)
-      (if matlab-shell-use-emacs-toolbox
-	  ;; Use our local toolbox directory.
-	  (process-send-string
-	   (get-buffer-process gud-comint-buffer)
-	   (format "addpath('%s','-begin'); rehash; emacsinit('%s'%s);\n"
-		   (expand-file-name "toolbox"
-				     (file-name-directory
-				      (locate-library "matlab")))
-		   (matlab-shell--get-emacsclient-command)
-		   (if matlab-shell-autostart-netshell
-		       ", true" "")
-		   ))
-        ;; Setup is misconfigured - we need emacsinit because it tells us how to debug
-        (error "unable to initialize matlab, emacsinit.m and other files missing"))
-      (if matlab-custom-startup-command
-          (process-send-string
-	   (get-buffer-process gud-comint-buffer)
-           (concat matlab-custom-startup-command "\n")))
-      ;; Mark that we've seen at least one prompt.
-      (setq matlab-prompt-seen t)
-      ))
+
   (let ((garbage (concat "\\(" (regexp-quote "\C-g") "\\|"
  			 (regexp-quote "\033[H0") "\\|"
  			 (regexp-quote "\033[H\033[2J") "\\|"
  			 (regexp-quote "\033H\033[2J") "\\)")))
     (while (string-match garbage string)
-      (if (= (aref string (match-beginning 0)) ?\C-g)
-	  (beep t))
+      ;;(if (= (aref string (match-beginning 0)) ?\C-g)
+      ;;(beep t))
       (setq string (replace-match "" t t string))))
 
   (setq gud-marker-acc (concat gud-marker-acc string))
@@ -896,14 +973,12 @@ If multiple prompts are seen together, only call this once.")
 
     ;;(message "[%s] [%s]" output gud-marker-acc)
 
-    ;; (string-match gud-matlab-marker-regexp-plain-prompt ">>")
-    
-    (when (string-match gud-matlab-marker-regexp-plain-prompt output)
+    ;;(message "Looking for prompt in %S" output)
+    (when (and (not matlab-shell-suppress-prompt-hooks)
+	       (string-match gud-matlab-marker-regexp-plain-prompt output))
       ;; Now that we are about to dump this, run our prompt hook.
       ;;(message "PROMPT!")
-      (run-hooks 'matlab-shell-prompt-appears-hook)
-      )
-
+      (setq matlab-shell-prompt-hook-cookie t))
     
     output))
 
@@ -1483,7 +1558,8 @@ This uses the lookfor command to find viable commands."
 It's output is returned as a string with no face properties.  The text output
 of the command is removed from the MATLAB buffer so there will be no
 indication that it ran."
-  (let ((msbn (matlab-shell-buffer-barf-not-running)))
+  (let ((msbn (matlab-shell-buffer-barf-not-running))
+	(matlab-shell-suppress-prompt-hooks t))
     ;; We are unable to use save-excursion to save point position because we are
     ;; manipulating the *MATLAB* buffer by erasing the current text typed at the
     ;; MATLAB prompt (where point is) and then we send command to MATLAB and
@@ -1524,18 +1600,23 @@ indication that it ran."
 		 ;; Starting point depends on if we echo or not.
 		 (if matlab-shell-echoes
 		     (+ pos 1 (string-width command)) ; 1 is newline
-		   pos)))
+		   pos))
+		(notimeout t)
+		)
             ;; Note, comint-simple-send in emacs 24.4 appends a newline and code below assumes
             ;; one prompt indicates command completed, so don't append a newline.
             (comint-simple-send (get-buffer-process (current-buffer)) command)
             ;; Wait for the command to finish, by looking for new prompt.
             (goto-char (point-max))
-            ;; Turn on C-g by using wiht-local-quit. This is needed to prevent message:
+            ;; Turn on C-g by using with-local-quit. This is needed to prevent message:
             ;;  "Blocking call to accept-process-output with quit inhibited!! [115 times]"
             ;; when using `company-matlab-shell' for TAB completions.
             (with-local-quit
-	      (while (or (>= output-start-char (point)) (not (matlab-on-empty-prompt-p)))
-		(accept-process-output (get-buffer-process (current-buffer)))
+	      (while (or (>= output-start-char (point))
+			 (not (matlab-on-empty-prompt-p))
+			 notimeout)
+		(setq notimeout
+		      (accept-process-output (get-buffer-process (current-buffer)) .1))
 		(goto-char (point-max))))
 
             ;; Get result of command into str
@@ -1548,7 +1629,7 @@ indication that it ran."
 							(beginning-of-line)
 							(point))))
 	    )
-	  
+
           ;; delete the result of command
           (delete-region pos (point-max))
           ;; restore contents of buffer so it looks like nothing happened.
@@ -1644,7 +1725,7 @@ return nil."
     (let* ((msbn (matlab-shell-buffer-barf-not-running)))
       (set-buffer msbn)
       (goto-char (point-max))
-      (if (matlab-on-prompt-p)
+      (if (and (matlab-on-prompt-p) (not matlab-shell-cco-testing))
 	  (matlab-shell-which-fcn ref)
 	nil))))
 
@@ -1698,8 +1779,8 @@ If DEBUG is non-nil, then setup GUD debugging features."
     (when (not ef-converted)
       (error "Failed to translate %s into a filename." ef))
     (find-file-other-window ef-converted)
-    (with-no-warnings
-      (goto-line (string-to-number el)))
+    (goto-char (point-min))
+    (forward-line (1- (string-to-number el)))
     (when debug
       (setq gud-last-frame (cons (buffer-file-name) (string-to-number el)))
       (gud-display-frame))
