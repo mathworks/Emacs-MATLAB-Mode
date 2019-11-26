@@ -942,24 +942,18 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
     
     ;; DEBUG PROMPTS
     (when (string-match gud-matlab-marker-regexp-1 gud-marker-acc)
+
       ;; Look for any frames for case of a debug prompt.
       (let ((url gud-marker-acc)
 	    ef el)
-	(cond
-	 ((string-match "^error:\\(.*\\),\\([0-9]+\\),\\([0-9]+\\)$" url)
-	  (setq ef (substring url (match-beginning 1) (match-end 1))
-		el (substring url (match-beginning 2) (match-end 2)))
-	  )
-	 ((string-match "opentoline('\\([^']+\\)',\\([0-9]+\\),\\([0-9]+\\))" url)
-	  (setq ef (substring url (match-beginning 1) (match-end 1))
-		el (substring url (match-beginning 2) (match-end 2)))
-	  )
-	 ;; If we have the prompt, but no match (as above),
-	 ;; perhaps it is already dumped out into the buffer.  In
-	 ;; that case, look back through the buffer.
 
-	 )
-	(when ef
+	;; We use dbhotlinks to create the below syntax.  If we see it we have a frame,
+	;; and should tell gud to go there.
+	
+	(when (string-match "opentoline('\\([^']+\\)',\\([0-9]+\\),\\([0-9]+\\))" url)
+	  (setq ef (substring url (match-beginning 1) (match-end 1))
+		el (substring url (match-beginning 2) (match-end 2)))
+
 	  (setq frame (cons ef (string-to-number el)))))
 
       ;; Newer MATLABs don't print useful info.  We'll have to
