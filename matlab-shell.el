@@ -67,6 +67,14 @@ Command switches are a list of strings.  Each entry is one switch."
   :group 'matlab-shell
   :type '(list :tag "Switch: "))
 
+(defface matlab-shell-error-face
+  (list
+   (list t
+	 (list :background nil
+	       :foreground "red1"
+	       :bold t)))
+  "*Face to use when errors occur in MATLAB shell.")
+
 (defvar matlab-custom-startup-command nil
   "Custom matlab command to be run at startup")
 
@@ -337,6 +345,7 @@ in a popup buffer.
 
   ;; Add error renderer to prompt hook so the prompt is available for resolving names.
   (add-hook 'matlab-shell-prompt-appears-hook 'matlab-shell-render-errors-as-anchor nil t)
+  (add-hook 'matlab-shell-prompt-appears-hook 'matlab-shell-colorize-errors nil t)
 
   ;; Add hook for finding the very first prompt - so we know when the buffer is ready to use.
   (add-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-first-prompt-fcn)
@@ -756,6 +765,50 @@ Detect non-url errors, and treat them as if they were url anchors."
 					       (goto-char newest-anchor)
 					       (point-marker)))))))
 
+(defvar matlab-shell-errortext-start-text "<ERRORTXT>\n"
+  "Text used as a signal for errors.")
+(defvar matlab-shell-errortext-end-text "</ERRORTXT>"
+  "Text used as a signal for errors.")
+
+(defun matlab-shell-colorize-errors (&optional str)
+  "Hook function run to colorize MATLAB errors.
+The filter replaces indicators with <ERRORTXT> text </ERRORTXT>.
+This strips out that text, and colorizes the region red."
+  (save-excursion
+    (let ((start nil) (end nil)
+	  )
+      (goto-char (point-max))
+      
+      (while (re-search-backward (regexp-quote matlab-shell-errortext-end-text) nil t)
+	;; Start w/ end text to make sure everything is in the buffer already.
+
+	;; Then scan for the beginning, and start there.  As we delete text, locations will move,
+	;; so move downward after this.
+	(if (not (re-search-backward (regexp-quote matlab-shell-errortext-start-text) nil t))
+	    (error "Missmatched error text tokens from MATLAB.")
+	  
+	  ;; Save off where we start, and delete the indicator.
+	  (setq start (match-beginning 0))
+	  (delete-region start (match-end 0))
+
+	  ;; Find the end.
+	  (if (not (re-search-forward (regexp-quote matlab-shell-errortext-end-text) nil t))
+	      (error "Internal error scanning for error text tokens.")
+	    
+	    (setq end (match-beginning 0))
+	    (delete-region end (match-end 0))
+
+	    ;; Now colorize the text.  Use overlay because font-lock messes with font properties.
+	    (let ((o (matlab-make-overlay start end (current-buffer) nil nil))
+		  )
+	      (matlab-overlay-put o 'shellerror t)
+	      (matlab-overlay-put o 'face 'matlab-shell-error-face)
+
+	      )))
+	    
+	;; Setup for next loop
+	(goto-char (point-max))))))
+
 ;;; FILTER
 ;;
 ;; MATLAB's process filter handles output from the MATLAB process and
@@ -878,6 +931,16 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
   (setq gud-marker-acc (concat gud-marker-acc string))
   (let ((output "") (frame nil))
 
+    ;; ERROR DELIMITERS
+    ;; Newer MATLABS wrap error text in {^H  }^H characters.
+    ;; Convert into something COMINT won't delete so we can scan them.
+    (while (string-match "{" gud-marker-acc)
+      (setq gud-marker-acc (replace-match matlab-shell-errortext-start-text t t gud-marker-acc 0)))
+
+    (while (string-match "}" gud-marker-acc)
+      (setq gud-marker-acc (replace-match matlab-shell-errortext-end-text t t gud-marker-acc 0)))
+    
+    ;; DEBUG PROMPTS
     (when (string-match gud-matlab-marker-regexp-1 gud-marker-acc)
       ;; Look for any frames for case of a debug prompt.
       (let ((url gud-marker-acc)
