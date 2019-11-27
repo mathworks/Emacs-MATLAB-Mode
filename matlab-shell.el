@@ -1435,7 +1435,7 @@ LOCATION is a string indicating where it is, and BUILTINFLAG is
 non-nil if FCN is a builtin."
   (save-excursion
     (let* ((msbn (matlab-shell-buffer-barf-not-running))
-	   (cmd (concat "which " fcn))
+	   (cmd (format "disp(which('%s'))" fcn))
 	   (comint-scroll-show-maximum-output nil)
 	   output
 	   builtin
