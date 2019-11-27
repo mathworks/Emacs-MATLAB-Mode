@@ -5,12 +5,17 @@ function OUT = dbtester()
     
     OUT = localfunc_1(B);
     
+    OUT = OUT + 1;
+
 end
 
 
 function OUT = localfunc_1(IN)
 % A local function
-    
+
+    if isempty(IN)
+        IN = 1:.5:pi;
+    end
     
     OUT = sin(IN);
     
