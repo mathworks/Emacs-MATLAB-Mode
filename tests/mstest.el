@@ -47,6 +47,7 @@
   (mstest-start)
   (mstest-completion)
   (mstest-error-parse)
+  (mstest-debugger)
   )
 
 ;;; Startup Tests
@@ -162,7 +163,7 @@
   "Test various errors, and if we can parse them."
   
   (let ((msb (matlab-shell-active-p)))
-    (when (not msb) (error "mstest-completion must run after mstest-start"))
+    (when (not msb) (error "mstest-error-parse must run after mstest-start"))
 
     (with-current-buffer msb
       (goto-char (point-max))
@@ -173,7 +174,9 @@
 
       (mstest-error-command-check "buggy warn" "buggy.m" 15)
 
-      (mstest-error-command-check "eltest.utils.testme" "testme.m" 4)
+      (mstest-error-command-check "eltest.utils.testme" "testme.m" 7)
+
+      (mstest-error-command-check "eltest.utils.testme(true)" "testme.m" 14)
 
       (mstest-error-command-check "et=eltest.EmacsTest; et.throwerr()" "EmacsTest.m" 17)
 
@@ -188,7 +191,7 @@
   "Check that COMMAND produces an error that visits FILE at LINE.
 Assume we are in the MATLAB process buffer."
 
-  (message "TEST ERRORS: %s" command)
+  (message "ERRORS: %s" command)
   (let ((txt (mstest-get-command-output command)))
     (goto-char (point-max))
   
@@ -220,7 +223,7 @@ Assume we are in the MATLAB process buffer."
     (message "PASS")
 
     ;; Now CD someplace where these files are no longer on the path.
-    (message "TEST ERRORS NOT ON PATH ANYMORE: %s" command)
+    (message "NO PATH ERRORS: %s" command)
     (mstest-get-command-output "cd('..')")
 
     ;; Re-do our last-error test to make sure it works when not on path.
@@ -252,6 +255,77 @@ Assume we are in the MATLAB process buffer."
     (message "PASS")
   
     ))
+  
+
+;;; Debugging: Breakpoints, stopping, visiting files
+(defun mstest-debugger ()
+  "Test debugging commands, and how MATLAB outputs state."
+  (let ((msb (matlab-shell-active-p)))
+    (when (not msb) (error "mstest-debugger must run after mstest-start"))
+
+    (with-current-buffer msb
+      (goto-char (point-max))
+
+      (mstest-debugger-breakpoint "dbstop in dbtester" "dbtester" "4")
+
+      (mstest-debugger-breakpoint "dbclear all" nil nil)
+      
+      )))
+
+(defun mstest-debugger-breakpoint (command fileexplst lineexplst)
+  "Test setting a breakpoint with COMMAND.
+COMMAND can be a string (command to send) or a function to run (such as a gud command).
+It should create a breakpoint in file FILEEXP on line LINEEXP.
+FILEEXP and LINEEXP can be lists.  If a list, then there should be breakpoints
+set in the same order as specified."
+
+  ;;(message "MSDB: %S -> %S %S" command fileexplst lineexplst)
+  
+  (when (stringp fileexplst)
+    (setq fileexplst (list fileexplst))
+    (setq lineexplst (list lineexplst)))
+
+  ;; Run the command, then call dbstatus to see what is there.
+  (let ((txtcmd (mstest-get-command-output command))
+	(txt (mstest-get-command-output "dbstatus")))
+
+    (if (not fileexplst)
+	;; this means no breakpoints.  Check TXT is empty
+	(progn
+	  (message "DEBUG: Expecting no breakpoints.")
+	  (when (not (string= txt "\n"))
+	    (message "DEBUG: Expected no breakpoints.  Found '%S'." txt)
+	    (mstest-savestate)
+	    (error "DEBUG test failed"))
+	  (message "PASS"))
+
+      ;; We are expecting breakpoints.  Make sure they all match.
+      (while (and fileexplst lineexplst)
+
+	(let ((fileexp (car fileexplst))
+	      (lineexp (car lineexplst)))
+    
+	  (message "DEBUG: Expecting Breakpoint for %s line %s..." fileexp lineexp)
+	  (when (not (string-match "Breakpoint for \\([.>a-zA-Z0-9]+\\) is on line \\([0-9]+\\)" txt))
+	    (message "DEBUG: No breakpoints found.  dbstatus returned %S" txt)
+	    (mstest-savestate)
+	    (error "DEBUG test failed"))
+	  (let ((file (match-string-no-properties 1 txt))
+		(line (match-string-no-properties 2 txt)))
+	    (when (not (string= file fileexp))
+	      (message "DEBUG: Breakpoints in wrong place.  Expected %S, found %S" fileexp file)
+	      (mstest-savestate)
+	      (error "DEBUG test failed"))
+	    (when (not (string= line lineexp))
+	      (message "DEBUG: Breakpoints in wrong place.  Expected Line %S, found %S" lineexp line)
+	      (mstest-savestate)
+	      (error "DEBUG test failed"))
+	  
+	    (message "PASS")))
+
+	(setq fileexplst (cdr fileexplst)
+	      lineexplst (cdr lineexplst)))))
+  )
   
 
       

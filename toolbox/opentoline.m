@@ -13,6 +13,11 @@ function opentoline(file, line, column)
         linecol = sprintf('+%d',line);
     end
     
+    f = which(file);
+    if ~isempty(f)
+        file=f;
+    end    
+    
     if ispc
         % On Windows, we need to wrap the editor command in double quotes
         % in case it contains spaces

@@ -67,6 +67,14 @@ Command switches are a list of strings.  Each entry is one switch."
   :group 'matlab-shell
   :type '(list :tag "Switch: "))
 
+(defface matlab-shell-error-face
+  (list
+   (list t
+	 (list :background nil
+	       :foreground "red1"
+	       :bold t)))
+  "*Face to use when errors occur in MATLAB shell.")
+
 (defvar matlab-custom-startup-command nil
   "Custom matlab command to be run at startup")
 
@@ -337,6 +345,7 @@ in a popup buffer.
 
   ;; Add error renderer to prompt hook so the prompt is available for resolving names.
   (add-hook 'matlab-shell-prompt-appears-hook 'matlab-shell-render-errors-as-anchor nil t)
+  (add-hook 'matlab-shell-prompt-appears-hook 'matlab-shell-colorize-errors nil t)
 
   ;; Add hook for finding the very first prompt - so we know when the buffer is ready to use.
   (add-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-first-prompt-fcn)
@@ -539,15 +548,20 @@ Try C-h f matlab-shell RET"))
   ;; but ONLY when we have an empty prompt and can ask MATLAB more questions.
   ;; We need this filter to provide a hook on prompt display when everything
   ;; has been processed.
-  
-  (if matlab-shell-enable-gud-flag 
-      (gud-filter proc string)
-    (comint-output-filter proc string))
 
-  (when matlab-shell-prompt-hook-cookie
-    (setq matlab-shell-prompt-hook-cookie nil)
-    (run-hooks 'matlab-shell-prompt-appears-hook))
-  )
+  (let ((buff (process-buffer proc)))
+
+    (with-current-buffer buff
+      (if matlab-shell-enable-gud-flag 
+	  (gud-filter proc string)
+	(comint-output-filter proc string)))
+
+    ;; In case things get switched around on us
+    (with-current-buffer buff
+      (when matlab-shell-prompt-hook-cookie
+	(setq matlab-shell-prompt-hook-cookie nil)
+	(run-hooks 'matlab-shell-prompt-appears-hook))
+      )))
 
 (defun matlab-shell-wrapper-sentinel (proc string)
   "MATLAB Shell's process sentinel.  This wraps the GUD and COMINT filters."
@@ -751,6 +765,50 @@ Detect non-url errors, and treat them as if they were url anchors."
 					       (goto-char newest-anchor)
 					       (point-marker)))))))
 
+(defvar matlab-shell-errortext-start-text "<ERRORTXT>\n"
+  "Text used as a signal for errors.")
+(defvar matlab-shell-errortext-end-text "</ERRORTXT>"
+  "Text used as a signal for errors.")
+
+(defun matlab-shell-colorize-errors (&optional str)
+  "Hook function run to colorize MATLAB errors.
+The filter replaces indicators with <ERRORTXT> text </ERRORTXT>.
+This strips out that text, and colorizes the region red."
+  (save-excursion
+    (let ((start nil) (end nil)
+	  )
+      (goto-char (point-max))
+      
+      (while (re-search-backward (regexp-quote matlab-shell-errortext-end-text) nil t)
+	;; Start w/ end text to make sure everything is in the buffer already.
+
+	;; Then scan for the beginning, and start there.  As we delete text, locations will move,
+	;; so move downward after this.
+	(if (not (re-search-backward (regexp-quote matlab-shell-errortext-start-text) nil t))
+	    (error "Missmatched error text tokens from MATLAB.")
+	  
+	  ;; Save off where we start, and delete the indicator.
+	  (setq start (match-beginning 0))
+	  (delete-region start (match-end 0))
+
+	  ;; Find the end.
+	  (if (not (re-search-forward (regexp-quote matlab-shell-errortext-end-text) nil t))
+	      (error "Internal error scanning for error text tokens.")
+	    
+	    (setq end (match-beginning 0))
+	    (delete-region end (match-end 0))
+
+	    ;; Now colorize the text.  Use overlay because font-lock messes with font properties.
+	    (let ((o (matlab-make-overlay start end (current-buffer) nil nil))
+		  )
+	      (matlab-overlay-put o 'shellerror t)
+	      (matlab-overlay-put o 'face 'matlab-shell-error-face)
+
+	      )))
+	    
+	;; Setup for next loop
+	(goto-char (point-max))))))
+
 ;;; FILTER
 ;;
 ;; MATLAB's process filter handles output from the MATLAB process and
@@ -873,25 +931,29 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
   (setq gud-marker-acc (concat gud-marker-acc string))
   (let ((output "") (frame nil))
 
+    ;; ERROR DELIMITERS
+    ;; Newer MATLABS wrap error text in {^H  }^H characters.
+    ;; Convert into something COMINT won't delete so we can scan them.
+    (while (string-match "{" gud-marker-acc)
+      (setq gud-marker-acc (replace-match matlab-shell-errortext-start-text t t gud-marker-acc 0)))
+
+    (while (string-match "}" gud-marker-acc)
+      (setq gud-marker-acc (replace-match matlab-shell-errortext-end-text t t gud-marker-acc 0)))
+    
+    ;; DEBUG PROMPTS
     (when (string-match gud-matlab-marker-regexp-1 gud-marker-acc)
+
       ;; Look for any frames for case of a debug prompt.
       (let ((url gud-marker-acc)
 	    ef el)
-	(cond
-	 ((string-match "^error:\\(.*\\),\\([0-9]+\\),\\([0-9]+\\)$" url)
-	  (setq ef (substring url (match-beginning 1) (match-end 1))
-		el (substring url (match-beginning 2) (match-end 2)))
-	  )
-	 ((string-match "opentoline('\\([^']+\\)',\\([0-9]+\\),\\([0-9]+\\))" url)
-	  (setq ef (substring url (match-beginning 1) (match-end 1))
-		el (substring url (match-beginning 2) (match-end 2)))
-	  )
-	 ;; If we have the prompt, but no match (as above),
-	 ;; perhaps it is already dumped out into the buffer.  In
-	 ;; that case, look back through the buffer.
 
-	 )
-	(when ef
+	;; We use dbhotlinks to create the below syntax.  If we see it we have a frame,
+	;; and should tell gud to go there.
+	
+	(when (string-match "opentoline('\\([^']+\\)',\\([0-9]+\\),\\([0-9]+\\))" url)
+	  (setq ef (substring url (match-beginning 1) (match-end 1))
+		el (substring url (match-beginning 2) (match-end 2)))
+
 	  (setq frame (cons ef (string-to-number el)))))
 
       ;; Newer MATLABs don't print useful info.  We'll have to
@@ -971,7 +1033,7 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
 
     (if frame (setq gud-last-frame frame))
 
-    ;;(message "[%s] [%s]" output gud-marker-acc)
+    ;;(message "ph=%S [%s] [%s]" matlab-shell-suppress-prompt-hooks output gud-marker-acc)
 
     ;;(message "Looking for prompt in %S" output)
     (when (and (not matlab-shell-suppress-prompt-hooks)
@@ -1690,11 +1752,12 @@ show up in reverse order."
 		(matlab-url-at p))))
       url)))
 
-;; (matlab-shell-class-mref-to-file "eltest.EmacsTest/throwerr")
+;; (matlab-shell-mref-to-filename "eltest.utils.testme>localfcn")
 
 (defun matlab-shell-class-mref-to-file (mref &optional fcn-p)
   "Convert a class like references to a file name."
-  (let* ((S (split-string mref "\\."))
+  (let* ((LF (split-string mref ">"))
+	 (S (split-string (car LF) "\\."))
 	 (L (last S))
 	 (ans nil))
     (if (member L '("mlx" "m"))
@@ -1755,22 +1818,25 @@ return nil."
 Each element is a function that accepts a file ref, and returns
 a file name, or nil if no conversion done.")
 
+;; (matlab-shell-mref-to-filename "eltest.utils.testme>localfcn")
+
 (defun matlab-shell-mref-to-filename (fileref)
   "Convert the MATLAB file reference FILEREF into an actual file name.
 MATLAB can refer to functions on the path by a short name, or by a .p 
 extension, and a host of different ways.  Convert this reference into
 something Emacs can load."
   (interactive "sFileref: ")
-  (let ((C matlab-shell-mref-converters)
-	(ans nil))
-    (while (and C (not ans))
-      (let ((tmp (funcall (car C) fileref)))
-	(when (and tmp (file-exists-p tmp))
-	  (setq ans tmp))
-	)
-      (setq C (cdr C)))
-    (when (called-interactively-p 'any) (message "Found: %S" ans))
-    ans))
+  (with-current-buffer (matlab-shell-active-p)
+    (let ((C matlab-shell-mref-converters)
+	  (ans nil))
+      (while (and C (not ans))
+	(let ((tmp (funcall (car C) fileref)))
+	  (when (and tmp (file-exists-p tmp))
+	    (setq ans tmp))
+	  )
+	(setq C (cdr C)))
+      (when (called-interactively-p 'any) (message "Found: %S" ans))
+      ans)))
 
 (defun matlab-find-other-window-file-line-column (ef el ec &optional debug)
   "Find file EF in other window and to go line EL and 1-basec column EC.
@@ -2022,6 +2088,7 @@ This command requires an active MATLAB shell."
 	(delete-region (point) (matlab-point-at-eol))
 	;; We are done error checking, run the command.
 	(matlab-shell-send-string command)
+	;; Put the old command back.
 	(insert lastcmd)))
 
     ;; Regardless of how we send it, if there is a shell buffer, show it.
@@ -2029,7 +2096,11 @@ This command requires an active MATLAB shell."
     (when msbn
       (set-buffer msbn)
       (goto-char (point-max))
-      (display-buffer msbn nil "visible") )))
+      (display-buffer msbn
+		      '((display-buffer-reuse-window display-buffer-at-bottom)
+			(reusable-frames . visible)
+			))
+      )))
 
 ;;; Convert regions to runnable text
 ;;
