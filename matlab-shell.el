@@ -159,6 +159,9 @@ If multiple prompts are seen together, only call this once.")
 (defvar matlab-shell-cco-testing nil
   "Non nil when testing matlab-shell.")
 
+(defvar matlab-shell-io-testing nil
+  "Non-nil to display process output and input log.")
+
 ;;; Font Lock
 ;;
 ;; Extra font lock keywords for the MATLAB shell.
@@ -960,9 +963,13 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
       ;; search backward for the previous line to see if a frame was
       ;; displayed.
       (when (and (not frame) (not gud-matlab-dbhotlink))
-	(process-send-string
-	 (get-buffer-process gud-comint-buffer)
-	 "dbhotlink()%%%\n")
+	(let ((dbhlcmd (if matlab-shell-echoes
+			   "dbhotlink()%%%\n"
+			 ;; If no echo, force an echo
+			 "disp(['dbhotlink()%%%' newline]);dbhotlink();\n")))
+	  ;;(when matlab-shell-io-testing (message "!!> [%s]" dbhlcmd))
+	  (process-send-string (get-buffer-process gud-comint-buffer) dbhlcmd)
+	  )
 	(setq gud-matlab-dbhotlink t)
 	)
       )
@@ -981,6 +988,9 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
 	      ;; The hotlink text will persist until we see the K prompt.
 	      (when (string-match "^K?>> " gud-marker-acc)
 		(setq endprompt (match-end 0))
+
+		;; (when matlab-shell-io-testing (message "!!xx [%s]" (substring gud-marker-acc 0 endprompt)))
+
 		;; We're done with the text!  Remove it from the accumulator.
 		(setq gud-marker-acc (substring gud-marker-acc endprompt))
 		;; If we got all this at the same time, push output back onto the accumulator for
@@ -1033,7 +1043,8 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
 
     (if frame (setq gud-last-frame frame))
 
-    ;;(message "ph=%S [%s] [%s]" matlab-shell-suppress-prompt-hooks output gud-marker-acc)
+    (when matlab-shell-io-testing
+      (message "-->[%s] [%s]" output gud-marker-acc))
 
     ;;(message "Looking for prompt in %S" output)
     (when (and (not matlab-shell-suppress-prompt-hooks)
@@ -1604,11 +1615,19 @@ This uses the lookfor command to find viable commands."
 
 (defun matlab-on-empty-prompt-p ()
   "Return t if we MATLAB is on an empty prompt."
-  (save-excursion
+  (with-current-buffer (matlab-shell-active-p)
     (let ((inhibit-field-text-motion t))
       (goto-char (point-max))
       (beginning-of-line)
       (looking-at (concat comint-prompt-regexp "\\s-*$")))))
+
+(defun matlab-on-debug-prompt-p ()
+  "Return t if we MATLAB is on an debug prompt."
+  (with-current-buffer (matlab-shell-active-p)
+    (let ((inhibit-field-text-motion t))
+      (goto-char (point-max))
+      (beginning-of-line)
+      (looking-at (concat "K>>\\s-*")))))
 
 (defun matlab-shell-buffer-barf-not-running ()
   "Return a running MATLAB buffer iff it is currently active."
@@ -1718,6 +1737,8 @@ If there is only a `matlab-netshell', send it to the netshell."
 	(goto-char (point-max))
 	(insert string)
 	(set-marker (process-mark proc) (point))))
+  (when matlab-shell-io-testing
+    (message "<--[%s]" string))
   (comint-send-string (get-buffer-process (current-buffer)) string))
 
 (defun matlab-url-at (p)
