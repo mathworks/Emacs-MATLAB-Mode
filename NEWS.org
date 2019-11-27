@@ -2,16 +2,68 @@
 
 ** News in 4.0
 
-*** Cell mode: 
+*** Debugging 
 
-The matlab shell supports to execute cells which call functions, that 
-are defined at the end of the same file (don't forget to add a end to
-the function's definition).
+Emacs debugging of MATLAB code is back!
 
-*** Debugging.
+: M-x matlab-shell
+: >> dbstop in file.m
 
-Debugging is back. Set a breakpoint in the function you want to debug
-(C-x C-a C-b), execute the function and use gud-next to advance.
+This is a significant improvement over the version that used to exist
+years ago. There are many improvements and fixes. Full debugging
+support is provided. You can debug MATLAB scripts, functions,
+packages, and classes. The debugger integration is using Emacs gud.
+You have the following capabilities when in a MATLAB M-file:
+
+: C-x C-a C-b    Set a breakpoint on current source line (dbstop)
+: C-x C-a C-d    Delete the breakpoint(s) on the current source line (dbclear)
+: C-x C-a C-s    Step a single line of code, stepping into functions (dbstep in)
+: C-x C-a C-n    Next a single line of code stepping over functions (dbstep)
+: C-x C-a <      Move up the next enclosing stack frame (dbup)
+: C-x C-a >      Move down the next inner stack frame (dbdown)
+: C-x C-a C-f    Finish, quit (dbquit)
+
+*** matlab-shell: News
+
+1. matlab-shell editing of M-files now opens the M-file in Emacs without requiring setup.
+
+   : >> edit file.m
+
+   will open file.m in your Emacs session. To do this, matlab-shell
+   leverages the Emacs server mode to have MATLAB send the file to be
+   edited to Emacs. matlab-shell will launch a unique server process for
+   you if needed.
+
+2. In matlab-shell, errors are hyperlinked and left-mouse clickable
+   (in addition to middle or RET clickable). Errors are also shown in
+   an error font.
+
+3. In matlab-shell, RET on output lines (i.e. non-command lines) no longer causes lots of unnecessary noise.
+
+5. In matlab-shell, tab completion is much more responsive. matlab-shell is compatible with
+   company-mode. If you have install company-mode, you will get tab completion pop-ups.
+
+6. In matlab-shell, "run cell" and "run region" capabilities are now executed in the base
+   workspace.
+
+*** Menu
+
+- The MATLAB menu for M-files is now always present. Prior, there would be cases where the menu
+   disappears. The MATLAB menu also contains a new Debug sub-menu.
+
+*** Performance 
+-  There are a number of performance improvements, meaning emacs is
+  more responsive. For example, in matlab-shell, Emacs is more
+  responsive when processing long output lines from MATLAB.
+
+*** Bug fixex 
+- There are a number of bug fixes.
+
+*** Quotes
+
+- Single and double quote strings are now supported. MATLAB calls
+  single-quote strings char array's and double quote strings are
+  referred to as strings.
 
 *** Prog mode
 
@@ -24,10 +76,6 @@ has not touched, but has also not been tested, so it might be buggy.
 
 *** Loading 
 Faster load time by moving rarely used content into other files.
-
-*** Error handling 
-
-Clicking on errors or using next-error in matlab-shell should work better.
 
 *** Completion 
 
