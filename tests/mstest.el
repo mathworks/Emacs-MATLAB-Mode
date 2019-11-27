@@ -44,6 +44,11 @@
     (toggle-debug-on-error)
     (toggle-debug-on-quit))
 
+  ;; Enable this to see how the input/output is interacting with the
+  ;; test harness.
+  (when (getenv "TESTDEBUG")
+    (setq matlab-shell-io-testing t))
+    
   (mstest-start)
   (mstest-completion)
   (mstest-error-parse)
@@ -170,7 +175,7 @@
 
       (mstest-error-command-check "buggy err" "buggy.m" 7)
 
-      (mstest-error-command-check "buggy cmderr" "ls.m" 39)
+      (mstest-error-command-check "buggy cmderr" "ls.m" -1)
 
       (mstest-error-command-check "buggy warn" "buggy.m" 15)
 
@@ -189,7 +194,8 @@
 
 (defun mstest-error-command-check (command file line)
   "Check that COMMAND produces an error that visits FILE at LINE.
-Assume we are in the MATLAB process buffer."
+Assume we are in the MATLAB process buffer.
+If LINE is negative then do not test the line number."
 
   (message "ERRORS: %s" command)
   (let ((txt (mstest-get-command-output command)))
@@ -214,7 +220,7 @@ Assume we are in the MATLAB process buffer."
 	  (mstest-savestate)
 	  (message "Err Text Generated:\n%S" txt)
 	  (error "Expected last error in %s.  Found myself in %s" file (buffer-name)))
-	(when (not (= ln line))
+	(when (and (> line  0) (not (= ln line)))
 	  (mstest-savestate)
 	  (message "Err Text Generated:\n\n%S\n" txt)
 	  (error "Expected last error in %s on line %d.  Found on line %d" file line ln))
@@ -244,7 +250,7 @@ Assume we are in the MATLAB process buffer."
 	(when (not (string= bfnd file))
 	  (mstest-savestate)
 	  (error "Expected last error in %s.  Found myself in %s" file (buffer-name)))
-	(when (not (= ln line))
+	(when (and (> line  0) (not (= ln line)))
 	  (mstest-savestate)
 	  (error "Expected last error in %s on line %d.  Found on line %d" file line ln))
       
@@ -255,7 +261,6 @@ Assume we are in the MATLAB process buffer."
     (message "PASS")
   
     ))
-  
 
 ;;; Debugging: Breakpoints, stopping, visiting files
 (defun mstest-debugger ()
@@ -266,15 +271,83 @@ Assume we are in the MATLAB process buffer."
     (with-current-buffer msb
       (goto-char (point-max))
 
+      ;; Basic create/clear cycle.
       (mstest-debugger-breakpoint "dbstop in dbtester" "dbtester" "4")
+      (mstest-debugger-breakpoint "dbclear all" nil nil))
 
-      (mstest-debugger-breakpoint "dbclear all" nil nil)
+    (save-excursion
+      (find-file (expand-file-name "dbtester.m" mst-testfile-path))
+      (goto-line 6)
+      ;; Use gud fcn
+      (mstest-debugger-breakpoint #'gud-break "dbtester" "6")
+      (mstest-debugger-navto "dbtester" "dbtester.m" "6")
+
+      (mstest-debugger-navto #'gud-next "dbtester.m" 8)
       
-      )))
+      (mstest-debugger-navto #'gud-next "dbtester.m" 10)
+
+      (mstest-debugger-navto #'gud-cont "dbtester.m" -1)
+    
+    )))
+
+(defun mstest-debugger-navto (command fileexp lineexp &optional skipchecktxt)
+  "Run some dbugger nav command, and verify we ended up in FILE at LINE.
+Command can be anything that will end with a K>> prompt, such as running
+the file that will hit a breakpoint, or dbstep, etc.
+COMMAND can be a string to run on the ML command prompt, or it can be
+a function."
+
+  ;; In case test writer makes a mistake
+  (when (stringp lineexp) (setq lineexp (string-to-number lineexp)))
+  
+  (message "DEBUG: Running %s until breakpoint" command)
+  ;; Run the command, then call dbstatus to see what is there.
+  (let ((txt (mstest-get-command-output command)))
+
+    ;; TODO - test contents - should see a line with a # on it indicating the line
+    ;; of text we stopped at.
+
+    (let ((fname (file-name-nondirectory (buffer-file-name (current-buffer))))
+	  (line (line-number-at-pos)))
+
+      (if (<= lineexp 0)
+	  ;; Neg means we aren't debugging anymore.
+	  (when (matlab-on-debug-prompt-p)
+	    ;; on a debug prompt, this is a problem.
+	    (mstest-savestate)
+	    (error "DEBUG: Expected to have exited debug mode, but still on K>> prompt."))
+
+	;; else, we should have jumped to some src code.
+	(when (or (not (string= fname fileexp))
+		  (and (not (= line lineexp)) (< lineexp 0)))
+	  (message "DEBUG: Expected %s line %d, ended up at %s line %d"
+		   fileexp lineexp fname line)
+	  (mstest-savestate)
+	  (error "DEBUG test failed"))
+
+
+	;; Text should start w/ a number, then some code
+	(if (not skipchecktxt)
+	    (if (not (string-match "^[0-9]+\\>" txt))
+		(progn
+		  (mstest-savestate)
+		  (message "Command produced output : [%s]" txt)
+		  (error "DEBUG: Expected ML dugger to produce a line number.  It did not."))
+	      (let ((dbln (string-to-number (match-string 0 txt))))
+		(when (not (= dbln line))
+		  (message "DEBUG: Expected %s line %d, ended up at %s %d"
+			   fileexp lineexp fname line)
+		  (mstest-savestate)
+		  (error "DEBUG test failed"))))
+	  (message "Skipping ML output line check.")
+	  )))
+
+    (message "PASS")))
 
 (defun mstest-debugger-breakpoint (command fileexplst lineexplst)
   "Test setting a breakpoint with COMMAND.
 COMMAND can be a string (command to send) or a function to run (such as a gud command).
+If a function, it will be called interactively.
 It should create a breakpoint in file FILEEXP on line LINEEXP.
 FILEEXP and LINEEXP can be lists.  If a list, then there should be breakpoints
 set in the same order as specified."
@@ -286,8 +359,20 @@ set in the same order as specified."
     (setq lineexplst (list lineexplst)))
 
   ;; Run the command, then call dbstatus to see what is there.
-  (let ((txtcmd (mstest-get-command-output command))
-	(txt (mstest-get-command-output "dbstatus")))
+  (cond
+   ((and (functionp command) (commandp command))
+    ;; We don't want to get command output.  gud commands don't leave
+    ;; anything behind.
+    ;; (mstest-get-command-output command t)
+    (call-interactively command)
+    (accept-process-output nil 1) ;; don't care what output was.
+    )
+   (t
+    (mstest-get-command-output command))
+   )
+
+  ;; Get the breakpoint status to see what's there.
+  (let ((txt (mstest-get-command-output "dbstatus")))
 
     (if (not fileexplst)
 	;; this means no breakpoints.  Check TXT is empty
@@ -331,53 +416,91 @@ set in the same order as specified."
       
 ;;; UTILITIES
 
+(defun mstest-cap-context (&optional start)
+  "Return a string that represents context around point at this time."
+  (when (not start) (setq start (point)))
+  
+  (concat (buffer-substring-no-properties
+	   (max (point-min) (- start 15))
+	   start)
+	  "<!>"
+	  (buffer-substring-no-properties
+	   start
+	   (min (point-max) (+ start 15)))))
+
 (defun mstest-get-command-output (command)
   "Wait for any pending output, and then return the text from lst command.
 Searches for the text between the last prompt, and the previous prompt."
-  (with-current-buffer (matlab-shell-active-p)
-
-    ;; Send the command.
-    (let ((start (point)))
-      (cond
-       ;; For a string, send it ourselves
-       ((stringp command)
-	(matlab-shell-send-command command))
-       ;; For a function, call it, expect it to send some command.
-       ((functionp command)
-	(funcall command))
-       ;; What is this?
-       (t
-	(error "Unkown command for mtest-get-command-output"))
-       )
+  ;; Send the command.
+  (let* ((ctxt nil)
+	 (start (with-current-buffer (matlab-shell-active-p)
+		  (goto-char (point-max))
+		  (setq ctxt (mstest-cap-context))
+		  (point)))
+	 )
+;;    (when matlab-shell-io-testing
+;;      (message "Start CTXT: [%s]" ctxt))
+    (cond
+     ;; For a string, send it ourselves
+     ((stringp command)
+      (matlab-shell-send-command command))
+     ;; For a command, call it interactively
+     ((and (functionp command) (commandp command))
+      (call-interactively command))
+     ;; For a function, call it, expect it to send some command.
+     ((functionp command)
+      (funcall command))
+     ;; What is this?
+     (t
+      (error "Unkown command for mtest-get-command-output"))
+     )
     
+    (with-current-buffer (matlab-shell-active-p)
       ;; Wait.
       (let ((starttime (current-time))
 	    (totaltime nil)
 	    (matlab-shell-cco-testing t))
+	(when matlab-shell-io-testing
+	  (message "!!>"))
 	(while (or (= (point) start)
 		   (not (matlab-on-empty-prompt-p)))
 	  (setq totaltime (float-time (time-subtract nil starttime)))
 	  (when (> totaltime 10)
-	    (mstest-savestate)
-	    (error "Timeout waiting for prompt. (%d elapsed seconds)" totaltime))
+	    (let ((inhibit-field-text-motion t)
+		  (ctxte (mstest-cap-context)))
+	      (message "timeout: Start Ctxt: %S" ctxt)
+	      (message "timeout: End Ctxt: %S" ctxte)
+	      (mstest-savestate)
+	      (error "Timeout waiting for prompt. (%d elapsed seconds)" totaltime)))
 	  (redisplay)
 	  ;; Some filters also call accept-process-output inside this one
 	  ;; which causes it to not time out.
 	  (accept-process-output nil .5)
 	  (goto-char (point-max)))))
+    (when matlab-shell-io-testing
+      (message "!!<"))
     
     ;; Get the text from last prompt.
-    (save-excursion
+    (with-current-buffer (matlab-shell-active-p)
       (let ((inhibit-field-text-motion t)
 	    (endpt nil)
 	    (startpt nil))
+	;; end pt is the end of the previous line from the last prompt.
 	(goto-char (point-max))
 	(beginning-of-line)
 	(forward-char -1)
 	(setq endpt (point))
-	(re-search-backward comint-prompt-regexp)
+	;; start pt is at the line after the start pt.
+	(goto-char start)
 	(beginning-of-line)
-	(forward-line 1)
+	(if (looking-at "^K?>>\\s-*")
+	    (progn
+	      ;; The command was inserted.  Skip it.
+	      (end-of-line)
+	      (forward-char 1))
+	  ;; Any output text was deleted.  Don't move the curosr
+	  ;; so we can grab the output.
+	  nil)
 	(setq startpt (point))
 	(buffer-substring-no-properties startpt endpt)
 	))))
