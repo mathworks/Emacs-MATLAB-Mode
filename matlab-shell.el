@@ -2,7 +2,7 @@
 ;;
 ;; Copyright (C) 2019 Eric Ludlam
 ;;
-;; Author: Eric Ludlam <zappo@ballista>
+;; Author: Eric Ludlam <zappo@gnu.org>
 ;;
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License as
@@ -2323,19 +2323,19 @@ Return the name of the temporary file."
 
 ;;; matlab-shell.el ends here
 
-;; LocalWords:  el Ludlam zappo ballista compat comint gud Slience defcustom el
+;; LocalWords:  el Ludlam zappo compat comint gud Slience defcustom el
 ;; LocalWords:  nodesktop defface autostart netshell emacsclient errorscanning
 ;; LocalWords:  cco defun setq Keymaps keymap kbd featurep fboundp subprocess
 ;; LocalWords:  online EDU postoutput progn subjob eol mlfile emacsinit msbn pc
 ;; LocalWords:  Thx Chappaz windowid dirtrackp dbhot erroexamples Ludlam zappo
-;; LocalWords:  ballista compat comint gud Slience defcustom nodesktop defface
+;; LocalWords:  compat comint gud Slience defcustom nodesktop defface
 ;; LocalWords:  autostart netshell emacsclient errorscanning cco defun setq el
 ;; LocalWords:  Keymaps keymap kbd featurep fboundp subprocess online EDU
 ;; LocalWords:  postoutput progn subjob eol mlfile emacsinit msbn pc Thx Ludlam
 ;; LocalWords:  Chappaz windowid dirtrackp dbhot erroexamples cdr ENDPT dolist
 ;; LocalWords:  overlaystack mref deref errortext ERRORTXT Missmatched zappo
 ;; LocalWords:  shellerror dbhotlink realfname aset buf noselect tcp auth ef
-;; LocalWords:  dbhotlinks ballista compat comint gud Slience defcustom
+;; LocalWords:  dbhotlinks compat comint gud Slience defcustom
 ;; LocalWords:  nodesktop defface autostart netshell emacsclient errorscanning
 ;; LocalWords:  cco defun setq Keymaps keymap kbd featurep fboundp subprocess
 ;; LocalWords:  online EDU postoutput progn subjob eol mlfile emacsinit msbn pc

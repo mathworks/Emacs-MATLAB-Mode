@@ -2,7 +2,7 @@
 ;;
 ;; Copyright (C) 2019 Eric Ludlam
 ;;
-;; Author: Eric Ludlam <zappo@ballista>
+;; Author: Eric Ludlam <zappo@gnu.org>
 ;;
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License as
@@ -506,7 +506,7 @@ to change it temporarily."
 
 ;;; matlab-complete.el ends here
 
-;; LocalWords:  el Ludlam zappo ballista ish defcustom CLim XColor XDir XLabel
+;; LocalWords:  el Ludlam zappo ish defcustom CLim XColor XDir XLabel
 ;; LocalWords:  XAxis XScale YColor YDir YAxis YScale YTick ZColor ZDir ZGrid
 ;; LocalWords:  ZLabel ZScale ZTick Dithermap defun lst tl setq cdr defmacro
 ;; LocalWords:  nreverse eol progn foundlst expandto listp stringp sem lattr
