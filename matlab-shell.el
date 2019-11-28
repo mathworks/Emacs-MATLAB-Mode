@@ -2192,6 +2192,21 @@ When NOSHOW is non-nil, supress output by adding ; to commands."
   "Create a command to run the region between BEG and END.
 Uses internal MATLAB API to execute the code keeping breakpoints
 and local functions active."
+  ;; Reduce end by 1 char, as that is how ML treats it
+  (setq end (1- end))
+
+  (let ((enc-str (symbol-name buffer-file-coding-system)))
+    (when (string-match "\\<dos" enc-str)
+      ;; If the file has DOS line endings, we need to modify begin and end since
+      ;; Emacs treats it as 1 char, but ML will treat it as 2 char.
+      ;; Thus, add to beg and end the # of chars as there are lines.
+      (save-excursion
+	(goto-char beg)
+	(setq beg (+ beg (count-lines (point-min) (point))))
+	(goto-char end)
+	(setq end (+ end (count-lines (point-min) (point))))
+	)))
+
   (format "emacsrunregion('%s',%d,%d)\n"
 	  (buffer-file-name (current-buffer))
 	  beg end))
