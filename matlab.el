@@ -564,7 +564,7 @@ If font lock is not loaded, lay in wait."
     (define-key km [(meta control return)] 'matlab-shell-run-cell)
     (define-key km [(control return)] 'matlab-shell-run-region-or-line)
     (define-key km [(control c) (control t)] 'matlab-show-line-info)
-    (define-key km [(control c) ?. ] 'matlab-find-file-on-path)
+    (define-key km [(control c) ?. ] 'matlab-shell-locate-fcn)
     (define-key km [(control h) (control m)] matlab-help-map)
     (define-key km [(control j)] 'matlab-linefeed)
     (define-key km "\M-\r" 'newline)
@@ -616,7 +616,9 @@ If font lock is not loaded, lay in wait."
       :active (matlab-any-shell-active-p) ]
      ["Version" matlab-show-version t]
      "----"
-     ["Find M file" matlab-find-file-on-path t]
+     ["Locate MATLAB function" matlab-shell-locate-fcn
+       :active (matlab-shell-active-p)
+       :help "Run 'which FCN' in matlab-shell, then open the file in Emacs"]
      ["Show M-Lint Warnings" matlab-toggle-show-mlint-warnings
       :active (and (locate-library "mlint") (fboundp 'mlint-minor-mode))
       :style toggle :selected  matlab-show-mlint-warnings
@@ -857,7 +859,7 @@ Argument LIMIT is the maximum distance to search."
 	    (progn
 	      (goto-char e1) ;; skip over this one.
 	      nil)
-	  ;; Else, find the end.  We will certianly be in
+	  ;; Else, find the end.  We will certainly be in
 	  ;; a comment, so no need to check on the end.
 	  (setq b2 (re-search-forward "%}" limit t))
 	  (when b2
@@ -1020,7 +1022,7 @@ Customizing this variable is only useful if `regexp-opt' is available."
 
 (defcustom matlab-constants-keyword-list
   '("eps" "pi" "inf" "Inf" "nan" "NaN" "ans" "i" "j" "NaT" "true" "false")
-  "List of constants and speial variables in MATLAB."
+  "List of constants and special variables in MATLAB."
   :group 'matlab
   :type '(repeat (string :tag "Debug Keyword: ")))
 
@@ -1130,7 +1132,7 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
    ;; Items after a switch statements are cool
    '("\\<\\(case\\|switch\\)\\s-+\\({[^}\n]+}\\|[^,%\n]+\\)"
      (1 font-lock-keyword-face) (2 font-lock-reference-face))
-    ;; setparam and waitfor have input variables that can be highlighted.
+    ;; set_param and waitfor have input variables that can be highlighted.
     (list (concat "\\<" matlab-indent-past-arg1-functions "\\s-*")
 	  '("(\\s-*\\(\\w+\\)\\s-*\\(,\\|)\\)" nil  nil
 	    (1 font-lock-variable-name-face)))
@@ -1457,7 +1459,7 @@ All Key Bindings:
   (let ((old-point (point)))
     (if (matlab-find-prev-line) t (goto-char old-point) nil)))
 
-(defun matlab-uniquafy-list (lst)
+(defun matlab-uniquify-list (lst)
   "Return a list that is a subset of LST where all elements are unique."
   (let ((nlst nil))
     (while lst
@@ -1756,7 +1758,7 @@ Only covers list sexp.  If not adjacent to a list, do nothing."
     ))
 
 (defun matlab-move-simple-sexp-backward-internal (count)
-  "Move backward some number of MTLAB sexps"
+  "Move backward some number of MATLAB sexps"
   (interactive "P")
   (unless count (setq count 1))
   (matlab-move-simple-sexp-internal (- count)))
@@ -2371,7 +2373,7 @@ Return 'string if in a string.
 Return 'charvector if in a character vector
 Return 'elipsis if after an ... elipsis
 Return nil if none of the above.
-Scans from the beginning of line to determine the contenxt.
+Scans from the beginning of line to determine the context.
 If optional BOUNDS-SYM is specified, set that symbol value to the
 bounds of the string or comment the cursor is in"
   (save-match-data
@@ -2424,7 +2426,7 @@ bounds of the string or comment the cursor is in"
 	;; then we need to find the end of whatever it is.
 	(when (and bounds-sym laststart)
 	  (if (or (eq returnme 'comment) (eq returnme 'elipsis))
-	      ;; Comments and elipsis alwas end at end of line.
+	      ;; Comments and elipsis always end at end of line.
 	      (set bounds-sym (list laststart (point-at-eol)))
 	    
 	    ;; Strings/charvec we need to keep searching forward.
@@ -2732,7 +2734,7 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
 			       (skip-chars-forward " \t")
 			       ;; If we are at the end of a line and
 			       ;; this open paren is there, then we
-			       ;; DONT want to indent to it.  Use the
+			       ;; DON'T want to indent to it.  Use the
 			       ;; standard indent.
 			       (if (or (not matlab-align-to-paren)
 			               (looking-at "\\.\\.\\.\\|$"))
@@ -3008,7 +3010,7 @@ Optional argument SOFT indicates that the newline is soft, and not hard."
   "Comments every line in the region.
 Puts `matlab-comment-region-s' at the beginning of every line in the region.
 BEG-REGION and END-REGION are arguments which specify the region boundaries.
-With non-nil ARG, uncomments the region."
+With non-nil ARG, uncomment the region."
   (interactive "*r\nP")
   (let ((end-region-mark (make-marker)) (save-point (point-marker)))
     (set-marker end-region-mark end-region)
@@ -3449,8 +3451,8 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 	  ;; Notes about fcns used here:
 	  ;; (syntax-after ) returns ( 4 c ) or ( 5 c )
 	  ;; where 4 == open paren and 5 == close paren
-	  ;; and c is the char tht closes the open or close paren
-	  ;; These checks are much faster than regexpx
+	  ;; and c is the char that closes the open or close paren
+	  ;; These checks are much faster than regexp
 	  
 	  ;; Step one - check for parens
 	  (cond ((and here-syntax (= (car here-syntax) 4)) ; open paren
@@ -3565,7 +3567,7 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 			;; No block matches, just return nothing.
 			(t (setq noreturn t))
 			)
-		     ;; An error orccured.  Assume 'here-*' is set, and setup missmatch.
+		     ;; An error occurred.  Assume 'here-*' is set, and setup mismatch.
 		     (error (setq mismatch t)))
 		 
 		 
@@ -4021,56 +4023,21 @@ desired.  Optional argument FAST is not used."
 
 ;;; matlab.el ends here
 
-;; LocalWords:  el Wette mwette caltech edu Ludlam eludlam defconst online el
-;; LocalWords:  easymenu Ee progn defalias fboundp itimer defun boundp Wette el
-;; LocalWords:  defvaralias bol eol defmacro defcustom CASEINDENT COMMANDINDENT
-;; LocalWords:  sexp mmode xemacs fontified setq regex sg Fns Alist elipsis vf
-;; LocalWords:  functionname vers minibuffer eei featurep facep zmacs defface
-;; LocalWords:  cellbreak cellbreaks overline keymap stringify ispell torkel el
-;; LocalWords:  prog bolp if'd cdr uicontext setcolor pragmas tch lse mwette
-;; LocalWords:  ndfunction MUs caltech edu Ludlam eludlam defconst online Wette
-;; LocalWords:  easymenu Ee progn defalias fboundp itimer defun boundp mwette
-;; LocalWords:  defvaralias bol eol defmacro defcustom CASEINDENT COMMANDINDENT
-;; LocalWords:  sexp mmode xemacs fontified setq regex sg Fns Alist elipsis vf
-;; LocalWords:  functionname vers minibuffer eei featurep facep zmacs defface
-;; LocalWords:  cellbreak cellbreaks overline keymap stringify ispell torkel
-;; LocalWords:  prog bolp if'd cdr uicontext setcolor pragmas tch lse caltech
-;; LocalWords:  ndfunction MUs ght urface rol sw edu Ludlam eludlam defconst
-;; LocalWords:  online easymenu Ee progn defalias fboundp itimer defun boundp
-;; LocalWords:  defvaralias bol eol defmacro defcustom CASEINDENT COMMANDINDENT
-;; LocalWords:  sexp mmode xemacs fontified setq regex sg Fns Alist elipsis vf
-;; LocalWords:  functionname vers minibuffer eei featurep facep zmacs defface
-;; LocalWords:  cellbreak cellbreaks overline keymap stringify ispell torkel
-;; LocalWords:  prog bolp if'd cdr uicontext setcolor pragmas tch lse Wette RET
-;; LocalWords:  ndfunction MUs ght urface rol sw mwette caltech edu Ludlam lear
-;; LocalWords:  eludlam defconst online easymenu Ee progn defalias fboundp ont
-;; LocalWords:  itimer defun boundp defvaralias bol eol defmacro defcustom tus
-;; LocalWords:  CASEINDENT COMMANDINDENT sexp mmode xemacs fontified setq regex
-;; LocalWords:  sg Fns Alist elipsis vf functionname vers minibuffer eei ep mld
-;; LocalWords:  featurep facep zmacs defface cellbreak cellbreaks overline
-;; LocalWords:  keymap stringify ispell torkel prog bolp if'd cdr uicontext
-;; LocalWords:  setcolor pragmas tch lse ndfunction MUs ght urface rol sw dem
-;; LocalWords:  Imenu imenu alist reindent unindent fn prev ltype uniquafy lst
-;; LocalWords:  nlst nreverse Aki Vehtari backquote oldsyntax edebug parens
-;; LocalWords:  cline CLim XColor XDir XLabel XAxis XScale YColor YDir YAxis
-;; LocalWords:  YScale YTick ZColor ZDir ZGrid ZLabel ZScale ZTick Dithermap tl
-;; LocalWords:  autoend noerror returnme Unstarted includeelse lattr bobp zerop
-;; LocalWords:  cellstart blockcomm eobp commtype startmove nomove sregex Ooops
-;; LocalWords:  instring calc ci sem DEPTHNUMBER blockstart blockmid
-;; LocalWords:  blockendless blockend tmp unstarted listp fc boc parendepth
-;; LocalWords:  DONT cci startpnt bc ec hc rc funcall nosemi emacsen uncomments
-;; LocalWords:  afterd befored okpos startlst endlst ellipsify foundlst
-;; LocalWords:  expandto stringp donext allsyms mapcar fname nondirectory
-;; LocalWords:  upcase Uwe Brauer oub eucmos ucm documentclass usepackage
-;; LocalWords:  lstloadlanguages lstset keywordstyle bfseries labelstep
-;; LocalWords:  escapechar lstlisting hideshow func PUSHNEW pushnew hs bn un
-;; LocalWords:  msgpos aref nodesktop mlfile emacsinit emacsclient comint gud
-;; LocalWords:  msbn subprocess pc nconc kbd Thx Chappaz windowid dirtrackp xpm
-;; LocalWords:  commint postoutput ndbhotlink formatter overlaystack dolist ef
-;; LocalWords:  mello realfname aset buf noselect pmark memq promptend numchars
-;; LocalWords:  integerp emacsdocomplete mycmd ba FCN's BUILTINFLAG substr
-;; LocalWords:  emacsdocompletion subfield usr fil byteswap bw ignoredups mapc
-;; LocalWords:  noshow lastcmd dired numberp princ matlabregex stackexchange
-;; LocalWords:  doesnt stacktop basec sk downcase mfile dirs Stelios Kyriacou
-;; LocalWords:  kyriacou cbmv jhu nexti Keybindings ui mcos XGrid YGrid YLabel
-;; LocalWords:  ie ret proc acc misconfigured vdp subexpression
+;; LocalWords:  el Wette mwette caltech edu Ludlam eludlam defconst online
+;; LocalWords:  compat easymenu defcustom CASEINDENT COMMANDINDENT sexp defun
+;; LocalWords:  mmode setq progn sg Fns Alist elipsis vf functionname vers
+;; LocalWords:  minibuffer featurep fboundp facep zmacs defface cellbreak
+;; LocalWords:  cellbreaks overline keymap torkel ispell gud allstring strchar
+;; LocalWords:  bs eu bc ec searchlim eol charvec Matchers ltype cdr if'd
+;; LocalWords:  uicontext setcolor mld keywordlist mapconcat pragmas Classdefs
+;; LocalWords:  dem Za Imenu imenu alist prog reindent unindent boundp fn
+;; LocalWords:  Parens symbolp prev lst nlst nreverse Aki Vehtari backquote
+;; LocalWords:  defmacro oldsyntax edebug parens cline ctxt eobp bobp sc fc
+;; LocalWords:  udir funcall sexps skipnav eolp autoend noerror returnme
+;; LocalWords:  Unstarted includeelse autostart lattr zerop cellstart blockcomm
+;; LocalWords:  linebounds bol commtype startmove nomove charvector sregex
+;; LocalWords:  insregex laststart bolp calc ci sem DEPTHNUMBER blockstart
+;; LocalWords:  blockmid blockendless blockend unstarted listp boc parendepth
+;; LocalWords:  cci startpnt hc rc nosemi emacsen afterd befored okpos startlst
+;; LocalWords:  endlst ellipsify noreturn hs tc matchers hideshow func PUSHNEW
+;; LocalWords:  pushnew bn nondirectory un msgpos nexti

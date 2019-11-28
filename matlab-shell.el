@@ -215,7 +215,7 @@ mode.")
   (let ((path (file-name-directory matlab-shell-command)))
     ;; if we don't have a path, find the MATLAB executable on our path.
     (when (not path)
-      (setq path  (matlab-find-executible-directory matlab-shell-command)))
+      (setq path  (matlab-find-executable-directory matlab-shell-command)))
     (when path
       ;; When we find the path, we need to massage it to identify where
       ;; the M files are that we need for our completion lists.
@@ -254,7 +254,7 @@ mode.")
     (define-key km [(backspace)] 'matlab-shell-delete-backwards-no-prompt)
 
     ;; Files
-    (define-key km "\C-c." 'matlab-find-file-on-path)
+    (define-key km "\C-c." 'matlab-shell-locate-fcn)
 
     km)
 
@@ -269,6 +269,8 @@ mode.")
     ["Stop On Errors" matlab-shell-dbstop-error t]
     ["Don't Stop On Errors" matlab-shell-dbclear-error t]
     "----"
+    ["Locate MATLAB function" matlab-shell-locate-fcn
+     :help "Run 'which FCN' in matlab-shell, then open the file in Emacs"]
     ["Run Command" matlab-shell-run-command t]
     ["Describe Variable" matlab-shell-describe-variable t]
     ["Describe Command" matlab-shell-describe-command t]
@@ -400,7 +402,7 @@ in a popup buffer.
   )
 
 (defun matlab-comint-get-old-input ()
-  "Compute text from the current line to evluate with MATLAB.
+  "Compute text from the current line to evaluate with MATLAB.
 This function checks to make sure the line is on a prompt.  If not,
 it returns empty string"
   (let ((inhibit-field-text-motion t))
@@ -671,7 +673,7 @@ after this anchor.")
    )
   "List of Expressions to search for after an error anchor is found.
 These expressions are listed as matching from newer MATLAB versions
-to older MATLABs.
+to older MATLAB's.
 Each expression should have the following match strings:
   1 - The matlab function
   2 - The line number
@@ -815,7 +817,7 @@ This strips out that text, and colorizes the region red."
 ;;; FILTER
 ;;
 ;; MATLAB's process filter handles output from the MATLAB process and
-;; inteprets it for formatting text, and for running the debugger.
+;; interprets it for formatting text, and for running the debugger.
 
 (defvar gud-matlab-marker-regexp-plain-prompt "^K?>>"
   "Regular expression for finding a prompt.")
@@ -903,7 +905,7 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
     ))
 
 (defun matlab-shell-user-startup-fcn ()
-  "Hook run on second prompt to run user specified startup funtions."
+  "Hook run on second prompt to run user specified startup functions."
   ;; Remove ourselves
   (remove-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-user-startup-fcn)
   
@@ -935,7 +937,7 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
   (let ((output "") (frame nil))
 
     ;; ERROR DELIMITERS
-    ;; Newer MATLABS wrap error text in {^H  }^H characters.
+    ;; Newer MATLAB's wrap error text in {^H  }^H characters.
     ;; Convert into something COMINT won't delete so we can scan them.
     (while (string-match "{" gud-marker-acc)
       (setq gud-marker-acc (replace-match matlab-shell-errortext-start-text t t gud-marker-acc 0)))
@@ -959,7 +961,7 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
 
 	  (setq frame (cons ef (string-to-number el)))))
 
-      ;; Newer MATLABs don't print useful info.  We'll have to
+      ;; Newer MATLAB's don't print useful info.  We'll have to
       ;; search backward for the previous line to see if a frame was
       ;; displayed.
       (when (and (not frame) (not gud-matlab-dbhotlink))
@@ -1098,7 +1100,7 @@ Optional argument ARG describes the number of chars to delete."
 
 ;;; COMPLETION
 ;;
-;; Requet list of completions from MATLAB.
+;; Request list of completions from MATLAB.
 ;; Support classic emacs in-place completion, or company mode if available.
 
 (defun matlab-shell-completion-list (str)
@@ -1459,6 +1461,20 @@ non-nil if FCN is a builtin."
 	(string-match "$" output)
 	(cons (substring output 0 (match-beginning 0)) nil))))))
 
+(defun matlab-shell-locate-fcn (fcn)
+  "Run \"which FCN\" in the `matlab-shell', then open the file."
+  (interactive
+   (list
+    (let ((default (matlab-read-word-at-point)))
+      (if (and default (not (equal default "")))
+	  (let ((s (read-string (concat "MATLAB locate fcn (default " default "): "))))
+	    (if (string= s "") default s))
+	(read-string "MATLAB locate fcn: ")))))
+  (let ((file (matlab-shell-which-fcn fcn)))
+    (if file
+        (find-file (car file))
+      (error "which('%s') returned empty" fcn))))
+
 (defvar matlab-shell-matlabroot-run nil
   "Cache of MATLABROOT in this shell.")
 (make-variable-buffer-local 'matlab-shell-matlabroot-run)
@@ -1783,7 +1799,7 @@ show up in reverse order."
 	 (ans nil))
     (if (member L '("mlx" "m"))
 	nil
-      ;; Not a . from a .m file, probbly a class ??
+      ;; Not a . from a .m file, probably a class ??
       (while S
 	(when (and (= (length S) 1) (not fcn-p))
 	  ;; Is there is a method? strip it off.
@@ -2042,7 +2058,7 @@ Similar to  `comint-send-input'."
 	    (matlab-shell-send-string (concat cmd "\n"))
 	    ))
       
-      ;; If not chaning dir, maybe we need to use 'run' command instead?
+      ;; If not changing dir, maybe we need to use 'run' command instead?
       (let ((cmd (concat "run('" dir fn-name "')")))
 	(matlab-shell-send-command cmd)))
     ))
@@ -2153,7 +2169,7 @@ Picks between different options for running the commands."
 (defun matlab-shell-region->commandline (beg end &optional noshow)
   "Convert the region between BEG and END into a MATLAB command.
 Squeeze out newlines.
-When NOSHOW is non-nil, supress output by adding ; to commands."
+When NOSHOW is non-nil, suppress output by adding ; to commands."
   ;; Assume beg & end are in the right order.
   (let ((str (concat (buffer-substring beg end) "\n")))
     ;; Remove comments
@@ -2219,8 +2235,8 @@ and local functions active."
 (defun matlab-shell-extract-region-to-tmp-file (beg end &optional noshow)
   "Extract region between BEG & END into a temporary M file.
 The tmp file name is based on the name of the current buffer.
-The extracted region is unmodifed from src buffer unless NOSHOW is non-nil,
-in which case ; are added to quiece the buffer.
+The extracted region is unmodified from src buffer unless NOSHOW is non-nil,
+in which case ; are added to quiesce the buffer.
 Scan the extracted region for any functions that are in the original
 buffer,and include them.
 Return the name of the temporary file."
@@ -2235,7 +2251,7 @@ Return the name of the temporary file."
 		       (number-to-string len)))
 	 (bss (buffer-substring-no-properties beg end))
 	 (buff (find-file-noselect (concat newf ".m")))
-	 (intro "%% Automatically craeted temporary file created to run-region")
+	 (intro "%% Automatically created temporary file created to run-region")
 	 ;; These variables are for script / fcn tracking
 	 (functions (matlab-semantic-get-local-functions-for-script (current-buffer)))
 	 )
@@ -2294,71 +2310,6 @@ Return the name of the temporary file."
 	       ;; The below needs to be a perfect match to the setter.
 	       `(lambda () (matlab-shell-cleanup-extracted-region ,fname)))
   )
-
-;;; M File path stuff =========================================================
-
-(defcustom matlab-mode-install-path
-  (list
-   (expand-file-name "toolbox" (matlab-mode-determine-matlabroot)))
-  "Base path pointing to the locations of all the m files used by matlab.
-All directories under each element of `matlab-mode-install-path' are
-checked, so only top level toolbox directories need be added.
-Paths should be added in the order in which they should be searched."
-  :group 'matlab-shell
-  :type '(repeat (string :tag "Path: ")))
-
-(defun matlab-find-file-under-path (path filename)
-  "Return the pathname or nil of PATH under FILENAME."
-  (if (file-exists-p (concat path filename))
-      (concat path filename)
-    (let ((dirs (if (file-directory-p path)
-		    ;; Not checking as a directory first fails on XEmacs
-		    ;; Stelios Kyriacou <kyriacou@cbmv.jhu.edu>
-		    (directory-files path t nil t)))
-	  (found nil))
-      (while (and dirs (not found))
-	(if (and (car (file-attributes (car dirs)))
- 		 ;; require directory readable
- 		 (file-readable-p (car dirs))
-		 ;; don't redo our path names
-		 (not (string-match "/\\.\\.?$" (car dirs)))
-		 ;; don't find files in object directories.
-		 (not (string-match "@" (car dirs))))
-	    (setq found
-		  (matlab-find-file-under-path (concat (car dirs) "/")
-					       filename)))
-	(setq dirs (cdr dirs)))
-      found)))
-
-(defun matlab-find-file-on-path (filename)
-  "Find FILENAME on the current MATLAB path.
-The MATLAB path is determined by `matlab-mode-install-path' and the
-current directory.  You must add user-installed paths into
-`matlab-mode-install-path' if you would like to have them included."
-  (interactive
-   (list
-    (let ((default (matlab-read-word-at-point)))
-      (if default
-	  (let ((s (read-string (concat "File (default " default "): "))))
-	    (if (string= s "") default s))
-	(read-string "File: ")))))
-  (if (string= filename "")
-      (error "You must specify an M file"))
-  (if (not (string-match "\\.m$" filename))
-      (setq filename (concat filename ".m")))
-  (let ((fname nil)
-	(dirs matlab-mode-install-path))
-    (if (file-exists-p (concat default-directory filename))
-	(setq fname (concat default-directory filename)))
-    (while (and (not fname) dirs)
-      (if (stringp (car dirs))
-	  (progn
-	    (message "Searching for %s in %s" filename (car dirs))
-	    (setq fname (matlab-find-file-under-path (car dirs) filename))))
-      (setq dirs (cdr dirs)))
-    (if fname (find-file fname)
-      (error "File %s not found on any known paths.  \
-Check `matlab-mode-install-path'" filename))))
 
 (defun matlab-find-file-click (e)
   "Find the file clicked on with event E on the current path."
@@ -2366,8 +2317,37 @@ Check `matlab-mode-install-path'" filename))))
   (mouse-set-point e)
   (let ((f (matlab-read-word-at-point)))
     (if (not f) (error "To find an M file, click on a word"))
-    (matlab-find-file-on-path f)))
+    (matlab-shell-locate-fcn f)))
 
 (provide 'matlab-shell)
 
 ;;; matlab-shell.el ends here
+
+;; LocalWords:  el Ludlam zappo ballista compat comint gud Slience defcustom el
+;; LocalWords:  nodesktop defface autostart netshell emacsclient errorscanning
+;; LocalWords:  cco defun setq Keymaps keymap kbd featurep fboundp subprocess
+;; LocalWords:  online EDU postoutput progn subjob eol mlfile emacsinit msbn pc
+;; LocalWords:  Thx Chappaz windowid dirtrackp dbhot erroexamples Ludlam zappo
+;; LocalWords:  ballista compat comint gud Slience defcustom nodesktop defface
+;; LocalWords:  autostart netshell emacsclient errorscanning cco defun setq el
+;; LocalWords:  Keymaps keymap kbd featurep fboundp subprocess online EDU
+;; LocalWords:  postoutput progn subjob eol mlfile emacsinit msbn pc Thx Ludlam
+;; LocalWords:  Chappaz windowid dirtrackp dbhot erroexamples cdr ENDPT dolist
+;; LocalWords:  overlaystack mref deref errortext ERRORTXT Missmatched zappo
+;; LocalWords:  shellerror dbhotlink realfname aset buf noselect tcp auth ef
+;; LocalWords:  dbhotlinks ballista compat comint gud Slience defcustom
+;; LocalWords:  nodesktop defface autostart netshell emacsclient errorscanning
+;; LocalWords:  cco defun setq Keymaps keymap kbd featurep fboundp subprocess
+;; LocalWords:  online EDU postoutput progn subjob eol mlfile emacsinit msbn pc
+;; LocalWords:  Thx Chappaz windowid dirtrackp dbhot erroexamples cdr ENDPT
+;; LocalWords:  dolist overlaystack mref deref errortext ERRORTXT Missmatched
+;; LocalWords:  shellerror dbhotlink realfname aset buf noselect tcp auth ef
+;; LocalWords:  dbhotlinks dbhlcmd endprompt mello pmark memq promptend
+;; LocalWords:  numchars integerp emacsdocomplete mycmd ba nreverse
+;; LocalWords:  emacsdocompletion subfield fil byteswap stringp cbuff mapcar bw
+;; LocalWords:  FCN's alist BUILTINFLAG dired bol bobp numberp lattr princ
+;; LocalWords:  minibuffer fn matlabregex stackexchange doesnt lastcmd
+;; LocalWords:  notimeout stacktop eltest testme localfcn LF mlx meth fileref
+;; LocalWords:  funcall ec basec sk ignoredups boundp nondirectory edir sexp
+;; LocalWords:  Fixup mapc ltype noshow emacsrunregion cnt commandline elipsis
+;; LocalWords:  newf bss fname
