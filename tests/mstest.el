@@ -31,6 +31,7 @@
   
   (add-to-list 'load-path (expand-file-name d) t))
 
+(require 'matlab-load)
 (require 'matlab)
 (require 'matlab-shell)
 (require 'comint)

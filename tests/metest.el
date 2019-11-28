@@ -30,6 +30,7 @@
   
   (add-to-list 'load-path (expand-file-name d) t))
 
+(require 'matlab-load)
 (require 'matlab)
 (require 'cedet-matlab)
 (require 'semantic-matlab)
