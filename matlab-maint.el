@@ -38,7 +38,10 @@
 (easy-menu-define
   matlab-maint-menu matlab-maint-mode-map "MATLAB Maintainer's Minor Mode"
   '("MMaint"
+    ["Compile" matlab-maint-compile-matlab-emacs t]
     ["Run Tests" matlab-maint-run-tests t]
+    ["Toggle IO Logging" matlab-maint-toggle-io-tracking
+     :style toggle :selected matlab-shell-io-testing ]
     ))
 
 ;;;###autoload
@@ -57,7 +60,6 @@
       (when (string= ml (substring dir 0 (min (length dir) (length ml))))
 	(matlab-maint-minor-mode 1))))
   )
-
 
 ;;; Commands
 ;;
@@ -92,6 +94,14 @@ Return the buffer."
   (let* ((ml (file-name-directory (locate-library "matlab")))
 	 (newf (expand-file-name file ml)))
     (set-buffer (find-file-noselect newf))))
+
+(defun matlab-maint-toggle-io-tracking ()
+  "Toggle tracking of IO with MATLAB Shell."
+  (interactive)
+  (setq matlab-shell-io-testing (not matlab-shell-io-testing))
+  (message "MATLAB Shell IO logging %s" (if matlab-shell-io-testing
+					    "enabled" "disabled")))
+
 
 (provide 'matlab-maint)
 
