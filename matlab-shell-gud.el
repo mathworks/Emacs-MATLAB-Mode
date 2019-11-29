@@ -64,20 +64,10 @@
   ;; This starts us supporting gud tooltips.
   (add-to-list 'gud-tooltip-modes 'matlab-mode)
   
-  ;; TODO - the filter and stuff was setup in 2 diff ways.
-  ;; Pick one and stick with it.
-  
   (make-local-variable 'gud-marker-filter)
   (setq gud-marker-filter 'gud-matlab-marker-filter)
   (make-local-variable 'gud-find-file)
   (setq gud-find-file 'gud-matlab-find-file)
-
-  (if (fboundp 'gud-overload-functions)
-      (gud-overload-functions
-       '((gud-massage-args . gud-matlab-massage-args)
-	 (gud-marker-filter . gud-matlab-marker-filter)
-	 (gud-find-file . gud-matlab-find-file))))
-  
 
   ;; XEmacs doesn't seem to have this concept already.  Oh well.
   (make-local-variable 'gud-marker-acc)
@@ -352,7 +342,8 @@ Call debug activate/deactivate features."
 (define-minor-mode matlab-shell-gud-minor-mode
   "Minor mode activated when `matlab-shell' K>> prompt is active.
 This minor mode makes MATLAB buffers read only so simple keystrokes
-activate debug commands.
+activate debug commands.  It also enables tooltips to appear when the
+mouse hovers over a symbol when debugging.
 \\<matlab-shell-gud-minor-mode-map>
 Debug commands are:
  \\[gud-break]   - Set a breakpoint on the current line
@@ -395,12 +386,14 @@ Debug commands are:
    (list
     (if (use-region-p)
 	;; Don't ask user anything, just take it.
-	(buffer-substring-no-properties (mark) (point))
+	(buffer-substring-no-properties (region-beginning) (region-end))
       (let ((word (matlab-read-word-at-point)))
 	(read-from-minibuffer "MATLAB variable: " (cons word 0))))))
   (let ((txt (matlab-shell-collect-command-output
 	      (concat "disp(" sym ")"))))
-    (matlab-output-to-temp-buffer "*MATLAB Help*" txt)))
+    (if (not (string-match "ERRORTXT" txt))
+	(matlab-output-to-temp-buffer "*MATLAB Help*" txt)
+      (message "Error evaluationg MATLAB expression"))))
 
 
 (defun matlab-shell-gud-mode-edit ()
@@ -434,22 +427,64 @@ This function must return nil if it doesn't handle EVENT."
     (with-current-buffer (tooltip-event-buffer event)
       (when (and gud-tooltip-mode
 		 matlab-shell-gud-minor-mode
-		 (buffer-name gud-comint-buffer); might be killed
+		 (buffer-name gud-comint-buffer) ; might be killed
 		 )
-	(let ((expr (tooltip-expr-to-print event))
+	(let ((expr (matlab-shell-gud-find-tooltip-expression event))
 	      (txt nil))
 	  (when expr
 	    (setq txt (matlab-shell-collect-command-output
-		       (concat "disp(" expr ")")))
+		       (concat "emacstipstring(" expr ")")))
 
-	    ;; TODO ; in the case of a 'region', we will need to strip
-	    ;; the ends of bad syntax, such as accedental selectoin of
-	    ;; parens, ; etc.
+	    (when (not (string-match "ERRORTXT" txt))
 
-	    (tooltip-show txt (or gud-tooltip-echo-area
-				  tooltip-use-echo-area
-				  (not tooltip-mode)))
-	    t))))))  
+	      (tooltip-show (concat expr "=\n" txt)
+			    (or gud-tooltip-echo-area
+				tooltip-use-echo-area
+				(not tooltip-mode)))
+	      t)))))))  
+
+(defun matlab-shell-gud-find-tooltip-expression (event)
+  "Identify an expression to output in a tooltip at EVENT.
+Unlike `tooltip-expr-to-print', this looks at the symbol, and
+if it looks like a function call, it will return nil."
+  (interactive)
+
+  (with-current-buffer (tooltip-event-buffer event)
+    ;; Only do this for MATLAB stuff.
+    (when matlab-shell-gud-minor-mode
+      
+      (let ((point (posn-point (event-end event))))
+	(if (use-region-p)
+	    (when (and (<= (region-beginning) point) (<= point (region-end)))
+	      (buffer-substring (region-beginning) (region-end)))
+
+	  ;; This snippent copied from tooltip.el, then modified to
+	  ;; detect matlab functions
+	  (save-excursion
+	    (goto-char point)
+	    (let* ((origin (point))
+		   (start (progn
+			    (skip-syntax-backward "w_")
+			    ;; find full . expression
+			    (while (= (preceding-char) ?.)
+			      (forward-char -1)
+			      (skip-syntax-backward "w_"))
+			    (point)))
+		   (pstate (syntax-ppss)))
+	      (unless (or (looking-at "[0-9]")
+			  (nth 3 pstate)
+			  (nth 4 pstate))
+		(goto-char origin)
+		(skip-syntax-forward "w_")
+		(when (> (point) start)
+		  ;; At this point, look to see we are looking at (.  If so
+		  ;; we need to grab that stuff too.
+		  (if (not (looking-at "\\s-*("))
+		      (buffer-substring-no-properties start (point))
+		    ;; Also grab the arguments
+		    (matlab-forward-sexp)
+		    (buffer-substring-no-properties start (point)))
+		  )))))))))
 
 (provide 'matlab-shell-gud)
 
