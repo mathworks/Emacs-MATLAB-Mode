@@ -468,7 +468,7 @@ Try C-h f matlab-shell RET"))
     ;; Add hook for finding the very first prompt - so we know when the buffer is ready to use.
     (add-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-first-prompt-fcn)
 
-    ;; TODO - I found both this var and filter fcn in here.  Are both needed?
+    ;; Track current directories when user types cd
     (add-hook 'comint-input-filter-functions 'shell-directory-tracker nil t) ;; patch Eli Merriam
 
     ;; Add a version scraping logo identification filter.
