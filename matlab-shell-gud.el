@@ -31,6 +31,13 @@
   )
 
 ;;; Code:
+(defvar gud-matlab-debug-active nil
+  "Non-nil if MATLAB has a K>> prompt up.")
+(defvar gud-matlab-debug-activate-hook nil
+  "Hooks run when MATLAB detects a K>> prompt after a >> prompt")
+(defvar gud-matlab-debug-deactivate-hook nil
+  "Hooks run when MATLAB detects a >> prompt after a K>> prompt")
+
 (defvar gud-matlab-tool-bar-map
   (let ((map (make-sparse-keymap)))
     (dolist (x '((gud-break . "gud/break")
@@ -46,6 +53,16 @@
       (tool-bar-local-item-from-menu
        (car x) (cdr x) map gud-minor-mode-map))))
 
+(defmacro matlab-gud-fcn (cmd)
+  "Define FUNC to be a command sending CMD and bound to KEY, with
+optional doc string DOC.  Certain %-escapes in the string arguments
+are interpreted specially if present.  These are:
+See `gud-def' for details."
+  ;; Note `arg' comes from gud-def declaration
+  `(if gud-matlab-debug-active
+       (gud-call ,cmd arg)
+     (error "MATLAB debugging not active")))
+
 ;;;###autoload
 (defun matlab-shell-mode-gud-enable-bindings ()
   "Enable GUD features for `matlab-shell' in the current buffer."
@@ -56,13 +73,13 @@
 
   (gud-def gud-break  "dbstop in %d/%f at %l"  "\C-b" "Set breakpoint at current line.")
   (gud-def gud-remove "dbclear in %d/%f at %l" "\C-d" "Remove breakpoint at current line.")
-  (gud-def gud-step   "dbstep in"           "\C-s" "Step one source line, possibly into a function.")
-  (gud-def gud-next   "dbstep %p"           "\C-n" "Step over one source line.")
-  (gud-def gud-cont   "dbcont"              "\C-r" "Continue with display.")
-  (gud-def gud-stop-subjob "dbquit"         nil    "Quit debugging.") ;; gud toolbar stop
-  (gud-def gud-finish "dbquit"              "\C-f" "Finish executing current function.")
-  (gud-def gud-up     "dbup"                "<"    "Up N stack frames (numeric arg).")
-  (gud-def gud-down   "dbdown"              ">"    "Down N stack frames (numeric arg).")
+  (gud-def gud-step   (matlab-gud-fcn "dbstep in")   "\C-s" "Step one source line, possibly into a function.")
+  (gud-def gud-next   (matlab-gud-fcn "dbstep %p")   "\C-n" "Step over one source line.")
+  (gud-def gud-cont   (matlab-gud-fcn "dbcont")      "\C-r" "Continue with display.")
+  (gud-def gud-stop-subjob (matlab-gud-fcn "dbquit") nil    "Quit debugging.") ;; gud toolbar stop
+  (gud-def gud-finish (matlab-gud-fcn "dbquit")      "\C-f" "Finish executing current function.")
+  (gud-def gud-up     (matlab-gud-fcn "dbup")        "<"    "Up N stack frames (numeric arg).")
+  (gud-def gud-down   (matlab-gud-fcn "dbdown")      ">"    "Down N stack frames (numeric arg).")
   ;; using (gud-def gud-print  "%e" "\C-p" "Eval expression at point") fails
   (gud-def gud-print  "% gud-print not available" "\C-p" "gud-print not available.")
 
@@ -78,6 +95,9 @@
   "Configure GUD when a new `matlab-shell' is initialized."
   (gud-mode)
 
+  ;; type of gud mode
+  (setq gud-minor-mode 'matlab)
+  
   ;; This starts us supporting gud tooltips.
   (add-to-list 'gud-tooltip-modes 'matlab-mode)
   
@@ -263,13 +283,6 @@ FILE is ignored, and ARGS is returned."
 
 
 ;;; K prompt state and hooks.
-
-(defvar gud-matlab-debug-active nil
-  "Non-nil if MATLAB has a K>> prompt up.")
-(defvar gud-matlab-debug-activate-hook nil
-  "Hooks run when MATLAB detects a K>> prompt after a >> prompt")
-(defvar gud-matlab-debug-deactivate-hook nil
-  "Hooks run when MATLAB detects a >> prompt after a K>> prompt")
 
 (defun gud-matlab-debug-tracker ()
   "Function called when new prompts appear.
