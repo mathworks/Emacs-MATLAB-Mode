@@ -273,7 +273,6 @@ mode.")
     ["Describe Variable" matlab-shell-describe-variable t]
     ["Describe Command" matlab-shell-describe-command t]
     ["Lookfor Command" matlab-shell-apropos t]
-    ["Topic Browser" matlab-shell-topic-browser t]
     "----"
     ["Complete command" matlab-shell-tab t]
     "----"
@@ -319,7 +318,6 @@ in the offending M file.
 \\[matlab-shell-describe-command] - Show online documentation for a command \
 in a popup buffer.
 \\[matlab-shell-apropos] - Show output from LOOKFOR command in a popup buffer.
-\\[matlab-shell-topic-browser] - Topic browser using HELP.
 
 > Keymap:
 \\{matlab-mode-map}"
@@ -484,7 +482,9 @@ Try C-h f matlab-shell RET"))
     (setq matlab-shell-last-error-anchor nil)
     (add-hook 'matlab-shell-prompt-appears-hook 'matlab-shell-render-errors-as-anchor nil t)
     (add-hook 'matlab-shell-prompt-appears-hook 'matlab-shell-colorize-errors nil t)
-    
+
+    (add-hook 'matlab-shell-prompt-appears-hook 'matlab-shell-capture-text t t)
+
     ;; Comint and GUD both try to set the mode.  Now reset it to
     ;; matlab mode.
     (matlab-shell-mode))
@@ -887,6 +887,97 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
   "Hook to run when the first prompt AFTER the call to emacsinit."
   (remove-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-second-prompt-fcn)
   (setq matlab-prompt-seen t))
+
+;;; OUTPUT Capture
+;;
+(defvar matlab-shell-capturetext-start-text "<EMACSCAP>"
+  "Text used as simple signal for text that should be captured.")
+(defvar matlab-shell-capturetext-end-text "</EMACSCAP>"
+  "Text used as simple signal for text that should be captured.")
+
+
+(defun matlab-shell-capture-text (&optional str)
+  "Hook function run to capture MATLAB text to display in a buffer.
+The filter captures indicators with <EMACSCAP> text </EMACSCAP>.
+This strips out that text from the shell and displays in a help."
+  (save-excursion
+    (let ((start nil) (end nil) (buffname "*MATLAB Output*")
+	  (insertbuff nil) (bufflist nil)
+	  (append nil)
+	  )
+      (goto-char (point-max))
+      
+      (while (re-search-backward (regexp-quote matlab-shell-capturetext-end-text) nil t)
+	;; Start w/ end text to make sure everything is in the buffer already.
+
+	;; Then scan for the beginning, and start there.  As we delete text, locations will move,
+	;; so move downward after this.
+	(if (not (re-search-backward (regexp-quote matlab-shell-capturetext-start-text) nil t))
+	    (error "Missmatched capture text tokens from MATLAB.")
+	  
+	  ;; Save off where we start, and delete the indicator.
+	  (setq start (match-beginning 0))
+	  (delete-region start (match-end 0))
+
+	  ;; Look to see if a directive name was specified.
+	  (when (looking-at "\\s-*(\\([^)\n]+\\))")
+	    (setq buffname (match-string-no-properties 1))
+	    (delete-region start (match-end 0)))
+
+	  ;; Cleanup newline after the token.
+	  (when (looking-at "\\s-*\n")
+	    (delete-region start (match-end 0)))
+
+	  ;; Find the end.
+	  (if (not (re-search-forward (regexp-quote matlab-shell-capturetext-end-text) nil t))
+	      (error "Internal error scanning for capture text tokens.")
+	    
+	    (setq end (match-beginning 0))
+	    (delete-region end (match-end 0))
+
+	    ;; Cleanup newline after the end token.
+	    (when (looking-at "\\s-*\n")
+	      (delete-region end (match-end 0)))
+	    
+	    ;; Now colorize capture the text.
+	    (let ((txt (buffer-substring-no-properties start end)))
+	      (delete-region start end)
+	      (save-excursion
+		(when insertbuff
+		  ;; Already have a buffer to append to.
+		  (when (not (eq insertbuff (get-buffer-create buffname)))
+		    ;; Different, don't append.
+		    (setq append nil)))
+		;; Change to new buffer  
+		(set-buffer (get-buffer-create buffname))
+		(setq buffer-read-only nil)
+		;; Clear it if not appending.
+		(when (not append) (erase-buffer))
+		(goto-char (point-max))
+		(insert txt)
+		(goto-char (point-min))
+		(setq append t
+		      insertbuff (current-buffer))
+		(add-to-list 'bufflist (current-buffer)))
+	      )))
+	    
+	;; Setup for next loop
+	(goto-char (point-max)))
+
+      ;; All done, display the buffer.
+      (when bufflist
+	(if (string= "*MATLAB Help*" buffname)
+	    (with-current-buffer (car bufflist)
+	      (matlab-shell-help-mode))
+	  (with-current-buffer (car bufflist)
+	    (view-mode)))
+	
+	(display-buffer (car bufflist)
+			'((display-buffer-below-selected display-buffer-at-bottom)
+			  (inhibit-same-window . t)
+			  (window-height . fit-window-to-buffer))))
+
+      )))
 
 
 ;;; COMMANDS
@@ -1439,7 +1530,7 @@ This command requires an active MATLAB shell."
 				(format "Describe function (default %s): " fn)
 			      "Describe function: ")))
      (if (string= val "") (list fn) (list val))))
-  (let ((doc (matlab-shell-collect-command-output (concat "help " command))))
+  (let ((doc (matlab-shell-collect-command-output (concat "help -emacs " command))))
     (matlab-output-to-temp-buffer "*MATLAB Help*" doc)))
 
 (defun matlab-shell-apropos (matlabregex)

@@ -543,7 +543,6 @@ If font lock is not loaded, lay in wait."
     (define-key km "f" 'matlab-shell-describe-command)
     (define-key km "a" 'matlab-shell-apropos)
     (define-key km "v" 'matlab-shell-describe-variable)
-    (define-key km "t" 'matlab-shell-topic-browser)
     km)
   "The help key map for `matlab-mode' and `matlab-shell-mode'.")
 
@@ -730,7 +729,6 @@ If font lock is not loaded, lay in wait."
      ["Describe Command" matlab-shell-describe-command (matlab-shell-active-p)]
      ["Describe Variable" matlab-shell-describe-variable (matlab-shell-active-p)]
      ["Command Apropos" matlab-shell-apropos (matlab-shell-active-p)]
-     ["Topic Browser" matlab-shell-topic-browser (matlab-shell-active-p)]
      ))
   (easy-menu-add matlab-mode-menu matlab-mode-map))
 
