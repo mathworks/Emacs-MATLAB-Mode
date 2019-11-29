@@ -566,12 +566,24 @@ it returns empty string"
 (defun matlab-shell-version-scrape (str)
   "Scrape the MATLAB Version from the MATLAB startup text.
 Argument STR is the string to examine for version information."
-  (when (string-match "\\(Version\\)\\s-+\\([.0-9]+\\)\\s-+(\\(R[.0-9]+[ab]?\\))" str)
-    ;; Extract the release number
-    (setq matlab-shell-running-matlab-version
-	  (match-string 2 str)
-	  matlab-shell-running-matlab-release
-	  (match-string 3 str))
+  (if (string-match "\\(Version\\)\\s-+\\([.0-9]+\\)\\s-+(\\(R[.0-9]+[ab]?\\))" str)
+      ;; OLDER MATLABS
+      (setq matlab-shell-running-matlab-version
+	    (match-string 2 str)
+	    matlab-shell-running-matlab-release
+	    (match-string 3 str))
+    ;; NEWER MATLABS
+    (if (string-match "\\(R[0-9]+[ab]\\)\\s-+Update\\s-+[0-9]+\\s-+(\\([0-9]+\\.[0-9]+\\)\\." str)
+	(setq matlab-shell-running-matlab-version
+	      (match-string 2 str)
+	      matlab-shell-running-matlab-release
+	      (match-string 1 str))))
+
+  ;; Notice that this worked.
+  (when matlab-shell-running-matlab-version
+    (message "Detected MATLAB %s (%s)  -- Loading history file" matlab-shell-running-matlab-release
+	     matlab-shell-running-matlab-version)
+  
     ;; Now get our history loaded
     (setq comint-input-ring-file-name
 	  (format matlab-shell-history-file matlab-shell-running-matlab-release))
@@ -579,7 +591,7 @@ Argument STR is the string to examine for version information."
 	(comint-read-input-ring t))
     ;; Remove the scrape from our list of things to do.
     (remove-hook 'comint-output-filter-functions
-		 'matlab-shell-version-scrape)))
+		 'matlab-shell-version-scrape t)))
 
 ;;; ANCHORS
 ;;
