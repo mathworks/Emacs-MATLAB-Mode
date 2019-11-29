@@ -306,6 +306,7 @@ Call debug activate/deactivate features."
     (define-key km "d" 'gud-down)
     (define-key km "<" 'gud-up)
     (define-key km ">" 'gud-down)
+    (define-key km "p" 'matlab-shell-gud-show-symbol-value)
     ;; (define-key km "p" gud-print)
 
     (define-key km "e" 'matlab-shell-gud-mode-edit)
@@ -380,6 +381,20 @@ Debug commands are:
       (matlab-shell-gud-minor-mode 1)))
   )
 
+(defun matlab-shell-gud-show-symbol-value (sym)
+  "Show the value of the symbol under point from MATLAB shell."
+  (interactive
+   (list
+    (if (use-region-p)
+	;; Don't ask user anything, just take it.
+	(buffer-substring-no-properties (mark) (point))
+      (let ((word (matlab-read-word-at-point)))
+	(read-from-minibuffer "MATLAB variable: " (cons word 0))))))
+  (let ((txt (matlab-shell-collect-command-output
+	      (concat "disp(" sym ")"))))
+    (matlab-output-to-temp-buffer "*MATLAB Help*" txt)))
+
+
 (defun matlab-shell-gud-mode-edit ()
   "Turn off `matlab-shell-gud-minor-mode' so you can edit again."
   (interactive)
@@ -396,8 +411,6 @@ Shows a help message in the mini buffer."
   (interactive)
   (describe-minor-mode 'matlab-shell-gud-minor-mode)
   )
-
-
 
 (provide 'matlab-shell-gud)
 
