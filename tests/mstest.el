@@ -84,8 +84,15 @@
 	  (accept-process-output nil 1)
 	  (redisplay)
 	  (sit-for 1)))
+
+      ;; During boot, we need to scrape the version number and release so we can load the
+      ;; history file.  Make sure that happend.
+      (if matlab-shell-running-matlab-version
+	  (message "VERSION SCRAPE: Successfully found MATLAB Version %s" matlab-shell-running-matlab-version)
+	(error "VERSION SCRAPE: Failed to find MATLAB Version number during startup."))
+      (message "PASS")
       
-      ;; Make sure MATLAB things we have enough columns to display the rest of our tests.
+      ;; Make sure MATLAB thinks we have enough columns to display the rest of our tests.
       ;; Without the right number of columns, future tests will fail.
       (let ((txt (mstest-get-command-output "disp(get(0,'CommandWindowSize'))")))
 	(when (< (string-to-number txt) 80)
