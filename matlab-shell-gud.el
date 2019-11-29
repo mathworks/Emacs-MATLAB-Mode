@@ -31,6 +31,20 @@
   )
 
 ;;; Code:
+(defvar gud-matlab-tool-bar-map
+  (let ((map (make-sparse-keymap)))
+    (dolist (x '((gud-break . "gud/break")
+		 (gud-remove . "gud/remove")
+		 (gud-cont . "gud/cont")
+		 (gud-next . "gud/next")
+		 (gud-step . "gud/step")
+		 (gud-stop-subjob . "gud/stop")
+		 (gud-finish . "gud/finish")
+		 (gud-up . "gud/up")
+		 (gud-down . "gud/down"))
+	       map)
+      (tool-bar-local-item-from-menu
+       (car x) (cdr x) map gud-minor-mode-map))))
 
 ;;;###autoload
 (defun matlab-shell-mode-gud-enable-bindings ()
@@ -54,6 +68,9 @@
 
   (if (fboundp 'gud-make-debug-menu)
       (gud-make-debug-menu))
+
+  (when (boundp 'tool-bar-map)            ; not --without-x
+    (kill-local-variable 'tool-bar-map))
   )
 
 ;;;###autoload
@@ -263,10 +280,15 @@ Call debug activate/deactivate features."
       (cond
        ((and gud-matlab-debug-active (looking-at gud-matlab-marker-regexp->>))
 	(setq gud-matlab-debug-active nil)
+	(when (boundp 'tool-bar-map)            ; not --without-x
+	  (with-current-buffer (matlab-shell-active-p) (kill-local-variable 'tool-bar-map)))
 	(global-matlab-shell-gud-minor-mode -1)
 	(run-hooks 'gud-matlab-debug-deactivate-hook))
        ((and (not gud-matlab-debug-active) (looking-at gud-matlab-marker-regexp-K>>))
 	(setq gud-matlab-debug-active t)
+	(when (boundp 'tool-bar-map)            ; not --without-x
+	  (with-current-buffer (matlab-shell-active-p)
+	    (setq-local tool-bar-map gud-matlab-tool-bar-map)))
 	(global-matlab-shell-gud-minor-mode 1)
 	(run-hooks 'gud-matlab-debug-activate-hook))
        (t
