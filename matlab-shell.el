@@ -2,7 +2,7 @@
 ;;
 ;; Copyright (C) 2019 Eric Ludlam
 ;;
-;; Author: Eric Ludlam <zappo@ballista>
+;; Author: Eric Ludlam <zappo@gnu.org>
 ;;
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License as
@@ -40,6 +40,9 @@
 (defvar company-idle-delay)
 (defvar company-mode)
 
+;; Key entry points for matlab-shell-gud
+(declare-function matlab-shell-mode-gud-enable-bindings "matlab-shell-gud")
+(declare-function matlab-shell-gud-startup "matlab-shell-gud")
 
 ;;; Customizations
 ;;
@@ -112,11 +115,6 @@ will disable use emacsclient as the external editor."
   :group 'matlab-shell
   :type 'integer)
 
-(defcustom matlab-shell-enable-gud-flag t
-  "*Non-nil means to use GUD mode when running the MATLAB shell."
-  :group 'matlab-shell
-  :type 'boolean)
-
 ;;
 ;; Completion handling
 (defcustom matlab-shell-ask-MATLAB-for-completions t
@@ -158,6 +156,9 @@ If multiple prompts are seen together, only call this once.")
 
 (defvar matlab-shell-cco-testing nil
   "Non nil when testing matlab-shell.")
+
+(defvar matlab-shell-io-testing nil
+  "Non-nil to display process output and input log.")
 
 ;;; Font Lock
 ;;
@@ -212,7 +213,7 @@ mode.")
   (let ((path (file-name-directory matlab-shell-command)))
     ;; if we don't have a path, find the MATLAB executable on our path.
     (when (not path)
-      (setq path  (matlab-find-executible-directory matlab-shell-command)))
+      (setq path  (matlab-find-executable-directory matlab-shell-command)))
     (when path
       ;; When we find the path, we need to massage it to identify where
       ;; the M files are that we need for our completion lists.
@@ -251,7 +252,7 @@ mode.")
     (define-key km [(backspace)] 'matlab-shell-delete-backwards-no-prompt)
 
     ;; Files
-    (define-key km "\C-c." 'matlab-find-file-on-path)
+    (define-key km "\C-c." 'matlab-shell-locate-fcn)
 
     km)
 
@@ -266,6 +267,8 @@ mode.")
     ["Stop On Errors" matlab-shell-dbstop-error t]
     ["Don't Stop On Errors" matlab-shell-dbclear-error t]
     "----"
+    ["Locate MATLAB function" matlab-shell-locate-fcn
+     :help "Run 'which FCN' in matlab-shell, then open the file in Emacs"]
     ["Run Command" matlab-shell-run-command t]
     ["Describe Variable" matlab-shell-describe-variable t]
     ["Describe Command" matlab-shell-describe-command t]
@@ -328,123 +331,50 @@ in a popup buffer.
 	comint-process-echoes matlab-shell-echoes
 	comint-get-old-input #'matlab-comint-get-old-input
 	)
-  ;; matlab-shell variable setup
-  (make-local-variable 'matlab-shell-last-error-anchor)
-  (setq matlab-shell-last-error-anchor nil)
-
   ;; Shell Setup
   (require 'shell)
-  (if (fboundp 'shell-directory-tracker)
-      (add-hook 'comint-input-filter-functions 'shell-directory-tracker nil t)) ;; patch Eli Merriam
-  ;; Add a version scraping logo identification filter.
-  (add-hook 'comint-output-filter-functions 'matlab-shell-version-scrape nil t)
-  ;; Add pseudo html-renderer
-  (add-hook 'comint-output-filter-functions 'matlab-shell-render-html-anchor nil t)
-  ;; Scroll to bottom after running cell/region
-  (add-hook 'comint-output-filter-functions 'comint-postoutput-scroll-to-bottom nil t)
 
-  ;; Add error renderer to prompt hook so the prompt is available for resolving names.
-  (add-hook 'matlab-shell-prompt-appears-hook 'matlab-shell-render-errors-as-anchor nil t)
-  (add-hook 'matlab-shell-prompt-appears-hook 'matlab-shell-colorize-errors nil t)
-
-  ;; Add hook for finding the very first prompt - so we know when the buffer is ready to use.
-  (add-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-first-prompt-fcn)
-  
-  (make-local-variable 'comment-start)
-  (setq comment-start "%")
-  (use-local-map matlab-shell-mode-map)
-  (set-syntax-table matlab-mode-syntax-table)
-  (make-local-variable 'font-lock-defaults)
-  (setq font-lock-defaults '((matlab-shell-font-lock-keywords-1
-			      matlab-shell-font-lock-keywords-2
-			      matlab-shell-font-lock-keywords-3)
-			     t nil ((?_ . "w"))))
+  ;; COMINT History Setup
   (set (make-local-variable 'comint-input-ring-size)
        matlab-shell-input-ring-size)
   (set (make-local-variable 'comint-input-ring-file-name)
        (format matlab-shell-history-file "R12"))
   (if (fboundp 'comint-read-input-ring)
       (comint-read-input-ring t))
-  (make-local-variable 'gud-marker-acc)
+  
+  ;;; MODE Settings
+  (make-local-variable 'comment-start)
+  (setq comment-start "%")
+  
+  (use-local-map matlab-shell-mode-map)
+  (set-syntax-table matlab-mode-syntax-table)
 
-  (if matlab-shell-enable-gud-flag
-      (progn
-	(gud-def gud-break  "dbstop in %d/%f at %l"  "\C-b" "Set breakpoint at current line.")
-	(gud-def gud-remove "dbclear in %d/%f at %l" "\C-d" "Remove breakpoint at current line.")
-	(gud-def gud-step   "dbstep in"           "\C-s" "Step one source line, possibly into a function.")
-	(gud-def gud-next   "dbstep %p"           "\C-n" "Step over one source line.")
-	(gud-def gud-cont   "dbcont"              "\C-r" "Continue with display.")
-        (gud-def gud-stop-subjob "dbquit"         nil    "Quit debugging.") ;; gud toolbar stop
-	(gud-def gud-finish "dbquit"              "\C-f" "Finish executing current function.")
-	(gud-def gud-up     "dbup"                "<"    "Up N stack frames (numeric arg).")
-	(gud-def gud-down   "dbdown"              ">"    "Down N stack frames (numeric arg).")
-        ;; using (gud-def gud-print  "%e" "\C-p" "Eval expression at point") fails
-	(gud-def gud-print  "% gud-print not available" "\C-p" "gud-print not available.")
-	(if (fboundp 'gud-make-debug-menu)
-	    (gud-make-debug-menu))
-	(if (fboundp 'gud-overload-functions)
-	    (gud-overload-functions
-	     '((gud-massage-args . gud-matlab-massage-args)
-	       (gud-marker-filter . gud-matlab-marker-filter)
-	       (gud-find-file . gud-matlab-find-file))))
-	;; XEmacs doesn't seem to have this concept already.  Oh well.
-	(setq gud-marker-acc nil)
-	;; XEmacs has problems w/ this variable.  Set it here.
-	(set-marker comint-last-output-start (point-max))
-	))
+  (make-local-variable 'font-lock-defaults)
+  (setq font-lock-defaults '((matlab-shell-font-lock-keywords-1
+			      matlab-shell-font-lock-keywords-2
+			      matlab-shell-font-lock-keywords-3)
+			     t nil ((?_ . "w"))))
+
+  ;; GUD support
+  (matlab-shell-mode-gud-enable-bindings)
+
+  ;; Company mode can be used to display completions for MATLAB in matlab-shell.
+  ;; This block enables company mode for this shell, and turns off the idle timer
+  ;; so users must press TAB to get the menu.
+  (when (and matlab-shell-tab-use-company
+	     matlab-shell-tab-company-available)
+    ;; Only do popup when users presses TAB
+    (set (make-local-variable 'company-idle-delay) nil)
+    (company-mode))
+
+  ;; Hooks, etc
   (run-hooks 'matlab-shell-mode-hook)
   (matlab-show-version)
   )
 
-(defun matlab-comint-get-old-input ()
-  "Compute text from the current line to evluate with MATLAB.
-This function checks to make sure the line is on a prompt.  If not,
-it returns empty string"
-  (let ((inhibit-field-text-motion t))
-    (save-excursion
-      (beginning-of-line)
-      (save-match-data
-	(if (looking-at comint-prompt-regexp)
-	    ;; We'll send this line.
-	    (buffer-substring-no-properties (match-end 0) (point-at-eol))
-	  ;; Otherwise, it's probably junk that is useless.  Don't do it.
-	  "")))))
 
-;;; MATLAB SHELL
+;;; NETSHELL integration
 ;;
-;; Core shell state handling & startup function.
-
-(defvar matlab-shell-running-matlab-version nil
-  "The version of MATLAB running in the current `matlab-shell' buffer.")
-(defvar matlab-shell-running-matlab-release nil
-  "The release of MATLAB running in the current `matlab-shell' buffer.")
-(defvar matlab-shell-use-emacs-toolbox
-  ;; matlab may not be on path.  (Name change, explicit load, etc)
-  (let* ((mlfile (locate-library "matlab"))
-	 (dir (expand-file-name "toolbox/emacsinit.m"
-				(file-name-directory (or mlfile "")))))
-    (and mlfile (file-exists-p dir)))
-  "Add the `matlab-shell' MATLAB toolbox to the MATLAB path on startup.")
-
-(defvar matlab-shell-buffer-name "MATLAB"
-  "Name used to create `matlab-shell' mode buffers.
-This name will have *'s surrounding it.")
-
-(defvar matlab-prompt-seen nil
-  "Track visibility of MATLAB prompt in MATLAB Shell.")
-
-;;
-;; Predicate for use by matlab buffers
-(declare-function comint-check-proc "comint" (buffer))
-
-(defun matlab-shell-active-p ()
-  "Return t if the MATLAB shell is active."
-  (let ((msbn (get-buffer (concat "*" matlab-shell-buffer-name "*"))))
-    (if msbn
-        (with-current-buffer msbn
-          (if (comint-check-proc (current-buffer))
-              (current-buffer))))))
-
 (declare-function matlab-netshell-client "matlab-netshell")
 (declare-function matlab-netshell-server-start "matlab-netshell")
 (declare-function matlab-netshell-server-active-p "matlab-netshell")
@@ -458,6 +388,26 @@ This name will have *'s surrounding it.")
   "Return non-nil of any of the matlab connections are active."
   (or (matlab-netshell-active-p) (matlab-shell-active-p)))
 
+
+;;; MATLAB SHELL
+;;
+;; Core shell state handling & startup function.
+
+(defvar matlab-shell-buffer-name "MATLAB"
+  "Name used to create `matlab-shell' mode buffers.
+This name will have *'s surrounding it.")
+
+(defvar matlab-prompt-seen nil
+  "Track visibility of MATLAB prompt in MATLAB Shell.")
+
+(defun matlab-shell-active-p ()
+  "Return t if the MATLAB shell is active."
+  (let ((msbn (get-buffer (concat "*" matlab-shell-buffer-name "*"))))
+    (if msbn
+        (with-current-buffer msbn
+          (if (comint-check-proc (current-buffer))
+              (current-buffer))))))
+
 ;;;###autoload
 (defun matlab-shell ()
   "Create a buffer with MATLAB running as a subprocess.
@@ -468,51 +418,37 @@ a console application."
   ;; MATLAB shell does not work by default on the Windows platform.  Only
   ;; permit it's operation when the shell command string is different from
   ;; the default value.  (True when the engine program is running.)
-  (if (and (or (eq window-system 'pc) (eq window-system 'w32))
-	   (string= matlab-shell-command "matlab"))
-      (error "MATLAB cannot be run as a inferior process.  \
+  (when (and (or (eq window-system 'pc) (eq window-system 'w32))
+	     (string= matlab-shell-command "matlab"))
+    (error "MATLAB cannot be run as a inferior process.  \
 Try C-h f matlab-shell RET"))
 
   (require 'shell)
-  (require 'gud)
+  (require 'matlab-shell-gud)
 
   ;; Make sure netshell is started if it is wanted.
   (when (and matlab-shell-autostart-netshell
 	     (not (matlab-netshell-server-active-p)))
     (matlab-netshell-server-start))
-  
-  ;; Make sure this is safe to use gud to debug MATLAB
-  (when (and matlab-shell-enable-gud-flag (not (fboundp 'gud-def)))
-    (message "Your emacs is missing `gud-def' which means matlab-shell won't work correctly.")
-    (setq matlab-shell-enable-gud-flag nil))
 
+  ;; Show the shell buffer
   (switch-to-buffer (concat "*" matlab-shell-buffer-name "*"))
-  (if (matlab-shell-active-p)
-      nil
+
+  ;; If the shell isn't active yet, start it.
+  (when (not (matlab-shell-active-p))
+    
     ;; Clean up crufty state
     (kill-all-local-variables)
-    (switch-to-buffer
-     ;; Thx David Chappaz for reminding me about this patch.
-     (let* ((windowid (frame-parameter (selected-frame) 'outer-window-id))
-            (newvar (concat "WINDOWID=" windowid))
-            (process-environment (cons newvar process-environment)))
-       (apply 'make-comint matlab-shell-buffer-name matlab-shell-command
-              nil matlab-shell-command-switches)))
 
-    (setq shell-dirtrackp t)
-    ;; TODO - the below isn't needed based on behavior of make-comint  Check if I can remove it.
-    (comint-mode)
-
-    (when matlab-shell-enable-gud-flag
-      (gud-mode)
-      (make-local-variable 'matlab-prompt-seen)
-      (setq matlab-prompt-seen nil)
-      (make-local-variable 'gud-marker-filter)
-      (setq gud-marker-filter 'gud-matlab-marker-filter)
-      (make-local-variable 'gud-find-file)
-      (setq gud-find-file 'gud-matlab-find-file)
-
-      (gud-set-buffer))
+    ;; Thx David Chappaz for reminding me about this patch.
+    (let* ((windowid (frame-parameter (selected-frame) 'outer-window-id))
+	   (newvar (concat "WINDOWID=" windowid))
+	   (process-environment (cons newvar process-environment)))
+      (apply #'make-comint matlab-shell-buffer-name matlab-shell-command
+	     nil matlab-shell-command-switches))
+  
+    ;; Enable GUD
+    (matlab-shell-gud-startup)
 
     ;; Init our filter and sentinel
     (set-process-filter (get-buffer-process (current-buffer))
@@ -520,23 +456,45 @@ Try C-h f matlab-shell RET"))
     (set-process-sentinel (get-buffer-process (current-buffer))
                           'matlab-shell-wrapper-sentinel)
 
+    ;; XEmacs has problems w/ this variable.  Set it here.
+    (set-marker comint-last-output-start (point-max))
+
+    (make-local-variable 'matlab-prompt-seen)
+    (setq matlab-prompt-seen nil)
+
+    ;; FILTERS
+    ;;
+
+    ;; Add hook for finding the very first prompt - so we know when the buffer is ready to use.
+    (add-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-first-prompt-fcn)
+
+    ;; Track current directories when user types cd
+    (add-hook 'comint-input-filter-functions 'shell-directory-tracker nil t) ;; patch Eli Merriam
+
+    ;; Add a version scraping logo identification filter.
+    (add-hook 'comint-output-filter-functions 'matlab-shell-version-scrape nil t)
+
+    ;; Add pseudo html-renderer
+    (add-hook 'comint-output-filter-functions 'matlab-shell-render-html-anchor nil t)
+    ;; Scroll to bottom after running cell/region
+    (add-hook 'comint-output-filter-functions 'comint-postoutput-scroll-to-bottom nil t)
+
+    ;; Add error renderer to prompt hook so the prompt is available for resolving names.
+    (make-local-variable 'matlab-shell-last-error-anchor)
+    (setq matlab-shell-last-error-anchor nil)
+    (add-hook 'matlab-shell-prompt-appears-hook 'matlab-shell-render-errors-as-anchor nil t)
+    (add-hook 'matlab-shell-prompt-appears-hook 'matlab-shell-colorize-errors nil t)
+    
     ;; Comint and GUD both try to set the mode.  Now reset it to
     ;; matlab mode.
-    (matlab-shell-mode)
-
-    ;; Company mode can be used to display completions for MATLAB in matlab-shell.
-    ;; This block enables company mode for this shell, and turns off the idle timer
-    ;; so users must press TAB to get the menu.
-    (when (and matlab-shell-tab-use-company
-	       matlab-shell-tab-company-available)
-      
-      ;; Only do popup when users presses TAB
-      (set (make-local-variable 'company-idle-delay) nil)
-      (company-mode))
-    ))
+    (matlab-shell-mode))
+  )
 
 ;;; PROCESS FILTERS & SENTINEL
 ;;
+;; These are wrappers around the GUD filters so we can pre and post process
+;; decisions by comint and gud.
+
 (defun matlab-shell-wrapper-filter (proc string)
   "MATLAB Shell's process filter.  This wraps the GUD and COMINT filters."
   ;; A few words about process sentinel's in the MATLAB shell buffer:
@@ -551,10 +509,18 @@ Try C-h f matlab-shell RET"))
 
   (let ((buff (process-buffer proc)))
 
+    ;; Cleanup garbage before sending it along to the other filters.
+    (let ((garbage (concat "\\(" (regexp-quote "\C-g") "\\|"
+			   (regexp-quote "\033[H0") "\\|"
+			   (regexp-quote "\033[H\033[2J") "\\|"
+			   (regexp-quote "\033H\033[2J") "\\)")))
+      (while (string-match garbage string)
+	;;(if (= (aref string (match-beginning 0)) ?\C-g)
+	;;(beep t))
+	(setq string (replace-match "" t t string))))
+    
     (with-current-buffer buff
-      (if matlab-shell-enable-gud-flag 
-	  (gud-filter proc string)
-	(comint-output-filter proc string)))
+      (gud-filter proc string))
 
     ;; In case things get switched around on us
     (with-current-buffer buff
@@ -565,12 +531,37 @@ Try C-h f matlab-shell RET"))
 
 (defun matlab-shell-wrapper-sentinel (proc string)
   "MATLAB Shell's process sentinel.  This wraps the GUD and COMINT filters."
-  (if matlab-shell-enable-gud-flag 
-      (gud-sentinel proc string)))
+  (let ((buff (process-buffer proc)))
+    (with-current-buffer buff
+      (gud-sentinel proc string))))
+
+;;; COMINT support fcns
+;;
+(defun matlab-comint-get-old-input ()
+  "Compute text from the current line to evaluate with MATLAB.
+This function checks to make sure the line is on a prompt.  If not,
+it returns empty string"
+  (let ((inhibit-field-text-motion t))
+    (save-excursion
+      (beginning-of-line)
+      (save-match-data
+	(if (looking-at comint-prompt-regexp)
+	    ;; We'll send this line.
+	    (buffer-substring-no-properties (match-end 0) (point-at-eol))
+	  ;; Otherwise, it's probably junk that is useless.  Don't do it.
+	  "")))))
+
 
 ;;; STARTUP / VERSION 
 ;;
 ;; Handlers for startup output / version scraping
+;;
+;; TODO - these scraped values aren't used anywhere.  Do we care?
+
+(defvar matlab-shell-running-matlab-version nil
+  "The version of MATLAB running in the current `matlab-shell' buffer.")
+(defvar matlab-shell-running-matlab-release nil
+  "The release of MATLAB running in the current `matlab-shell' buffer.")
 
 (defun matlab-shell-version-scrape (str)
   "Scrape the MATLAB Version from the MATLAB startup text.
@@ -668,7 +659,7 @@ after this anchor.")
    )
   "List of Expressions to search for after an error anchor is found.
 These expressions are listed as matching from newer MATLAB versions
-to older MATLABs.
+to older MATLAB's.
 Each expression should have the following match strings:
   1 - The matlab function
   2 - The line number
@@ -809,47 +800,7 @@ This strips out that text, and colorizes the region red."
 	;; Setup for next loop
 	(goto-char (point-max))))))
 
-;;; FILTER
-;;
-;; MATLAB's process filter handles output from the MATLAB process and
-;; inteprets it for formatting text, and for running the debugger.
-
-(defvar gud-matlab-marker-regexp-plain-prompt "^K?>>"
-  "Regular expression for finding a prompt.")
-
-(defvar gud-matlab-marker-regexp-1 "^K>>"
-  "Regular expression for finding a file line-number.")
-
-(defvar gud-matlab-marker-regexp-2
-  (concat "^> In \\(" matlab-anchor-beg
-          "\\|\\)\\([-.a-zA-Z0-9_>/@]+\\) \\((\\w+) \\|\\)at line \\([0-9]+\\)[ \n]+")
-  "Regular expression for finding a file line-number.
-Please note: The leading > character represents the current stack frame, so if
-there are several frames, this makes sure we pick the right one to popup.")
-
-(defvar gud-matlab-dbhotlink nil
-  "Track if we've sent a dbhotlink request.")
-(make-variable-buffer-local 'gud-matlab-dbhotlink)
-
-(defun gud-matlab-massage-args (file args)
-  "Argument message for starting matlab file.
-I don't think I have to do anything, but I'm not sure.
-FILE is ignored, and ARGS is returned."
-  args)
-
-(defun gud-matlab-find-file (f)
-  "Find file F when debugging frames in MATLAB."
-  (save-excursion
-    (let* ((realfname (if (string-match "\\.\\(p\\)$" f)
-			  (progn
-			    (aset f (match-beginning 1) ?m)
-			    f)
-			f))
-	   (buf (find-file-noselect realfname)))
-      (set-buffer buf)
-      (if (fboundp 'gud-make-debug-menu)
-	  (gud-make-debug-menu))
-      buf)))
+;;; Shell Startup
 
 (defun matlab-shell--get-emacsclient-command ()
   (when (not (server-running-p))
@@ -867,6 +818,15 @@ FILE is ignored, and ARGS is returned."
           (if server-use-tcp
               (concat " -f " (expand-file-name server-name server-auth-dir))
             (concat " -s " (expand-file-name server-name server-socket-dir)))))
+
+(defvar matlab-shell-use-emacs-toolbox
+  ;; matlab may not be on path.  (Name change, explicit load, etc)
+  (let* ((mlfile (locate-library "matlab"))
+	 (dir (expand-file-name "toolbox/emacsinit.m"
+				(file-name-directory (or mlfile "")))))
+    (and mlfile (file-exists-p dir)))
+  "Add the `matlab-shell' MATLAB toolbox to the MATLAB path on startup.")
+
 
 (defun matlab-shell-first-prompt-fcn ()
   "Hook run when the first prompt is seen.
@@ -900,7 +860,7 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
     ))
 
 (defun matlab-shell-user-startup-fcn ()
-  "Hook run on second prompt to run user specified startup funtions."
+  "Hook run on second prompt to run user specified startup functions."
   ;; Remove ourselves
   (remove-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-user-startup-fcn)
   
@@ -913,136 +873,8 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
 
 (defun matlab-shell-second-prompt-fcn ()
   "Hook to run when the first prompt AFTER the call to emacsinit."
-  (remove-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-first-prompt-fcn)
+  (remove-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-second-prompt-fcn)
   (setq matlab-prompt-seen t))
-
-(defun gud-matlab-marker-filter (string)
-  "Filters STRING for the Unified Debugger based on MATLAB output."
-
-  (let ((garbage (concat "\\(" (regexp-quote "\C-g") "\\|"
- 			 (regexp-quote "\033[H0") "\\|"
- 			 (regexp-quote "\033[H\033[2J") "\\|"
- 			 (regexp-quote "\033H\033[2J") "\\)")))
-    (while (string-match garbage string)
-      ;;(if (= (aref string (match-beginning 0)) ?\C-g)
-      ;;(beep t))
-      (setq string (replace-match "" t t string))))
-
-  (setq gud-marker-acc (concat gud-marker-acc string))
-  (let ((output "") (frame nil))
-
-    ;; ERROR DELIMITERS
-    ;; Newer MATLABS wrap error text in {^H  }^H characters.
-    ;; Convert into something COMINT won't delete so we can scan them.
-    (while (string-match "{" gud-marker-acc)
-      (setq gud-marker-acc (replace-match matlab-shell-errortext-start-text t t gud-marker-acc 0)))
-
-    (while (string-match "}" gud-marker-acc)
-      (setq gud-marker-acc (replace-match matlab-shell-errortext-end-text t t gud-marker-acc 0)))
-    
-    ;; DEBUG PROMPTS
-    (when (string-match gud-matlab-marker-regexp-1 gud-marker-acc)
-
-      ;; Look for any frames for case of a debug prompt.
-      (let ((url gud-marker-acc)
-	    ef el)
-
-	;; We use dbhotlinks to create the below syntax.  If we see it we have a frame,
-	;; and should tell gud to go there.
-	
-	(when (string-match "opentoline('\\([^']+\\)',\\([0-9]+\\),\\([0-9]+\\))" url)
-	  (setq ef (substring url (match-beginning 1) (match-end 1))
-		el (substring url (match-beginning 2) (match-end 2)))
-
-	  (setq frame (cons ef (string-to-number el)))))
-
-      ;; Newer MATLABs don't print useful info.  We'll have to
-      ;; search backward for the previous line to see if a frame was
-      ;; displayed.
-      (when (and (not frame) (not gud-matlab-dbhotlink))
-	(process-send-string
-	 (get-buffer-process gud-comint-buffer)
-	 "dbhotlink()%%%\n")
-	(setq gud-matlab-dbhotlink t)
-	)
-      )
-
-    ;; If we're forced to ask for a stack hotlink, we will see it come in via the
-    ;; process output.  Don't output anything until a K prompt is seen after the display
-    ;; of the dbhotlink command.
-    (when gud-matlab-dbhotlink
-      (let ((start (string-match "dbhotlink()%%%" gud-marker-acc))
-	    (endprompt nil))
-	(if start
-	    (progn
-	      (setq output (substring gud-marker-acc 0 start)
-		    gud-marker-acc (substring gud-marker-acc start))
-
-	      ;; The hotlink text will persist until we see the K prompt.
-	      (when (string-match "^K?>> " gud-marker-acc)
-		(setq endprompt (match-end 0))
-		;; We're done with the text!  Remove it from the accumulator.
-		(setq gud-marker-acc (substring gud-marker-acc endprompt))
-		;; If we got all this at the same time, push output back onto the accumulator for
-		;; the next code bit to push it out.
-		(setq gud-marker-acc (concat output gud-marker-acc)
-		      output ""
-		      gud-matlab-dbhotlink nil)
-		))
-	  ;; Else, waiting for a link, but hasn't shown up yet.
-	  ;; TODO - what can I do here to fix var setting if it gets
-	  ;; locked?
-	  (when (string-match "^>> " gud-marker-acc)
-	    ;; A non-k prompt showed up.  We're not going to get out request.
-	    (setq gud-matlab-dbhotlink nil))
-	  )))
-    
-    ;; This if makes sure that the entirety of an error output is brought in
-    ;; so that matlab-shell-mode doesn't try to display a file that only partially
-    ;; exists in the buffer.  Thus, if MATLAB output:
-    ;;  error: /home/me/my/mo/mello.m,10,12
-    ;; All of that is in the buffer, and it goes to mello.m, not just
-    ;; the first half of that file name.
-    ;; The below used to match against the prompt, not \n, but then text that
-    ;; had error: in it for some other reason wouldn't display at all.
-    (if (and matlab-prompt-seen ;; don't pause output if prompt not seen
-	     gud-matlab-dbhotlink ;; pause output if waiting on debugger
-	     )
-	;; We could be collecting debug info.  Wait before output.
-	nil
-      ;; Finish off this part of the output.  None of our special stuff
-      ;; ends with a \n, so display those as they show up...
-      (while (string-match "^[^\n]*\n" gud-marker-acc)
-	(setq output (concat output (substring gud-marker-acc 0 (match-end 0)))
-	      gud-marker-acc (substring gud-marker-acc (match-end 0))))
-
-      (if (string-match "^K?>> $" gud-marker-acc)
-	  (setq output (concat output gud-marker-acc)
-		gud-marker-acc ""))
-      
-      ;; Check our output for a prompt, and existence of a frame.
-      ;; If this is true, throw out the debug arrow stuff.
-      (if (and (string-match "^>> $" output)
-	       gud-last-last-frame)
-	  (progn
-	    (setq overlay-arrow-position nil
-		  gud-last-last-frame nil
-		  gud-overlay-arrow-position nil)
-	    (sit-for 0)
-	    )))
-
-    (if frame (setq gud-last-frame frame))
-
-    ;;(message "ph=%S [%s] [%s]" matlab-shell-suppress-prompt-hooks output gud-marker-acc)
-
-    ;;(message "Looking for prompt in %S" output)
-    (when (and (not matlab-shell-suppress-prompt-hooks)
-	       (string-match gud-matlab-marker-regexp-plain-prompt output))
-      ;; Now that we are about to dump this, run our prompt hook.
-      ;;(message "PROMPT!")
-      (setq matlab-shell-prompt-hook-cookie t))
-    
-    output))
 
 
 ;;; COMMANDS
@@ -1087,7 +919,7 @@ Optional argument ARG describes the number of chars to delete."
 
 ;;; COMPLETION
 ;;
-;; Requet list of completions from MATLAB.
+;; Request list of completions from MATLAB.
 ;; Support classic emacs in-place completion, or company mode if available.
 
 (defun matlab-shell-completion-list (str)
@@ -1424,7 +1256,7 @@ LOCATION is a string indicating where it is, and BUILTINFLAG is
 non-nil if FCN is a builtin."
   (save-excursion
     (let* ((msbn (matlab-shell-buffer-barf-not-running))
-	   (cmd (concat "which " fcn))
+	   (cmd (format "disp(which('%s'))" fcn))
 	   (comint-scroll-show-maximum-output nil)
 	   output
 	   builtin
@@ -1447,6 +1279,20 @@ non-nil if FCN is a builtin."
        (t
 	(string-match "$" output)
 	(cons (substring output 0 (match-beginning 0)) nil))))))
+
+(defun matlab-shell-locate-fcn (fcn)
+  "Run \"which FCN\" in the `matlab-shell', then open the file."
+  (interactive
+   (list
+    (let ((default (matlab-read-word-at-point)))
+      (if (and default (not (equal default "")))
+	  (let ((s (read-string (concat "MATLAB locate fcn (default " default "): "))))
+	    (if (string= s "") default s))
+	(read-string "MATLAB locate fcn: ")))))
+  (let ((file (matlab-shell-which-fcn fcn)))
+    (if file
+        (find-file (car file))
+      (error "which('%s') returned empty" fcn))))
 
 (defvar matlab-shell-matlabroot-run nil
   "Cache of MATLABROOT in this shell.")
@@ -1481,7 +1327,7 @@ Returns a string path to the root of the executing MATLAB."
 
 ;;; MATLAB Shell Commands =====================================================
 ;;
-;; These command are in the Menu for the matlab-shell buffer.
+;; These commands will use matlab-shell as a utility, capture and display output.
 
 (defun matlab-read-word-at-point ()
   "Get the word closest to point, but do not change position.
@@ -1503,7 +1349,7 @@ Snatched and hacked from dired-x.el"
             (skip-chars-backward word-chars bol)
             (setq start (point))
             (skip-chars-forward word-chars eol))
-        (setq start (point)))		; If no found, return empty string
+        (setq start (point)))		; If not found, return empty string
       (buffer-substring start (point)))))
 
 (defun matlab-read-line-at-point ()
@@ -1604,11 +1450,19 @@ This uses the lookfor command to find viable commands."
 
 (defun matlab-on-empty-prompt-p ()
   "Return t if we MATLAB is on an empty prompt."
-  (save-excursion
+  (with-current-buffer (matlab-shell-active-p)
     (let ((inhibit-field-text-motion t))
       (goto-char (point-max))
       (beginning-of-line)
       (looking-at (concat comint-prompt-regexp "\\s-*$")))))
+
+(defun matlab-on-debug-prompt-p ()
+  "Return t if we MATLAB is on an debug prompt."
+  (with-current-buffer (matlab-shell-active-p)
+    (let ((inhibit-field-text-motion t))
+      (goto-char (point-max))
+      (beginning-of-line)
+      (looking-at (concat "K>>\\s-*")))))
 
 (defun matlab-shell-buffer-barf-not-running ()
   "Return a running MATLAB buffer iff it is currently active."
@@ -1718,6 +1572,8 @@ If there is only a `matlab-netshell', send it to the netshell."
 	(goto-char (point-max))
 	(insert string)
 	(set-marker (process-mark proc) (point))))
+  (when matlab-shell-io-testing
+    (message "<--[%s]" string))
   (comint-send-string (get-buffer-process (current-buffer)) string))
 
 (defun matlab-url-at (p)
@@ -1762,7 +1618,7 @@ show up in reverse order."
 	 (ans nil))
     (if (member L '("mlx" "m"))
 	nil
-      ;; Not a . from a .m file, probbly a class ??
+      ;; Not a . from a .m file, probably a class ??
       (while S
 	(when (and (= (length S) 1) (not fcn-p))
 	  ;; Is there is a method? strip it off.
@@ -1853,6 +1709,7 @@ If DEBUG is non-nil, then setup GUD debugging features."
     (setq ec (string-to-number ec))
     (if (> ec 0) (forward-char (1- ec)))))
 
+;; TODO: No callers use DEBUG input  Remove?
 (defun matlab-find-other-window-via-url (url &optional debug)
   "Find other window using matlab URL and optionally set DEBUG cursor."
   (cond ((string-match "^error:\\(.*\\),\\([0-9]+\\),\\([0-9]+\\)$" url)
@@ -2021,7 +1878,7 @@ Similar to  `comint-send-input'."
 	    (matlab-shell-send-string (concat cmd "\n"))
 	    ))
       
-      ;; If not chaning dir, maybe we need to use 'run' command instead?
+      ;; If not changing dir, maybe we need to use 'run' command instead?
       (let ((cmd (concat "run('" dir fn-name "')")))
 	(matlab-shell-send-command cmd)))
     ))
@@ -2132,7 +1989,7 @@ Picks between different options for running the commands."
 (defun matlab-shell-region->commandline (beg end &optional noshow)
   "Convert the region between BEG and END into a MATLAB command.
 Squeeze out newlines.
-When NOSHOW is non-nil, supress output by adding ; to commands."
+When NOSHOW is non-nil, suppress output by adding ; to commands."
   ;; Assume beg & end are in the right order.
   (let ((str (concat (buffer-substring beg end) "\n")))
     ;; Remove comments
@@ -2171,6 +2028,21 @@ When NOSHOW is non-nil, supress output by adding ; to commands."
   "Create a command to run the region between BEG and END.
 Uses internal MATLAB API to execute the code keeping breakpoints
 and local functions active."
+  ;; Reduce end by 1 char, as that is how ML treats it
+  (setq end (1- end))
+
+  (let ((enc-str (symbol-name buffer-file-coding-system)))
+    (when (string-match "\\<dos" enc-str)
+      ;; If the file has DOS line endings, we need to modify begin and end since
+      ;; Emacs treats it as 1 char, but ML will treat it as 2 char.
+      ;; Thus, add to beg and end the # of chars as there are lines.
+      (save-excursion
+	(goto-char beg)
+	(setq beg (+ beg (count-lines (point-min) (point))))
+	(goto-char end)
+	(setq end (+ end (count-lines (point-min) (point))))
+	)))
+
   (format "emacsrunregion('%s',%d,%d)\n"
 	  (buffer-file-name (current-buffer))
 	  beg end))
@@ -2183,8 +2055,8 @@ and local functions active."
 (defun matlab-shell-extract-region-to-tmp-file (beg end &optional noshow)
   "Extract region between BEG & END into a temporary M file.
 The tmp file name is based on the name of the current buffer.
-The extracted region is unmodifed from src buffer unless NOSHOW is non-nil,
-in which case ; are added to quiece the buffer.
+The extracted region is unmodified from src buffer unless NOSHOW is non-nil,
+in which case ; are added to quiesce the buffer.
 Scan the extracted region for any functions that are in the original
 buffer,and include them.
 Return the name of the temporary file."
@@ -2199,7 +2071,7 @@ Return the name of the temporary file."
 		       (number-to-string len)))
 	 (bss (buffer-substring-no-properties beg end))
 	 (buff (find-file-noselect (concat newf ".m")))
-	 (intro "%% Automatically craeted temporary file created to run-region")
+	 (intro "%% Automatically created temporary file created to run-region")
 	 ;; These variables are for script / fcn tracking
 	 (functions (matlab-semantic-get-local-functions-for-script (current-buffer)))
 	 )
@@ -2258,71 +2130,6 @@ Return the name of the temporary file."
 	       ;; The below needs to be a perfect match to the setter.
 	       `(lambda () (matlab-shell-cleanup-extracted-region ,fname)))
   )
-
-;;; M File path stuff =========================================================
-
-(defcustom matlab-mode-install-path
-  (list
-   (expand-file-name "toolbox" (matlab-mode-determine-matlabroot)))
-  "Base path pointing to the locations of all the m files used by matlab.
-All directories under each element of `matlab-mode-install-path' are
-checked, so only top level toolbox directories need be added.
-Paths should be added in the order in which they should be searched."
-  :group 'matlab-shell
-  :type '(repeat (string :tag "Path: ")))
-
-(defun matlab-find-file-under-path (path filename)
-  "Return the pathname or nil of PATH under FILENAME."
-  (if (file-exists-p (concat path filename))
-      (concat path filename)
-    (let ((dirs (if (file-directory-p path)
-		    ;; Not checking as a directory first fails on XEmacs
-		    ;; Stelios Kyriacou <kyriacou@cbmv.jhu.edu>
-		    (directory-files path t nil t)))
-	  (found nil))
-      (while (and dirs (not found))
-	(if (and (car (file-attributes (car dirs)))
- 		 ;; require directory readable
- 		 (file-readable-p (car dirs))
-		 ;; don't redo our path names
-		 (not (string-match "/\\.\\.?$" (car dirs)))
-		 ;; don't find files in object directories.
-		 (not (string-match "@" (car dirs))))
-	    (setq found
-		  (matlab-find-file-under-path (concat (car dirs) "/")
-					       filename)))
-	(setq dirs (cdr dirs)))
-      found)))
-
-(defun matlab-find-file-on-path (filename)
-  "Find FILENAME on the current MATLAB path.
-The MATLAB path is determined by `matlab-mode-install-path' and the
-current directory.  You must add user-installed paths into
-`matlab-mode-install-path' if you would like to have them included."
-  (interactive
-   (list
-    (let ((default (matlab-read-word-at-point)))
-      (if default
-	  (let ((s (read-string (concat "File (default " default "): "))))
-	    (if (string= s "") default s))
-	(read-string "File: ")))))
-  (if (string= filename "")
-      (error "You must specify an M file"))
-  (if (not (string-match "\\.m$" filename))
-      (setq filename (concat filename ".m")))
-  (let ((fname nil)
-	(dirs matlab-mode-install-path))
-    (if (file-exists-p (concat default-directory filename))
-	(setq fname (concat default-directory filename)))
-    (while (and (not fname) dirs)
-      (if (stringp (car dirs))
-	  (progn
-	    (message "Searching for %s in %s" filename (car dirs))
-	    (setq fname (matlab-find-file-under-path (car dirs) filename))))
-      (setq dirs (cdr dirs)))
-    (if fname (find-file fname)
-      (error "File %s not found on any known paths.  \
-Check `matlab-mode-install-path'" filename))))
 
 (defun matlab-find-file-click (e)
   "Find the file clicked on with event E on the current path."
@@ -2330,8 +2137,37 @@ Check `matlab-mode-install-path'" filename))))
   (mouse-set-point e)
   (let ((f (matlab-read-word-at-point)))
     (if (not f) (error "To find an M file, click on a word"))
-    (matlab-find-file-on-path f)))
+    (matlab-shell-locate-fcn f)))
 
 (provide 'matlab-shell)
 
 ;;; matlab-shell.el ends here
+
+;; LocalWords:  el Ludlam zappo compat comint gud Slience defcustom el
+;; LocalWords:  nodesktop defface autostart netshell emacsclient errorscanning
+;; LocalWords:  cco defun setq Keymaps keymap kbd featurep fboundp subprocess
+;; LocalWords:  online EDU postoutput progn subjob eol mlfile emacsinit msbn pc
+;; LocalWords:  Thx Chappaz windowid dirtrackp dbhot erroexamples Ludlam zappo
+;; LocalWords:  compat comint gud Slience defcustom nodesktop defface
+;; LocalWords:  autostart netshell emacsclient errorscanning cco defun setq el
+;; LocalWords:  Keymaps keymap kbd featurep fboundp subprocess online EDU
+;; LocalWords:  postoutput progn subjob eol mlfile emacsinit msbn pc Thx Ludlam
+;; LocalWords:  Chappaz windowid dirtrackp dbhot erroexamples cdr ENDPT dolist
+;; LocalWords:  overlaystack mref deref errortext ERRORTXT Missmatched zappo
+;; LocalWords:  shellerror dbhotlink realfname aset buf noselect tcp auth ef
+;; LocalWords:  dbhotlinks compat comint gud Slience defcustom
+;; LocalWords:  nodesktop defface autostart netshell emacsclient errorscanning
+;; LocalWords:  cco defun setq Keymaps keymap kbd featurep fboundp subprocess
+;; LocalWords:  online EDU postoutput progn subjob eol mlfile emacsinit msbn pc
+;; LocalWords:  Thx Chappaz windowid dirtrackp dbhot erroexamples cdr ENDPT
+;; LocalWords:  dolist overlaystack mref deref errortext ERRORTXT Missmatched
+;; LocalWords:  shellerror dbhotlink realfname aset buf noselect tcp auth ef
+;; LocalWords:  dbhotlinks dbhlcmd endprompt mello pmark memq promptend
+;; LocalWords:  numchars integerp emacsdocomplete mycmd ba nreverse
+;; LocalWords:  emacsdocompletion subfield fil byteswap stringp cbuff mapcar bw
+;; LocalWords:  FCN's alist BUILTINFLAG dired bol bobp numberp lattr princ
+;; LocalWords:  minibuffer fn matlabregex stackexchange doesnt lastcmd
+;; LocalWords:  notimeout stacktop eltest testme localfcn LF mlx meth fileref
+;; LocalWords:  funcall ec basec sk ignoredups boundp nondirectory edir sexp
+;; LocalWords:  Fixup mapc ltype noshow emacsrunregion cnt commandline elipsis
+;; LocalWords:  newf bss fname

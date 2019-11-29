@@ -128,8 +128,8 @@
     (nconc keymap comint-mode-map)))
   
 
-;; Finding executibles
-(defun matlab-find-executible-directory (program)
+;; Finding executables
+(defun matlab-find-executable-directory (program)
   "find the executable PROGRAM on the exec path, following any links.
 Return the base directory it is in."
   (let ((dir nil))
@@ -161,3 +161,7 @@ Return the base directory it is in."
 (provide 'matlab-compat)
 
 ;;; matlab-compat.el ends here
+
+;; LocalWords:  el Ludlam eludlam osboxes Ee progn defalias fboundp itimer
+;; LocalWords:  defun boundp defvaralias bol eol defmacro Keymaps keymap comint
+;; LocalWords:  KEYMAP's nconc dolist nm lnk setq

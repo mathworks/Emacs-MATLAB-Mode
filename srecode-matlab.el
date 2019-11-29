@@ -2,7 +2,7 @@
 ;;
 ;; Copyright (C) 2014 Eric Ludlam
 ;;
-;; Author: Eric Ludlam <zappo@ballista>
+;; Author: Eric Ludlam <zappo@gnu.org>
 ;; X-RCS: $Id$
 ;;
 ;; This program is free software; you can redistribute it and/or

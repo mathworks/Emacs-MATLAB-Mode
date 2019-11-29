@@ -2,7 +2,7 @@
 ;;
 ;; Copyright (C) 2019 Eric Ludlam
 ;;
-;; Author: Eric Ludlam <zappo@ballista>
+;; Author: Eric Ludlam <zappo@gnu.org>
 ;;
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License as
@@ -26,7 +26,7 @@
 ;; * scan buffer for functions and symbols.
 ;; * look for local files that might be functions.
 ;;
-;; Moved to seperate library, as some modern tools do a better job
+;; Moved to separate library, as some modern tools do a better job
 ;; and this can be loaded optionally. 
 
 ;;; Code:
@@ -166,7 +166,7 @@ This list still needs lots of help.")
     (while tl
       (setq lst (append lst (cdr (car tl)))
 	    tl (cdr tl)))
-    (matlab-uniquafy-list lst)))
+    (matlab-uniquify-list lst)))
 
 (defvar matlab-all-known-properties (matlab-all-known-properties)
   "List of all the known properties.")
@@ -246,7 +246,7 @@ If the list is empty, then searches continue backwards through the code."
       (while syms
 	(if (car syms) (setq fl (cons (car syms) fl)))
 	(setq syms (cdr syms)))
-      (matlab-uniquafy-list (nreverse fl)))))
+      (matlab-uniquify-list (nreverse fl)))))
 
 (defvar matlab-most-recent-variable-list nil
   "Maintained by `matlab-find-recent-variable'.")
@@ -298,7 +298,7 @@ In NEXT is non-nil, than continue through the list of elements."
       (while syms
 	(if (car syms) (setq fl (cons (car syms) fl)))
 	(setq syms (cdr syms)))
-      (matlab-uniquafy-list (nreverse fl)))))
+      (matlab-uniquify-list (nreverse fl)))))
 
 (defvar matlab-user-function-list nil
   "Maintained by `matlab-find-user-functions'.")
@@ -499,9 +499,15 @@ to change it temporarily."
 		     ;; ui work for us.
 		     (with-output-to-temp-buffer "*Completions*"
 		       (display-completion-list
-			(matlab-uniquafy-list allsyms)))))))))))))
+			(matlab-uniquify-list allsyms)))))))))))))
 
 
 (provide 'matlab-complete)
 
 ;;; matlab-complete.el ends here
+
+;; LocalWords:  el Ludlam zappo ish defcustom CLim XColor XDir XLabel
+;; LocalWords:  XAxis XScale YColor YDir YAxis YScale YTick ZColor ZDir ZGrid
+;; LocalWords:  ZLabel ZScale ZTick Dithermap defun lst tl setq cdr defmacro
+;; LocalWords:  nreverse eol progn foundlst expandto listp stringp sem lattr
+;; LocalWords:  donext funcall allsyms mapcar
