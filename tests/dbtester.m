@@ -1,7 +1,7 @@
 function OUT = dbtester()
 % An M file for exercising MATLAB's debugger APIs
     
-    B = 1:.25:pi;
+    B = 1:.2:pi;
     
     OUT = localfunc_1(B);
     
@@ -17,6 +17,10 @@ function OUT = localfunc_1(IN)
         IN = 1:.5:pi;
     end
     
-    OUT = sin(IN);
+    et = eltest.EmacsTest;
+    
+    OUT_TMP = et.dbtest(IN);
+    
+    OUT = OUT_TMP(1:2:end);
     
 end
