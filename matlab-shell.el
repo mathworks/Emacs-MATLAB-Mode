@@ -873,7 +873,7 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
 
 (defun matlab-shell-second-prompt-fcn ()
   "Hook to run when the first prompt AFTER the call to emacsinit."
-  (remove-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-first-prompt-fcn)
+  (remove-hook 'matlab-shell-prompt-appears-hook #'matlab-shell-second-prompt-fcn)
   (setq matlab-prompt-seen t))
 
 
