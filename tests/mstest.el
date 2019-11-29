@@ -48,6 +48,7 @@
   ;; Enable this to see how the input/output is interacting with the
   ;; test harness.
   (when (getenv "TESTDEBUG")
+    (toggle-debug-on-error)
     (setq matlab-shell-io-testing t))
     
   (mstest-start)
