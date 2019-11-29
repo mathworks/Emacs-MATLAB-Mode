@@ -80,6 +80,8 @@
   (make-local-variable 'gud-marker-acc)
   (setq gud-marker-acc nil)
 
+  ;; Setup our debug tracker.
+  (add-hook 'matlab-shell-prompt-appears-hook #'gud-matlab-debug-tracker)
   
   (gud-set-buffer))
 
@@ -113,15 +115,10 @@ FILE is ignored, and ARGS is returned."
 (defvar gud-matlab-marker-regexp-plain-prompt "^K?>>"
   "Regular expression for finding a prompt.")
 
-(defvar gud-matlab-marker-regexp-1 "^K>>"
+(defvar gud-matlab-marker-regexp-K>> "^K>>"
   "Regular expression for finding a file line-number.")
-
-(defvar gud-matlab-marker-regexp-2
-  (concat "^> In \\(" matlab-anchor-beg
-          "\\|\\)\\([-.a-zA-Z0-9_>/@]+\\) \\((\\w+) \\|\\)at line \\([0-9]+\\)[ \n]+")
-  "Regular expression for finding a file line-number.
-Please note: The leading > character represents the current stack frame, so if
-there are several frames, this makes sure we pick the right one to popup.")
+(defvar gud-matlab-marker-regexp->> "^>>"
+  "Regular expression for finding a file line-number.")
 
 (defvar gud-matlab-dbhotlink nil
   "Track if we've sent a dbhotlink request.")
@@ -143,7 +140,7 @@ there are several frames, this makes sure we pick the right one to popup.")
       (setq gud-marker-acc (replace-match matlab-shell-errortext-end-text t t gud-marker-acc 0)))
     
     ;; DEBUG PROMPTS
-    (when (string-match gud-matlab-marker-regexp-1 gud-marker-acc)
+    (when (string-match gud-matlab-marker-regexp-K>> gud-marker-acc)
 
       ;; Look for any frames for case of a debug prompt.
       (let ((url gud-marker-acc)
@@ -185,7 +182,7 @@ there are several frames, this makes sure we pick the right one to popup.")
 		    gud-marker-acc (substring gud-marker-acc start))
 
 	      ;; The hotlink text will persist until we see the K prompt.
-	      (when (string-match "^K?>> " gud-marker-acc)
+	      (when (string-match gud-matlab-marker-regexp-plain-prompt gud-marker-acc)
 		(setq endprompt (match-end 0))
 
 		;; (when matlab-shell-io-testing (message "!!xx [%s]" (substring gud-marker-acc 0 endprompt)))
@@ -201,7 +198,7 @@ there are several frames, this makes sure we pick the right one to popup.")
 	  ;; Else, waiting for a link, but hasn't shown up yet.
 	  ;; TODO - what can I do here to fix var setting if it gets
 	  ;; locked?
-	  (when (string-match "^>> " gud-marker-acc)
+	  (when (string-match gud-matlab-marker-regexp->> gud-marker-acc)
 	    ;; A non-k prompt showed up.  We're not going to get out request.
 	    (setq gud-matlab-dbhotlink nil))
 	  )))
@@ -225,13 +222,13 @@ there are several frames, this makes sure we pick the right one to popup.")
 	(setq output (concat output (substring gud-marker-acc 0 (match-end 0)))
 	      gud-marker-acc (substring gud-marker-acc (match-end 0))))
 
-      (if (string-match "^K?>> $" gud-marker-acc)
+      (if (string-match (concat gud-matlab-marker-regexp-plain-prompt "\\s-*$") gud-marker-acc)
 	  (setq output (concat output gud-marker-acc)
 		gud-marker-acc ""))
       
       ;; Check our output for a prompt, and existence of a frame.
       ;; If this is true, throw out the debug arrow stuff.
-      (if (and (string-match "^>> $" output)
+      (if (and (string-match (concat gud-matlab-marker-regexp->> "\\s-*$") output)
 	       gud-last-last-frame)
 	  (progn
 	    (setq overlay-arrow-position nil
@@ -253,6 +250,152 @@ there are several frames, this makes sure we pick the right one to popup.")
       (setq matlab-shell-prompt-hook-cookie t))
     
     output))
+
+
+;;; K prompt state and hooks.
+
+(defvar gud-matlab-debug-active nil
+  "Non-nil if MATLAB has a K>> prompt up.")
+(defvar gud-matlab-debug-activate-hook nil
+  "Hooks run when MATLAB detects a K>> prompt after a >> prompt")
+(defvar gud-matlab-debug-deactivate-hook nil
+  "Hooks run when MATLAB detects a >> prompt after a K>> prompt")
+
+(defun gud-matlab-debug-tracker ()
+  "Function called when new prompts appear.
+Call debug activate/deactivate features."
+  (save-excursion
+    (let ((inhibit-field-text-motion t))
+      (beginning-of-line)
+      (cond
+       ((and gud-matlab-debug-active (looking-at gud-matlab-marker-regexp->>))
+	(setq gud-matlab-debug-active nil)
+	(global-matlab-shell-gud-minor-mode -1)
+	(run-hooks 'gud-matlab-debug-deactivate-hook))
+       ((and (not gud-matlab-debug-active) (looking-at gud-matlab-marker-regexp-K>>))
+	(setq gud-matlab-debug-active t)
+	(global-matlab-shell-gud-minor-mode 1)
+	(run-hooks 'gud-matlab-debug-activate-hook))
+       (t
+	;; All clear
+	))))
+  )
+
+;;; MATLAB SHELL GUD Minor Mode
+;;
+;; When K prompt is active, this minor mode is applied to frame buffers so
+;; that GUD commands are easy to get to.
+
+(defvar matlab-shell-gud-minor-mode-map 
+  (let ((km (make-sparse-keymap))
+	(key ?\ ))
+    (while (<= key ?~)
+      (define-key km (string key) 'matlab-shell-gud-mode-help-notice)
+      (setq key (1+ key)))
+    (define-key km "h" 'matlab-shell-gud-mode-help)
+
+    ;; gud bindings.
+    (define-key km "b" 'gud-break)
+    (define-key km "r" 'gud-remove)
+    (define-key km "c" 'gud-cont)
+    (define-key km "s" 'gud-step)
+    (define-key km "n" 'gud-next)
+    (define-key km "f" 'gud-finish)
+    (define-key km "q" 'gud-finish)
+    (define-key km "u" 'gud-up)
+    (define-key km "d" 'gud-down)
+    (define-key km "<" 'gud-up)
+    (define-key km ">" 'gud-down)
+    ;; (define-key km "p" gud-print)
+
+    (define-key km "e" 'matlab-shell-gud-mode-edit)
+    
+    km)
+  "Keymap used by matlab mode maintainers.")
+
+(easy-menu-define
+  matlab-shell-gud-menu matlab-shell-gud-minor-mode-map "MATLAB Maintainer's Minor Mode"
+  '("MATLAB-DEBUG"
+      ["Exit MATLAB Debug mode" matlab-shell-gud-mode-edit
+       :help "Exit the MATLAB debug minor mode to edit without exiting MATLAB's K>> prompt."]
+      ["dbstop in FILE at point" gud-break
+       :active (matlab-shell-active-p)
+       :help "When MATLAB debugger is active, set break point at current M-file point"]
+      ["dbclear in FILE at point" gud-remove
+       :active (matlab-shell-active-p)
+       :help "When MATLAB debugger is active, clear break point at current M-file point"]
+      ["dbstep in" gud-step
+       :active (matlab-shell-active-p)
+       :help "When MATLAB debugger is active, step into line"]
+      ["dbstep" gud-next
+       :active (matlab-shell-active-p)
+       :help "When MATLAB debugger is active, step one line"]
+      ["dbup" gud-up
+       :active (matlab-shell-active-p)
+       :help "When MATLAB debugger is active and at break point, go up a frame"]
+      ["dbdown" gud-down
+       :active (matlab-shell-active-p)
+       :help "When MATLAB debugger is active and at break point, go down a frame"]
+      ["dbcont" gud-cont
+       :active (matlab-shell-active-p)
+       :help "When MATLAB debugger is active, run to next break point or finish"]
+      ["dbquit" gud-finish
+       :active (matlab-shell-active-p)
+       :help "When MATLAB debugger is active, stop debugging"]
+      ))
+
+;;;###autoload
+(define-minor-mode matlab-shell-gud-minor-mode
+  "Minor mode activated when `matlab-shell' K>> prompt is active.
+This minor mode makes MATLAB buffers read only so simple keystrokes
+activate debug commands.
+\\<matlab-shell-gud-minor-mode-map>
+Debug commands are:
+ \\[gud-break]   - Set a breakpoint on the current line
+ \\[gud-remove]   - Clear breakpoint on line
+ \\[gud-cont]   - Continue till next breakpoint
+ \\[gud-step]   - Step into next functions
+ \\[gud-next]   - Next line in current function
+ \\[gud-finish]   - Exit debug mode
+ \\[gud-up]   - Navigate up the call stack
+ \\[gud-down]   - Navigate down the call stack
+ \\[matlab-shell-gud-mode-edit]   - Exit gud minor mode so you can edit
+       you file without causing MATLAB to exit debug mode."
+  nil " MGUD" matlab-shell-gud-minor-mode-map
+  
+  ;; Make the buffer read only
+  (if matlab-shell-gud-minor-mode
+      ;; Enable
+      nil
+    ;; Disable
+    nil)
+  )
+
+;;;###autoload
+(define-global-minor-mode global-matlab-shell-gud-minor-mode
+  matlab-shell-gud-minor-mode
+  (lambda ()
+    "Should we turn on in this buffer? Only if in a MATLAB mode."
+    (when (eq major-mode 'matlab-mode)
+      (matlab-shell-gud-minor-mode 1)))
+  )
+
+(defun matlab-shell-gud-mode-edit ()
+  "Turn off `matlab-shell-gud-minor-mode' so you can edit again."
+  (interactive)
+  (global-matlab-shell-gud-minor-mode -1))
+
+(defun matlab-shell-gud-mode-help-notice ()
+  "Default binding for most keys in `matlab-shell-gud-minor-mode'.
+Shows a help message in the mini buffer."
+  (interactive)
+  (error "MATLAB shell GUD minor-mode: Press 'h' for help, 'e' to go back to editing."))
+
+(defun matlab-shell-gud-mode-help ()
+  "Show the default binding for most keys in `matlab-shell-gud-minor-mode'."
+  (interactive)
+  (describe-minor-mode 'matlab-shell-gud-minor-mode)
+  )
 
 
 
