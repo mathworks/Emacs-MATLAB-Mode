@@ -61,6 +61,9 @@
   "Configure GUD when a new `matlab-shell' is initialized."
   (gud-mode)
 
+  ;; This starts us supporting gud tooltips.
+  (add-to-list 'gud-tooltip-modes 'matlab-mode)
+  
   ;; TODO - the filter and stuff was setup in 2 diff ways.
   ;; Pick one and stick with it.
   
@@ -367,9 +370,14 @@ Debug commands are:
   ;; Make the buffer read only
   (if matlab-shell-gud-minor-mode
       ;; Enable
-      nil
+      (progn
+	(gud-tooltip-mode 1)
+	(add-hook 'tooltip-functions 'gud-matlab-tooltip-tips)
+	)
     ;; Disable
-    nil)
+    (gud-tooltip-mode -1)
+    (remove-hook 'tooltip-functions 'gud-matlab-tooltip-tips)
+    )
   )
 
 ;;;###autoload
@@ -411,6 +419,37 @@ Shows a help message in the mini buffer."
   (interactive)
   (describe-minor-mode 'matlab-shell-gud-minor-mode)
   )
+
+;;; Tooltips
+;;
+;; Using the gud tooltip feature for a bunch of setup, but then
+;; just override the tooltip fcn (see the mode) with this function
+;; as an additional piece.
+(defun gud-matlab-tooltip-tips (event)
+  "Implementation of the tooltip feture for MATLAB.
+Much of this was copied from `gud-tooltip-tips'.
+
+This function must return nil if it doesn't handle EVENT."
+  (when (eventp event)
+    (with-current-buffer (tooltip-event-buffer event)
+      (when (and gud-tooltip-mode
+		 matlab-shell-gud-minor-mode
+		 (buffer-name gud-comint-buffer); might be killed
+		 )
+	(let ((expr (tooltip-expr-to-print event))
+	      (txt nil))
+	  (when expr
+	    (setq txt (matlab-shell-collect-command-output
+		       (concat "disp(" expr ")")))
+
+	    ;; TODO ; in the case of a 'region', we will need to strip
+	    ;; the ends of bad syntax, such as accedental selectoin of
+	    ;; parens, ; etc.
+
+	    (tooltip-show txt (or gud-tooltip-echo-area
+				  tooltip-use-echo-area
+				  (not tooltip-mode)))
+	    t))))))  
 
 (provide 'matlab-shell-gud)
 
