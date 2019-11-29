@@ -329,12 +329,12 @@ a function."
 
 	;; Text should start w/ a number, then some code
 	(if (not skipchecktxt)
-	    (if (not (string-match "^[0-9]+\\>" txt))
+	    (if (not (string-match "^\\s-*\\([0-9]+\\)\\>" txt))
 		(progn
 		  (mstest-savestate)
 		  (message "Command produced output : [%s]" txt)
 		  (error "DEBUG: Expected ML dugger to produce a line number.  It did not."))
-	      (let ((dbln (string-to-number (match-string 0 txt))))
+	      (let ((dbln (string-to-number (match-string 1 txt))))
 		(when (not (= dbln line))
 		  (message "DEBUG: Expected %s line %d, ended up at %s %d"
 			   fileexp lineexp fname line)
