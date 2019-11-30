@@ -573,7 +573,7 @@ Argument STR is the string to examine for version information."
 	    matlab-shell-running-matlab-release
 	    (match-string 3 str))
     ;; NEWER MATLABS
-    (if (string-match "\\(R[0-9]+[ab]\\)\\s-+Update\\s-+[0-9]+\\s-+(\\([0-9]+\\.[0-9]+\\)\\." str)
+    (if (string-match "\\(R[0-9]+[ab]\\)\\s-+\\(?:Update\\s-+[0-9]+\\s-+\\)?(\\([0-9]+\\.[0-9]+\\)\\." str)
 	(setq matlab-shell-running-matlab-version
 	      (match-string 2 str)
 	      matlab-shell-running-matlab-release
