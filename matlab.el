@@ -835,11 +835,20 @@ Argument LIMIT is the maximum distance to scan."
   "Called by font-lock to extend the region if we are in a multi-line block."
   ;; Only deal with block comments for now.
 
-  (let ((pos (matlab-ltype-block-comm t)))
+  (let* ((pos (matlab-ltype-block-comm t))
+	 (flb font-lock-beg)
+	 (fle font-lock-end))
     (when pos
       (setq font-lock-beg (min font-lock-beg (car pos))
-	    font-lock-end (max font-lock-end (cdr pos)))
-      t)))      
+	    font-lock-end (max font-lock-end (cdr pos))))
+
+    (if (and (eq font-lock-beg flb)
+	     (eq font-lock-end fle))
+	;; We didn't change anything.
+	nil
+
+      ;; We made a change
+      t)))
 
 
 (defun matlab-find-block-comments (limit)
@@ -852,15 +861,31 @@ Argument LIMIT is the maximum distance to search."
 	    (b2 nil) (e2 nil)
 	    (b3 nil) (e3 nil))
 	(goto-char b1)
-	(forward-char -1)
-	(if (matlab-cursor-in-string-or-comment)
+	(if (and (not (bolp))
+		 (progn
+		   (forward-char -1)
+		   (matlab-cursor-in-string-or-comment)))
 	    (progn
 	      (goto-char e1) ;; skip over this one.
 	      nil)
 	  ;; Else, find the end.  We will certainly be in
 	  ;; a comment, so no need to check on the end.
 	  (setq b2 (re-search-forward "%}" limit t))
-	  (when b2
+	  (if (not b2)
+	      (progn
+		;; No end ?  Let's tell font-lock to just go
+		;; to point-at-eol can call it done.
+		(goto-char e1)
+		(set-match-data
+		 (list b1 (point-max)
+		       b1 (point-max)
+		       b1 e1
+		       (point-max) (point-max)
+		       ))
+		(goto-char (point-max))
+		t)
+
+	    ;; We have a match.  Return that region.
 	    (setq b2 (match-beginning 0)
 		  e2 (match-end 0))
 	    (set-match-data
@@ -2076,6 +2101,15 @@ Return the symbol 'blockcomm if it is a block comment start."
 		  (matlab-prev-line))
 	(beginning-of-line))
       (matlab-ltype-function-definition))))
+
+;; (global-set-key [f6] 'matlab-debug-block-comm)
+(defun matlab-debug-block-comm ()
+  "Test block comment detector since font-lock won't let us debug."
+  (interactive)
+  (let ((pos (matlab-ltype-block-comm t)))
+    (if pos
+	(pulse-momentary-highlight-region (car pos) (cdr pos))
+      (message "No block comment."))))
 
 (defun matlab-ltype-block-comm (&optional linebounds)
   "Return start positions of block comment if we are in a block comment."
