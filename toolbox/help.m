@@ -3,11 +3,12 @@ function [out, docTopic] = help(varargin)
 % See the help for the built-in help command by asking for "help help" in
 % MATLAB, which will redirect to the correct location.
     
-    ah = which('help', '-all');
-    builtinhelp = ah{2};
-    
-    [ helpPath, ~ ] = fileparts(builtinhelp);
-    
+    origPath = path;
+    cleanup = onCleanup(@()path(origPath));
+    me = mfilename('fullpath');
+    myDir = fileparts(me);
+    rmpath(myDir);
+
     args = varargin;
 
     cookie = true;
@@ -16,11 +17,6 @@ function [out, docTopic] = help(varargin)
         args = args(2:end);
     end
 
-    % Provide access to the built-in help by CDing to that location.
-    oldpath = pwd;
-    cd(helpPath);
-    cleanup = onCleanup(@()cd(oldpath));
-    
     switch nargout
       case 0
         if cookie
@@ -36,4 +32,3 @@ function [out, docTopic] = help(varargin)
         [out, docTopic] = help(args{:});
     end
 end
-
