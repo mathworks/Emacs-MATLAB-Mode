@@ -25,6 +25,7 @@
 ;;; Code:
 (require 'matlab)
 (require 'matlab-shell)
+(require 'view)
 
 (defvar matlab-shell-topic-mouse-face-keywords
   '(;; These are subtopic fields...
@@ -76,6 +77,7 @@
       (define-key km [mouse-2] 'matlab-shell-help-click)
       (define-key km [mouse-1] 'matlab-shell-help-click)
       )
+    (set-keymap-parent km view-mode-map)
     km)
   "Keymap used in MATLAB help mode.")
 
@@ -91,6 +93,10 @@
    "----"
    ["Exit" bury-buffer t]))
 
+;; Need this to fix wierd problem in define-derived-mode
+(defvar matlab-shell-help-mode-syntax-table (make-syntax-table)
+  "Syntax table used in matlab-shell-help-mode.")
+
 ;;;###autoload
 (define-derived-mode matlab-shell-help-mode
   view-major-mode "M-Help"
@@ -99,6 +105,7 @@ Entry to this mode runs the normal hook `matlab-shell-help-mode-hook'.
 
 Commands:
 \\{matlab-shell-help-mode-map}"
+  :syntax-table matlab-shell-help-mode-syntax-table
   (make-local-variable 'font-lock-defaults)
   (setq font-lock-defaults '((matlab-shell-help-font-lock-keywords)
 			     t nil ((?_ . "w"))))
