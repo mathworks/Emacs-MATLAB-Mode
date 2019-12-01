@@ -31,6 +31,12 @@
   )
 
 ;;; Code:
+(defcustom matlab-shell-debug-tooltips-p nil
+  "*Enable tooltips displaying data values when at the K>> prompt.
+Disable this option if the tooltips are too slow in your setup."
+  :group 'matlab-shell
+  :type 'boolean)  
+
 (defvar gud-matlab-debug-active nil
   "Non-nil if MATLAB has a K>> prompt up.")
 (defvar gud-matlab-debug-activate-hook nil
@@ -396,11 +402,13 @@ Debug commands are:
   ;; Make the buffer read only
   (if matlab-shell-gud-minor-mode
       ;; Enable
-      (progn
+      (when matlab-shell-debug-tooltips-p
 	(gud-tooltip-mode 1)
 	(add-hook 'tooltip-functions 'gud-matlab-tooltip-tips)
 	)
     ;; Disable
+
+    ;; Always disable tooltips, in case configured while in the mode.
     (gud-tooltip-mode -1)
     (remove-hook 'tooltip-functions 'gud-matlab-tooltip-tips)
     )
