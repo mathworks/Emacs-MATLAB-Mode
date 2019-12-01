@@ -401,13 +401,17 @@ Debug commands are:
   
   ;; Make the buffer read only
   (if matlab-shell-gud-minor-mode
-      ;; Enable
-      (when matlab-shell-debug-tooltips-p
-	(gud-tooltip-mode 1)
-	(add-hook 'tooltip-functions 'gud-matlab-tooltip-tips)
-	)
+      (progn
+	;; Enable
+	(when (buffer-file-name) (setq buffer-read-only t))
+	(when matlab-shell-debug-tooltips-p
+	  (gud-tooltip-mode 1)
+	  (add-hook 'tooltip-functions 'gud-matlab-tooltip-tips)
+	  ))
     ;; Disable
-
+    (when (buffer-file-name)
+      (setq buffer-read-only (not (file-writable-p (buffer-file-name)))))
+      
     ;; Always disable tooltips, in case configured while in the mode.
     (gud-tooltip-mode -1)
     (remove-hook 'tooltip-functions 'gud-matlab-tooltip-tips)
