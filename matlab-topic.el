@@ -66,7 +66,30 @@
 (eval-and-compile
   (if (not (fboundp 'view-major-mode)) (defalias 'view-major-mode 'view-mode)))
 
-(defvar matlab-shell-help-mode-menu) ;; Quiet compiler warning (var is defined below)
+(defvar matlab-shell-help-mode-map
+  (let ((km (make-sparse-keymap)))
+    (define-key km [return] 'matlab-shell-help-choose)
+    (define-key km "q" 'bury-buffer)
+    (define-key km [(control h) (control m)] matlab-help-map)
+    (if (string-match "XEmacs" emacs-version)
+	(define-key km [button2] 'matlab-shell-help-click)
+      (define-key km [mouse-2] 'matlab-shell-help-click)
+      (define-key km [mouse-1] 'matlab-shell-help-click)
+      )
+    km)
+  "Keymap used in MATLAB help mode.")
+
+(easy-menu-define
+ matlab-shell-help-mode-menu matlab-shell-help-mode-map
+ "MATLAB shell Help menu"
+ '("MATLAB Help"
+   ["Describe This Command" matlab-shell-help-choose t]
+   "----"
+   ["Describe Command" matlab-shell-describe-command t]
+   ["Describe Variable" matlab-shell-describe-variable t]
+   ["Command Apropos" matlab-shell-apropos t]
+   "----"
+   ["Exit" bury-buffer t]))
 
 ;;;###autoload
 (define-derived-mode matlab-shell-help-mode
@@ -83,33 +106,9 @@ Commands:
   ;; kill-all-local-variables is not used by old view-mode.
   (and (boundp 'global-font-lock-mode) global-font-lock-mode
        (not font-lock-mode) (font-lock-mode 1))
-  (easy-menu-add matlab-shell-help-mode-menu matlab-shell-help-mode-map)
   (matlab-shell-help-mouse-highlight-subtopics)
   (font-lock-ensure)
   )
-
-(define-key matlab-shell-help-mode-map [return] 'matlab-shell-help-choose)
-(define-key matlab-shell-help-mode-map "q" 'bury-buffer)
-(define-key matlab-shell-help-mode-map
-  [(control h) (control m)] matlab-help-map)
-(if (string-match "XEmacs" emacs-version)
-    (define-key matlab-shell-help-mode-map [button2] 'matlab-shell-help-click)
-  (define-key matlab-shell-help-mode-map [mouse-2] 'matlab-shell-help-click)
-  (define-key matlab-shell-help-mode-map [mouse-1] 'matlab-shell-help-click)
-  )
-
-(defvar mode-motion-hook) ;; quiet compiler warning (used in XEmacs)
-(easy-menu-define
- matlab-shell-help-mode-menu matlab-shell-help-mode-map
- "MATLAB shell Help menu"
- '("MATLAB Help"
-   ["Describe This Command" matlab-shell-help-choose t]
-   "----"
-   ["Describe Command" matlab-shell-describe-command t]
-   ["Describe Variable" matlab-shell-describe-variable t]
-   ["Command Apropos" matlab-shell-apropos t]
-   "----"
-   ["Exit" bury-buffer t]))
 
 
 (defun matlab-shell-help-click (e)
