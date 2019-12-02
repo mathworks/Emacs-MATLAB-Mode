@@ -90,12 +90,12 @@ Command switches are a list of strings.  Each entry is one switch."
   "*Location of the history file.
 A %s is replaced with the MATLAB version release number, such as R12.
 This file is read to initialize the comint input ring."
-  :group 'matlab
+  :group 'matlab-shell
   :type 'filename)
 
 (defcustom matlab-shell-autostart-netshell nil
   "Use the netshell side-channel for communicating with MATLAB."
-  :group 'matlab
+  :group 'matlab-shell
   :type 'boolean)
 
 ;;
@@ -939,38 +939,47 @@ This strips out that text from the shell and displays in a help."
 	    (when (looking-at "\\s-*\n")
 	      (delete-region end (match-end 0)))
 	    
-	    ;; Now colorize capture the text.
+	    ;; Now take the text, and act on it.
 	    (let ((txt (buffer-substring-no-properties start end)))
 	      (delete-region start end)
-	      (save-excursion
-		(when insertbuff
-		  ;; Already have a buffer to append to.
-		  (when (not (eq insertbuff (get-buffer-create buffname)))
-		    ;; Different, don't append.
-		    (setq append nil)))
-		;; Change to new buffer  
-		(set-buffer (get-buffer-create buffname))
-		(setq buffer-read-only nil)
-		;; Clear it if not appending.
-		(when (not append) (erase-buffer))
-		(goto-char (point-max))
-		(insert txt)
-		(goto-char (point-min))
-		(setq append t
-		      insertbuff (current-buffer))
-		(add-to-list 'bufflist (current-buffer)))
-	      )))
-	    
+
+	      (if (string= buffname "eval")
+		  ;; The desire is to evaluate some Emacs Lisp code instead of
+		  ;; capture output to display in Emacs.
+		  (let ((forms (read txt)))
+		    (eval forms)
+		    )
+		(save-excursion
+		  (when insertbuff
+		    ;; Already have a buffer to append to.
+		    (when (not (eq insertbuff (get-buffer-create buffname)))
+		      ;; Different, don't append.
+		      (setq append nil)))
+		  ;; Change to new buffer  
+		  (set-buffer (get-buffer-create buffname))
+		  (setq buffer-read-only nil)
+		  ;; Clear it if not appending.
+		  (when (not append) (erase-buffer))
+		  (goto-char (point-max))
+		  (insert txt)
+		  (goto-char (point-min))
+		  (setq append t
+			insertbuff (current-buffer))
+		  (add-to-list 'bufflist (current-buffer)))
+		))))
+	  
 	;; Setup for next loop
 	(goto-char (point-max)))
 
       ;; All done, display the buffer.
       (when bufflist
-	(if (string= "*MATLAB Help*" buffname)
-	    (with-current-buffer (car bufflist)
-	      (matlab-shell-help-mode))
+	(cond
+	 ((string= "*MATLAB Help*" buffname)
 	  (with-current-buffer (car bufflist)
-	    (view-mode)))
+	    (matlab-shell-help-mode)))
+	 (t
+	  (with-current-buffer (car bufflist)
+	    (view-mode))))
 	
 	(display-buffer (car bufflist)
 			'((display-buffer-below-selected display-buffer-at-bottom)
