@@ -2,12 +2,21 @@ function [out, docTopic] = help(varargin)
 % Provide help, augmented so Emacs picks it up to display in a special buffer.
 % See the help for the built-in help command by asking for "help help" in
 % MATLAB, which will redirect to the correct location.
-    
+
     origPath = path;
     cleanup = onCleanup(@()path(origPath));
     me = mfilename('fullpath');
     myDir = fileparts(me);
     rmpath(myDir);
+
+    builtinHelp = which('help');
+    clear cleanup;
+
+    helpPath = fileparts(builtinHelp);
+
+    oldCWD = pwd;
+    cd(helpPath);
+    cleanup = onCleanup(@()cd(oldCWD));
 
     args = varargin;
 
