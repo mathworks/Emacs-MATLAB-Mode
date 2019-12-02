@@ -52,6 +52,7 @@
     (setq matlab-shell-io-testing t))
     
   (mstest-start)
+  (mstest-capture)
   (mstest-completion)
   (mstest-error-parse)
   (mstest-debugger)
@@ -159,7 +160,7 @@
 		 (mstest-savestate)
 		 (error "%S" ERR))))
 	     (CL (cdr (nth 2 CLO)))
-	     (EXP '("emacs" "emacsdocomplete" "emacsinit" "emacsnetshell" "emacsrunregion"))
+	     (EXP '("emacs" "emacscd" "emacsdocomplete" "emacsinit" "emacsnetshell" "emacsrunregion"))
 	     (cnt 1))
 	(while (and CL EXP)
 	  (when (not (string= (car EXP) (car (car CL))))
@@ -169,6 +170,68 @@
 		CL (cdr CL)
 		EXP (cdr EXP))))
       (message "PASS")
+
+      )))
+
+;; Command Capture tests
+(defun mstest-capture ()
+  "Test the Emacs capturing output functionality."
+  (save-window-excursion
+    (let ((msb (matlab-shell-active-p)))
+      (when (not msb) (error "mstest-completion must run after mstest-start"))
+
+      ;; We'll be testing how windows split, etc.
+      (switch-to-buffer msb)
+      (delete-other-windows)
+    
+      (goto-char (point-max))
+
+      ;; TEST completion fcn
+      (message "HELP TEST: ls")
+
+      (let ((txt (mstest-get-command-output "help ls")))
+
+	(when (not (string= txt "\n"))
+	  (mstest-savestate)
+	  (message "Leftover text: [%s]" txt)
+	  (error "There should be no leftover text from help commands."))
+
+	(when (not (eq (current-buffer) msb))
+	  (mstest-savestate)
+	  (error "Help command changed current buffer."))
+
+	(when (not (= (length (window-list)) 2))
+	  (mstest-savestate)
+	  (error "Help command failed to create a 2nd window."))
+
+	(other-window 1)
+
+	(when (not (string= (buffer-name) "*MATLAB Help*"))
+	  (mstest-savestate)
+	  (error "Help command failed to create MATLAB Help buffer."))
+
+	(goto-char (point-min))
+	(when (not (looking-at "\\s-*LS\\s-+List"))
+	  (mstest-savestate)
+	  (error "Help ls command failed to populate help with LS help."))
+
+	(message "PASS"))
+
+      (message "EVAL OUTPUT: testeeval")
+
+      (let ((txt (mstest-get-command-output "testeeval")))
+
+	(when (not (string= txt "\n"))
+	  (mstest-savestate)
+	  (message "Leftover text: [%s]" txt)
+	  (error "There should be no leftover text from testeeval command."))
+	
+	(when (or (not (stringp mstest-EVAL-TEST))
+		  (not (string= mstest-EVAL-TEST "evaluate this")))
+	  (mstest-savestate)
+	  (error "Emacs failed to evaluate command sent from testeeval MATLAB command."))
+	  
+	(message "PASS"))
 
       )))
 
