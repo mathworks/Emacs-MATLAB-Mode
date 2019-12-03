@@ -271,7 +271,18 @@ FILE is ignored, and ARGS is returned."
 		  gud-last-last-frame nil
 		  gud-overlay-arrow-position nil)
 	    (sit-for 0)
-	    )))
+	    ))
+
+      ;; Check for any text that would be embarrasing to display partially.
+      ;; If we don't see any, feel free to dump the rest of the accumulation buffer
+      (unless (or (string-match (regexp-quote "<a href=") gud-marker-acc)
+		  (string-match (regexp-quote "<EMACSCAP") gud-marker-acc)
+		  (string-match (regexp-quote "<ERROR") gud-marker-acc))
+	(setq output (concat output gud-marker-acc)
+	      gud-marker-acc "")
+	)
+      
+      )
 
     (if frame (setq gud-last-frame frame))
 
