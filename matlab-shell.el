@@ -495,6 +495,9 @@ Try C-h f matlab-shell RET"))
 ;; These are wrappers around the GUD filters so we can pre and post process
 ;; decisions by comint and gud.
 
+(defvar matlab-shell-in-process-filter nil
+  "Non-nil when inside `matlab-shell-wrapper-filter'.")
+
 (defun matlab-shell-wrapper-filter (proc string)
   "MATLAB Shell's process filter.  This wraps the GUD and COMINT filters."
   ;; A few words about process sentinel's in the MATLAB shell buffer:
@@ -507,7 +510,8 @@ Try C-h f matlab-shell RET"))
   ;; We need this filter to provide a hook on prompt display when everything
   ;; has been processed.
 
-  (let ((buff (process-buffer proc)))
+  (let ((buff (process-buffer proc))
+	(matlab-shell-in-process-filter t))
 
     ;; Cleanup garbage before sending it along to the other filters.
     (let ((garbage (concat "\\(" (regexp-quote "\C-g") "\\|"
@@ -1752,13 +1756,14 @@ show up in reverse order."
   "Try to run 'which' on REF to find actual file location.
 If the MATLAB shell isn't ready to run a which command, skip and
 return nil."
-  (save-excursion
-    (let* ((msbn (matlab-shell-buffer-barf-not-running)))
-      (set-buffer msbn)
-      (goto-char (point-max))
-      (if (and (matlab-on-prompt-p) (not matlab-shell-cco-testing))
-	  (matlab-shell-which-fcn ref)
-	nil))))
+  (when (not matlab-shell-in-process-filter)
+    (save-excursion
+      (let* ((msbn (matlab-shell-buffer-barf-not-running)))
+	(set-buffer msbn)
+	(goto-char (point-max))
+	(if (and (matlab-on-prompt-p) (not matlab-shell-cco-testing))
+	    (matlab-shell-which-fcn ref)
+	  nil)))))
 
 (defvar matlab-shell-mref-converters
   '(
