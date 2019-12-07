@@ -653,7 +653,7 @@ Argument STR is the text for the anchor."
 ;; The regular expression covers to forms in tests/erroexamples.shell.m
 ;;
 (defvar matlab-shell-error-anchor-expression
-  (concat "^\\(\\(Error \\(in\\|using\\)\\s-+\\|Syntax error in \\)\\(?:==> \\)?\\|"
+  (concat "^\\s-*\\(\\(Error \\(in\\|using\\)\\s-+\\|Syntax error in \\)\\(?:==> \\)?\\|"
 	  "In\\s-+\\|Error:\\s-+File:\\s-+\\|Warning:\\s-+[^\n]+\n\\)")
   
   "Expressions used to find errors in MATLAB process output.
@@ -681,7 +681,7 @@ Each expression should have the following match strings:
   2 - The line number
   3 - The column number (if available)")
 
-;; (global-set-key [f8] 'matlab-shell-scan-for-error-test)
+;; (global-set-key [f7] 'matlab-shell-scan-for-error-test)
 (defun matlab-shell-scan-for-error-test ()
   "Interactively try out the error scanning feature."
   (interactive)
