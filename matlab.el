@@ -552,6 +552,7 @@ If font lock is not loaded, lay in wait."
     (define-key km [return] 'matlab-return)
     (define-key km "%" 'matlab-electric-comment)
     (define-key km "}" 'matlab-electric-block-comment)
+    (define-key km "{" 'matlab-electric-block-comment)
     (define-key km "\C-c;" 'matlab-comment-region)
     (define-key km "\C-c:" 'matlab-uncomment-region)
     (define-key km [(control c) return] 'matlab-comment-return)
@@ -3164,15 +3165,49 @@ Argument ARG specifies how many %s to insert."
 Argument ARG specifies how many %s to insert."
   (interactive "P")
   (self-insert-command (or arg 1))
-  ;; We just modified the buffer, so flush old block comment caches.
   (let ((bc (save-excursion (beginning-of-line) (matlab-ltype-block-comm))))
-    ;;(message "%S end %S" bc (matlab-ltype-block-comm-at-end))
-    (when (and bc (matlab-ltype-block-comm-at-end))
-      (matlab-indent-line)
-      ;; The above sometimes puts the cursor on the %, not after it.
-      (skip-chars-forward "%}")
-      (when bc (pulse-momentary-highlight-region (car bc) (cdr bc)))
-      )))
+    
+    (cond ((save-excursion
+	   (back-to-indentation)
+	   (looking-at "%{"))
+
+	 ;; Starting block comment.  Check if we are alreayd in a block
+	 ;; comment, and blink it if a problem.
+	 (let ((bcwrapped (save-excursion
+			    (beginning-of-line)
+			    (matlab-ltype-block-comm))))
+	   
+	   ;; Regardless, indent our linel
+	   (matlab-indent-line)
+	   
+	   (when bcwrapped
+	     (save-excursion
+	       (goto-char (car bcwrapped))
+	       (skip-chars-forward "%{")
+	       (message "Nested block comment start %%{")
+	       (pulse-momentary-highlight-region (car bcwrapped) (point))))
+	   ))
+
+	  ;;ELSE, maybe end of block comment
+	  ((and bc (matlab-ltype-block-comm-at-end))
+	   (progn
+	     (matlab-indent-line)
+	     ;; The above sometimes puts the cursor on the %, not after it.
+	     (skip-chars-forward "%}")
+	     (pulse-momentary-highlight-region (car bc) (cdr bc)))
+	   )
+
+	  ;; Else, not in a comment - which means we don't have
+	  ((and (not bc) (save-excursion
+			   (skip-chars-backward "%{")
+			   (looking-at "%{")))
+	   (message "Block comment end has no matching %%{")
+	   (save-excursion
+	     (beginning-of-line)
+	     (when (re-search-backward "\\%}" nil t)
+	       (pulse-momentary-highlight-region (match-beginning 0) (match-end 0))))
+	   )
+	  )))
 
 (defun matlab-comment ()
   "Add a comment to the current line."
