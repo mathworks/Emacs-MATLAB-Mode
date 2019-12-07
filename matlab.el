@@ -551,6 +551,7 @@ If font lock is not loaded, lay in wait."
   (let ((km (make-sparse-keymap)))
     (define-key km [return] 'matlab-return)
     (define-key km "%" 'matlab-electric-comment)
+    (define-key km "}" 'matlab-electric-block-comment)
     (define-key km "\C-c;" 'matlab-comment-region)
     (define-key km "\C-c:" 'matlab-uncomment-region)
     (define-key km [(control c) return] 'matlab-comment-return)
@@ -1361,6 +1362,8 @@ All Key Bindings:
   ;; It also lets us fix mistakes before a `save-and-go'.
   (make-local-variable 'write-contents-hooks)
   (add-hook 'write-contents-hooks 'matlab-mode-verify-fix-file-fn)
+  ;; when a buffer changes, flush parsing data.
+  (add-hook 'after-change-functions 'matlab-change-function nil t)
   ;; give each file it's own parameter history
   (make-local-variable 'matlab-shell-save-and-go-history)
   (make-local-variable 'font-lock-defaults)
@@ -1882,17 +1885,36 @@ If optional NOERROR, then we return t on success, and nil on failure.
 This assumes that expressions do not cross \"function\" at the left margin."
   (interactive "P")
   (matlab-navigation-syntax
-    (if (and (not autoend)
-	     (save-excursion (backward-word 1)
-			     (or (not
-				  (and (looking-at
-					(matlab-block-end-no-function-re))
-				       (matlab-valid-end-construct-p)))
-				 (matlab-cursor-in-string-or-comment))))
-	;; Go backwards one simple expression
-	(matlab-move-simple-sexp-internal -1)
-      ;; otherwise go backwards recursively across balanced expressions
-      ;; backup over our end
+    (skip-chars-backward " \t\n")
+    (cond
+     ;; Not auto-end, and on the end of a block comment
+     ((and (not autoend)
+	   (matlab-cursor-in-comment)
+	   (let ((bcend (save-excursion
+			  (beginning-of-line)
+			  (re-search-forward "%" (point-at-eol))
+			  (goto-char (match-beginning 0))
+			  (when (looking-at "%}")
+			    (point)))))
+	     (if bcend (goto-char bcend))))
+
+      (let ((bc (matlab-ltype-block-comm)))
+	(goto-char (car bc)))
+      )
+     ;; Not auto-end, and not looking @ and end type keyword
+     ((and (not autoend)
+	   (save-excursion (backward-word 1)
+			   (or (not
+				(and (looking-at
+				      (matlab-block-end-no-function-re))
+				     (matlab-valid-end-construct-p)))
+			       (matlab-cursor-in-string-or-comment))))
+      ;; Go backwards one simple expression
+      (matlab-move-simple-sexp-internal -1))
+     
+     ;; otherwise go backwards recursively across balanced expressions
+     ;; backup over our end
+     (t
       (if (not autoend) (forward-word -1))
       (let ((done nil) (start (point)) (returnme t) (bound nil))
         (when (search-backward "\nfunction" nil t)
@@ -1921,7 +1943,7 @@ This assumes that expressions do not cross \"function\" at the left margin."
 		(setq done t
 		      returnme nil)
 	      (error "Unstarted END construct"))))
-	returnme))))
+	returnme)))))
 
 (defun matlab-forward-sexp (&optional includeelse autostart)
   "Go forward one balanced set of MATLAB expressions.
@@ -1935,6 +1957,13 @@ forward until we exit that block."
         ;; skip over preceding whitespace
         (skip-chars-forward " \t\n;")
         (cond
+	 ;; no autostart, and looking at a block comment.
+	 ((and (not autostart)
+	       (looking-at (concat "%{")))
+	  (goto-char (match-end 0))
+	  (let ((bc (matlab-ltype-block-comm)))
+	    (when bc (goto-char (cdr bc))))
+	  )
 	 ;; No autostart, and looking at a block keyword.
 	 ((and (not autostart)
 	       (or (not (looking-at (concat "\\("
@@ -2088,6 +2117,21 @@ Optional BEGINNING is where the command starts from."
 
 
 ;;; Line types, attributes, and string/comment context =================================================
+(defvar matlab-ltype-block-comm-bounds nil
+  "Bounds of the last block comment detected.
+The bounds returned in this form:
+   (START END)")
+(defvar matlab-ltype-block-comm-lastcompute nil
+  "Location of the last computation for block comments.")
+
+
+(defun matlab-change-function (beg end length)
+  "Function run after a buffer is modified."
+  ;; Flush block comment parsing info since those
+  ;; locations change on buffer edit.
+  (setq matlab-ltype-block-comm-bounds nil
+	matlab-ltype-block-comm-lastcompute nil)
+  )
 
 (defun matlab-ltype-empty ()		; blank line
   "Return t if current line is empty."
@@ -2146,18 +2190,13 @@ Return the symbol 'blockcomm if we are in a block comment."
 	(pulse-momentary-highlight-region (car pos) (cdr pos))
       (message "No block comment."))))
 
-(defvar matlab-ltype-block-comm-bounds nil
-  "Bounds of the last block comment detected.
-The bounds returned in this form:
-   (START END)")
-(defvar matlab-ltype-block-comm-lastcompute nil
-  "Location of the last computation for block comments.")
-
 (defun matlab-ltype-block-comm (&optional linebounds)
   "Return start positions of block comment if we are in a block comment."
   (let ((bounds matlab-ltype-block-comm-bounds)
 	(lcbounds matlab-ltype-block-comm-lastcompute))
 
+    ;;(if bounds (message "Recycle bounds") (message "no recycle bounds"))
+    
     (cond ((and bounds (>= (point) (car bounds))
 		(<= (point) (cdr bounds)))
 	   ;; All set!
@@ -2639,9 +2678,7 @@ If there isn't one, then return nil, point otherwise."
 	  nil
 	(beginning-of-line)
 	(delete-horizontal-space)
-	(indent-to i))
-      ;; If line contains a comment, format it.
-      (if () (if (matlab-lattr-comm) (matlab-comment))))
+	(indent-to i)))
     (if (<= cc ci) (move-to-column i))
     ))
 
@@ -2693,24 +2730,25 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
 		(save-excursion
 		  (matlab-beginning-of-defun)
 		  (current-indentation)))))
-       ;; BLOCK COMMENT END
+       ;; BLOCK COMMENT END _or_ body prefixed with %
        ((and matlab-ltype-block-comm-bounds
-	     (matlab-ltype-block-comm-at-end))
+	     (or (matlab-ltype-block-comm-at-end)
+		 (matlab-ltype-comm-noblock)))
 	(list 'comment (save-excursion
 			 (goto-char (car matlab-ltype-block-comm-bounds))
-			 (current-column)))
+			 (current-indentation)))
 	)
        ;; BLOCK COMMENT START
        ((and matlab-ltype-block-comm-bounds
 	     (matlab-ltype-block-comm-at-start))
 	(list 'comment (+ ci matlab-comment-anti-indent))
 	)
-       ;; BLOCK COMMENT BODY.
+	;; BLOCK COMMENT BODY.
        (matlab-ltype-block-comm-bounds
 	(list 'comment
 	      (+ (save-excursion
 		   (goto-char (car matlab-ltype-block-comm-bounds))
-		   (current-column))
+		   (current-indentation))
 		 2))
 	)
        ;; COMMENT Continued From Previous Line
@@ -3120,6 +3158,21 @@ Argument ARG specifies how many %s to insert."
     (matlab-indent-line)
     ;; The above seems to put the cursor on the %, not after it.
     (skip-chars-forward "%")))
+
+(defun matlab-electric-block-comment (arg)
+  "Indent line and insert block comment end character.
+Argument ARG specifies how many %s to insert."
+  (interactive "P")
+  (self-insert-command (or arg 1))
+  ;; We just modified the buffer, so flush old block comment caches.
+  (let ((bc (save-excursion (beginning-of-line) (matlab-ltype-block-comm))))
+    ;;(message "%S end %S" bc (matlab-ltype-block-comm-at-end))
+    (when (and bc (matlab-ltype-block-comm-at-end))
+      (matlab-indent-line)
+      ;; The above sometimes puts the cursor on the %, not after it.
+      (skip-chars-forward "%}")
+      (when bc (pulse-momentary-highlight-region (car bc) (cdr bc)))
+      )))
 
 (defun matlab-comment ()
   "Add a comment to the current line."
