@@ -584,8 +584,12 @@ If font lock is not loaded, lay in wait."
     (if (string-match "XEmacs" emacs-version)
 	(define-key km [(control meta button1)] 'matlab-find-file-click)
       (define-key km [(control meta mouse-2)] 'matlab-find-file-click))
+
+    (substitute-key-definition 'read-only-mode 'matlab-toggle-read-only
+			       km global-map)
+
     (substitute-key-definition 'comment-region 'matlab-comment-region
-			       km) ; global-map ;torkel
+			       km global-map) ;torkel
     km)
   "The keymap used in `matlab-mode'.")
 
@@ -3678,6 +3682,22 @@ ARG is passed to `fill-paragraph' and will justify the text."
 		     (matlab-justify-line)))))
 	(t
 	 (message "Paragraph Fill not supported in this context."))))
+
+(defvar gud-matlab-debug-active)
+(declare-function matlab-shell-gud-minor-mode "matlab-shell-gud")
+
+(defun matlab-toggle-read-only (&optional arg interactive)
+  "Toggle read-only bit in MATLAB mode.
+This looks to see if we are currently debugging, and if so re-enable our debugging feature."
+  (interactive "P")
+  (if (and (featurep 'matlab-shell-gud)
+	   gud-matlab-debug-active)
+      ;; The debugging is active, just re-enable debugging read-only-mode
+      (matlab-shell-gud-minor-mode 1)
+    ;; Else - it is not - probably doing somethng else.
+    (call-interactively 'read-only-mode)
+    ))
+
 
 ;;; Show Paren Mode support ==================================================
 

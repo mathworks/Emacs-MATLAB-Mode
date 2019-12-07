@@ -77,8 +77,8 @@ See `gud-def' for details."
   (when (not (fboundp 'gud-def))
     (error "Your emacs is missing `gud-def' which means matlab-shell won't work correctly.  Stopping"))
 
-  (gud-def gud-break  "dbstop in %d/%f at %l"  "\C-b" "Set breakpoint at current line.")
-  (gud-def gud-remove "dbclear in %d/%f at %l" "\C-d" "Remove breakpoint at current line.")
+  (gud-def gud-break  "dbstop in %d%f at %l"  "\C-b" "Set breakpoint at current line.")
+  (gud-def gud-remove "dbclear in %d%f at %l" "\C-d" "Remove breakpoint at current line.")
   (gud-def gud-step   (matlab-gud-fcn "dbstep in")   "\C-s" "Step one source line, possibly into a function.")
   (gud-def gud-next   (matlab-gud-fcn "dbstep %p")   "\C-n" "Step over one source line.")
   (gud-def gud-cont   (matlab-gud-fcn "dbcont")      "\C-r" "Continue with display.")
@@ -87,7 +87,7 @@ See `gud-def' for details."
   (gud-def gud-up     (matlab-gud-fcn "dbup")        "<"    "Up N stack frames (numeric arg).")
   (gud-def gud-down   (matlab-gud-fcn "dbdown")      ">"    "Down N stack frames (numeric arg).")
   ;; using (gud-def gud-print  "%e" "\C-p" "Eval expression at point") fails
-  (gud-def gud-print  "% gud-print not available" "\C-p" "gud-print not available.")
+  ;; (gud-def gud-print  "% gud-print not available" "\C-p" "gud-print not available.")
 
   (if (fboundp 'gud-make-debug-menu)
       (gud-make-debug-menu))
@@ -355,6 +355,7 @@ Call debug activate/deactivate features."
     ;; (define-key km "p" gud-print)
 
     (define-key km "e" 'matlab-shell-gud-mode-edit)
+    (define-key km "\C-x\C-q" 'matlab-shell-gud-mode-edit) ; like toggle-read-only
     
     km)
   "Keymap used by matlab mode maintainers.")
@@ -362,7 +363,7 @@ Call debug activate/deactivate features."
 (easy-menu-define
   matlab-shell-gud-menu matlab-shell-gud-minor-mode-map "MATLAB Maintainer's Minor Mode"
   '("MATLAB-DEBUG"
-      ["Exit MATLAB Debug mode" matlab-shell-gud-mode-edit
+      ["Edit File (toggle read-only)" matlab-shell-gud-mode-edit
        :help "Exit the MATLAB debug minor mode to edit without exiting MATLAB's K>> prompt."]
       ["dbstop in FILE at point" gud-break
        :active (matlab-shell-active-p)
@@ -385,6 +386,9 @@ Call debug activate/deactivate features."
       ["dbcont" gud-cont
        :active (matlab-shell-active-p)
        :help "When MATLAB debugger is active, run to next break point or finish"]
+      ["Show symbol value" matlab-shell-gud-show-symbol-value
+       :active (matlab-shell-active-p)
+       :help "When MATLAB debugger is active, show value of the symbol under point."]
       ["dbquit" gud-finish
        :active (matlab-shell-active-p)
        :help "When MATLAB debugger is active, stop debugging"]
@@ -418,7 +422,12 @@ Debug commands are:
 	(when matlab-shell-debug-tooltips-p
 	  (gud-tooltip-mode 1)
 	  (add-hook 'tooltip-functions 'gud-matlab-tooltip-tips)
-	  ))
+	  )
+	;; Replace gud's toolbar which keeps stomping
+	;; on our toolbar.
+	(make-variable-buffer-local 'gud-tool-bar-map)
+	(setq gud-tool-bar-map gud-matlab-tool-bar-map)
+	)
     ;; Disable
     (when (buffer-file-name)
       (setq buffer-read-only (not (file-writable-p (buffer-file-name)))))
@@ -426,6 +435,11 @@ Debug commands are:
     ;; Always disable tooltips, in case configured while in the mode.
     (gud-tooltip-mode -1)
     (remove-hook 'tooltip-functions 'gud-matlab-tooltip-tips)
+
+    ;; Disable the debug toolboar
+    (when (boundp 'tool-bar-map)            ; not --without-x
+      (kill-local-variable 'tool-bar-map))
+    
     )
   )
 
