@@ -3,11 +3,17 @@ classdef Breakpoints < handle
 
     properties
         % Breakpoints we have sent to Emacs already.
-        EmacsBreakpoints = struct([]);
+        EmacsBreakpoints = [];
+        % Netshell object if we should direct that way instead.
+        NetShellObject = [];
     end
 
     methods
-	function bp = Breakpoints()
+	function bp = Breakpoints(nso)
+            if nargin == 1
+                bp.NetShellObject = nso;
+            end
+
             bp.resetEmacs();
         end
         
@@ -52,35 +58,48 @@ classdef Breakpoints < handle
             end
 
             if ~isempty(delpts) || ~isempty(addpts)
-                disp(['<EMACSCAP>(eval)' newline  '(progn']);
                 % Send the sequence of Emacs commands to update breakpoints
-                sendPtList('del', delpts);
-                sendPtList('add', addpts);
-            
-                % Wrap up the request
-                disp([')' newline '</EMACSCAP>'])
+                str = [ '(progn' newline ...
+                        sendPtList('del', delpts) ...
+                        sendPtList('add', addpts)  ...
+                        ')' ];
+                if isempty(bp.NetShellObject)
+                    disp(['<EMACSCAP>(eval)' newline]);
+                    disp(str)
+                    disp([newline '</EMACSCAP>'])
+                else
+                    bp.NetShellObject.SendEval(str);
+                end
+                
 
                 bp.EmacsBreakpoints = currpts;
             end
         end
         
         function resetEmacs(bp)
-            disp(['<EMACSCAP>(eval)' newline  '(progn']);
-            disp('(mlg-reset-breakpoints)');
 
             currpts = unwindBreakpoints(builtin('dbstatus'));
-            sendPtList('add', currpts);
             bp.EmacsBreakpoints = currpts;
             
-            disp([')' newline '</EMACSCAP>'])
+            str = ['(progn (mlg-reset-breakpoints)' newline ...
+                   sendPtList('add', currpts) ')'];       
+            
+            if isempty(bp.NetShellObject)
+                disp(['<EMACSCAP>(eval)' newline ]);
+                disp(str);
+                disp([newline '</EMACSCAP>'])
+            else
+                bp.NetShellObject.SendEval(str);
+            end
         end
     end
 end
 
-function sendPtList(ad, bpstructlist)
+function str = sendPtList(ad, bpstructlist)
+    str = '';
     for i=1:length(bpstructlist)
-        disp(['(mlg-' ad '-breakpoint "' bpstructlist(i).file '" ' ...
-              num2str(bpstructlist(i).line) ')']);    
+        str = [ str '(mlg-' ad '-breakpoint "' bpstructlist(i).file '" ' ...
+                num2str(bpstructlist(i).line) ')' newline];     %#ok
     end
 end
 
