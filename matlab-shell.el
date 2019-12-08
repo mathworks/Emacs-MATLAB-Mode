@@ -76,7 +76,8 @@ Command switches are a list of strings.  Each entry is one switch."
 	 (list :background nil
 	       :foreground "red1"
 	       :bold t)))
-  "*Face to use when errors occur in MATLAB shell.")
+  "*Face to use when errors occur in MATLAB shell."
+  :group 'matlab-shell)
 
 (defvar matlab-custom-startup-command nil
   "Custom matlab command to be run at startup")
