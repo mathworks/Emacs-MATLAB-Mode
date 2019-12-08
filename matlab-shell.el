@@ -655,7 +655,7 @@ Argument STR is the text for the anchor."
 ;;
 (defvar matlab-shell-error-anchor-expression
   (concat "^\\s-*\\(\\(Error \\(in\\|using\\)\\s-+\\|Syntax error in \\)\\(?:==> \\)?\\|"
-	  "In\\s-+\\|Error:\\s-+File:\\s-+\\|Warning:\\s-+[^\n]+\n\\)")
+	  "In\\s-+\\(?:workspace belonging to\\s-+\\)?\\|Error:\\s-+File:\\s-+\\|Warning:\\s-+[^\n]+\n\\)")
   
   "Expressions used to find errors in MATLAB process output.
 This variable contains the anchor, or starting text before
@@ -739,7 +739,7 @@ Detect non-url errors, and treat them as if they were url anchors."
 			(or starting-anchor (point-min))))
 	(let* ((err-start (nth 0 ans))
 	       (err-end (nth 1 ans))
-	       (err-file (nth 2 ans))
+	       (err-file (string-trim (nth 2 ans)))
 	       (err-line (nth 3 ans))
 	       (err-col (nth 4 ans))
 	       (o (matlab-make-overlay err-start err-end))
@@ -951,8 +951,10 @@ This strips out that text from the shell and displays in a help."
 	      (if (string= buffname "eval")
 		  ;; The desire is to evaluate some Emacs Lisp code instead of
 		  ;; capture output to display in Emacs.
-		  (let ((forms (read txt)))
-		    (eval forms)
+		  (condition-case nil
+		      (let ((forms (read txt)))
+			(eval forms))
+		    (error (message "Failed to evaluate forms from MATLAB: %S" txt))
 		    )
 		(save-excursion
 		  (when insertbuff
