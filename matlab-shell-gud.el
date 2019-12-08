@@ -378,7 +378,7 @@ Used to track active breakpoints, and how to show them.")
   "*Face to use to highlight breakpoints."
   :group 'matlab-shell)
 
-(defmethod mlg-activate ((bp mlg-breakpoint))
+(cl-defmethod mlg-activate ((bp mlg-breakpoint))
   "Activate breakpoint BP if needed."
   ;; yes overlay, but inactive
   (when (and (slot-boundp bp 'overlay)
@@ -411,7 +411,7 @@ Used to track active breakpoints, and how to show them.")
 				))))
       ))
 
-(defmethod mlg-deactivate ((bp mlg-breakpoint))
+(cl-defmethod mlg-deactivate ((bp mlg-breakpoint))
   "Deactivate this breakpoint."
   (when (slot-boundp bp 'overlay)
     (with-slots (overlay) bp

@@ -85,7 +85,7 @@ the omniscience database.")
 
 ;;; Filename based methods
 ;;
-(defmethod semanticdb-get-database-tables ((obj semanticdb-project-database-matlab))
+(cl-defmethod semanticdb-get-database-tables ((obj semanticdb-project-database-matlab))
   "For a MATLAB database, there are no explicit tables.
 Create one of our special tables that can act as an intermediary."
   ;; NOTE: This method overrides an accessor for the `tables' slot in
@@ -100,29 +100,29 @@ Create one of our special tables that can act as an intermediary."
       (oset newtable parent-db obj)
       (oset newtable tags nil)
       ))
-  (call-next-method))
+  (cl-call-next-method))
 
-(defmethod semanticdb-file-table ((obj semanticdb-project-database-matlab) filename)
+(cl-defmethod semanticdb-file-table ((obj semanticdb-project-database-matlab) filename)
   "From OBJ, return FILENAME's associated table object."
   ;; NOTE: See not for `semanticdb-get-database-tables'.
   (car (semanticdb-get-database-tables obj))
   )
 
-(defmethod semanticdb-get-tags ((table semanticdb-table-matlab ))
+(cl-defmethod semanticdb-get-tags ((table semanticdb-table-matlab ))
   "Return the list of tags belonging to TABLE."
   ;; NOTE: Omniscient databases probably don't want to keep large tabes
   ;;       lolly-gagging about.  Keep internal Emacs tables empty and
   ;;       refer to alternate databases when you need something.
   nil)
 
-(defmethod semanticdb-equivalent-mode ((table semanticdb-table-matlab) &optional buffer)
+(cl-defmethod semanticdb-equivalent-mode ((table semanticdb-table-matlab) &optional buffer)
   "Return non-nil if TABLE's mode is equivalent to BUFFER.
 Equivalent modes are specified by by `semantic-equivalent-major-modes'
 local variable."
   (with-current-buffer buffer
     (eq (or mode-local-active-mode major-mode) 'matlab-mode)))
 
-(defmethod semanticdb-full-filename ((obj semanticdb-table-matlab))
+(cl-defmethod semanticdb-full-filename ((obj semanticdb-table-matlab))
   "Fetch the full filename that OBJ refers to.
 This function is currently a stub."
 ;; FIXME
@@ -298,12 +298,12 @@ If point is nil, the current buffer location is used."
 
 ;; Search functions
 
-(defmethod semanticdb-find-tags-by-name-method
+(cl-defmethod semanticdb-find-tags-by-name-method
   ((table semanticdb-table-matlab) name &optional tags)
   "Find all tags named NAME in TABLE.
 Return a list of tags."
   ;; If we have tags, go up.
-  (if tags (call-next-method)
+  (if tags (cl-call-next-method)
     (let (where)
       ;; If MATLAB shell is active, use it.
       (when (and (matlab-shell-active-p)
@@ -324,12 +324,12 @@ Return a list of tags."
 	  (list (car (semanticdb-file-stream (car where))))
 	nil))))
 
-(defmethod semanticdb-find-tags-by-name-regexp-method
+(cl-defmethod semanticdb-find-tags-by-name-regexp-method
   ((table semanticdb-table-matlab) regex &optional tags)
   "Find all tags with name matching REGEX in TABLE.
 Optional argument TAGS is a list of tags to search.
 Return a list of tags."
-  (if tags (call-next-method)
+  (if tags (cl-call-next-method)
     (let ((files (semanticdb-matlab-find-name regex 'regex)))
       (delq nil
 	    (mapcar #'(lambda (x)
@@ -337,13 +337,13 @@ Return a list of tags."
 			 (car (semanticdb-file-stream x))))
 		    files)))))
 
-(defmethod semanticdb-find-tags-for-completion-method
+(cl-defmethod semanticdb-find-tags-for-completion-method
   ((table semanticdb-table-matlab) prefix &optional tags)
   "In TABLE, find all occurances of tags matching PREFIX.
 Optional argument TAGS is a list of tags to search.
 Returns a table of all matching tags."
   ;; If we have tags, go up.
-  (if tags (call-next-method)
+  (if tags (cl-call-next-method)
     ;; first, get completions from home-made database...
     (let ((compdb (semanticdb-matlab-find-name prefix 'prefix))
 	  compshell)

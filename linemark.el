@@ -5,7 +5,7 @@
 ;; Created: Dec 1999
 ;; Keywords: lisp
 ;;
-;; Copyright (C) 1999, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009 Eric M. Ludlam
+;; Copyright (C) 1999, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2019 Eric M. Ludlam
 ;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -33,7 +33,8 @@
 ;; management can be a pain, and overlays are certainly needed for use
 ;; with font-lock.
 
-(require 'eieio)
+(eval-and-compile
+  (require 'matlab-compat))
 
 (eval-when-compile
   (require 'cl))
@@ -250,7 +251,7 @@ the buffer."
 
 ;;; Methods that make things go
 ;;
-(defmethod linemark-add-entry ((g linemark-group) &rest args)
+(cl-defmethod linemark-add-entry ((g linemark-group) &rest args)
   "Add a `linemark-entry' to G.
 It will be at location specified by :filename and :line, and :face
 which are property list entries in ARGS.
@@ -278,19 +279,19 @@ Call the new entrie's activate method."
       new-entry)
     ))
 
-(defmethod linemark-new-entry ((g linemark-group) &rest args)
+(cl-defmethod linemark-new-entry ((g linemark-group) &rest args)
   "Create a new entry for G using init ARGS."
   (let ((f (plist-get args :filename))
 	(l (plist-get args :line)))
     (apply 'linemark-entry (format "%s %d" f l)
 	   args)))
 
-(defmethod linemark-display ((g linemark-group) active-p)
+(cl-defmethod linemark-display ((g linemark-group) active-p)
   "Set object G to be active or inactive."
   (mapc (lambda (g) (linemark-display g active-p)) (oref g marks))
   (oset g active active-p))
 
-(defmethod linemark-display ((e linemark-entry) active-p)
+(cl-defmethod linemark-display ((e linemark-entry) active-p)
   "Set object E to be active or inactive."
   (if active-p
       (with-slots ((file filename)) e
@@ -325,23 +326,23 @@ Call the new entrie's activate method."
 	      (error nil))
 	    (oset e overlay nil))))))
 
-(defmethod linemark-delete ((g linemark-group))
+(cl-defmethod linemark-delete ((g linemark-group))
   "Remove group G from linemark tracking."
   (mapc 'linemark-delete (oref g marks))
   (setq linemark-groups (delete g linemark-groups)))
 
-(defmethod linemark-delete ((e linemark-entry))
+(cl-defmethod linemark-delete ((e linemark-entry))
   "Remove entry E from it's parent group."
   (with-slots (parent) e
     (oset parent marks (delq e (oref parent marks)))
     (linemark-display e nil)))
 
-(defmethod linemark-begin ((e linemark-entry))
+(cl-defmethod linemark-begin ((e linemark-entry))
   "Position at the start of the entry E."
   (with-slots (overlay) e
     (linemark-overlay-start overlay)))
 
-(defmethod linemark-end ((e linemark-entry))
+(cl-defmethod linemark-end ((e linemark-entry))
   "Position at the end of the entry E."
   (with-slots (overlay) e
     (linemark-overlay-end overlay)))

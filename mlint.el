@@ -28,6 +28,8 @@
 ;; Run mlint, and highlight the problems in the buffer.
 ;;
 
+(eval-and-compile
+  (require 'matlab-compat))
 (require 'matlab)
 (require 'linemark)
 (eval-when-compile
@@ -367,7 +369,7 @@ Different warnings are handled by different classes."
 	(or (cdr (car al)) 'mlint-lm-entry))
     'mlint-lm-entry))
 
-(defmethod linemark-new-entry ((g mlint-lm-group) &rest args)
+(cl-defmethod linemark-new-entry ((g mlint-lm-group) &rest args)
   "Add a `linemark-entry' to G.
 It will be at location FILE and LINE, and use optional FACE.
 Call the new entrie's activate method."
@@ -390,7 +392,7 @@ Call the new entrie's activate method."
 
 (defvar mlint-overlay-map) ;; quiet compiler warning with forward declaration
 
-(defmethod linemark-display ((e mlint-lm-entry) active-p)
+(cl-defmethod linemark-display ((e mlint-lm-entry) active-p)
   "Set object E to be active."
   ;; A bug in linemark prevents individual entry colors.
   ;; Fix the color here.
@@ -400,7 +402,7 @@ Call the new entrie's activate method."
 		((eq wc 'medium) 'linemark-caution-face)
 		(t 'linemark-go-face))))
   ;; Call our parent method
-  (call-next-method)
+  (cl-call-next-method)
   ;; Add highlight area
   (if active-p
       (when (and (not (slot-boundp e 'coverlay))
@@ -447,17 +449,17 @@ Call the new entrie's activate method."
 	  (slot-makeunbound e 'coverlay)))
       )))
 
-(defmethod mlint-is-fixable ((e mlint-lm-entry))
+(cl-defmethod mlint-is-fixable ((e mlint-lm-entry))
   "Return non-nil if this entry can be automatically fixed."
   (oref-default e fixable-p))
 
-(defmethod mlint-fix-entry :AFTER ((e mlint-lm-entry))
+(cl-defmethod mlint-fix-entry :AFTER ((e mlint-lm-entry))
   "Stuff to do after a warning is considered fixed.
 Subclasses fulfill the duty of actually fixing the code."
   (linemark-display e nil)
   (linemark-delete e))
 
-(defmethod mlint-fix-entry ((e mlint-lm-entry))
+(cl-defmethod mlint-fix-entry ((e mlint-lm-entry))
   "This entry cannot fix warnings, so throw an error.
 Subclasses fulfill the duty of actually fixing the code."
   (error "Don't know how to fix warning"))
@@ -471,7 +473,7 @@ Subclasses fulfill the duty of actually fixing the code."
    )
   "Specialized entry for deleting the higlighted entry.")
 
-(defmethod mlint-fix-entry ((ent mlint-lm-delete-focus))
+(cl-defmethod mlint-fix-entry ((ent mlint-lm-delete-focus))
   "Add semi-colon to end of this line."
   (save-excursion
     (mlint-goto-line (oref ent line))
@@ -491,7 +493,7 @@ Subclasses fulfill the duty of actually fixing the code."
   "Class which can replace the focus area."
   :abstract t)
 
-(defmethod initialize-instance :AFTER ((this mlint-lm-replace-focus)
+(cl-defmethod initialize-instance :AFTER ((this mlint-lm-replace-focus)
 				       &rest fields)
   "Calculate the new fix description for THIS.
 Optional argument FIELDS are the initialization arguments."
@@ -500,9 +502,9 @@ Optional argument FIELDS are the initialization arguments."
 	(concat (oref-default mlint-lm-replace-focus fix-description)
 		(oref this new-text))))
 
-(defmethod mlint-fix-entry ((ent mlint-lm-replace-focus))
+(cl-defmethod mlint-fix-entry ((ent mlint-lm-replace-focus))
   "Replace the focus area with :new-text"
-  (let ((pos (call-next-method)))
+  (let ((pos (cl-call-next-method)))
     (save-excursion
       (goto-char (point))
       (insert (oref ent new-text)))))
@@ -516,7 +518,7 @@ Optional argument FIELDS are the initialization arguments."
   "Entry for anything that is depricated.
 Extracts the replacement for the depricated symbol from the warning message.")
    
-(defmethod initialize-instance :AFTER ((this mlint-lm-entry-depricated)
+(cl-defmethod initialize-instance :AFTER ((this mlint-lm-entry-depricated)
 				       &rest fields)
   "Calculate the 'new text' for THIS instance.
 Optional argument FIELDS are the initialization arguments."
@@ -537,7 +539,7 @@ Optional argument FIELDS are the initialization arguments."
    )
   "Specialized logical and/or class.")
 
-(defmethod mlint-fix-entry ((ent mlint-lm-entry-logicals))
+(cl-defmethod mlint-fix-entry ((ent mlint-lm-entry-logicals))
   "Replace the single logical with double logical."
   (save-excursion
     (mlint-goto-line (oref ent line))
@@ -555,7 +557,7 @@ Optional argument FIELDS are the initialization arguments."
    )
   "Specialized logical and/or class.")
 
-(defmethod mlint-fix-entry ((ent mlint-lm-entry-unused-argument))
+(cl-defmethod mlint-fix-entry ((ent mlint-lm-entry-unused-argument))
   "Remove the arguments."
   (save-excursion
     (mlint-goto-line (oref ent line))
@@ -576,7 +578,7 @@ Optional argument FIELDS are the initialization arguments."
   "Specialized logical and/or class.")
 
 
-(defmethod mlint-fix-entry ((ent mlint-lm-quiet))
+(cl-defmethod mlint-fix-entry ((ent mlint-lm-quiet))
   "Add semi-colon to end of this line."
   (save-excursion
     (matlab-end-of-command)

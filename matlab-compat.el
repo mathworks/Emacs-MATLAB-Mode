@@ -176,7 +176,34 @@ Return the base directory it is in."
                 (list completions))))
     (apply 'display-completion-list args)))
 
+;; Font lock
+(require 'font-lock)
+(unless (fboundp 'font-lock-ensure)
+  (defalias 'font-lock-ensure 'font-lock-fontify-buffer))
 
+;; CEDET compat if CEDET isn't around
+(condition-case nil
+    (progn
+      (require 'pulse)
+      )
+  (error
+   (defun pulse-momentary-highlight-region (start end &optional face)
+     "Compat impl of pulse command." nil)))
+
+;; EIEIO compatibility
+(condition-case nil
+    (progn
+      (require 'eieio)
+      (unless (fboundp 'cl-defgeneric)
+	;; We are in an antique Emacs that uses the old eieio.
+	(defalias 'cl-defmethod 'defmethod)
+	)
+      (unless (fboundp 'cl-call-next-method)
+	;; We are in an antique Emacs that uses the old eieio.
+	(defalias 'cl-call-next-method 'call-next-method)
+	)
+      )
+  (error (message "EIEIO not available.  Only MATLAB editing enabled.")))
 
 (provide 'matlab-compat)
 

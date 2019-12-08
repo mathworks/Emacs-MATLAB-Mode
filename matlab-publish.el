@@ -1,6 +1,6 @@
 ;;; matlab-publish.el --- Utilities for editing MATLAB files for publishing
 
-;; Copyright (C) 2009 Uwe Brauer
+;; Copyright (C) 2009, 2019 Uwe Brauer
 
 ;; Author: Uwe Brauer oub@mat.ucm.es
 ;; Maintainer: Uwe Brauer oub@mat.ucm.es
@@ -30,9 +30,8 @@
 
 ;;; Code:
 
-
-
 (require 'matlab)
+(require 'matlab-shell)
 
 ;; Variables
 (defvar matlab-temp-region-file "region.m"
