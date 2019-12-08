@@ -1,4 +1,4 @@
-function emacs_dbstop(varargin)
+function ebstop(varargin)
 % Emacs version of dbstop.  Tells emacs which breakpoints are active.
     
     dbstop(varargin{:});
