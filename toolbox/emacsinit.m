@@ -55,12 +55,14 @@ function emacsinit(clientcommand, startnetshell)
         
     end
 
-    % Initialize Emacs breakboint handler.
-    bp = emacs.Breakpoints;
-    setappdata(groot, 'EmacsBreakpoints', bp);
-    
     % If requested, start the Emacs netshell interface.
     if nargin >= 2 && startnetshell
-        emacsnetshell init
+        nso = emacsnetshell('init');
+    else
+        nso = [];
     end
+
+    % Initialize Emacs breakboint handler.
+    bp = emacs.Breakpoints(nso);
+    setappdata(groot, 'EmacsBreakpoints', bp);
 end
