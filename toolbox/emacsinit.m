@@ -54,6 +54,10 @@ function emacsinit(clientcommand, startnetshell)
         % TODO - how to specify this preference w/out Java ?
         
     end
+
+    % Initialize Emacs breakboint handler.
+    bp = emacs.Breakpoints;
+    setappdata(groot, 'EmacsBreakpoints', bp);
     
     % If requested, start the Emacs netshell interface.
     if nargin >= 2 && startnetshell
