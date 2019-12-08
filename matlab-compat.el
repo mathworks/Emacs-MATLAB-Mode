@@ -126,7 +126,27 @@
   (defun matlab-set-keymap-parent (keymap parent)
     "Set KEYMAP's parent to be PARENT."
     (nconc keymap comint-mode-map)))
+
+;; String trim
+(if (fboundp 'string-trim)
+
+    (defalias 'matlab-string-trim 'string-trim)
   
+  (defsubst matlab-string-trim (string &optional regexp)
+    "Trim STRING of leading string matching REGEXP.
+
+REGEXP defaults to \"[ \\t\\n\\r]+\"."
+    (let ((out string)
+	  (regexp_ (or regexp "[ \t\n\r]+")))
+      
+      (when (string-match (concat "\\`\\(?:" regexp_ "\\)") out)
+	(setq out (substring out (match-end 0))))
+      
+      (when (string-match (concat "\\(?:" regexp_ "\\)\\'") out)
+	(setq out (substring out 0 (match-beginning 0))))
+      
+      out))
+  )
 
 ;; Finding executables
 (defun matlab-find-executable-directory (program)
