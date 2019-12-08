@@ -28,6 +28,7 @@
 
 (eval-and-compile
   (require 'gud)
+  (require 'eieio)
   )
 
 ;;; Code:
@@ -77,8 +78,8 @@ See `gud-def' for details."
   (when (not (fboundp 'gud-def))
     (error "Your emacs is missing `gud-def' which means matlab-shell won't work correctly.  Stopping"))
 
-  (gud-def gud-break  "dbstop in %d%f at %l"  "\C-b" "Set breakpoint at current line.")
-  (gud-def gud-remove "dbclear in %d%f at %l" "\C-d" "Remove breakpoint at current line.")
+  (gud-def gud-break  "ebstop in %d%f at %l"  "\C-b" "Set breakpoint at current line.")
+  (gud-def gud-remove "ebclear in %d%f at %l" "\C-d" "Remove breakpoint at current line.")
   (gud-def gud-step   (matlab-gud-fcn "dbstep in")   "\C-s" "Step one source line, possibly into a function.")
   (gud-def gud-next   (matlab-gud-fcn "dbstep %p")   "\C-n" "Step over one source line.")
   (gud-def gud-cont   (matlab-gud-fcn "dbcont")      "\C-r" "Continue with display.")
@@ -298,8 +299,138 @@ FILE is ignored, and ARGS is returned."
     
     output))
 
+;;; Breakpoint Trackers
+;;
+(defclass mlg-breakpoint ()
+  ((file :initarg :file
+	 :type string
+	 :documentation
+	 "The filename this brekpoint belongs to.")
+   (line :initarg :line
+	 :type integer
+	 :documentation
+	 "The line number for this breakpoint")
+   (overlay :documentation
+	    :default nil
+	    "The overlay indicating the preense of this breakpoint.")
+   )
+  "Representation of a breakpoint.
+Used to track active breakpoints, and how to show them.")
+
+(defvar matlab-gud-visible-breakpoints nil
+  "List of breakpoints MATLAB has sent to us.")
+
+(defun mlg-reset-breakpoints ()
+  "Remove all cached breakpoints."
+  (dolist (BP matlab-gud-visible-breakpoints)
+    (mlg-deactivate BP))
+  (setq matlab-gud-visible-breakpoints nil))
+
+(defun mlg-add-breakpoint (file line)
+  "Add a visible breakpoint to FILE at LINE."
+  (let ((found nil))
+    (dolist (BP matlab-gud-visible-breakpoints)
+      (when (and (string= (oref BP file) file)
+		 (= (oref BP line) line))
+	(setq found t)))
+    (when (not found)
+      (setq matlab-gud-visible-breakpoints
+	    (cons (mlg-breakpoint :file file
+				  :line line)
+		  matlab-gud-visible-breakpoints))
+      (mlg-activate (car matlab-gud-visible-breakpoints))
+      ))
+  ;; The first time breakpoints are added, make sure we can activate breakpoints
+  ;; when new files are opened in a buffer.
+  (add-hook 'matlab-mode-hook 'mlg-breakpoint-activate-buffer-opened-hook)
+  )
+
+(defun mlg-del-breakpoint (file line)
+  "Add a visible breakpoint to FILE at LINE."
+  (let ((BPS matlab-gud-visible-breakpoints)
+	(NBPS nil))
+    (while BPS
+      (if (and (string= (oref (car BPS) file) file)
+	       (= (oref (car BPS) line) line))
+	  ;; Deactivate
+	  (mlg-deactivate (car BPS))
+	;; Not being removed, add to list.
+	(setq NBPS (cons (car BPS) NBPS)))
+      (setq BPS (cdr BPS)))
+    
+    (setq matlab-gud-visible-breakpoints
+	  (nreverse NBPS))))
+
+(defface mlg-breakpoint-face
+  (list
+   (list t
+	 (list :background nil
+	       :foreground nil
+	       :underline "red1")))
+  "*Face to use to highlight breakpoints."
+  :group 'matlab-shell)
+
+(defmethod mlg-activate ((bp mlg-breakpoint))
+  "Activate breakpoint BP if needed."
+  ;; yes overlay, but inactive
+  (when (and (slot-boundp bp 'overlay)
+	     (oref bp overlay)
+	     (not (overlay-buffer (oref bp overlay))))
+      (oset bp overlay nil))
+    
+    (let ((buff (find-buffer-visiting (oref bp file))))
+      ;; No overlay, and we can make one.
+      (when (and (or (not (slot-boundp bp 'overlay))
+		     (not (oref bp overlay)))
+		 buff)
+	(with-current-buffer buff
+	  (goto-char (point-min))
+	  (forward-line (1- (oref bp line)))
+	  (let ((ol (matlab-make-overlay (save-excursion
+					   (back-to-indentation)
+					   (point))
+					 (point-at-eol) buff nil nil)))
+	    ;; Store it
+	    (oset bp overlay ol)
+	    ;; Setup cool stuff
+	    (matlab-overlay-put ol 'face 'mlg-breakpoint-face)
+	    (matlab-overlay-put ol 'before-string
+				(propertize "#"
+					    'display
+					    '(left-fringe
+					      filled-square
+					      matlab-shell-error-face))
+				))))
+      ))
+
+(defmethod mlg-deactivate ((bp mlg-breakpoint))
+  "Deactivate this breakpoint."
+  (when (slot-boundp bp 'overlay)
+    (with-slots (overlay) bp
+      (when (and overlay (overlayp overlay))
+	(delete-overlay overlay)
+	(setq overlay nil)))))
+
+(defun mlg-breakpoint-activate-buffer-opened-hook ()
+  "Activate any breakpoints in a buffer when that buffer is read in."
+  (if (not (matlab-shell-active-p))
+      (mlg-reset-breakpoints)
+
+    ;; Still going, activate.
+    (dolist (BP matlab-gud-visible-breakpoints)
+      (mlg-activate BP)
+      )))
+
+(defun mlg-breakpoint-flush-and-reactivate ()
+  "Flush existing breakpoint markers, and reactivate."
+  (interactive)
+  (dolist (BP matlab-gud-visible-breakpoints)
+    (mlg-deactivate BP)
+    (mlg-activate BP))
+  )
 
 ;;; K prompt state and hooks.
+;;
 
 (defun gud-matlab-debug-tracker ()
   "Function called when new prompts appear.
@@ -425,7 +556,7 @@ Debug commands are:
 	  )
 	;; Replace gud's toolbar which keeps stomping
 	;; on our toolbar.
-	(make-variable-buffer-local 'gud-tool-bar-map)
+	(make-local-variable 'gud-tool-bar-map)
 	(setq gud-tool-bar-map gud-matlab-tool-bar-map)
 	)
     ;; Disable
