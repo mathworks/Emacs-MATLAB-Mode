@@ -7,6 +7,7 @@ classdef EmacsServer < handle
     properties (Access='protected')
         tcpclient;
         timer;
+        breakpoints;
     end
 
     methods
@@ -54,6 +55,12 @@ classdef EmacsServer < handle
                 write(ES.tcpclient, uint8(data));
             end
             write(ES.tcpclient, uint8(0));
+        end
+        
+        function SendEval(ES, lispform)
+        % Send the LISPFFORM for Emacs to evaluate. 
+            
+            ES.SendCommand('eval', lispform);
         end
     end
     
@@ -111,7 +118,7 @@ classdef EmacsServer < handle
               case 'eval'
                 try
                     disp(['>> ' data]);
-                    eval(data);
+                    evalin('base',data);
                 catch ERR
                     disp(ERR.message);
                     ES.SendCommand('error', ERR.message);
