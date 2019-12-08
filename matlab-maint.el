@@ -23,6 +23,7 @@
 
 (require 'matlab)
 (require 'matlab-shell)
+(require 'matlab-netshell)
 
 ;;; Code:
 
@@ -42,6 +43,9 @@
     ["Run Tests" matlab-maint-run-tests t]
     ["Toggle IO Logging" matlab-maint-toggle-io-tracking
      :style toggle :selected matlab-shell-io-testing ]
+    ["Display logger frame" matlab-maint-toggle-logger-frame
+     :style toggle :selected (and matlab-maint-logger-frame
+				  (frame-live-p matlab-maint-logger-frame)) ]
     ))
 
 ;;;###autoload
@@ -102,6 +106,26 @@ Return the buffer."
   (message "MATLAB Shell IO logging %s" (if matlab-shell-io-testing
 					    "enabled" "disabled")))
 
+(defvar matlab-maint-logger-frame nil
+  "Frame displaying log information.")
+
+(defun matlab-maint-toggle-logger-frame ()
+  "Display a frame showing various log buffers."
+  (interactive)
+  (if (and matlab-maint-logger-frame
+	   (frame-live-p matlab-maint-logger-frame))
+      (progn
+	(delete-frame matlab-maint-logger-frame)
+	(setq matlab-maint-logger-frame nil))
+    ;; Otherwise, create ...
+    (setq matlab-maint-logger-frame (make-frame))
+    (with-selected-frame matlab-maint-logger-frame
+      (delete-other-windows)
+      (switch-to-buffer "*Messages*")
+      (split-window-horizontally)
+      (other-window 1)
+      (switch-to-buffer (process-buffer (matlab-netshell-client)))
+      )))
 
 (provide 'matlab-maint)
 
