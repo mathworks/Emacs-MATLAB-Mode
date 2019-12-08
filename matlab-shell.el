@@ -739,7 +739,7 @@ Detect non-url errors, and treat them as if they were url anchors."
 			(or starting-anchor (point-min))))
 	(let* ((err-start (nth 0 ans))
 	       (err-end (nth 1 ans))
-	       (err-file (string-trim (nth 2 ans)))
+	       (err-file (matlab-string-trim (nth 2 ans)))
 	       (err-line (nth 3 ans))
 	       (err-col (nth 4 ans))
 	       (o (matlab-make-overlay err-start err-end))
