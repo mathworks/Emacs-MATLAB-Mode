@@ -60,14 +60,22 @@ Disable this option if the tooltips are too slow in your setup."
       (tool-bar-local-item-from-menu
        (car x) (cdr x) map gud-minor-mode-map))))
 
+(declare-function matlab-netshell-eval "matlab-netshell" (mode))
+
+(defmacro matlab-at-fcn (cmd)
+  "Define FUNC to be a GUD command that works w/ shell or netshell."
+  ;; Note `arg' comes from gud-def declaration
+  `(if (matlab-shell-active-p)
+       (gud-call ,cmd arg)
+     (if (matlab-netshell-active-p)
+	 (matlab-netshell-eval (gud-format-command ,cmd arg))
+       (error "No MATLAB shell active."))))
+
 (defmacro matlab-gud-fcn (cmd)
-  "Define FUNC to be a command sending CMD and bound to KEY, with
-optional doc string DOC.  Certain %-escapes in the string arguments
-are interpreted specially if present.  These are:
-See `gud-def' for details."
+  "Define CMD forms to be sent to a MATLAB shell."
   ;; Note `arg' comes from gud-def declaration
   `(if gud-matlab-debug-active
-       (gud-call ,cmd arg)
+       (matlab-at-fcn ,cmd)
      (error "MATLAB debugging not active")))
 
 ;;;###autoload
@@ -78,8 +86,8 @@ See `gud-def' for details."
   (when (not (fboundp 'gud-def))
     (error "Your emacs is missing `gud-def' which means matlab-shell won't work correctly.  Stopping"))
 
-  (gud-def gud-break  "ebstop in %d%f at %l"  "\C-b" "Set breakpoint at current line.")
-  (gud-def gud-remove "ebclear in %d%f at %l" "\C-d" "Remove breakpoint at current line.")
+  (gud-def gud-break  (matlab-at-fcn "ebstop in %d%f at %l")  "\C-b" "Set breakpoint at current line.")
+  (gud-def gud-remove (matlab-at-fcn "ebclear in %d%f at %l") "\C-d" "Remove breakpoint at current line.")
   (gud-def gud-step   (matlab-gud-fcn "dbstep in")   "\C-s" "Step one source line, possibly into a function.")
   (gud-def gud-next   (matlab-gud-fcn "dbstep %p")   "\C-n" "Step over one source line.")
   (gud-def gud-cont   (matlab-gud-fcn "dbcont")      "\C-r" "Continue with display.")
@@ -626,7 +634,7 @@ Shows a help message in the mini buffer."
 Much of this was copied from `gud-tooltip-tips'.
 
 This function must return nil if it doesn't handle EVENT."
-  (when (eventp event)
+  (when (and (eventp event) (tooltip-event-buffer event))
     (with-current-buffer (tooltip-event-buffer event)
       (when (and gud-tooltip-mode
 		 matlab-shell-gud-minor-mode
