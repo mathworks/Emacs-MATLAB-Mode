@@ -1,4 +1,4 @@
-function emacsnetshell(cmd, data)
+function nso = emacsnetshell(cmd, data)
 % Create a connection to an EMACS editor server.
 % If we succeed then setup a timer to watch what comes in from the connection.
 
@@ -33,13 +33,17 @@ function emacsnetshell(cmd, data)
             error('Command must be a char vector.');
         end
 
-        if ~strcmp(cmd,'init') && sendinit
+        if ~strcmp(cmd,'init') || sendinit
             if nargin == 2
                 EMACSSERVER.SendCommand(cmd, data);
             else
                 EMACSSERVER.SendCommand(cmd);
             end
         end
+    end
+    
+    if nargout == 1
+        nso = EMACSSERVER;
     end
 
 end
