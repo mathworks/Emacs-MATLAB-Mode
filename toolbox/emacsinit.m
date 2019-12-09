@@ -5,6 +5,20 @@ function emacsinit(clientcommand, startnetshell)
 % is defined by `matlab-shell-emacsclient-command' in matlab.el. If empty,
 % don't instruct MATLAB to use emacsclient to edit files.
 
+    me = mfilename('fullpath');
+    % This command can also update the path for the emacs Toolbox direcory.
+    % This will make it possible to use this one command from a standalone
+    % MATLAB and setup netshell.
+    [ myDir ] = fileparts(me);
+    
+    if ~contains(path, myDir)
+        
+        disp(['Updating MATLAB Path to support Emacs toolbox + ' myDir]);
+
+        addpath(myDir,'-begin');
+        rehash;
+    end
+    
     if usejava('jvm')
 
         %{
@@ -55,8 +69,18 @@ function emacsinit(clientcommand, startnetshell)
         
     end
 
+    % Check if we're running inside emacxs.  If we are NOT, then force the enablement of
+    % the netshell interface to Emacs.
+    emacs_env = getenv('INSIDE_EMACS');
+    
+    if isempty(emacs_env)
+        startnetshell = true;
+    elseif nargin < 2
+        startnetshell = false;
+    end
+
     % If requested, start the Emacs netshell interface.
-    if nargin >= 2 && startnetshell
+    if startnetshell
         nso = emacsnetshell('init');
     else
         nso = [];
@@ -65,4 +89,9 @@ function emacsinit(clientcommand, startnetshell)
     % Initialize Emacs breakboint handler.
     bp = emacs.Breakpoints(nso);
     setappdata(groot, 'EmacsBreakpoints', bp);
+
+    % Initialize Emacs stack handler.
+    bp = emacs.Stack(nso);
+    setappdata(groot, 'EmacsStack', bp);
+
 end
