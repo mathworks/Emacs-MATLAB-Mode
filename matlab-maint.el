@@ -122,10 +122,11 @@ Return the buffer."
     (with-selected-frame matlab-maint-logger-frame
       (delete-other-windows)
       (switch-to-buffer "*Messages*")
-      (split-window-horizontally)
-      (other-window 1)
-      (switch-to-buffer (process-buffer (matlab-netshell-client)))
-      )))
+      (when (matlab-netshell-client)
+	(split-window-horizontally)
+	(other-window 1)
+	(switch-to-buffer (process-buffer (matlab-netshell-client)))
+	))))
 
 (provide 'matlab-maint)
 
