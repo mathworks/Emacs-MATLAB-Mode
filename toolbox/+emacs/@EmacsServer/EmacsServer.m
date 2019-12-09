@@ -7,7 +7,6 @@ classdef EmacsServer < handle
     properties (Access='protected')
         tcpclient;
         timer;
-        breakpoints;
     end
 
     methods
