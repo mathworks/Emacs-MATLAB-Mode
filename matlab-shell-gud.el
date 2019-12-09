@@ -307,6 +307,196 @@ FILE is ignored, and ARGS is returned."
     
     output))
 
+;;; Stack tracking
+;;
+(defclass mlg-stack-frame ()
+  ((file :initarg :file
+	 :type string
+	 :documentation
+	 "The filename this frame belongs to.")
+   (name :initarg :name
+	 :type string
+	 :documentation
+	 "The name of the location of this frame")
+   (line :initarg :line
+	 :type integer
+	 :documentation
+	 "The line number for this frame"))
+  "A single stack frame from MATLAB.")
+
+(cl-defmethod mlg-print ((frame mlg-stack-frame) longestname)
+  "Use print to output this stack frame."
+  (let* ((namefmt (concat "%" (number-to-string (or longestname 10)) "s"))
+	 (str (concat (propertize (format namefmt (oref frame name)) 'face 'font-lock-function-name-face)
+		      " "
+	              (propertize (format "%3d" (oref frame line)) 'face 'bold)
+		      " "
+		      (propertize (oref frame file) 'face 'font-lock-constant-face))))
+    (setq str (propertize str 'object frame))
+    str))
+
+(defvar mlg-stack nil
+  "The last stack sent to us from MATLAB.")
+(defvar mlg-frame nil
+  "The last frame sent to use from MATLAB.")
+
+(defun mlg-set-stack (newstack)
+  "A new stack provided by MATLAB."
+  (setq mlg-stack nil)
+  (dolist (L newstack)
+    (push (mlg-stack-frame
+	   :file (nth 0 L)
+	   :name (nth 1 L)
+	   :line (nth 2 L))
+	  mlg-stack))
+  (setq mlg-stack (nreverse mlg-stack))
+  (mlg-refresh-stack-buffer)
+  )
+
+(defun mlg-set-stack-frame (newframe)
+  "A new stackframe provided by MATLAB."
+  (setq mlg-frame newframe)
+  (mlg-show-stack)
+  (mlg-show-frame newframe)
+  )
+
+(defun mlg-show-frame (&optional frame)
+  "Setup windows to show FRAME from the current stack frame."
+  (let ((newframe (or frame mlg-frame)))
+    (if (and mlg-stack (< newframe (length mlg-stack)))
+	;; Make sure we have a stack window.
+	(let* ((buff (get-buffer "*MATLAB stack*"))
+	       (win (get-buffer-window buff)))
+	  (if (or (not buff) (not win))
+	      (mlg-show-stack)
+	    ;; else, do refresh stuff.
+	    (select-window win))
+	  
+	  ;; Still around, go do it.
+	  (goto-char (point-min))
+	  (forward-line (1- frame))
+	  (mlg-stack-choose)
+	  )
+      ;; Else no frame.  Look for the window, and close it.
+      (let* ((buff (get-buffer "*MATLAB stack*"))
+	     (win (get-buffer-window buff)))
+
+	(when win (delete-window win)))
+      )))
+
+(defun mlg-refresh-stack-buffer ()
+  "Refresh the buffer displaying stack"
+  (save-excursion
+    (let ((buff (get-buffer-create "*MATLAB stack*"))
+	  (namelen 5)
+	  (inhibit-read-only t))
+
+      (dolist (S mlg-stack)
+	(when (> (length (oref S name)) namelen)
+	  (setq namelen (length (oref S name)))))
+    
+      (set-buffer buff)
+      (erase-buffer)
+
+      (let ((cnt 1))
+	(dolist (F mlg-stack)
+	  (insert (format "%2d" cnt))
+	  (if (= cnt mlg-frame)
+	      (insert " >> ")
+	    (insert " -- "))
+	  (insert (mlg-print F namelen) "\n")
+	  (setq cnt (1+ cnt))))
+
+      (mlg-stack-mode)
+      (goto-char (point-min))
+      (current-buffer))))
+  
+(defun mlg-show-stack ()
+  "Display the MATLAB stack in an interactive buffer."
+  (interactive)
+  (let ((buff (mlg-refresh-stack-buffer)))
+  
+    (display-buffer
+     buff
+     '((display-buffer-at-bottom)
+       (inhibit-same-window . t)
+       (window-height . fit-window-to-buffer))
+     )
+
+    (select-window (get-buffer-window buff))
+    (goto-char 3)
+    ))
+  
+(defvar mlg-stack-mode-map
+  (let ((km (make-sparse-keymap)))
+    (define-key km [return] 'mlg-stack-choose)
+    (define-key km "q" 'delete-window)
+    (define-key km "n" 'mlg-stack-next)
+    (define-key km "p" 'mlg-stack-prev)
+    (define-key km [mouse-2] 'mlg-stack-click)
+    (define-key km [mouse-1] 'mlg-stack-click)
+    km)
+  "Keymap used in MATLAB stack mode.")
+
+;; Need this to fix wierd problem in define-derived-mode
+(defvar mlg-stack-mode-syntax-table (make-syntax-table)
+  "Syntax table used in matlab-shell-help-mode.")
+
+(define-derived-mode mlg-stack-mode
+  fundamental-mode "MStack"
+  "Major mode for viewing a MATLAB stack.
+
+Commands:
+\\{mlg-stack-mode-map}"
+  :syntax-table mlg-stack-mode-syntax-table
+  (setq buffer-read-only t)
+  )
+
+(defun mlg-stack-next ()
+  "Visit stack on next line"
+  (interactive)
+  (forward-line 1)
+  (forward-char 2)
+  (mlg-stack-choose))
+
+(defun mlg-stack-prev ()
+  "Visit stack on next line"
+  (interactive)
+  (forward-line -1)
+  (forward-char 2)
+  (mlg-stack-choose))
+
+(defun mlg-stack-click (e)
+  "Click on a stack frame to visit it.
+Must be bound to event E."
+  (interactive "e")
+  (mouse-set-point e)
+  (mlg-stack-choose))
+
+(defun mlg-stack-choose ()
+  "Choose the stack the under the cursor.
+Visit the file presented in that stack frame."
+  (interactive)
+  (let ((topic nil) (fun nil) (p (point)))
+    (save-excursion
+      (beginning-of-line)
+      (forward-char 10)
+      (let* ((sf (get-text-property (point) 'object))
+	     (f (oref sf file))
+	     (l (oref sf line))
+	     (buff (find-file-noselect f)))
+	(display-buffer
+	 buff
+	 '((display-buffer-reuse-window display-buffer-use-some-window)
+	   (inhibit-same-window . t))
+	 )
+	(let ((win (selected-window)))
+	  (select-window (get-buffer-window buff))
+	  (goto-char (point-min))
+	  (forward-line (1- l))
+	  (select-window win))
+	))))
+
 ;;; Breakpoint Trackers
 ;;
 (defclass mlg-breakpoint ()
