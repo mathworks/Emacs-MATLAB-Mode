@@ -854,15 +854,16 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
   ;; Init this session of MATLAB.
   (if matlab-shell-use-emacs-toolbox
       ;; Use our local toolbox directory.
-      (matlab-shell-send-command
-       (format "addpath('%s','-begin'); rehash; emacsinit('%s'%s);"
-	       (expand-file-name "toolbox"
-				 (file-name-directory
-				  (locate-library "matlab")))
-	       (matlab-shell--get-emacsclient-command)
-	       (if matlab-shell-autostart-netshell
-		   ", true" "")
-	       ))
+      (let* ((path (expand-file-name "toolbox" (file-name-directory
+						(locate-library "matlab"))))
+	     (initcmd (expand-file-name "emacsinit" path))
+	     (nsa (if matlab-shell-autostart-netshell "emacs.set('netshell', true);" ""))
+	     (ecc (matlab-shell--get-emacsclient-command))
+	     (ecca (if ecc (format "emacs.set('clientcmd', '%s');" ecc) ""))
+	     (args (list nsa ecca))
+	     (cmd (format "run('%s');%s" initcmd (apply 'concat args))))
+	(matlab-shell-send-command cmd)
+	)
     
     ;; Setup is misconfigured - we need emacsinit because it tells us how to debug
     (error "unable to initialize matlab, emacsinit.m and other files missing"))

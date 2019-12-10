@@ -1,4 +1,4 @@
-function emacsinit(clientcommand, startnetshell)
+function emacsinit()
 % EMACSINIT Initialize the current MATLAB session for matlab-shell-mode
 %
 % clientcommand is the emacsclient command used to open files in emacs. It
@@ -13,14 +13,13 @@ function emacsinit(clientcommand, startnetshell)
     
     if ~contains(path, myDir)
         
-        disp(['Updating MATLAB Path to support Emacs toolbox + ' myDir]);
+        disp(['Updating MATLAB Path to support Emacs toolbox: addpath(' myDir ')']);
 
         addpath(myDir,'-begin');
         rehash;
     end
-    
-    if usejava('jvm')
 
+    if usejava('jvm')
         %{
         % Leaving in old hot-link code and description (see below)
         % in case someone with older MATLAB's need to use this.
@@ -54,28 +53,18 @@ function emacsinit(clientcommand, startnetshell)
         
         % Disable built-in editor showing up for debugging
         com.mathworks.services.Prefs.setBooleanPref('EditorGraphicalDebugging', false);
-        
-        
-        if nargin == 1 && ~isempty(clientcommand)
-            % Use clientcommand (e.g. emacsclient -n) for text editing
-            com.mathworks.services.Prefs.setBooleanPref('EditorBuiltinEditor', false);
-            com.mathworks.services.Prefs.setStringPref('EditorOtherEditor', clientcommand);
-        end
-
+    
         % Disable wrapping of text lines.  Emacs will wrap or not based on user preference.
         com.mathworks.services.Prefs.setBooleanPref('WrapLines',false)
-    else
-        % TODO - how to specify this preference w/out Java ?
-        
     end
-
+    
     % Check if we're running inside emacxs.  If we are NOT, then force the enablement of
     % the netshell interface to Emacs.
     emacs_env = getenv('INSIDE_EMACS');
     
     if isempty(emacs_env)
         startnetshell = true;
-    elseif nargin < 2
+    else
         startnetshell = false;
     end
 
@@ -91,7 +80,7 @@ function emacsinit(clientcommand, startnetshell)
     setappdata(groot, 'EmacsBreakpoints', bp);
 
     % Initialize Emacs stack handler.
-    bp = emacs.Stack(nso);
-    setappdata(groot, 'EmacsStack', bp);
+    st = emacs.Stack(nso);
+    setappdata(groot, 'EmacsStack', st);
 
 end
