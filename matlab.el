@@ -120,9 +120,9 @@ changed, and functions are indented based on `matlab-functions-have-end'."
   :group 'matlab
   :type '(choice (const :tag "Always" t)
 		 (const :tag "Never" nil)
-		 (const :tag "Guess" 'guess)
+		 (const :tag "Guess" guess)
                  (const :tag "MathWorks Standard"
-                        'MathWorks-Standard))
+                        MathWorks-Standard))
   )
 
 (make-variable-buffer-local 'matlab-indent-function-body)
