@@ -110,6 +110,24 @@ will disable use emacsclient as the external editor."
   :type 'integer)
 
 ;;
+;; Run from Emacs
+(defcustom matlab-shell-run-region-command 'auto
+  "Technique to use for running a line, region, or cell.
+There are different benefits to different kinds of commands.
+Use 'auto to guess which to use by looking at the environment.
+auto           - guess which to use
+extract-line   - Extract region, and generate 1 line of ML code.
+extract-script - Extract region and any local fcns, and write to
+                 tmp script.  Send that to ML.
+matlab-extract - Send region location to MATLAB, and have ML
+                 extract and run that region."
+  :group 'matlab-shell
+  :type '(choice (const :tag "Auto" auto)
+		 (const :tag "Extract Line" extract-line)
+		 (const :tag "Extract Sript" extract-script)
+		 (const :tag "Matlab Extract" matlab-extract)))
+
+;;
 ;; Features in an active shell
 (defcustom matlab-shell-input-ring-size 32
   "*Number of history elements to keep."
@@ -2090,22 +2108,36 @@ This command requires an active MATLAB shell."
 (defun matlab-shell-region-command (beg end &optional noshow)
   "Convert the region between BEG and END into a MATLAB command.
 Picks between different options for running the commands."
-  (let ((cnt (count-lines beg end)))
+  (cond
+   ((eq matlab-shell-run-region-command 'auto)
+  
+    (let ((cnt (count-lines beg end)))
 
-    (if (< cnt 2)
-	;; OLD WAY
-	(matlab-shell-region->commandline beg end noshow)
+      (if (< cnt 2)
+	  ;; OLD WAY
+	  (matlab-shell-region->commandline beg end noshow)
 
-      ;; else
-      ;; NEW WAYS
-      (if (file-exists-p (buffer-file-name (current-buffer)))
-	  (progn
-	    (save-buffer)
-	    (matlab-shell-run-region-internal beg end noshow))
+	;; else
+	;; NEW WAYS
+	(if (file-exists-p (buffer-file-name (current-buffer)))
+	    (progn
+	      (save-buffer)
+	      (matlab-shell-run-region-internal beg end noshow))
 	
-	;; No file, or older emacs, run region as tmp file.
-	(matlab-shell-extract-region-to-tmp-file beg end noshow)))
-    ))
+	  ;; No file, or older emacs, run region as tmp file.
+	  (matlab-shell-extract-region-to-tmp-file beg end noshow)))
+      ))
+
+   ((eq matlab-shell-run-region-command 'extract-line)
+    (matlab-shell-region->commandline beg end noshow))
+
+   ((eq matlab-shell-run-region-command 'extract-script)
+    (matlab-shell-extract-region-to-tmp-file beg end noshow))
+
+   ((eq matlab-shell-run-region-command 'matlab-extract)
+    (matlab-shell-run-region-internal beg end noshow))
+   ))
+   
 
 (defun matlab-shell-region->commandline (beg end &optional noshow)
   "Convert the region between BEG and END into a MATLAB command.
