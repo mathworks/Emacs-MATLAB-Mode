@@ -101,7 +101,8 @@ This file is read to initialize the comint input ring."
 
 ;;
 ;; Edit from MATLAB
-(defcustom matlab-shell-emacsclient-command "emacsclient -n"
+(defcustom matlab-shell-emacsclient-command
+  (matlab-find-emacsclient)
   "*The command to use as an external editor for MATLAB.
 Using emacsclient allows the currently running Emacs to also be the
 external editor for MATLAB. Setting this to the empty string
@@ -838,6 +839,9 @@ This strips out that text, and colorizes the region red."
 ;;; Shell Startup
 
 (defun matlab-shell--get-emacsclient-command ()
+  "Compute how to call emacsclient so MATLAB will connect to this Emacs.
+Handles case of multiple Emacsen from different users running on the same
+system."
   (when (not (server-running-p))
     ;; We need an Emacs server for ">> edit foo.m" which leverages to
     ;; emacsclient to open the file in the current Emacs session. Be
@@ -849,10 +853,20 @@ This strips out that text, and colorizes the region red."
     (server-start)
     (when (not (server-running-p))
       (user-error "Unable to start server with name %s" server-name)))
-  (concat matlab-shell-emacsclient-command
-          (if server-use-tcp
-              (concat " -f " (expand-file-name server-name server-auth-dir))
-            (concat " -s " (expand-file-name server-name server-socket-dir)))))
+  (let ((iq (if (eq system-type 'windows-nt)
+		;; Probably on Windows, probably in "Program Files" -
+		;; we need to quote this thing.
+		;; SADLY - emacs Edit command also wraps the command in
+		;; quotes - but we have to include arguments - so we need
+		;; to add internal quotes so the quotes land in the right place
+		;; when MATLAB adds external quotes.
+		"\"" "")))
+    (concat
+     matlab-shell-emacsclient-command
+     iq " -n"
+     (if server-use-tcp
+	 (concat " -f " iq (expand-file-name server-name server-auth-dir))
+       (concat " -s " iq (expand-file-name server-name server-socket-dir))))))
 
 (defvar matlab-shell-use-emacs-toolbox
   ;; matlab may not be on path.  (Name change, explicit load, etc)
