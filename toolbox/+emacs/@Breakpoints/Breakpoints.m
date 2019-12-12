@@ -98,7 +98,7 @@ end
 function str = sendPtList(ad, bpstructlist)
     str = '';
     for i=1:length(bpstructlist)
-        str = [ str '(mlg-' ad '-breakpoint "' bpstructlist(i).file '" ' ...
+        str = [ str '(mlg-' ad '-breakpoint "' fixFile(bpstructlist(i).file) '" ' ...
                 num2str(bpstructlist(i).line) ')' newline];     %#ok
     end
 end
@@ -139,3 +139,9 @@ function tf = ptInList(name, line, lst)
     
 end
 
+function nf = fixFile(filename)
+% Fix FILENAME so it has no escape chars, that way we can send to Emacs.
+   
+    nf = regexprep(filename,"\", "/");
+    
+end
