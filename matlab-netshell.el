@@ -118,7 +118,12 @@ response from some Emacs based request."
     )
   ;; Interpret the command.
   (cond ((string= "init" cmd)
-	 nil ; Yep, thanks for letting me know
+	 ;; Send info about emacs client
+	 (when (not (matlab-shell-active-p))
+	   (let* ((ecc (matlab-shell--get-emacsclient-command))
+	 	  (ecca (if ecc (format "emacs.set('clientcmd', '%s');" ecc))))
+	     (when ecc
+	       (matlab-netshell-eval ecca))))
 	 (message "MATLAB connection initialized.")
 	 )
 	((string= "ack" cmd)
