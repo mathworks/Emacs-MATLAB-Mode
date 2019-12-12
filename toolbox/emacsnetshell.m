@@ -1,6 +1,17 @@
 function nso = emacsnetshell(cmd, data)
 % Create a connection to an EMACS editor server.
-% If we succeed then setup a timer to watch what comes in from the connection.
+%
+% emacsnetshell('init') - Initialize the connection with Emacs.
+%    emacs will send commands to MATLAB with additional connectivity
+%    information.
+%
+% emacsnetshell('ack') - Send ack to Emacs, it should echo back.
+%
+% emacsnetshell('output',data) - Send DATA as output to display in Emacs.
+% emacsnetshell('error',data) - Send DATA as error description to Emacs.
+% emacsnetshell('eval',data) - Send DATA - a string containing an Emacs
+%    lisp form which will be evaluated in Emacs.
+    
 
     EMACSSERVER = getappdata(groot, 'EmacsNetShell');
 
@@ -24,9 +35,9 @@ function nso = emacsnetshell(cmd, data)
         if isempty(EMACSSERVER)
             EMACSSERVER = emacs.EmacsServer();
             setappdata(groot, 'EmacsNetShell', EMACSSERVER);
-            sendinit = true;
-        else
             sendinit = false;
+        else
+            sendinit = true;
         end
 
         if ~ischar(cmd)
