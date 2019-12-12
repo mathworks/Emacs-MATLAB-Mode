@@ -145,7 +145,7 @@ FILE is ignored, and ARGS is returned."
 			    (aset f (match-beginning 1) ?m)
 			    f)
 			f))
-	   (buf (find-file-noselect realfname)))
+	   (buf (find-file-noselect realfname t)))
       (set-buffer buf)
       (if (fboundp 'gud-make-debug-menu)
 	  (gud-make-debug-menu))
@@ -484,7 +484,7 @@ Visit the file presented in that stack frame."
       (let* ((sf (get-text-property (point) 'object))
 	     (f (oref sf file))
 	     (l (oref sf line))
-	     (buff (find-file-noselect f)))
+	     (buff (find-file-noselect f t)))
 	(display-buffer
 	 buff
 	 '((display-buffer-reuse-window display-buffer-use-some-window)
