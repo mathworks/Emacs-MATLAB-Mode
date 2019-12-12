@@ -205,6 +205,46 @@ Return the base directory it is in."
       )
   (error (message "EIEIO not available.  Only MATLAB editing enabled.")))
 
+;;; Finding EmacsClient
+(defun matlab-find-emacsclient ()
+  "Try to find a workable copy of `emacsclient' binary.
+Starts by searching exec path.  If not on exec path as can happen on
+Windows, try to find Emacs, it's bin directory, and then emacsclient."
+  (cond
+   ((and (eq system-type 'windows-nt)
+	 (locate-file "emacsclientw" exec-path))
+    ;; It's just on the path.  Return short form
+    "emacsclientw")
+	
+   ((locate-file "emacsclient" exec-path)
+    ;; It's just on the path.  Return it.
+    "emacsclient")
+
+   (t
+    ;; Not on path.  We need to find the path, and then
+    ;; see if we can find emacsclient there.
+    (let* ((rt (expand-file-name ".." data-directory))
+	   (bin (expand-file-name "bin" rt))
+	   (ec (or (locate-file "emacsclientw.exe" (list bin))
+		    (locate-file "emacsclient.exe" (list bin))))
+	   (bin2 nil)
+	   )
+      (when (and (not ec) (string-match "/share/" bin))
+	;; Not there - look for 'share' in bin, and branch there.
+	(setq bin2 (expand-file-name "bin"
+				     (substring bin 0 (match-beginning
+						       0))))
+
+	(setq ec (or (locate-file "emacsclientw.exe" (list bin2))
+		     (locate-file "emacsclient.exe" (list bin2)))))
+
+      ec))
+   
+    ;; Last resort - just set it to something a user will see.
+    (when (not ec) (setq ec "emacsclient"))
+    ;; Return it.
+    ec))
+
 (provide 'matlab-compat)
 
 ;;; matlab-compat.el ends here
