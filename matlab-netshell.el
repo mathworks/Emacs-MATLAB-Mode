@@ -118,6 +118,8 @@ response from some Emacs based request."
     )
   ;; Interpret the command.
   (cond ((string= "init" cmd)
+	 ;; Make sure GUD bindings are available
+	 (matlab-shell-mode-gud-enable-bindings)
 	 ;; Send info about emacs client
 	 (when (not (matlab-shell-active-p))
 	   (let* ((ecc (matlab-shell--get-emacsclient-command))
