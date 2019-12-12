@@ -570,7 +570,7 @@ If font lock is not loaded, lay in wait."
     (define-key km [(control j)] 'matlab-linefeed)
     (define-key km "\M-\r" 'newline)
     (define-key km [(meta \;)] 'matlab-comment)
-    (define-key km [(meta q)] 'matlab-fill-paragraph)
+    ;;(define-key km [(meta q)] 'matlab-fill-paragraph) ; replace w/ fill-paragraph-function setting.
     (define-key km [(meta a)] 'matlab-beginning-of-command)
     (define-key km [(meta e)] 'matlab-end-of-command)
     (define-key km [(meta j)] 'matlab-comment-line-break-function)
@@ -1275,7 +1275,6 @@ Convenient editing commands are:
  \\[matlab-comment-region]   - Comment/Uncomment out a region of code.
  \\[matlab-fill-comment-line] - Fill the current comment line.
  \\[matlab-fill-region] - Fill code and comments in region.
- \\[matlab-fill-paragraph]     - Refill the current command or comment.
  \\[matlab-complete-symbol]   - Symbol completion of matlab symbols\
 based on the local syntax.
  \\[matlab-indent-sexp] - Indent syntactic block of code.
@@ -1359,6 +1358,8 @@ All Key Bindings:
   ;; fill function.
   (make-local-variable 'normal-auto-fill-function)
   (setq normal-auto-fill-function 'matlab-auto-fill)
+  (make-local-variable 'fill-paragraph-function)
+  (setq fill-paragraph-function 'matlab-fill-paragraph)
   (make-local-variable 'fill-prefix)
   (make-local-variable 'imenu-generic-expression)
   (setq imenu-generic-expression matlab-imenu-generic-expression)
