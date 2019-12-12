@@ -26,7 +26,9 @@
 (require 'matlab)
 
 ;;; Code:
-
+(declare-function matlab-shell-active-p "matlab-shell" ())
+(declare-function matlab-shell--get-emacsclient-command "matlab-shell" ())
+(declare-function matlab-shell-mode-gud-enable-bindings "matlab-shell-gud" ())
 
 (defvar matlab-netshell-listen-port 32475
   "Port used for the Emacs server listening for MATLAB connections.")

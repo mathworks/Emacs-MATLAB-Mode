@@ -226,7 +226,7 @@ Windows, try to find Emacs, it's bin directory, and then emacsclient."
     (let* ((rt (expand-file-name ".." data-directory))
 	   (bin (expand-file-name "bin" rt))
 	   (ec (or (locate-file "emacsclientw.exe" (list bin))
-		    (locate-file "emacsclient.exe" (list bin))))
+		   (locate-file "emacsclient.exe" (list bin))))
 	   (bin2 nil)
 	   )
       (when (and (not ec) (string-match "/share/" bin))
@@ -238,12 +238,10 @@ Windows, try to find Emacs, it's bin directory, and then emacsclient."
 	(setq ec (or (locate-file "emacsclientw.exe" (list bin2))
 		     (locate-file "emacsclient.exe" (list bin2)))))
 
-      ec))
-   
-    ;; Last resort - just set it to something a user will see.
-    (when (not ec) (setq ec "emacsclient"))
-    ;; Return it.
-    ec))
+      ;; Last resort - just set it to something a user will see.
+      (when (not ec) (setq ec "emacsclient"))
+      ;; Return it.
+      ec))))
 
 (provide 'matlab-compat)
 
