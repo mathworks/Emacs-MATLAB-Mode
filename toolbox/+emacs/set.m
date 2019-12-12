@@ -8,11 +8,13 @@ function set(varargin)
     P = inputParser;
     addParameter(P, 'netshell', 0, @isnumeric)
     addParameter(P, 'clientcmd', "", @ischar)
+    addParameter(P, 'followstack', -1, @isnumeric)
     
     parse(P, varargin{:});
     
     clientcommand = P.Results.clientcmd;
     netshellport = P.Results.netshell;
+    followstack = P.Results.followstack;
 
     %% Client Command
     if ~isempty(clientcommand)
@@ -36,5 +38,12 @@ function set(varargin)
         st.NetShellObject = nso;
     
     end
+    
+    %% Follow Stack settings
+    if followstack == 0 || followstack == 1
+        EMACSSERVER = getappdata(groot, 'EmacsNetShell');
+        EMACSSERVER.FollowStack = followstack;
+    end
+    
 end
 

@@ -4,6 +4,11 @@ classdef EmacsServer < handle
 % Sends commands to Emacs from MATLAB if needed.
 %
 
+    properties
+        % True to send Emacs Stack info as the user steps through the debugger.
+        FollowStack = false;
+    end
+    
     properties (Access='protected')
         tcpclient;
         timer;
@@ -166,6 +171,12 @@ function watch_emacs(~, ~, ES)
             disp('Connection to Emacs lost.  Shutting down net server');
             delete(ES);
         end
+    end
+    
+    if ES.FollowStack
+        es = getappdata(groot, 'EmacsStack');
+        [ST, I] = dbstack('-completenames');
+        es.updateEmacs(ST, I);
     end
     
 end
