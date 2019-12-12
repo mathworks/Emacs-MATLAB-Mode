@@ -518,6 +518,7 @@ Used to track active breakpoints, and how to show them.")
 (defvar matlab-gud-visible-breakpoints nil
   "List of breakpoints MATLAB has sent to us.")
 
+;;;###autoload
 (defun mlg-reset-breakpoints ()
   "Remove all cached breakpoints."
   (dolist (BP matlab-gud-visible-breakpoints)
