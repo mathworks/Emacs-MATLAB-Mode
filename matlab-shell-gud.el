@@ -344,7 +344,7 @@ FILE is ignored, and ARGS is returned."
   "A new stack provided by MATLAB."
   (setq mlg-stack nil)
   (dolist (L newstack)
-    (push (mlg-stack-frame
+    (push (mlg-stack-frame ""
 	   :file (nth 0 L)
 	   :name (nth 1 L)
 	   :line (nth 2 L))
@@ -401,7 +401,7 @@ FILE is ignored, and ARGS is returned."
       (let ((cnt 1))
 	(dolist (F mlg-stack)
 	  (insert (format "%2d" cnt))
-	  (if (= cnt mlg-frame)
+	  (if (and mlg-frame (= cnt mlg-frame))
 	      (insert " >> ")
 	    (insert " -- "))
 	  (insert (mlg-print F namelen) "\n")
@@ -534,7 +534,7 @@ Used to track active breakpoints, and how to show them.")
 	(setq found t)))
     (when (not found)
       (setq matlab-gud-visible-breakpoints
-	    (cons (mlg-breakpoint :file file
+	    (cons (mlg-breakpoint "" :file file
 				  :line line)
 		  matlab-gud-visible-breakpoints))
       (mlg-activate (car matlab-gud-visible-breakpoints))
