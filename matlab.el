@@ -129,14 +129,15 @@ changed, and functions are indented based on `matlab-functions-have-end'."
 
 (defcustom matlab-functions-have-end t
   "*If non-nil, functions-have-end minor mode is on by default.
-If the value is 'guess, then we guess if a file has end when 
-matlab-mode is initialized."
+If the value is 'guess, then we guess if a file has end when
+`matlab-mode' is initialized."
   :group 'matlab
   :type 'boolean)
 
 (make-variable-buffer-local 'matlab-functions-have-end)
 
 (defun matlab-toggle-functions-have-end ()
+  "Toggle `matlab-functions-have-end-minor-mode'."
   (interactive)
   (matlab-toggle-functions-have-end-minor-mode))
 
@@ -175,11 +176,12 @@ If the value is t, then return that."
     matlab-functions-have-end))
 
 (defun matlab-toggle-functions-have-end-minor-mode ()
+  "Toggle `matlab-functions-have-end-minor-mode' only for `matlab-mode' buffers."
   (matlab-functions-have-end-minor-mode)
   (if (and matlab-functions-have-end-minor-mode (not (eq major-mode 'matlab-mode)))
       (progn
 	(matlab-functions-have-end-minor-mode -1)
-	(error "functions-have-end minor mode is only for MATLAB Major mode")))
+	(error "Mode `matlab-functions-have-end' minor mode is only for MATLAB Major mode")))
   (setq matlab-functions-have-end matlab-functions-have-end-minor-mode))
 
 (defun matlab-indent-function-body-p ()
@@ -366,8 +368,7 @@ This will only work if `matlab-highlight-block-match-flag' is non-nil."
 (make-variable-buffer-local 'matlab-return-add-semicolon)
 
 (defcustom matlab-change-current-directory nil
-  "*If non nil, make file's directory the current directory when
-evaluating it."
+  "*If non nil, make file's directory the current directory when evaluating it."
   :group 'matlab
   :type 'boolean)
 
@@ -615,9 +616,9 @@ If font lock is not loaded, lay in wait."
       :visible (matlab-any-shell-active-p)]
      ["Save and go" matlab-shell-save-and-go
       :active (matlab-any-shell-active-p) ]
-     ["Run Region" matlab-shell-run-region 
+     ["Run Region" matlab-shell-run-region
       :active (matlab-any-shell-active-p) ]
-     ["Run Cell" matlab-shell-run-cell 
+     ["Run Cell" matlab-shell-run-cell
       :active (matlab-any-shell-active-p) ]
      ["Version" matlab-show-version t]
      "----"
@@ -754,10 +755,10 @@ when attempting to understand the current context.")
 
 (defvar matlab-font-lock-string-and-comment-start-regexp (concat matlab-font-lock-string-start-regexp
 								 "\\|\\(%\\)\\|\\(\\.\\.\\.\\)")
-  "Starting matcher for allstring comment font lock")
+  "Starting matcher for allstring comment font lock.")
 
 (defun matlab-test-allstring-comment-match ()
-  "Command for testing what the allstring font locker matches."
+  "Text command for the allstring font locker."
   (interactive)
   ;(beginning-of-line)
   (matlab-font-lock-allstring-comment-match-normal (point-max))
@@ -820,7 +821,7 @@ Argument LIMIT is the maximum distance to scan."
 
       ;; Fake out some match data
       (set-match-data
-       (list 
+       (list
 	b0 (or es eu ec)
 	bs es				; matched string
 	bu eu				; unterminated string
@@ -1044,7 +1045,7 @@ Customizing this variable is only useful if `regexp-opt' is available."
     "add_line" "delete_line" "replace_line"
     "bdroot" "bdclose" )
   ;; Missing this regex "\\(mld\\|ss\\)[A-Z]\\w+\\)"
-  "List of keywords to highlight for simulink"
+  "List of keywords to highlight for simulink."
   :group 'matlab
   :type '(repeat (string :tag "Debug Keyword: ")))
 
@@ -1056,7 +1057,7 @@ Customizing this variable is only useful if `regexp-opt' is available."
   :type '(repeat (string :tag "Debug Keyword: ")))
 
 (defun matlab-font-lock-regexp-opt (keywordlist)
-  "Create a font-lock usable keyword matching regular expression.
+  "Create a font-lock usable KEYWORDLIST matching regular expression.
 Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
   (concat "\\<\\("
 	  (if (fboundp 'regexp-opt)
@@ -1166,7 +1167,7 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
 	  '("(\\s-*\\(\\w+\\)\\s-*\\(,\\|)\\)" nil  nil
 	    (1 font-lock-variable-name-face)))
    )
-  "List of font lock keywords for stuff in functions")
+  "List of font lock keywords for stuff in functions.")
 
 (defconst matlab-class-attributes-list-re
   "\\s-*\\(?2:(\\([^)]+\\))\\|\\)"
@@ -1803,7 +1804,7 @@ Only covers list sexp.  If not adjacent to a list, do nothing."
     ))
 
 (defun matlab-move-simple-sexp-backward-internal (count)
-  "Move backward some number of MATLAB sexps"
+  "Move backward COUNT number of MATLAB sexps."
   (interactive "P")
   (unless count (setq count 1))
   (matlab-move-simple-sexp-internal (- count)))
@@ -2132,7 +2133,8 @@ The bounds returned in this form:
 
 
 (defun matlab-change-function (beg end length)
-  "Function run after a buffer is modified."
+  "Function run after a buffer is modified.
+BEG, END, and LENGTH are unused."
   ;; Flush block comment parsing info since those
   ;; locations change on buffer edit.
   (setq matlab-ltype-block-comm-bounds nil
@@ -2197,7 +2199,9 @@ Return the symbol 'blockcomm if we are in a block comment."
       (message "No block comment."))))
 
 (defun matlab-ltype-block-comm (&optional linebounds)
-  "Return start positions of block comment if we are in a block comment."
+  "Return start positions of block comment if we are in a block comment.
+Optional LINEBOUNDS specifies if returned limits are line based instead
+of character based."
   (let ((bounds matlab-ltype-block-comm-bounds)
 	(lcbounds matlab-ltype-block-comm-lastcompute))
 
@@ -2702,7 +2706,7 @@ If there isn't one, then return nil, point otherwise."
 
 (defconst matlab-functions-have-end-should-be-true
   "This end closes a function definition.\nDo you want functions to have ends? "
-  "Prompt the user about whether to change matlab-functions-have-end")
+  "Prompt the user about whether to change `matlab-functions-have-end'.")
 
 (defun matlab-calculate-indentation (current-indentation)
   "Calculate out the indentation of the current line.
@@ -3141,7 +3145,7 @@ Has effect of `matlab-return' with (not matlab-indent-before-return)."
     (newline) (matlab-comment) (matlab-indent-line))))
 
 (defun matlab-comm-from-prev ()
-  "If the previous line is a comment-line then set up a comment on this line."
+  "If the previous line is a `comment-line' then set up a comment on this line."
   (save-excursion
     ;; If the previous line is a comment-line then set the fill prefix from
     ;; the previous line and fill this line.
@@ -3689,7 +3693,10 @@ ARG is passed to `fill-paragraph' and will justify the text."
 
 (defun matlab-toggle-read-only (&optional arg interactive)
   "Toggle read-only bit in MATLAB mode.
-This looks to see if we are currently debugging, and if so re-enable our debugging feature."
+This looks to see if we are currently debugging, and if so re-enable
+our debugging feature.
+Optional argument ARG specifies if the read-only mode should be set.
+INTERACTIVE is ignored."
   (interactive "P")
   (if (and (featurep 'matlab-shell-gud)
 	   gud-matlab-debug-active)
@@ -3811,7 +3818,7 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 			   (looking-at (concat (matlab-block-beg-re) "\\>"))
 			   (setq there-beg (match-beginning 0)
 				 there-end (match-end 0)
-				 mismatch nil)		       
+				 mismatch nil)
 			   ))
 			((looking-at (concat (matlab-block-mid-re) "\\>"))
 			 ;; We are at a middle-block expression, like "else" or "catch'
@@ -3823,7 +3830,7 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 			 (looking-at (concat (matlab-block-beg-re) "\\>"))
 			 (setq there-beg (match-beginning 0)
 			       there-end (match-end 0)
-			       mismatch nil)		       
+			       mismatch nil)
 			 )
 
 			((looking-at (concat (matlab-endless-blocks-re) "\\>"))
@@ -3836,7 +3843,7 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 			 (looking-at (concat (matlab-block-beg-re) "\\>"))
 			 (setq there-beg (match-beginning 0)
 			       there-end (match-end 0)
-			       mismatch nil)		       
+			       mismatch nil)
 			 )
 		      
 		      
