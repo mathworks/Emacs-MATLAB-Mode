@@ -754,6 +754,8 @@ Returns a list of the form:
 Detect non-url errors, and treat them as if they were url anchors.
 Input STR is provided by comint but is unused."
   (save-excursion
+    ;; Move to end to make sure we are scanning the new stuff.
+    (goto-char (point-max))
     ;; We have found an error stack to investigate.
     (let ((first nil)
 	  (ans nil)
