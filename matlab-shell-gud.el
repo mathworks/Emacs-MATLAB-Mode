@@ -36,14 +36,14 @@
   "*Enable tooltips displaying data values when at the K>> prompt.
 Disable this option if the tooltips are too slow in your setup."
   :group 'matlab-shell
-  :type 'boolean)  
+  :type 'boolean)
 
 (defvar gud-matlab-debug-active nil
   "Non-nil if MATLAB has a K>> prompt up.")
 (defvar gud-matlab-debug-activate-hook nil
-  "Hooks run when MATLAB detects a K>> prompt after a >> prompt")
+  "Hooks run when MATLAB detects a K>> prompt after a >> prompt.")
 (defvar gud-matlab-debug-deactivate-hook nil
-  "Hooks run when MATLAB detects a >> prompt after a K>> prompt")
+  "Hooks run when MATLAB detects a >> prompt after a K>> prompt.")
 
 (defvar gud-matlab-tool-bar-map
   (let ((map (make-sparse-keymap)))
@@ -63,13 +63,13 @@ Disable this option if the tooltips are too slow in your setup."
 (declare-function matlab-netshell-eval "matlab-netshell" (mode))
 
 (defmacro matlab-at-fcn (cmd)
-  "Define FUNC to be a GUD command that works w/ shell or netshell."
+  "Define CMD to be a GUD command that works w/ shell or netshell."
   ;; Note `arg' comes from gud-def declaration
   `(if (matlab-shell-active-p)
        (gud-call ,cmd arg)
      (if (matlab-netshell-active-p)
 	 (matlab-netshell-eval (gud-format-command ,cmd arg))
-       (error "No MATLAB shell active."))))
+       (error "No MATLAB shell active"))))
 
 (defmacro matlab-gud-fcn (cmd)
   "Define CMD forms to be sent to a MATLAB shell."
@@ -84,7 +84,7 @@ Disable this option if the tooltips are too slow in your setup."
 
   ;; Make sure this is safe to use gud to debug MATLAB
   (when (not (fboundp 'gud-def))
-    (error "Your emacs is missing `gud-def' which means matlab-shell won't work correctly.  Stopping"))
+    (error "Your Emacs is missing `gud-def' which means matlab-shell won't work correctly.  Stopping"))
 
   (gud-def gud-break  (matlab-at-fcn "ebstop in %d%f at %l")  "\C-b" "Set breakpoint at current line.")
   (gud-def gud-remove (matlab-at-fcn "ebclear in %d%f at %l") "\C-d" "Remove breakpoint at current line.")
@@ -325,7 +325,8 @@ FILE is ignored, and ARGS is returned."
   "A single stack frame from MATLAB.")
 
 (cl-defmethod mlg-print ((frame mlg-stack-frame) longestname)
-  "Use print to output this stack frame."
+  "Use print to output this stack FRAME.
+LONGESTNAME specifies the how long the longest name we can expect is."
   (let* ((namefmt (concat "%" (number-to-string (or longestname 10)) "s"))
 	 (str (concat (propertize (format namefmt (oref frame name)) 'face 'font-lock-function-name-face)
 		      " "
@@ -341,7 +342,7 @@ FILE is ignored, and ARGS is returned."
   "The last frame sent to use from MATLAB.")
 
 (defun mlg-set-stack (newstack)
-  "A new stack provided by MATLAB."
+  "Specify a NEWSTACK provided by MATLAB to replace the old one."
   (setq mlg-stack nil)
   (dolist (L newstack)
     (push (mlg-stack-frame ""
@@ -354,7 +355,7 @@ FILE is ignored, and ARGS is returned."
   )
 
 (defun mlg-set-stack-frame (newframe)
-  "A new stackframe provided by MATLAB."
+  "Specify a NEWFRAME provided by MATLAB we should visit."
   (setq mlg-frame newframe)
   (mlg-show-stack)
   (mlg-show-frame newframe)
@@ -385,7 +386,7 @@ FILE is ignored, and ARGS is returned."
       )))
 
 (defun mlg-refresh-stack-buffer ()
-  "Refresh the buffer displaying stack"
+  "Refresh the buffer displaying stack."
   (save-excursion
     (let ((buff (get-buffer-create "*MATLAB stack*"))
 	  (namelen 5)
@@ -440,7 +441,7 @@ FILE is ignored, and ARGS is returned."
 
 ;; Need this to fix wierd problem in define-derived-mode
 (defvar mlg-stack-mode-syntax-table (make-syntax-table)
-  "Syntax table used in matlab-shell-help-mode.")
+  "Syntax table used in `matlab-shell-help-mode'.")
 
 (define-derived-mode mlg-stack-mode
   fundamental-mode "MStack"
@@ -453,14 +454,14 @@ Commands:
   )
 
 (defun mlg-stack-next ()
-  "Visit stack on next line"
+  "Visit stack on next line."
   (interactive)
   (forward-line 1)
   (forward-char 2)
   (mlg-stack-choose))
 
 (defun mlg-stack-prev ()
-  "Visit stack on next line"
+  "Visit stack on next line."
   (interactive)
   (forward-line -1)
   (forward-char 2)
@@ -603,7 +604,7 @@ Used to track active breakpoints, and how to show them.")
       ))
 
 (cl-defmethod mlg-deactivate ((bp mlg-breakpoint))
-  "Deactivate this breakpoint."
+  "Deactivate this breakpoint BP."
   (when (slot-boundp bp 'overlay)
     (with-slots (overlay) bp
       (when (and overlay (overlayp overlay))
@@ -661,7 +662,7 @@ Call debug activate/deactivate features."
 ;; When K prompt is active, this minor mode is applied to frame buffers so
 ;; that GUD commands are easy to get to.
 
-(defvar matlab-shell-gud-minor-mode-map 
+(defvar matlab-shell-gud-minor-mode-map
   (let ((km (make-sparse-keymap))
 	(key ?\ ))
     (while (<= key ?~)
@@ -783,7 +784,7 @@ Debug commands are:
   )
 
 (defun matlab-shell-gud-show-symbol-value (sym)
-  "Show the value of the symbol under point from MATLAB shell."
+  "Show the value of the symbol SYM under point from MATLAB shell."
   (interactive
    (list
     (if (use-region-p)
@@ -807,7 +808,7 @@ Debug commands are:
   "Default binding for most keys in `matlab-shell-gud-minor-mode'.
 Shows a help message in the mini buffer."
   (interactive)
-  (error "MATLAB shell GUD minor-mode: Press 'h' for help, 'e' to go back to editing."))
+  (error "MATLAB shell GUD minor-mode: Press 'h' for help, 'e' to go back to editing"))
 
 (defun matlab-shell-gud-mode-help ()
   "Show the default binding for most keys in `matlab-shell-gud-minor-mode'."
@@ -843,7 +844,7 @@ This function must return nil if it doesn't handle EVENT."
 			    (or gud-tooltip-echo-area
 				tooltip-use-echo-area
 				(not tooltip-mode)))
-	      t)))))))  
+	      t)))))))
 
 (defun matlab-shell-gud-find-tooltip-expression (event)
   "Identify an expression to output in a tooltip at EVENT.
