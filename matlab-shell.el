@@ -728,7 +728,9 @@ Returns a list of the form:
 				limit
 				t)
 	(save-excursion
-	  (setq beginning (match-beginning 0))
+	  (setq beginning (save-excursion (goto-char (match-beginning 0))
+					  (back-to-indentation)
+					  (point)))
 	  (goto-char (match-end 0))
 	  (dolist (EXP matlab-shell-error-location-expression)
 	    (when (looking-at EXP)

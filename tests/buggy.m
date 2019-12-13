@@ -23,7 +23,18 @@ function buggy(input,n)
         else
             buggy('stack',n-1);
         end
+
+      case 'indented'
+        % Test errors that are captured, but then reported up
+        % but indented.
+        disp('	In buggy.m (TestPoint_foo) at 36')
         
     end
+    
+end
+
+function TestPoint_foo
+    
+    message('A test point');
     
 end
