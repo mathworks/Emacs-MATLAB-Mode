@@ -80,7 +80,7 @@ Command switches are a list of strings.  Each entry is one switch."
   :group 'matlab-shell)
 
 (defvar matlab-custom-startup-command nil
-  "Custom matlab command to be run at startup")
+  "Custom matlab command to be run at startup.")
 
 (defcustom matlab-shell-echoes t
   "*If `matlab-shell-command' echoes input."
@@ -105,7 +105,7 @@ This file is read to initialize the comint input ring."
   (matlab-find-emacsclient)
   "*The command to use as an external editor for MATLAB.
 Using emacsclient allows the currently running Emacs to also be the
-external editor for MATLAB. Setting this to the empty string
+external editor for MATLAB.  Setting this to the empty string
 will disable use emacsclient as the external editor."
   :group 'matlab-shell
   :type 'integer)
@@ -144,16 +144,16 @@ When nil, complete against file names."
   :type 'boolean)
 
 (defcustom matlab-shell-tab-use-company t
-  "*Use `company' (complete anything) for TAB completions in
-MATLAB shell when `company' is installed. Note, when you type to
+  "*Use `company' (complete anything) for TAB completions in `matlab-shell'.
+Only effective when  when `company' is installed.  Note, when you type to
 narrow completions, you may find the responses slow and if so,
 you can try turning this off."
   :group 'matlab-shell
   :type 'boolean)
 
 (defvar matlab-shell-tab-company-available (if (locate-library "company") t nil)
-  "If we have `company' (completion anything) use it to show
-`matlab-shell' completions when `matlab-shell-tab-use-company' is t.")
+  "Non-nil if we have `company' installed.
+Use this to override initial check.")
 
 (defvar matlab-shell-errorscanning-syntax-table
   (let ((st (copy-syntax-table matlab-mode-syntax-table)))
@@ -161,7 +161,7 @@ you can try turning this off."
     (modify-syntax-entry ?\n  " " st)
     st)
   "Syntax table used when scanning MATLAB output.
-In this case, comment and \n are not special, as word-wrap can get in the way.")
+In this case, comment and \n are not special, as word wrap can get in the way.")
 
 (defvar matlab-shell-prompt-appears-hook nil
   "Hooks run each time a prompt is seen and sent to display.
@@ -175,7 +175,7 @@ If multiple prompts are seen together, only call this once.")
   "Non-nil to suppress running prompt hooks.")
 
 (defvar matlab-shell-cco-testing nil
-  "Non nil when testing matlab-shell.")
+  "Non nil when testing `matlab-shell'.")
 
 (defvar matlab-shell-io-testing nil
   "Non-nil to display process output and input log.")
@@ -519,7 +519,9 @@ Try C-h f matlab-shell RET"))
   "Non-nil when inside `matlab-shell-wrapper-filter'.")
 
 (defun matlab-shell-wrapper-filter (proc string)
-  "MATLAB Shell's process filter.  This wraps the GUD and COMINT filters."
+  "MATLAB Shell's process filter.  This wraps the GUD and COMINT filters.
+PROC is the process with input to this filter.
+STRING is the recent output from PROC to be filtered."
   ;; A few words about process sentinel's in the MATLAB shell buffer:
   ;; Our filter calls the GUD filter.
   ;; The GUD filter calls the COMINT filter.
@@ -554,7 +556,9 @@ Try C-h f matlab-shell RET"))
       )))
 
 (defun matlab-shell-wrapper-sentinel (proc string)
-  "MATLAB Shell's process sentinel.  This wraps the GUD and COMINT filters."
+  "MATLAB Shell's process sentinel.  This wraps the GUD and COMINT filters.
+PROC is the function which experienced a change in state.
+STRING is a description of what happened."
   (let ((buff (process-buffer proc)))
     (with-current-buffer buff
       (gud-sentinel proc string))))
@@ -576,7 +580,7 @@ it returns empty string"
 	  "")))))
 
 
-;;; STARTUP / VERSION 
+;;; STARTUP / VERSION
 ;;
 ;; Handlers for startup output / version scraping
 ;;
@@ -634,7 +638,7 @@ Argument STR is the string to examine for version information."
     km)
   "Keymap used on overlays that represent errors.")
 
-;; Anchor expressions. 
+;; Anchor expressions.
 (defvar matlab-anchor-beg "<a href=\"\\(\\(?:matlab:\\)?[^\"]+\\)\">"
   "Beginning of html anchor.")
 
@@ -712,7 +716,7 @@ Each expression should have the following match strings:
     
 
 (defun matlab-shell-scan-for-error (limit)
-  "Scan backward for a MATLAB error in the current buffer.
+  "Scan backward for a MATLAB error in the current buffer until LIMIT.
 Uses `matlab-shell-error-anchor-expression' to find the error.
 Uses `matlab-shell-error-location-expression' to find where the error is.
 Returns a list of the form:
@@ -720,7 +724,7 @@ Returns a list of the form:
   (with-syntax-table matlab-shell-errorscanning-syntax-table
     (let ((ans nil)
 	  (beginning nil))
-      (when (re-search-backward matlab-shell-error-anchor-expression 
+      (when (re-search-backward matlab-shell-error-anchor-expression
 				limit
 				t)
 	(save-excursion
@@ -745,7 +749,8 @@ Returns a list of the form:
 
 (defun matlab-shell-render-errors-as-anchor (&optional str)
   "Hook function run when process filter sees a prompt.
-Detect non-url errors, and treat them as if they were url anchors."
+Detect non-url errors, and treat them as if they were url anchors.
+Input STR is provided by comint but is unused."
   (save-excursion
     ;; We have found an error stack to investigate.
     (let ((first nil)
@@ -800,7 +805,8 @@ Detect non-url errors, and treat them as if they were url anchors."
 (defun matlab-shell-colorize-errors (&optional str)
   "Hook function run to colorize MATLAB errors.
 The filter replaces indicators with <ERRORTXT> text </ERRORTXT>.
-This strips out that text, and colorizes the region red."
+This strips out that text, and colorizes the region red.
+STR is provided by COMINT but is unused."
   (save-excursion
     (let ((start nil) (end nil)
 	  )
@@ -812,7 +818,7 @@ This strips out that text, and colorizes the region red."
 	;; Then scan for the beginning, and start there.  As we delete text, locations will move,
 	;; so move downward after this.
 	(if (not (re-search-backward (regexp-quote matlab-shell-errortext-start-text) nil t))
-	    (error "Missmatched error text tokens from MATLAB.")
+	    (error "Missmatched error text tokens from MATLAB")
 	  
 	  ;; Save off where we start, and delete the indicator.
 	  (setq start (match-beginning 0))
@@ -820,7 +826,7 @@ This strips out that text, and colorizes the region red."
 
 	  ;; Find the end.
 	  (if (not (re-search-forward (regexp-quote matlab-shell-errortext-end-text) nil t))
-	      (error "Internal error scanning for error text tokens.")
+	      (error "Internal error scanning for error text tokens")
 	    
 	    (setq end (match-beginning 0))
 	    (delete-region end (match-end 0))
@@ -898,7 +904,7 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
 	)
     
     ;; Setup is misconfigured - we need emacsinit because it tells us how to debug
-    (error "unable to initialize matlab, emacsinit.m and other files missing"))
+    (error "Unable to initialize matlab, emacsinit.m and other files missing"))
 
   ;; Init any user commands
   (if matlab-custom-startup-command
@@ -937,7 +943,8 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
 (defun matlab-shell-capture-text (&optional str)
   "Hook function run to capture MATLAB text to display in a buffer.
 The filter captures indicators with <EMACSCAP> text </EMACSCAP>.
-This strips out that text from the shell and displays in a help."
+This strips out that text from the shell and displays in a help.
+STR is provided by comint, but is unused."
   (save-excursion
     (let ((start nil) (end nil) (buffname "*MATLAB Output*")
 	  (insertbuff nil) (bufflist nil)
@@ -951,7 +958,7 @@ This strips out that text from the shell and displays in a help."
 	;; Then scan for the beginning, and start there.  As we delete text, locations will move,
 	;; so move downward after this.
 	(if (not (re-search-backward (regexp-quote matlab-shell-capturetext-start-text) nil t))
-	    (error "Missmatched capture text tokens from MATLAB.")
+	    (error "Missmatched capture text tokens from MATLAB")
 	  
 	  ;; Save off where we start, and delete the indicator.
 	  (setq start (match-beginning 0))
@@ -968,7 +975,7 @@ This strips out that text from the shell and displays in a help."
 
 	  ;; Find the end.
 	  (if (not (re-search-forward (regexp-quote matlab-shell-capturetext-end-text) nil t))
-	      (error "Internal error scanning for capture text tokens.")
+	      (error "Internal error scanning for capture text tokens")
 	    
 	    (setq end (match-beginning 0))
 	    (delete-region end (match-end 0))
@@ -995,7 +1002,7 @@ This strips out that text from the shell and displays in a help."
 		    (when (not (eq insertbuff (get-buffer-create buffname)))
 		      ;; Different, don't append.
 		      (setq append nil)))
-		  ;; Change to new buffer  
+		  ;; Change to new buffer
 		  (set-buffer (get-buffer-create buffname))
 		  (setq buffer-read-only nil)
 		  ;; Clear it if not appending.
@@ -1130,9 +1137,9 @@ STR is a command substring to complete."
       )))
 
 (defun matlab-shell-get-completion-limit-pos (last-cmd completions)
-  "Used by `matlab-shell-tab' to get the starting location within last-cmd
-of the common substring used in matching the completions, i.e.
-  (substring last-cmd limit-pos (length last-cmd))
+  "Return the starting location of the common substring for completion.
+Used by `matlab-shell-tab' to in matching the COMPLETIONS, i.e.
+  (substring LAST-CMD limit-pos (length last-cmd))
 is the common starting substring of each completion in completions."
   (let ((limit-pos (length last-cmd)))
     (when completions
@@ -1245,8 +1252,7 @@ No completions are provided anywhere else in the buffer."
 
 
 (defun matlab-shell-c-tab ()
-  "Send [TAB] to the currently running matlab process and retrieve completion
-to show using classing emacs tab completion."
+  "Send [TAB] to the currently running matlab process and retrieve completions."
   (interactive)
   (let ((matlab-shell-tab-company-available nil))
     (matlab-shell-tab)))
@@ -1295,15 +1301,14 @@ to show using classing emacs tab completion."
 ;;   >> get_param('vdp','Pos<TAB>    Should show several completions
 (defun matlab-shell-tab ()
   "Perform completions at the `matlab-shell' command prompt.
-By default, uses matlab-shell toolbox command emacsdocomplete.m to get
+By default, uses `matlab-shell' toolbox command emacsdocomplete.m to get
 completions.
 
 If `matlab-shell-ask-MATLAB-for-completions' is nil, then use
 `comint-dynamic-complete-filename' instead.
 
 If `matlab-shell-tab-use-company' is non-nil, and if `company-mode' is
-installed, then use company to display completions in a popup window.
-"
+installed, then use company to display completions in a popup window."
   (interactive)
   (cond
    ;; If we aren't supposed to ask MATLAB for completions, then use
@@ -1444,7 +1449,7 @@ non-nil if FCN is a builtin."
   (let ((file (matlab-shell-which-fcn fcn)))
     (if file
         (find-file (car file))
-      (error "which('%s') returned empty" fcn))))
+      (error "Command which('%s') returned empty" fcn))))
 
 (defvar matlab-shell-matlabroot-run nil
   "Cache of MATLABROOT in this shell.")
@@ -1707,7 +1712,7 @@ indication that it ran."
           str)))))
 
 (defun matlab-shell-send-command (command)
-  "Send STRING to a MATLAB process.
+  "Send COMMAND to a MATLAB process.
 If there is a `matlab-shell', send it to the command prompt.
 If there is only a `matlab-netshell', send it to the netshell."
   (if (matlab-shell-active-p)
@@ -1763,7 +1768,8 @@ show up in reverse order."
 ;; (matlab-shell-mref-to-filename "eltest.utils.testme>localfcn")
 
 (defun matlab-shell-class-mref-to-file (mref &optional fcn-p)
-  "Convert a class like references to a file name."
+  "Convert a class like reference MREF to a file name.
+Optional FCN-P indicates specifies to force treating as a function."
   (let* ((LF (split-string mref ">"))
 	 (S (split-string (car LF) "\\."))
 	 (L (last S))
@@ -1831,7 +1837,7 @@ a file name, or nil if no conversion done.")
 
 (defun matlab-shell-mref-to-filename (fileref)
   "Convert the MATLAB file reference FILEREF into an actual file name.
-MATLAB can refer to functions on the path by a short name, or by a .p 
+MATLAB can refer to functions on the path by a short name, or by a .p
 extension, and a host of different ways.  Convert this reference into
 something Emacs can load."
   (interactive "sFileref: ")
@@ -1852,7 +1858,7 @@ something Emacs can load."
 If DEBUG is non-nil, then setup GUD debugging features."
   (let ((ef-converted (matlab-shell-mref-to-filename ef)))
     (when (not ef-converted)
-      (error "Failed to translate %s into a filename." ef))
+      (error "Failed to translate %s into a filename" ef))
     (find-file-other-window ef-converted)
     (goto-char (point-min))
     (forward-line (1- (string-to-number el)))
@@ -2121,7 +2127,8 @@ This command requires an active MATLAB shell."
 
 (defun matlab-shell-region-command (beg end &optional noshow)
   "Convert the region between BEG and END into a MATLAB command.
-Picks between different options for running the commands."
+Picks between different options for running the commands.
+Optional argument NOSHOW specifies if we should echo the region to the command line."
   (cond
    ((eq matlab-shell-run-region-command 'auto)
   
@@ -2194,7 +2201,8 @@ When NOSHOW is non-nil, suppress output by adding ; to commands."
 (defun matlab-shell-run-region-internal (beg end &optional noshow)
   "Create a command to run the region between BEG and END.
 Uses internal MATLAB API to execute the code keeping breakpoints
-and local functions active."
+and local functions active.
+Optional argument NOSHOW specifies if we should echo the region to the command line."
   ;; Reduce end by 1 char, as that is how ML treats it
   (setq end (1- end))
 
@@ -2288,7 +2296,8 @@ Return the name of the temporary file."
     (concat "run('" (expand-file-name newf) "')\n")))
 
 (defun matlab-shell-cleanup-extracted-region (fname)
-  "Cleanup the file created when we previously extracted a region."
+  "Cleanup the file created when we previously extracted a region.
+Argument FNAME specifies if we should echo the region to the command line."
   (condition-case nil
       (delete-file fname)
     (error nil))
