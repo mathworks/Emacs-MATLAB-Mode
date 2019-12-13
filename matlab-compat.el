@@ -150,7 +150,7 @@ REGEXP defaults to \"[ \\t\\n\\r]+\"."
 
 ;; Finding executables
 (defun matlab-find-executable-directory (program)
-  "find the executable PROGRAM on the exec path, following any links.
+  "Find the executable PROGRAM on the exec path, following any links.
 Return the base directory it is in."
   (let ((dir nil))
     
@@ -169,7 +169,8 @@ Return the base directory it is in."
 
 ;; Completion Tools
 (defun matlab-display-completion-list (completions common-substring)
-  ;; In emacs 24.4 the common-substring is no longer needed
+  "Method for displaying COMPLETIONS with a COMMON-SUBSTRING."
+  ;; In emacs 24.4 the common-substring is no longer needed.
   (let ((args (if (or (< emacs-major-version 24)
                       (and (= emacs-major-version 24) (< emacs-minor-version 4)))
                   (list completions common-substring)

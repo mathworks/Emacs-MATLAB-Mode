@@ -54,7 +54,7 @@
     (add-to-list 'srecode-map-load-path tmpdir)
     (if (fboundp 'srecode-map-update-map)
         (srecode-map-update-map t)
-      (error "srecode-map-update-map not found"))
+      (error "Function srecode-map-update-map not found"))
     ))
 
 

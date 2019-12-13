@@ -20,7 +20,7 @@
 ;;; Commentary:
 ;;
 ;; This library supports tempo templates, and other misc functions designed
-;; to create code in an emacs buffer.
+;; to create code in an Emacs buffer.
 
 (require 'matlab)
 (require 'tempo)
@@ -34,7 +34,7 @@
 ;; 
 ;;;###autoload (autoload 'matlab-insert-map-fcn "matlab-cgen" "Keymap for C-c C-c in matlab-mode" t 'keymap)
 
-(defvar matlab-insert-map  
+(defvar matlab-insert-map
   (let ((km (make-sparse-keymap)))
     (define-key km "c" 'matlab-insert-next-case)
     (define-key km "e" 'matlab-insert-end-block)
@@ -52,7 +52,7 @@
   "Keymap used for inserting simple texts based on context.")
 
 (defvar matlab-insert-map-fcn nil
-  "Keymap for C-c C-c in matlab-mode")
+  "Keymap for C-c C-c in matlab-mode.")
 
 (fset 'matlab-insert-map-fcn (setq matlab-insert-map-fcn matlab-insert-map))
 

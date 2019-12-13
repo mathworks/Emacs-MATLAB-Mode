@@ -27,7 +27,7 @@
 ;; * look for local files that might be functions.
 ;;
 ;; Moved to separate library, as some modern tools do a better job
-;; and this can be loaded optionally. 
+;; and this can be loaded optionally.
 
 ;;; Code:
 (require 'matlab)

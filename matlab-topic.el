@@ -95,7 +95,7 @@
 
 ;; Need this to fix wierd problem in define-derived-mode
 (defvar matlab-shell-help-mode-syntax-table (make-syntax-table)
-  "Syntax table used in matlab-shell-help-mode.")
+  "Syntax table used in `matlab-shell-help-mode'.")
 
 ;;;###autoload
 (define-derived-mode matlab-shell-help-mode

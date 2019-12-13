@@ -34,7 +34,7 @@
   "Port used for the Emacs server listening for MATLAB connections.")
 
 (defvar matlab-netshell-server-name "*MATLAB netshell*"
-  "Name used for the Netshell server")
+  "Name used for the Netshell server.")
 
 (defvar matlab-netshell-clients nil
   "List of clients created from the MATLAB netshell server.")
@@ -79,7 +79,8 @@
 (make-variable-buffer-local 'matlab-netshell-acc)
 
 (defun matlab-netshell-filter (proc string)
-  "Filter used for MATLAB Netshell processes."
+  "Filter used for MATLAB Netshell processes.
+PROC is the TCP connection that produced STRING."
   ;; Accumulate from the process
   (setq matlab-netshell-acc (concat matlab-netshell-acc string))
   ;; Wait for a NULL command terminator.
@@ -149,7 +150,8 @@ response from some Emacs based request."
 
 (defun matlab-netshell-sentinel (proc msg)
   "Sentinel used for MATLAB Netshell processes.
-Identify when a connection is lost, and close down services."
+Identify when a connection is lost, and close down services.
+PROC is the TCP stream which generated MSG."
   (cond ((string-match "^open from " msg)
 	 ;; New connection - set it up.
 	 (setq matlab-netshell-clients (cons proc matlab-netshell-clients))
@@ -165,27 +167,27 @@ Identify when a connection is lost, and close down services."
 	 (message "Unhandled event."))))
 
 (defun matlab-netshell-send(cmd data)
-  "Send a command to MATLAB shell connection with DATA."
+  "Send a command CMD to MATLAB shell connection with DATA."
   (let ((C (car matlab-netshell-clients)))
     (if C
 	(process-send-string C (concat cmd "\n" data "\0"))
-      (error "No MATLAB network connection to send to."))))
+      (error "No MATLAB network connection to send to"))))
 
 (defun matlab-netshell-eval (mcode)
-  "Send MSG to the active MATLAB shell connection to eval."
+  "Send MCODE to the active MATLAB shell connection to eval."
   (interactive "sMCode: ")
   (let ((C (car matlab-netshell-clients)))
     (if C
 	(process-send-string C (concat "eval\n" mcode "\0"))
-      (error "No MATLAB network connection to send to."))))
+      (error "No MATLAB network connection to send to"))))
 
 (defun matlab-netshell-evalc (mcode)
-  "Send MSG to the active MATLAB shell connection to eval."
+  "Send MCODE to the active MATLAB shell connection to eval."
   (interactive "sMCode: ")
   (let ((C (car matlab-netshell-clients)))
     (if C
 	(process-send-string C (concat "evalc\n" mcode "\0"))
-      (error "No MATLAB network connection to send to."))))
+      (error "No MATLAB network connection to send to"))))
 
 (defun matlab-netshell-ack ()
   "Send an ACK to MATLAB to see if it can respond."

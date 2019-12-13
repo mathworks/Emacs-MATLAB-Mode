@@ -29,7 +29,7 @@
 
 ;;; Minor Mode Definition
 ;;
-(defvar matlab-maint-mode-map 
+(defvar matlab-maint-mode-map
   (let ((km (make-sparse-keymap)))
     (define-key km [f8] 'matlab-maint-run-tests)
     (define-key km [f9] 'matlab-maint-compile-matlab-emacs)
@@ -78,7 +78,7 @@
 
 (defun matlab-maint-run-tests (arg)
   "Run the tests for matlab mode.
-With universal arg, ask for the code to be run with output tracking turned on."
+With universal ARG, ask for the code to be run with output tracking turned on."
   (interactive "P")
   (save-excursion
     (matlab-maint-set-buffer-to "tests/Makefile")

@@ -52,8 +52,8 @@
 ;; that need them.  Take care of users who don't have cedet/semantic enabled by default.
 
 (defun matlab-semantic-get-local-functions-for-script (&optional buffer)
-  "Return the list of functions (as semantic tags) for BuFFER.
-If semantic-mode is not enabled, do something hacky to make it work."
+  "Return the list of functions (as semantic tags) for BUFFER.
+If `semantic-mode' is not enabled, do something hacky to make it work."
   (save-excursion
     (when buffer (set-buffer buffer))
     
@@ -72,7 +72,7 @@ If semantic-mode is not enabled, do something hacky to make it work."
       tags)))
 
 (defun matlab-semantic-tag-text (tag buffer)
-  "Return the text string for TAG."
+  "Return the text string for TAG in BUFFER."
   (with-current-buffer buffer
     (buffer-substring-no-properties (semantic-tag-start tag)
 				    (semantic-tag-end tag))))
@@ -122,7 +122,7 @@ Looks @ first declaration to determine if it is a class or function."
 ;; CLASS Defintions
 (defvar semantic-matlab-match-classdef-re
   "^\\s-*classdef\\b\\s-*\\(?:([^\n)]+)\\)?\\s-*\\<\\(?2:\\w+\\)\\>"
-  "Expression to match a class definition start")
+  "Expression to match a class definition start.")
 
 (defun semantic-matlab-class-tags (&optional buffer)
   "Find the MATLAB class tag, and all methods (functions) in BUFFER.
@@ -196,7 +196,7 @@ Return argument is:
   "Regular expression for matching the start of a properties block.")
 
 (defun semantic-matlab-methods-update-tags (rawtags start end)
-  "Create a tags list out of properties found between START and END."
+  "Create a tags list out of RAWTAGS and properties found between START and END."
   (save-excursion
     (goto-char start)
     (let ((taglist nil)
@@ -460,7 +460,7 @@ Each tag returned is a semantic FUNCTION tag.  See
 (define-mode-local-override semantic-tag-components-with-overlays
   matlab-mode (tag)
   "Return the list of subfunctions, or class members in TAG."
-  (or 
+  (or
    (semantic-tag-get-attribute tag :members)
    (semantic-tag-get-attribute tag :subfunctions)))
 
@@ -473,7 +473,7 @@ Each tag returned is a semantic FUNCTION tag.  See
     (car (semantic--tag-expand tag))))
 
 (defun semantic-matlab-parse-class (&optional limit)
-  "Pase the class from the current MATLAB buffer."
+  "Parse the class from the current MATLAB buffer up to LIMIT."
   (semantic-matlab-sort-raw-class-tags (semantic-matlab-class-tags)))
 
 (defun semantic-matlab-sort-raw-class-tags (tag-list)
@@ -502,7 +502,7 @@ Each tag returned is a semantic FUNCTION tag.  See
     newlist))
 
 (defun semantic-matlab-parse-functions (&optional limit)
-  "Parse all functions from the current MATLAB buffer."
+  "Parse all functions from the current MATLAB buffer up to LIMIT."
   (car
    (semantic-matlab-sort-raw-function-tags (semantic-matlab-function-tags)
 					   (or limit (point-max)))
@@ -615,7 +615,7 @@ where NAME is unique."
 	       (string= left (match-string 1 right)))
 	  (setq right (match-string 1 right)))
 	;; otherwise reduce right-hand side to first symbol
-	(t 
+	(t
 	 (string-match "[[({ ]*\\([A-Za-z_0-9]*\\)" right)
 	 (setq right (match-string 1 right))))
 	(cond
@@ -735,7 +735,9 @@ cannot derive an argument list for them."
       (semantic-format-tag-prototype-default tag parent color))))
 
 (defun semantic-idle-summary-format-matlab-mode (tag &optional parent color)
-  "Describe TAG and display corresponding MATLAB 'lookfor' doc-string."
+  "Describe TAG and display corresponding MATLAB 'lookfor' doc-string.
+Optional PARENT and COLOR specify additional details for the tag.
+See `semantic-format-tag-prototype-matlab-mode' for details."
   (let* ((proto (semantic-format-tag-prototype-matlab-mode tag nil color))
 	 (doc (semantic-tag-docstring tag)))
     (concat proto " (" doc ")")))

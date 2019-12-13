@@ -22,6 +22,10 @@
 ;; Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 ;; Boston, MA 02110-1301, USA.
 
+;;; Commentary:
+;;
+;; Support for Semantic Databases for MATLAB buffers.
+
 ;; For generic function searching.
 (require 'eieio)
 (require 'eieio-opt)
@@ -86,7 +90,7 @@ the omniscience database.")
 ;;; Filename based methods
 ;;
 (cl-defmethod semanticdb-get-database-tables ((obj semanticdb-project-database-matlab))
-  "For a MATLAB database, there are no explicit tables.
+  "For a MATLAB database OBJ, there are no explicit tables.
 Create one of our special tables that can act as an intermediary."
   ;; NOTE: This method overrides an accessor for the `tables' slot in
   ;;       a database.  You can either construct your own (like tmp here
@@ -149,7 +153,7 @@ database (if available.)"
 		)
 	    (if (fboundp 'semanticdb-find-translate-path-default)
 		(semanticdb-find-translate-path-default path brutish)
-	      (error "semanticdb-find-translate-path-default doesn't exist")
+	      (error "Variable semanticdb-find-translate-path-default doesn't exist")
 	      ))))
     ;; Don't add anything if BRUTISH is on (it will be added in that fcn)
     ;; or if we aren't supposed to search the system.
