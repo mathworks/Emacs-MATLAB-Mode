@@ -31,6 +31,8 @@
   
   (add-to-list 'load-path (expand-file-name d) t))
 
+(defvar mst-testfile-path) ;; quiet compiler
+
 (require 'matlab-load)
 (require 'matlab)
 (require 'matlab-shell)
@@ -72,8 +74,7 @@
   (let ((msb (matlab-shell-active-p)))
     (when (not msb) (error "MATLAB Shell command failed to create a shell buffer."))
     (accept-process-output nil 1)
-    (save-excursion
-      (set-buffer msb)
+    (with-current-buffer msb
       (when (not (get-buffer-process msb)) (error "MATLAB Shell buffer failed to start process."))
 
       ;; Check full startup.
@@ -164,7 +165,7 @@
 	     (cnt 1))
 	(while (and CL EXP)
 	  (when (not (string= (car EXP) (car (car CL))))
-	    (error "Expected %S /= actual TS for %d completion"
+	    (error "Expected %S /= %S TS for %d completion"
 		   (car EXP) (car (car CL)) cnt))
 	  (setq cnt (1+ cnt)
 		CL (cdr CL)
@@ -333,6 +334,10 @@ If LINE is negative then do not test the line number."
     (message "PASS")
   
     ))
+
+(declare-function gud-break "gud")
+(declare-function gud-next "gud")
+(declare-function gud-cont "gud")
 
 ;;; Debugging: Breakpoints, stopping, visiting files
 (defun mstest-debugger ()
