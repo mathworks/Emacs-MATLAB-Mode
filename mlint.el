@@ -372,7 +372,8 @@ Different warnings are handled by different classes."
 (cl-defmethod linemark-new-entry ((g mlint-lm-group) &rest args)
   "Add a `linemark-entry' to G.
 It will be at location FILE and LINE, and use optional FACE.
-Call the new entrie's activate method."
+Call the new entrie's activate method.
+Optional ARGS specifies details about the entry."
   (let* ((f (plist-get args :filename))
 	 (l (plist-get args :line))
 	 (wc (plist-get args :warningcode))
@@ -393,7 +394,8 @@ Call the new entrie's activate method."
 (defvar mlint-overlay-map) ;; quiet compiler warning with forward declaration
 
 (cl-defmethod linemark-display ((e mlint-lm-entry) active-p)
-  "Set object E to be active."
+  "Set object E to be active.
+ACTIVE-P if it should be made visible."
   ;; A bug in linemark prevents individual entry colors.
   ;; Fix the color here.
   (let ((wc (oref e warningcode)))
@@ -450,7 +452,7 @@ Call the new entrie's activate method."
       )))
 
 (cl-defmethod mlint-is-fixable ((e mlint-lm-entry))
-  "Return non-nil if this entry can be automatically fixed."
+  "Return non-nil if entry E can be automatically fixed."
   (oref-default e fixable-p))
 
 (cl-defmethod mlint-fix-entry :AFTER ((e mlint-lm-entry))
@@ -460,7 +462,7 @@ Subclasses fulfill the duty of actually fixing the code."
   (linemark-delete e))
 
 (cl-defmethod mlint-fix-entry ((e mlint-lm-entry))
-  "This entry cannot fix warnings, so throw an error.
+  "This entry E cannot fix warnings, so throw an error.
 Subclasses fulfill the duty of actually fixing the code."
   (error "Don't know how to fix warning"))
 
@@ -474,7 +476,7 @@ Subclasses fulfill the duty of actually fixing the code."
   "Specialized entry for deleting the higlighted entry.")
 
 (cl-defmethod mlint-fix-entry ((ent mlint-lm-delete-focus))
-  "Add semi-colon to end of this line."
+  "Add semi-colon to end of this line ENT."
   (save-excursion
     (mlint-goto-line (oref ent line))
     (let* ((s (progn (move-to-column (1- (oref ent column))) (point)))
@@ -503,7 +505,7 @@ Optional argument FIELDS are the initialization arguments."
 		(oref this new-text))))
 
 (cl-defmethod mlint-fix-entry ((ent mlint-lm-replace-focus))
-  "Replace the focus area with :new-text"
+  "Replace the focus area with :new-text."
   (let ((pos (cl-call-next-method)))
     (save-excursion
       (goto-char (point))
@@ -826,7 +828,7 @@ With prefix ARG, turn mlint minor mode on iff ARG is positive.
         )
       )
     (if (not mlint-program)
-	(if (y-or-n-p "No MLINT program available.  Configure it?")
+	(if (y-or-n-p "No MLINT program available.  Configure it? ")
 	    (customize-variable 'mlint-programs))
 
       (add-hook 'after-save-hook 'mlint-buffer nil t)
