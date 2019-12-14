@@ -514,6 +514,13 @@ Try C-h f matlab-shell RET"))
 ;;
 ;; These are wrappers around the GUD filters so we can pre and post process
 ;; decisions by comint and gud.
+(defvar matlab-shell-capturetext-start-text "<EMACSCAP>"
+  "Text used as simple signal for text that should be captured.")
+(defvar matlab-shell-capturetext-end-text "</EMACSCAP>"
+  "Text used as simple signal for text that should be captured.")
+
+(defvar matlab-shell-accumulator ""
+  "Accumulate text that is being captured.")
 
 (defvar matlab-shell-in-process-filter nil
   "Non-nil when inside `matlab-shell-wrapper-filter'.")
@@ -544,10 +551,27 @@ STRING is the recent output from PROC to be filtered."
 	;;(if (= (aref string (match-beginning 0)) ?\C-g)
 	;;(beep t))
 	(setq string (replace-match "" t t string))))
+
+    ;; Engage the accumulator
+    (setq matlab-shell-accumulator (concat matlab-shell-accumulator string)
+	  string "")
     
+    ;; Check for EMACSCAP - a keyword that we should be capturing output
+    (if (and (not (string-match (regexp-quote matlab-shell-capturetext-end-text) matlab-shell-accumulator))
+	     (string-match (regexp-quote matlab-shell-capturetext-start-text) matlab-shell-accumulator))
+	;; If no end, then send anything before the CAP, and accumulate everything
+	;; else.
+	(setq string (substring matlab-shell-accumulator 0 (match-beginning 0))
+	      matlab-shell-accumulator (substring matlab-shell-accumulator
+						  (match-beginning 0)))
+      
+      ;; No start capture, or an ended capture, everything goes back to String
+      (setq string (concat string matlab-shell-accumulator)
+	    matlab-shell-accumulator ""))
+
     (with-current-buffer buff
       (gud-filter proc string))
-
+    
     ;; In case things get switched around on us
     (with-current-buffer buff
       (when matlab-shell-prompt-hook-cookie
@@ -938,12 +962,6 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
 
 ;;; OUTPUT Capture
 ;;
-(defvar matlab-shell-capturetext-start-text "<EMACSCAP>"
-  "Text used as simple signal for text that should be captured.")
-(defvar matlab-shell-capturetext-end-text "</EMACSCAP>"
-  "Text used as simple signal for text that should be captured.")
-
-
 (defun matlab-shell-capture-text (&optional str)
   "Hook function run to capture MATLAB text to display in a buffer.
 The filter captures indicators with <EMACSCAP> text </EMACSCAP>.
