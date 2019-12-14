@@ -187,19 +187,6 @@ FILE is ignored, and ARGS is returned."
     ;; DEBUG PROMPTS
     (when (string-match gud-matlab-marker-regexp-K>> gud-marker-acc)
 
-      ;; Look for any frames for case of a debug prompt.
-      (let ((url gud-marker-acc)
-	    ef el)
-
-	;; We use dbhotlinks to create the below syntax.  If we see it we have a frame,
-	;; and should tell gud to go there.
-	
-	(when (string-match "opentoline('\\([^']+\\)',\\([0-9]+\\),\\([0-9]+\\))" url)
-	  (setq ef (substring url (match-beginning 1) (match-end 1))
-		el (substring url (match-beginning 2) (match-end 2)))
-
-	  (setq frame (cons ef (string-to-number el)))))
-
       ;; Newer MATLAB's don't print useful info.  We'll have to
       ;; search backward for the previous line to see if a frame was
       ;; displayed.
@@ -232,7 +219,28 @@ FILE is ignored, and ARGS is returned."
 
 		;; (when matlab-shell-io-testing (message "!!xx [%s]" (substring gud-marker-acc 0 endprompt)))
 
-		;; We're done with the text!  Remove it from the accumulator.
+		;; We're done with the text!
+		;; Capture the text that describes the new stack frame.
+		(save-match-data
+		  (let* ((expr-end (match-beginning 0))
+			 (m1 (string-match "dbhotlink()%%%\n" gud-marker-acc))
+			 (expr-start (match-end 0))
+			 (expression (substring gud-marker-acc expr-start expr-end)))
+
+		    (when (> (length expression) 0)
+		      (condition-case ERR
+			  (let ((forms (read expression)))
+			    (when forms
+			      ;;(message "About to evaluate forms: \"%S\"" forms)
+			      (eval forms)))
+			(error
+			 (message "Failed to evaluate dbhotlink expression: \"%s\"" expression)
+			 (message "Error is: %S" ERR)
+			 )
+			))
+		    ))
+
+		;;Remove it from the accumulator.
 		(setq gud-marker-acc (substring gud-marker-acc endprompt))
 		;; If we got all this at the same time, push output back onto the accumulator for
 		;; the next code bit to push it out.
@@ -276,9 +284,18 @@ FILE is ignored, and ARGS is returned."
       (if (and (string-match (concat gud-matlab-marker-regexp->> "\\s-*$") output)
 	       gud-last-last-frame)
 	  (progn
+	    ;; Clean up gud stuff.
 	    (setq overlay-arrow-position nil
 		  gud-last-last-frame nil
 		  gud-overlay-arrow-position nil)
+	    ;; If stack is showing, clean it up.
+	    (let* ((buff (mlg-set-stack nil))
+		   (win (get-buffer-window buff)))
+	      (when win
+		(select-window win)
+		(mlg-stack-quit)
+		))
+	    ;; Refresh stuff
 	    (sit-for 0)
 	    ))
 
@@ -352,6 +369,7 @@ LONGESTNAME specifies the how long the longest name we can expect is."
 	  mlg-stack))
   (setq mlg-stack (nreverse mlg-stack))
   (mlg-refresh-stack-buffer)
+  ;;(message "Updated Stack")
   )
 
 (defun mlg-set-stack-frame (newframe)
@@ -359,6 +377,17 @@ LONGESTNAME specifies the how long the longest name we can expect is."
   (setq mlg-frame newframe)
   (mlg-show-stack)
   (mlg-show-frame newframe)
+  )
+
+(defun mlg-set-stack-frame-via-gud (newframe)
+  "Specify a NEWFRAME provided by MATLAB we should visit."
+  (setq mlg-frame newframe)
+  (let ((file (oref (nth (1- newframe) mlg-stack) file))
+	(line (oref (nth (1- newframe) mlg-stack) line)))
+    (if (< line 0) (setq line (- line)))
+    (setq gud-last-frame (cons file line))
+    ;;(message "Gud FRAME set to %S" gud-last-frame)
+    )
   )
 
 (defun mlg-show-frame (&optional frame)
@@ -431,7 +460,7 @@ LONGESTNAME specifies the how long the longest name we can expect is."
 (defvar mlg-stack-mode-map
   (let ((km (make-sparse-keymap)))
     (define-key km [return] 'mlg-stack-choose)
-    (define-key km "q" 'delete-window)
+    (define-key km "q" 'mlg-stack-quit)
     (define-key km "n" 'mlg-stack-next)
     (define-key km "p" 'mlg-stack-prev)
     (define-key km [mouse-2] 'mlg-stack-click)
@@ -452,6 +481,13 @@ Commands:
   :syntax-table mlg-stack-mode-syntax-table
   (setq buffer-read-only t)
   )
+
+(defun mlg-stack-quit ()
+  "Quit the MATLAB stack view."
+  (interactive)
+  (if (= (length (window-list)) 1)
+      (bury-buffer)
+    (delete-window (selected-window))))
 
 (defun mlg-stack-next ()
   "Visit stack on next line."
@@ -682,6 +718,7 @@ Call debug activate/deactivate features."
     (define-key km "d" 'gud-down)
     (define-key km "<" 'gud-up)
     (define-key km ">" 'gud-down)
+    (define-key km "v" 'mlg-show-stack)
     (define-key km "p" 'matlab-shell-gud-show-symbol-value)
     ;; (define-key km "p" gud-print)
 
@@ -717,8 +754,11 @@ Call debug activate/deactivate features."
       ["dbcont" gud-cont
        :active (matlab-shell-active-p)
        :help "When MATLAB debugger is active, run to next break point or finish"]
+      ["Show Stack" mlg-show-stack
+       :active (matlab-any-shell-active-p)
+       :help "When MATLAB debugger is active, show value of the symbol under point."]
       ["Show symbol value" matlab-shell-gud-show-symbol-value
-       :active (matlab-shell-active-p)
+       :active (matlab-any-shell-active-p)
        :help "When MATLAB debugger is active, show value of the symbol under point."]
       ["dbquit" gud-finish
        :active (matlab-shell-active-p)

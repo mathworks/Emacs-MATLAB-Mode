@@ -4,9 +4,12 @@ classdef Stack < handle
     properties
         % Stack last sent to Emacs
         EmacsStack = [];
-        EmacsFrame = [];
+        EmacsFrame = 1;
         % Netshell object if we should direct that way instead.
-        NetShellObject = [];        
+        NetShellObject = [];
+        % Flag - do we need to tell Emacs what changed?
+        StackPending = false;
+        FramePending = false;
     end
 
     methods
@@ -17,10 +20,10 @@ classdef Stack < handle
             es.resetEmacs();
         end
         
-        function updateEmacs(es, newstack, newframe)
-        % Update Emacs' view of the stack
-            
-            if ~isempty(newstack) && strcmp(newstack(1).name, 'ebstack')
+        function captureStack(es, newstack, newframe)
+            if ~isempty(newstack) && ...
+                    ( strcmp(newstack(1).name, 'ebstack') ||...
+                      strcmp(newstack(1).name, 'dbhotlink') )
                 newstack = newstack(2:end);
             end
 
@@ -40,25 +43,75 @@ classdef Stack < handle
             
             if ~stackEqual(es.EmacsStack, newstack)
                 es.EmacsStack = newstack;
+                es.StackPending = true;
+            end
             
-                str = [ '(progn ' newline ...
-                        stackFrames(newstack) ...
-                        newline ...
-                        '  (mlg-set-stack-frame ' num2str(newframe) ')' ...
-                        ')'];
+            if newframe ~= es.EmacsFrame
+                es.EmacsFrame = newframe;
+                es.FramePending = true;
+            end
+        end
+        
+        function updateEmacs(es, newstack, newframe)
+        % Update Emacs' view of the stack
 
-                if isempty(es.NetShellObject)
-                    disp('<EMACSCAP>(eval)');
-                    disp(str);
-                    disp('</EMACSCAP>')
-                else
-                    es.NetShellObject.SendEval(str);
-                end
+            es.captureStack(newstack, newframe);
+
+            str = [ '(progn ' newline ];
+                
+            if es.StackPending
+                str = [ str ...
+                        stackFrames(es.EmacsStack) ...
+                        newline ];
+            end
+            str = [ str ...
+                    '  (mlg-set-stack-frame ' num2str(es.EmacsFrame) ')' ];
+                
+            str = [ str ')'];
+                
+            es.StackPending = false;
+            es.FramePending = false;
+                
+            if isempty(es.NetShellObject)
+                disp('<EMACSCAP>(eval)');
+                disp(str);
+                disp('</EMACSCAP>')
+            else
+                es.NetShellObject.SendEval(str);
             end
             
         end
         
         function resetEmacs(es)
+        end
+   
+        function updateForHotLinks(es, newstack, newframe)
+ 
+            es.captureStack(newstack, newframe);
+            
+            % updateEmacs(es, newstack, newframe);
+            
+            str = [ '(progn ' newline ];
+                
+            if es.StackPending
+                str = [ str ...
+                        stackFrames(es.EmacsStack) ...
+                        newline ];
+            end
+            str = [ str ...
+                    '  (mlg-set-stack-frame-via-gud ' num2str(es.EmacsFrame) ')' ];
+                
+            str = [ str ')'];
+                
+            es.StackPending = false;
+            es.FramePending = false;
+                
+            if isempty(es.NetShellObject)
+                disp(str);
+            else
+                es.NetShellObject.SendEval(str);
+            end
+            
         end
         
     end
@@ -83,18 +136,18 @@ function nf = fixFile(filename)
     
 end
 
-function changed = stackEqual(stack1, stack2)
-   changed = true;
+function thesame = stackEqual(stack1, stack2)
+   thesame = true;
    
    if length(stack1) ~= length(stack2)
-       changed=false;
+       thesame=false;
        return;
    end
    
    for i=1:length(stack1)
        if ~strcmp(stack1(i).name, stack2(i).name) || ...
                stack1(i).line ~= stack2(i).line
-           changed = false;
+           thesame = false;
            return
        end       
    end
