@@ -1016,7 +1016,7 @@ STR is provided by comint, but is unused."
 		  (condition-case nil
 		      (let ((forms (read txt)))
 			(eval forms))
-		    (error (message "Failed to evaluate forms from MATLAB: %S" txt))
+		    (error (message "Failed to evaluate forms from MATLAB: \"%s\"" txt))
 		    )
 		(save-excursion
 		  (when insertbuff
