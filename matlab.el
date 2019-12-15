@@ -2063,11 +2063,6 @@ If `matlab-functions-have-end', skip over functions with end."
 	  (goto-char (match-end 0))
 	  (current-word)))))
 
-(defun matlab-prev-line-cont ()
-  "Return t if the previous line is a continuation line."
-  (save-excursion (and (matlab-prev-line)
-		       (matlab-lattr-cont))))
-
 (defun matlab-beginning-of-command ()
   "Go to the beginning of an M command.
 Travels across continuations."
@@ -2368,12 +2363,17 @@ based on what it ends with."
      (and (re-search-forward "[^ \t.][ \t]*\\.\\.+[ \t]*\\(.*\\)?$"
 				(matlab-point-at-eol) t)
 	  (progn (goto-char (match-beginning 0))
-		 (not (matlab-cursor-in-comment))))
+		 (not (matlab-cursor-in-string-or-comment))))
      ;; If the line doesn't end in ..., but we have optional ..., then
      ;; use this annoying heuristic.
      (and (null matlab-cont-requires-ellipsis)
 	  (matlab-lattr-implied-continuation))
      )))
+
+(defun matlab-prev-line-cont ()
+  "Return t if the previous line is a continuation line."
+  (save-excursion (and (if (= -1 (forward-line -1)) nil t)
+		       (matlab-lattr-cont))))
 
 (defun matlab-lattr-array-cont (&optional restrict)
   "Return non-nil if current line is in an array.
