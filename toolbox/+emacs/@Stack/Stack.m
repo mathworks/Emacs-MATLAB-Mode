@@ -98,9 +98,11 @@ classdef Stack < handle
                         stackFrames(es.EmacsStack) ...
                         newline ];
             end
-            str = [ str ...
-                    '  (mlg-set-stack-frame-via-gud ' num2str(es.EmacsFrame) ')' ];
-                
+            if es.StackPending || es.FramePending
+                str = [ str ...
+                        '  (mlg-set-stack-frame-via-gud ' num2str(es.EmacsFrame) ')' ];
+            end
+            
             str = [ str ')'];
                 
             es.StackPending = false;
