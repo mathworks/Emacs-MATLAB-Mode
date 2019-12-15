@@ -541,6 +541,10 @@ Visit the file presented in that stack frame."
 	 :type string
 	 :documentation
 	 "The filename this brekpoint belongs to.")
+   (name :initarg :name
+	 :type string
+	 :documentation
+	 "Name of the function this breakpoint is in.")
    (line :initarg :line
 	 :type integer
 	 :documentation
@@ -552,6 +556,18 @@ Visit the file presented in that stack frame."
   "Representation of a breakpoint.
 Used to track active breakpoints, and how to show them.")
 
+(cl-defmethod mlg-print ((break mlg-breakpoint) longestname)
+  "Use print to output this breakpoint BREAK.
+LONGESTNAME specifies the how long the longest name we can expect is."
+  (let* ((namefmt (concat "%" (number-to-string (or longestname 10)) "s"))
+	 (str (concat (propertize (format namefmt (oref break name)) 'face 'font-lock-function-name-face)
+		      " "
+	              (propertize (format "%3d" (oref break line)) 'face 'bold)
+		      " "
+		      (propertize (oref break file) 'face 'font-lock-constant-face))))
+    (setq str (propertize str 'object break))
+    str))
+
 (defvar matlab-gud-visible-breakpoints nil
   "List of breakpoints MATLAB has sent to us.")
 
@@ -562,7 +578,7 @@ Used to track active breakpoints, and how to show them.")
     (mlg-deactivate BP))
   (setq matlab-gud-visible-breakpoints nil))
 
-(defun mlg-add-breakpoint (file line)
+(defun mlg-add-breakpoint (file fcn line)
   "Add a visible breakpoint to FILE at LINE."
   (let ((found nil))
     (dolist (BP matlab-gud-visible-breakpoints)
@@ -572,6 +588,7 @@ Used to track active breakpoints, and how to show them.")
     (when (not found)
       (setq matlab-gud-visible-breakpoints
 	    (cons (mlg-breakpoint "" :file file
+				  :name fcn
 				  :line line)
 		  matlab-gud-visible-breakpoints))
       (mlg-activate (car matlab-gud-visible-breakpoints))
@@ -581,7 +598,7 @@ Used to track active breakpoints, and how to show them.")
   (add-hook 'matlab-mode-hook 'mlg-breakpoint-activate-buffer-opened-hook)
   )
 
-(defun mlg-del-breakpoint (file line)
+(defun mlg-del-breakpoint (file fcn line)
   "Add a visible breakpoint to FILE at LINE."
   (let ((BPS matlab-gud-visible-breakpoints)
 	(NBPS nil))
@@ -665,6 +682,126 @@ Used to track active breakpoints, and how to show them.")
     (mlg-activate BP))
   )
 
+
+(defun mlg-refresh-breakpoint-buffer ()
+  "Refresh the buffer displaying breakpoints."
+  (save-excursion
+    (let ((buff (get-buffer-create "*MATLAB breakpoints*"))
+	  (namelen 5)
+	  (inhibit-read-only t))
+
+      (dolist (S matlab-gud-visible-breakpoints)
+	(when (> (length (oref S name)) namelen)
+	  (setq namelen (length (oref S name)))))
+    
+      (set-buffer buff)
+      (erase-buffer)
+
+      (let ((cnt 1))
+	(dolist (F matlab-gud-visible-breakpoints)
+	  (insert (format "%2d - " cnt))
+	  (insert (mlg-print F namelen) "\n")
+	  (setq cnt (1+ cnt))))
+
+      (mlg-breakpoint-mode)
+      (goto-char (point-min))
+      (current-buffer))))
+  
+(defun mlg-show-breakpoints ()
+  "Display the MATLAB stack in an interactive buffer."
+  (interactive)
+  (let ((buff (mlg-refresh-breakpoint-buffer)))
+  
+    (display-buffer
+     buff
+     '((display-buffer-at-bottom)
+       (inhibit-same-window . t)
+       (window-height . fit-window-to-buffer))
+     )
+
+    (select-window (get-buffer-window buff))
+    (goto-char 3)
+    ))
+  
+  
+(defvar mlg-breakpoint-mode-map
+  (let ((km (make-sparse-keymap)))
+    (define-key km [return] 'mlg-breakpoint-choose)
+    (define-key km "q" 'mlg-breakpoint-quit)
+    (define-key km "n" 'mlg-breakpoint-next)
+    (define-key km "p" 'mlg-breakpoint-prev)
+    (define-key km [mouse-2] 'mlg-breakpoint-click)
+    (define-key km [mouse-1] 'mlg-breakpoint-click)
+    km)
+  "Keymap used in MATLAB breakpoint mode.")
+
+;; Need this to fix wierd problem in define-derived-mode
+(defvar mlg-breakpoint-mode-syntax-table (make-syntax-table)
+  "Syntax table used in `matlab-shell-help-mode'.")
+
+(define-derived-mode mlg-breakpoint-mode
+  fundamental-mode "MBreakpoints"
+  "Major mode for viewing a MATLAB breakpoints.
+
+Commands:
+\\{mlg-breakpoint-mode-map}"
+  :syntax-table mlg-breakpoint-mode-syntax-table
+  (setq buffer-read-only t)
+  )
+
+(defun mlg-breakpoint-quit ()
+  "Quit the MATLAB breakpoint view."
+  (interactive)
+  (if (= (length (window-list)) 1)
+      (bury-buffer)
+    (delete-window (selected-window))))
+
+(defun mlg-breakpoint-next ()
+  "Visit breakpoint on next line."
+  (interactive)
+  (forward-line 1)
+  (forward-char 2)
+  (mlg-breakpoint-choose))
+
+(defun mlg-breakpoint-prev ()
+  "Visit breakpoint on next line."
+  (interactive)
+  (forward-line -1)
+  (forward-char 2)
+  (mlg-breakpoint-choose))
+
+(defun mlg-breakpoint-click (e)
+  "Click on a breakpoint frame to visit it.
+Must be bound to event E."
+  (interactive "e")
+  (mouse-set-point e)
+  (mlg-breakpoint-choose))
+
+(defun mlg-breakpoint-choose ()
+  "Choose the breakpoint the under the cursor.
+Visit the file presented in that breakpoint frame."
+  (interactive)
+  (let ((topic nil) (fun nil) (p (point)))
+    (save-excursion
+      (beginning-of-line)
+      (forward-char 10)
+      (let* ((sf (get-text-property (point) 'object))
+	     (f (oref sf file))
+	     (l (oref sf line))
+	     (buff (find-file-noselect f t)))
+	(display-buffer
+	 buff
+	 '((display-buffer-reuse-window display-buffer-use-some-window)
+	   (inhibit-same-window . t))
+	 )
+	(let ((win (selected-window)))
+	  (select-window (get-buffer-window buff))
+	  (goto-char (point-min))
+	  (forward-line (1- l))
+	  (select-window win))
+	))))
+
+
 ;;; K prompt state and hooks.
 ;;
 
@@ -720,6 +857,7 @@ Call debug activate/deactivate features."
     (define-key km "<" 'gud-up)
     (define-key km ">" 'gud-down)
     (define-key km "v" 'mlg-show-stack)
+    (define-key km "w" 'mlg-show-breakpoints)
     (define-key km "p" 'matlab-shell-gud-show-symbol-value)
     ;; (define-key km "p" gud-print)
 
@@ -756,6 +894,9 @@ Call debug activate/deactivate features."
        :active (matlab-shell-active-p)
        :help "When MATLAB debugger is active, run to next break point or finish"]
       ["Show Stack" mlg-show-stack
+       :active (matlab-any-shell-active-p)
+       :help "When MATLAB debugger is active, show value of the symbol under point."]
+      ["Show Breakpoints" mlg-show-breakpoints
        :active (matlab-any-shell-active-p)
        :help "When MATLAB debugger is active, show value of the symbol under point."]
       ["Show symbol value" matlab-shell-gud-show-symbol-value

@@ -17,10 +17,15 @@ classdef Breakpoints < handle
             bp.resetEmacs();
         end
         
-        function updateEmacs(bp)
+        function updateEmacs(bp, show)
         % update Emacs with just the breakpoint deltas.
         % if there is a delta, display prefix text before sending
         % our update.
+            
+            if nargin < 2
+                show = false;
+            end
+            
             currpts = unwindBreakpoints(builtin('dbstatus'));
             
             oldpts = bp.EmacsBreakpoints;
@@ -57,11 +62,18 @@ classdef Breakpoints < handle
                 end
             end
 
-            if ~isempty(delpts) || ~isempty(addpts)
+            if show
+                showcmd = [ newline '(mlg-show-breakpoints)'];
+            else
+                showcmd = '(mlg-refresh-breakpoint-buffer)';
+            end
+            
+            if ~isempty(delpts) || ~isempty(addpts) || ~isempty(showcmd)
                 % Send the sequence of Emacs commands to update breakpoints
                 str = [ '(progn' newline ...
                         sendPtList('del', delpts) ...
                         sendPtList('add', addpts)  ...
+                        showcmd ...
                         ')' ];
                 if isempty(bp.NetShellObject)
                     disp(['<EMACSCAP>(eval)' newline]);
@@ -98,7 +110,8 @@ end
 function str = sendPtList(ad, bpstructlist)
     str = '';
     for i=1:length(bpstructlist)
-        str = [ str '(mlg-' ad '-breakpoint "' fixFile(bpstructlist(i).file) '" ' ...
+        str = [ str '(mlg-' ad '-breakpoint "' fixFile(bpstructlist(i).file) '" "' ...
+                bpstructlist(i).name '" ' ...
                 num2str(bpstructlist(i).line) ')' newline];     %#ok
     end
 end

@@ -2,6 +2,6 @@ function ebstatus
 % Send emacs some breakpoints
 
    bp = getappdata(groot, 'EmacsBreakpoints');
-   bp.updateEmacs;
-
+   bp.updateEmacs(true);
+   
 end
