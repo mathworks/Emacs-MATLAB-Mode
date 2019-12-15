@@ -76,10 +76,19 @@ function B = ends_in_comments_and_strings()
         A = E;
         
     end ... the other end
-    % !!4
+    % !! 4
+    
+    code1() ...
+        code2(); %!!8
 
-    B = [ B A ];
+    % NOTE: Blank space below should cancel the indent effect of ellipsis.
+    code1() ...
+        
+    B = [ B A ]; % !!4
 
+    str = 'This is a char array with ... in it';
+    foo(str); % !!4
+    
     % Multi-ends
     % >>8
     if foo %#ok
