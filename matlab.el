@@ -3313,9 +3313,11 @@ Argument BEG and END indicate the region to uncomment."
 	      (beginning-of-line)
 	      (let ((e (matlab-point-at-eol))
 		    (pf nil))
-		(while (and (re-search-forward "%+[ \t]*\\($$$ \\)?" e t)
+		(while (and (re-search-forward "%+[ \t]*\\($$$ \\|\\* \\)?" e t)
 			    (matlab-cursor-in-string)))
 		(setq pf (match-string 0))
+		(when (string-match "%\\s-*\\* " pf)
+		  (setq pf (concat "%" (make-string (1- (length pf)) ?  ))))
 		(concat (make-string (- (current-column) (length pf)) ? )
 			pf))))))
 
@@ -3621,7 +3623,7 @@ ARG is passed to `fill-paragraph' and will justify the text."
 	 ;; nice regular expressions.
 	 ;; Cell start/end markers of %% also separate paragraphs
 	 (let ((paragraph-separate "%%\\|%[a-zA-Z]\\|%[ \t]*$\\|[ \t]*$")
-	       (paragraph-start "%[a-zA-Z]\\|%[ \t]*$\\|[ \t]*$")
+	       (paragraph-start "%[a-zA-Z]\\|%[ \t]*$\\|[ \t]*$\\|%\\s-*\\*")
 	       (paragraph-ignore-fill-prefix nil)
 	       (start (save-excursion (matlab-beginning-of-command)
 				      (if (looking-at "%%")
