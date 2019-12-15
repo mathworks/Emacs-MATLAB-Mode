@@ -673,6 +673,7 @@ Used to track active breakpoints, and how to show them.")
 Call debug activate/deactivate features."
   (save-excursion
     (let ((inhibit-field-text-motion t))
+      (goto-char (point-max))
       (beginning-of-line)
       (cond
        ((and gud-matlab-debug-active (looking-at gud-matlab-marker-regexp->>))
