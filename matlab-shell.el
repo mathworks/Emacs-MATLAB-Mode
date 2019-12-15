@@ -79,8 +79,15 @@ Command switches are a list of strings.  Each entry is one switch."
   "*Face to use when errors occur in MATLAB shell."
   :group 'matlab-shell)
 
-(defvar matlab-custom-startup-command nil
-  "Custom matlab command to be run at startup.")
+(defcustom matlab-custom-startup-command nil
+  "Custom MATLAB command to be run at startup."
+  :group 'matlab-shell
+  :type 'string)
+
+(defcustom matlab-shell-run-region-cmd "emacsrunregion"
+  "The MATLAB command to use for running a region."
+  :group 'matlab-shell
+  :type 'string)
 
 (defcustom matlab-shell-echoes t
   "*If `matlab-shell-command' echoes input."
@@ -2219,7 +2226,6 @@ When NOSHOW is non-nil, suppress output by adding ; to commands."
       (setq str (concat str "\n")))
     str))
 
-
 (defun matlab-shell-run-region-internal (beg end &optional noshow)
   "Create a command to run the region between BEG and END.
 Uses internal MATLAB API to execute the code keeping breakpoints
@@ -2240,7 +2246,8 @@ Optional argument NOSHOW specifies if we should echo the region to the command l
 	(setq end (+ end (count-lines (point-min) (point))))
 	)))
 
-  (format "emacsrunregion('%s',%d,%d)\n"
+  (format "%s('%s',%d,%d)\n"
+	  matlab-shell-run-region-cmd
 	  (buffer-file-name (current-buffer))
 	  beg end))
 
