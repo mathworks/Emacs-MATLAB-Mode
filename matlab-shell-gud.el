@@ -393,7 +393,7 @@ LONGESTNAME specifies the how long the longest name we can expect is."
 (defun mlg-show-frame (&optional frame)
   "Setup windows to show FRAME from the current stack frame."
   (let ((newframe (or frame mlg-frame)))
-    (if (and mlg-stack (< newframe (length mlg-stack)))
+    (if (and mlg-stack (<= newframe (length mlg-stack)))
 	;; Make sure we have a stack window.
 	(let* ((buff (get-buffer "*MATLAB stack*"))
 	       (win (get-buffer-window buff)))
