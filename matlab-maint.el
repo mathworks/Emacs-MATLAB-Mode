@@ -23,12 +23,13 @@
 
 (require 'matlab)
 (require 'matlab-shell)
+(require 'matlab-netshell)
 
 ;;; Code:
 
 ;;; Minor Mode Definition
 ;;
-(defvar matlab-maint-mode-map 
+(defvar matlab-maint-mode-map
   (let ((km (make-sparse-keymap)))
     (define-key km [f8] 'matlab-maint-run-tests)
     (define-key km [f9] 'matlab-maint-compile-matlab-emacs)
@@ -38,7 +39,13 @@
 (easy-menu-define
   matlab-maint-menu matlab-maint-mode-map "MATLAB Maintainer's Minor Mode"
   '("MMaint"
+    ["Compile" matlab-maint-compile-matlab-emacs t]
     ["Run Tests" matlab-maint-run-tests t]
+    ["Toggle IO Logging" matlab-maint-toggle-io-tracking
+     :style toggle :selected matlab-shell-io-testing ]
+    ["Display logger frame" matlab-maint-toggle-logger-frame
+     :style toggle :selected (and matlab-maint-logger-frame
+				  (frame-live-p matlab-maint-logger-frame)) ]
     ))
 
 ;;;###autoload
@@ -58,7 +65,6 @@
 	(matlab-maint-minor-mode 1))))
   )
 
-
 ;;; Commands
 ;;
 ;; Helpful commands for maintainers.
@@ -72,7 +78,7 @@
 
 (defun matlab-maint-run-tests (arg)
   "Run the tests for matlab mode.
-With universal arg, ask for the code to be run with output tracking turned on."
+With universal ARG, ask for the code to be run with output tracking turned on."
   (interactive "P")
   (save-excursion
     (matlab-maint-set-buffer-to "tests/Makefile")
@@ -92,6 +98,35 @@ Return the buffer."
   (let* ((ml (file-name-directory (locate-library "matlab")))
 	 (newf (expand-file-name file ml)))
     (set-buffer (find-file-noselect newf))))
+
+(defun matlab-maint-toggle-io-tracking ()
+  "Toggle tracking of IO with MATLAB Shell."
+  (interactive)
+  (setq matlab-shell-io-testing (not matlab-shell-io-testing))
+  (message "MATLAB Shell IO logging %s" (if matlab-shell-io-testing
+					    "enabled" "disabled")))
+
+(defvar matlab-maint-logger-frame nil
+  "Frame displaying log information.")
+
+(defun matlab-maint-toggle-logger-frame ()
+  "Display a frame showing various log buffers."
+  (interactive)
+  (if (and matlab-maint-logger-frame
+	   (frame-live-p matlab-maint-logger-frame))
+      (progn
+	(delete-frame matlab-maint-logger-frame)
+	(setq matlab-maint-logger-frame nil))
+    ;; Otherwise, create ...
+    (setq matlab-maint-logger-frame (make-frame))
+    (with-selected-frame matlab-maint-logger-frame
+      (delete-other-windows)
+      (switch-to-buffer "*Messages*")
+      (when (matlab-netshell-client)
+	(split-window-horizontally)
+	(other-window 1)
+	(switch-to-buffer (process-buffer (matlab-netshell-client)))
+	))))
 
 (provide 'matlab-maint)
 

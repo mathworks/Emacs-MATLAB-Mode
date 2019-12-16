@@ -28,9 +28,55 @@
 
 (eval-and-compile
   (require 'gud)
+  (require 'eieio)
   )
 
 ;;; Code:
+(defcustom matlab-shell-debug-tooltips-p nil
+  "*Enable tooltips displaying data values when at the K>> prompt.
+Disable this option if the tooltips are too slow in your setup."
+  :group 'matlab-shell
+  :type 'boolean)
+
+(defvar gud-matlab-debug-active nil
+  "Non-nil if MATLAB has a K>> prompt up.")
+(defvar gud-matlab-debug-activate-hook nil
+  "Hooks run when MATLAB detects a K>> prompt after a >> prompt.")
+(defvar gud-matlab-debug-deactivate-hook nil
+  "Hooks run when MATLAB detects a >> prompt after a K>> prompt.")
+
+(defvar gud-matlab-tool-bar-map
+  (let ((map (make-sparse-keymap)))
+    (dolist (x '((gud-break . "gud/break")
+		 (gud-remove . "gud/remove")
+		 (gud-cont . "gud/cont")
+		 (gud-next . "gud/next")
+		 (gud-step . "gud/step")
+		 (gud-stop-subjob . "gud/stop")
+		 (gud-finish . "gud/finish")
+		 (gud-up . "gud/up")
+		 (gud-down . "gud/down"))
+	       map)
+      (tool-bar-local-item-from-menu
+       (car x) (cdr x) map gud-minor-mode-map))))
+
+(declare-function matlab-netshell-eval "matlab-netshell" (mode))
+
+(defmacro matlab-at-fcn (cmd)
+  "Define CMD to be a GUD command that works w/ shell or netshell."
+  ;; Note `arg' comes from gud-def declaration
+  `(if (matlab-shell-active-p)
+       (gud-call ,cmd arg)
+     (if (matlab-netshell-active-p)
+	 (matlab-netshell-eval (gud-format-command ,cmd arg))
+       (error "No MATLAB shell active"))))
+
+(defmacro matlab-gud-fcn (cmd)
+  "Define CMD forms to be sent to a MATLAB shell."
+  ;; Note `arg' comes from gud-def declaration
+  `(if gud-matlab-debug-active
+       (matlab-at-fcn ,cmd)
+     (error "MATLAB debugging not active")))
 
 ;;;###autoload
 (defun matlab-shell-mode-gud-enable-bindings ()
@@ -38,22 +84,25 @@
 
   ;; Make sure this is safe to use gud to debug MATLAB
   (when (not (fboundp 'gud-def))
-    (error "Your emacs is missing `gud-def' which means matlab-shell won't work correctly.  Stopping"))
+    (error "Your Emacs is missing `gud-def' which means matlab-shell won't work correctly.  Stopping"))
 
-  (gud-def gud-break  "dbstop in %d/%f at %l"  "\C-b" "Set breakpoint at current line.")
-  (gud-def gud-remove "dbclear in %d/%f at %l" "\C-d" "Remove breakpoint at current line.")
-  (gud-def gud-step   "dbstep in"           "\C-s" "Step one source line, possibly into a function.")
-  (gud-def gud-next   "dbstep %p"           "\C-n" "Step over one source line.")
-  (gud-def gud-cont   "dbcont"              "\C-r" "Continue with display.")
-  (gud-def gud-stop-subjob "dbquit"         nil    "Quit debugging.") ;; gud toolbar stop
-  (gud-def gud-finish "dbquit"              "\C-f" "Finish executing current function.")
-  (gud-def gud-up     "dbup"                "<"    "Up N stack frames (numeric arg).")
-  (gud-def gud-down   "dbdown"              ">"    "Down N stack frames (numeric arg).")
+  (gud-def gud-break  (matlab-at-fcn "ebstop in %d%f at %l")  "\C-b" "Set breakpoint at current line.")
+  (gud-def gud-remove (matlab-at-fcn "ebclear in %d%f at %l") "\C-d" "Remove breakpoint at current line.")
+  (gud-def gud-step   (matlab-gud-fcn "dbstep in")   "\C-s" "Step one source line, possibly into a function.")
+  (gud-def gud-next   (matlab-gud-fcn "dbstep %p")   "\C-n" "Step over one source line.")
+  (gud-def gud-cont   (matlab-gud-fcn "dbcont")      "\C-r" "Continue with display.")
+  (gud-def gud-stop-subjob (matlab-gud-fcn "dbquit") nil    "Quit debugging.") ;; gud toolbar stop
+  (gud-def gud-finish (matlab-gud-fcn "dbquit")      "\C-f" "Finish executing current function.")
+  (gud-def gud-up     (matlab-gud-fcn "dbup")        "<"    "Up N stack frames (numeric arg).")
+  (gud-def gud-down   (matlab-gud-fcn "dbdown")      ">"    "Down N stack frames (numeric arg).")
   ;; using (gud-def gud-print  "%e" "\C-p" "Eval expression at point") fails
-  (gud-def gud-print  "% gud-print not available" "\C-p" "gud-print not available.")
+  ;; (gud-def gud-print  "% gud-print not available" "\C-p" "gud-print not available.")
 
   (if (fboundp 'gud-make-debug-menu)
       (gud-make-debug-menu))
+
+  (when (boundp 'tool-bar-map)            ; not --without-x
+    (kill-local-variable 'tool-bar-map))
   )
 
 ;;;###autoload
@@ -61,6 +110,9 @@
   "Configure GUD when a new `matlab-shell' is initialized."
   (gud-mode)
 
+  ;; type of gud mode
+  (setq gud-minor-mode 'matlab)
+  
   ;; This starts us supporting gud tooltips.
   (add-to-list 'gud-tooltip-modes 'matlab-mode)
   
@@ -93,7 +145,7 @@ FILE is ignored, and ARGS is returned."
 			    (aset f (match-beginning 1) ?m)
 			    f)
 			f))
-	   (buf (find-file-noselect realfname)))
+	   (buf (find-file-noselect realfname t)))
       (set-buffer buf)
       (if (fboundp 'gud-make-debug-menu)
 	  (gud-make-debug-menu))
@@ -135,19 +187,6 @@ FILE is ignored, and ARGS is returned."
     ;; DEBUG PROMPTS
     (when (string-match gud-matlab-marker-regexp-K>> gud-marker-acc)
 
-      ;; Look for any frames for case of a debug prompt.
-      (let ((url gud-marker-acc)
-	    ef el)
-
-	;; We use dbhotlinks to create the below syntax.  If we see it we have a frame,
-	;; and should tell gud to go there.
-	
-	(when (string-match "opentoline('\\([^']+\\)',\\([0-9]+\\),\\([0-9]+\\))" url)
-	  (setq ef (substring url (match-beginning 1) (match-end 1))
-		el (substring url (match-beginning 2) (match-end 2)))
-
-	  (setq frame (cons ef (string-to-number el)))))
-
       ;; Newer MATLAB's don't print useful info.  We'll have to
       ;; search backward for the previous line to see if a frame was
       ;; displayed.
@@ -180,7 +219,28 @@ FILE is ignored, and ARGS is returned."
 
 		;; (when matlab-shell-io-testing (message "!!xx [%s]" (substring gud-marker-acc 0 endprompt)))
 
-		;; We're done with the text!  Remove it from the accumulator.
+		;; We're done with the text!
+		;; Capture the text that describes the new stack frame.
+		(save-match-data
+		  (let* ((expr-end (match-beginning 0))
+			 (m1 (string-match "dbhotlink()%%%\n" gud-marker-acc))
+			 (expr-start (match-end 0))
+			 (expression (substring gud-marker-acc expr-start expr-end)))
+
+		    (when (> (length expression) 0)
+		      (condition-case ERR
+			  (let ((forms (read expression)))
+			    (when forms
+			      ;;(message "About to evaluate forms: \"%S\"" forms)
+			      (eval forms)))
+			(error
+			 (message "Failed to evaluate dbhotlink expression: \"%s\"" expression)
+			 (message "Error is: %S" ERR)
+			 )
+			))
+		    ))
+
+		;;Remove it from the accumulator.
 		(setq gud-marker-acc (substring gud-marker-acc endprompt))
 		;; If we got all this at the same time, push output back onto the accumulator for
 		;; the next code bit to push it out.
@@ -224,11 +284,31 @@ FILE is ignored, and ARGS is returned."
       (if (and (string-match (concat gud-matlab-marker-regexp->> "\\s-*$") output)
 	       gud-last-last-frame)
 	  (progn
+	    ;; Clean up gud stuff.
 	    (setq overlay-arrow-position nil
 		  gud-last-last-frame nil
 		  gud-overlay-arrow-position nil)
+	    ;; If stack is showing, clean it up.
+	    (let* ((buff (mlg-set-stack nil))
+		   (win (get-buffer-window buff)))
+	      (when win
+		(select-window win)
+		(mlg-stack-quit)
+		))
+	    ;; Refresh stuff
 	    (sit-for 0)
-	    )))
+	    ))
+
+      ;; Check for any text that would be embarrasing to display partially.
+      ;; If we don't see any, feel free to dump the rest of the accumulation buffer
+      (unless (or (string-match (regexp-quote "<a href=") gud-marker-acc)
+		  (string-match (regexp-quote "<EMACSCAP") gud-marker-acc)
+		  (string-match (regexp-quote "<ERROR") gud-marker-acc))
+	(setq output (concat output gud-marker-acc)
+	      gud-marker-acc "")
+	)
+      
+      )
 
     (if frame (setq gud-last-frame frame))
 
@@ -244,29 +324,506 @@ FILE is ignored, and ARGS is returned."
     
     output))
 
+;;; Stack tracking
+;;
+(defclass mlg-stack-frame ()
+  ((file :initarg :file
+	 :type string
+	 :documentation
+	 "The filename this frame belongs to.")
+   (name :initarg :name
+	 :type string
+	 :documentation
+	 "The name of the location of this frame")
+   (line :initarg :line
+	 :type integer
+	 :documentation
+	 "The line number for this frame"))
+  "A single stack frame from MATLAB.")
+
+(cl-defmethod mlg-print ((frame mlg-stack-frame) longestname)
+  "Use print to output this stack FRAME.
+LONGESTNAME specifies the how long the longest name we can expect is."
+  (let* ((namefmt (concat "%" (number-to-string (or longestname 10)) "s"))
+	 (str (concat (propertize (format namefmt (oref frame name)) 'face 'font-lock-function-name-face)
+		      " "
+	              (propertize (format "%3d" (oref frame line)) 'face 'bold)
+		      " "
+		      (propertize (oref frame file) 'face 'font-lock-constant-face))))
+    (setq str (propertize str 'object frame))
+    str))
+
+(defvar mlg-stack nil
+  "The last stack sent to us from MATLAB.")
+(defvar mlg-frame nil
+  "The last frame sent to use from MATLAB.")
+
+(defun mlg-set-stack (newstack)
+  "Specify a NEWSTACK provided by MATLAB to replace the old one."
+  (setq mlg-stack nil)
+  (dolist (L newstack)
+    (push (mlg-stack-frame ""
+	   :file (nth 0 L)
+	   :name (nth 1 L)
+	   :line (nth 2 L))
+	  mlg-stack))
+  (setq mlg-stack (nreverse mlg-stack))
+  (mlg-refresh-stack-buffer)
+  ;;(message "Updated Stack")
+  )
+
+(defun mlg-set-stack-frame (newframe)
+  "Specify a NEWFRAME provided by MATLAB we should visit."
+  (setq mlg-frame newframe)
+  (mlg-show-stack)
+  (mlg-show-frame newframe)
+  )
+
+(defun mlg-set-stack-frame-via-gud (newframe)
+  "Specify a NEWFRAME provided by MATLAB we should visit."
+  (setq mlg-frame newframe)
+  (let ((file (oref (nth (1- newframe) mlg-stack) file))
+	(line (oref (nth (1- newframe) mlg-stack) line)))
+    (if (< line 0) (setq line (- line)))
+    (setq gud-last-frame (cons file line))
+    ;;(message "Gud FRAME set to %S" gud-last-frame)
+    )
+  )
+
+(defun mlg-show-frame (&optional frame)
+  "Setup windows to show FRAME from the current stack frame."
+  (let ((newframe (or frame mlg-frame)))
+    (if (and mlg-stack (<= newframe (length mlg-stack)))
+	;; Make sure we have a stack window.
+	(let* ((buff (get-buffer "*MATLAB stack*"))
+	       (win (get-buffer-window buff)))
+	  (if (or (not buff) (not win))
+	      (mlg-show-stack)
+	    ;; else, do refresh stuff.
+	    (select-window win))
+	  
+	  ;; Still around, go do it.
+	  (goto-char (point-min))
+	  (forward-line (1- frame))
+	  (mlg-stack-choose)
+	  )
+      ;; Else no frame.  Look for the window, and close it.
+      (let* ((buff (get-buffer "*MATLAB stack*"))
+	     (win (get-buffer-window buff)))
+
+	(when win (delete-window win)))
+      )))
+
+(defun mlg-refresh-stack-buffer ()
+  "Refresh the buffer displaying stack."
+  (save-excursion
+    (let ((buff (get-buffer-create "*MATLAB stack*"))
+	  (namelen 5)
+	  (inhibit-read-only t))
+
+      (dolist (S mlg-stack)
+	(when (> (length (oref S name)) namelen)
+	  (setq namelen (length (oref S name)))))
+    
+      (set-buffer buff)
+      (erase-buffer)
+
+      (let ((cnt 1))
+	(dolist (F mlg-stack)
+	  (insert (format "%2d" cnt))
+	  (if (and mlg-frame (= cnt mlg-frame))
+	      (insert " >> ")
+	    (insert " -- "))
+	  (insert (mlg-print F namelen) "\n")
+	  (setq cnt (1+ cnt))))
+
+      (mlg-stack-mode)
+      (goto-char (point-min))
+      (current-buffer))))
+  
+(defun mlg-show-stack ()
+  "Display the MATLAB stack in an interactive buffer."
+  (interactive)
+  (let ((buff (mlg-refresh-stack-buffer)))
+  
+    (display-buffer
+     buff
+     '((display-buffer-at-bottom)
+       (inhibit-same-window . t)
+       (window-height . fit-window-to-buffer))
+     )
+
+    (select-window (get-buffer-window buff))
+    (goto-char 3)
+    ))
+  
+(defvar mlg-stack-mode-map
+  (let ((km (make-sparse-keymap)))
+    (define-key km [return] 'mlg-stack-choose)
+    (define-key km "q" 'mlg-stack-quit)
+    (define-key km "n" 'mlg-stack-next)
+    (define-key km "p" 'mlg-stack-prev)
+    (define-key km [mouse-2] 'mlg-stack-click)
+    (define-key km [mouse-1] 'mlg-stack-click)
+    km)
+  "Keymap used in MATLAB stack mode.")
+
+;; Need this to fix wierd problem in define-derived-mode
+(defvar mlg-stack-mode-syntax-table (make-syntax-table)
+  "Syntax table used in `matlab-shell-help-mode'.")
+
+(define-derived-mode mlg-stack-mode
+  fundamental-mode "MStack"
+  "Major mode for viewing a MATLAB stack.
+
+Commands:
+\\{mlg-stack-mode-map}"
+  :syntax-table mlg-stack-mode-syntax-table
+  (setq buffer-read-only t)
+  )
+
+(defun mlg-stack-quit ()
+  "Quit the MATLAB stack view."
+  (interactive)
+  (if (= (length (window-list)) 1)
+      (bury-buffer)
+    (delete-window (selected-window))))
+
+(defun mlg-stack-next ()
+  "Visit stack on next line."
+  (interactive)
+  (forward-line 1)
+  (forward-char 2)
+  (mlg-stack-choose))
+
+(defun mlg-stack-prev ()
+  "Visit stack on next line."
+  (interactive)
+  (forward-line -1)
+  (forward-char 2)
+  (mlg-stack-choose))
+
+(defun mlg-stack-click (e)
+  "Click on a stack frame to visit it.
+Must be bound to event E."
+  (interactive "e")
+  (mouse-set-point e)
+  (mlg-stack-choose))
+
+(defun mlg-stack-choose ()
+  "Choose the stack the under the cursor.
+Visit the file presented in that stack frame."
+  (interactive)
+  (let ((topic nil) (fun nil) (p (point)))
+    (save-excursion
+      (beginning-of-line)
+      (forward-char 10)
+      (let* ((sf (get-text-property (point) 'object))
+	     (f (oref sf file))
+	     (l (oref sf line))
+	     (buff (find-file-noselect f t)))
+	(display-buffer
+	 buff
+	 '((display-buffer-reuse-window display-buffer-use-some-window)
+	   (inhibit-same-window . t))
+	 )
+	(let ((win (selected-window)))
+	  (select-window (get-buffer-window buff))
+	  (goto-char (point-min))
+	  (forward-line (1- l))
+	  (select-window win))
+	))))
+
+;;; Breakpoint Trackers
+;;
+(defclass mlg-breakpoint ()
+  ((file :initarg :file
+	 :type string
+	 :documentation
+	 "The filename this brekpoint belongs to.")
+   (name :initarg :name
+	 :type string
+	 :documentation
+	 "Name of the function this breakpoint is in.")
+   (line :initarg :line
+	 :type integer
+	 :documentation
+	 "The line number for this breakpoint")
+   (overlay :documentation
+	    :default nil
+	    "The overlay indicating the preense of this breakpoint.")
+   )
+  "Representation of a breakpoint.
+Used to track active breakpoints, and how to show them.")
+
+(cl-defmethod mlg-print ((break mlg-breakpoint) longestname)
+  "Use print to output this breakpoint BREAK.
+LONGESTNAME specifies the how long the longest name we can expect is."
+  (let* ((namefmt (concat "%" (number-to-string (or longestname 10)) "s"))
+	 (str (concat (propertize (format namefmt (oref break name)) 'face 'font-lock-function-name-face)
+		      " "
+	              (propertize (format "%3d" (oref break line)) 'face 'bold)
+		      " "
+		      (propertize (oref break file) 'face 'font-lock-constant-face))))
+    (setq str (propertize str 'object break))
+    str))
+
+(defvar matlab-gud-visible-breakpoints nil
+  "List of breakpoints MATLAB has sent to us.")
+
+;;;###autoload
+(defun mlg-reset-breakpoints ()
+  "Remove all cached breakpoints."
+  (dolist (BP matlab-gud-visible-breakpoints)
+    (mlg-deactivate BP))
+  (setq matlab-gud-visible-breakpoints nil))
+
+(defun mlg-add-breakpoint (file fcn line)
+  "Add a visible breakpoint to FILE at LINE."
+  (let ((found nil))
+    (dolist (BP matlab-gud-visible-breakpoints)
+      (when (and (string= (oref BP file) file)
+		 (= (oref BP line) line))
+	(setq found t)))
+    (when (not found)
+      (setq matlab-gud-visible-breakpoints
+	    (cons (mlg-breakpoint "" :file file
+				  :name fcn
+				  :line line)
+		  matlab-gud-visible-breakpoints))
+      (mlg-activate (car matlab-gud-visible-breakpoints))
+      ))
+  ;; The first time breakpoints are added, make sure we can activate breakpoints
+  ;; when new files are opened in a buffer.
+  (add-hook 'matlab-mode-hook 'mlg-breakpoint-activate-buffer-opened-hook)
+  )
+
+(defun mlg-del-breakpoint (file fcn line)
+  "Add a visible breakpoint to FILE at LINE."
+  (let ((BPS matlab-gud-visible-breakpoints)
+	(NBPS nil))
+    (while BPS
+      (if (and (string= (oref (car BPS) file) file)
+	       (= (oref (car BPS) line) line))
+	  ;; Deactivate
+	  (mlg-deactivate (car BPS))
+	;; Not being removed, add to list.
+	(setq NBPS (cons (car BPS) NBPS)))
+      (setq BPS (cdr BPS)))
+    
+    (setq matlab-gud-visible-breakpoints
+	  (nreverse NBPS))))
+
+(defface mlg-breakpoint-face
+  (list
+   (list t
+	 (list :background nil
+	       :foreground nil
+	       :underline "red1")))
+  "*Face to use to highlight breakpoints."
+  :group 'matlab-shell)
+
+(cl-defmethod mlg-activate ((bp mlg-breakpoint))
+  "Activate breakpoint BP if needed."
+  ;; yes overlay, but inactive
+  (when (and (slot-boundp bp 'overlay)
+	     (oref bp overlay)
+	     (not (overlay-buffer (oref bp overlay))))
+      (oset bp overlay nil))
+    
+    (let ((buff (find-buffer-visiting (oref bp file))))
+      ;; No overlay, and we can make one.
+      (when (and (or (not (slot-boundp bp 'overlay))
+		     (not (oref bp overlay)))
+		 buff)
+	(with-current-buffer buff
+	  (goto-char (point-min))
+	  (forward-line (1- (oref bp line)))
+	  (let ((ol (matlab-make-overlay (save-excursion
+					   (back-to-indentation)
+					   (point))
+					 (point-at-eol) buff nil nil)))
+	    ;; Store it
+	    (oset bp overlay ol)
+	    ;; Setup cool stuff
+	    (matlab-overlay-put ol 'face 'mlg-breakpoint-face)
+	    (matlab-overlay-put ol 'before-string
+				(propertize "#"
+					    'display
+					    '(left-fringe
+					      filled-square
+					      matlab-shell-error-face))
+				))))
+      ))
+
+(cl-defmethod mlg-deactivate ((bp mlg-breakpoint))
+  "Deactivate this breakpoint BP."
+  (when (slot-boundp bp 'overlay)
+    (with-slots (overlay) bp
+      (when (and overlay (overlayp overlay))
+	(delete-overlay overlay)
+	(setq overlay nil)))))
+
+(defun mlg-breakpoint-activate-buffer-opened-hook ()
+  "Activate any breakpoints in a buffer when that buffer is read in."
+  (if (not (matlab-shell-active-p))
+      (mlg-reset-breakpoints)
+
+    ;; Still going, activate.
+    (dolist (BP matlab-gud-visible-breakpoints)
+      (mlg-activate BP)
+      )))
+
+(defun mlg-breakpoint-flush-and-reactivate ()
+  "Flush existing breakpoint markers, and reactivate."
+  (interactive)
+  (dolist (BP matlab-gud-visible-breakpoints)
+    (mlg-deactivate BP)
+    (mlg-activate BP))
+  )
+
+
+(defun mlg-refresh-breakpoint-buffer ()
+  "Refresh the buffer displaying breakpoints."
+  (save-excursion
+    (let ((buff (get-buffer-create "*MATLAB breakpoints*"))
+	  (namelen 5)
+	  (inhibit-read-only t))
+
+      (dolist (S matlab-gud-visible-breakpoints)
+	(when (> (length (oref S name)) namelen)
+	  (setq namelen (length (oref S name)))))
+    
+      (set-buffer buff)
+      (erase-buffer)
+
+      (let ((cnt 1))
+	(dolist (F matlab-gud-visible-breakpoints)
+	  (insert (format "%2d - " cnt))
+	  (insert (mlg-print F namelen) "\n")
+	  (setq cnt (1+ cnt))))
+
+      (mlg-breakpoint-mode)
+      (goto-char (point-min))
+      (current-buffer))))
+  
+(defun mlg-show-breakpoints ()
+  "Display the MATLAB stack in an interactive buffer."
+  (interactive)
+  (let ((buff (mlg-refresh-breakpoint-buffer)))
+  
+    (display-buffer
+     buff
+     '((display-buffer-at-bottom)
+       (inhibit-same-window . t)
+       (window-height . fit-window-to-buffer))
+     )
+
+    (select-window (get-buffer-window buff))
+    (goto-char 3)
+    ))
+  
+  
+(defvar mlg-breakpoint-mode-map
+  (let ((km (make-sparse-keymap)))
+    (define-key km [return] 'mlg-breakpoint-choose)
+    (define-key km "q" 'mlg-breakpoint-quit)
+    (define-key km "n" 'mlg-breakpoint-next)
+    (define-key km "p" 'mlg-breakpoint-prev)
+    (define-key km [mouse-2] 'mlg-breakpoint-click)
+    (define-key km [mouse-1] 'mlg-breakpoint-click)
+    km)
+  "Keymap used in MATLAB breakpoint mode.")
+
+;; Need this to fix wierd problem in define-derived-mode
+(defvar mlg-breakpoint-mode-syntax-table (make-syntax-table)
+  "Syntax table used in `matlab-shell-help-mode'.")
+
+(define-derived-mode mlg-breakpoint-mode
+  fundamental-mode "MBreakpoints"
+  "Major mode for viewing a MATLAB breakpoints.
+
+Commands:
+\\{mlg-breakpoint-mode-map}"
+  :syntax-table mlg-breakpoint-mode-syntax-table
+  (setq buffer-read-only t)
+  )
+
+(defun mlg-breakpoint-quit ()
+  "Quit the MATLAB breakpoint view."
+  (interactive)
+  (if (= (length (window-list)) 1)
+      (bury-buffer)
+    (delete-window (selected-window))))
+
+(defun mlg-breakpoint-next ()
+  "Visit breakpoint on next line."
+  (interactive)
+  (forward-line 1)
+  (forward-char 2)
+  (mlg-breakpoint-choose))
+
+(defun mlg-breakpoint-prev ()
+  "Visit breakpoint on next line."
+  (interactive)
+  (forward-line -1)
+  (forward-char 2)
+  (mlg-breakpoint-choose))
+
+(defun mlg-breakpoint-click (e)
+  "Click on a breakpoint frame to visit it.
+Must be bound to event E."
+  (interactive "e")
+  (mouse-set-point e)
+  (mlg-breakpoint-choose))
+
+(defun mlg-breakpoint-choose ()
+  "Choose the breakpoint the under the cursor.
+Visit the file presented in that breakpoint frame."
+  (interactive)
+  (let ((topic nil) (fun nil) (p (point)))
+    (save-excursion
+      (beginning-of-line)
+      (forward-char 10)
+      (let* ((sf (get-text-property (point) 'object))
+	     (f (oref sf file))
+	     (l (oref sf line))
+	     (buff (find-file-noselect f t)))
+	(display-buffer
+	 buff
+	 '((display-buffer-reuse-window display-buffer-use-some-window)
+	   (inhibit-same-window . t))
+	 )
+	(let ((win (selected-window)))
+	  (select-window (get-buffer-window buff))
+	  (goto-char (point-min))
+	  (forward-line (1- l))
+	  (select-window win))
+	))))
+
 
 ;;; K prompt state and hooks.
-
-(defvar gud-matlab-debug-active nil
-  "Non-nil if MATLAB has a K>> prompt up.")
-(defvar gud-matlab-debug-activate-hook nil
-  "Hooks run when MATLAB detects a K>> prompt after a >> prompt")
-(defvar gud-matlab-debug-deactivate-hook nil
-  "Hooks run when MATLAB detects a >> prompt after a K>> prompt")
+;;
 
 (defun gud-matlab-debug-tracker ()
   "Function called when new prompts appear.
 Call debug activate/deactivate features."
   (save-excursion
     (let ((inhibit-field-text-motion t))
+      (goto-char (point-max))
       (beginning-of-line)
       (cond
        ((and gud-matlab-debug-active (looking-at gud-matlab-marker-regexp->>))
 	(setq gud-matlab-debug-active nil)
+	(when (boundp 'tool-bar-map)            ; not --without-x
+	  (with-current-buffer (matlab-shell-active-p) (kill-local-variable 'tool-bar-map)))
 	(global-matlab-shell-gud-minor-mode -1)
 	(run-hooks 'gud-matlab-debug-deactivate-hook))
        ((and (not gud-matlab-debug-active) (looking-at gud-matlab-marker-regexp-K>>))
 	(setq gud-matlab-debug-active t)
+	(when (boundp 'tool-bar-map)            ; not --without-x
+	  (with-current-buffer (matlab-shell-active-p)
+	    (setq-local tool-bar-map gud-matlab-tool-bar-map)))
 	(global-matlab-shell-gud-minor-mode 1)
 	(run-hooks 'gud-matlab-debug-activate-hook))
        (t
@@ -279,7 +836,7 @@ Call debug activate/deactivate features."
 ;; When K prompt is active, this minor mode is applied to frame buffers so
 ;; that GUD commands are easy to get to.
 
-(defvar matlab-shell-gud-minor-mode-map 
+(defvar matlab-shell-gud-minor-mode-map
   (let ((km (make-sparse-keymap))
 	(key ?\ ))
     (while (<= key ?~)
@@ -299,10 +856,13 @@ Call debug activate/deactivate features."
     (define-key km "d" 'gud-down)
     (define-key km "<" 'gud-up)
     (define-key km ">" 'gud-down)
+    (define-key km "v" 'mlg-show-stack)
+    (define-key km "w" 'mlg-show-breakpoints)
     (define-key km "p" 'matlab-shell-gud-show-symbol-value)
     ;; (define-key km "p" gud-print)
 
     (define-key km "e" 'matlab-shell-gud-mode-edit)
+    (define-key km "\C-x\C-q" 'matlab-shell-gud-mode-edit) ; like toggle-read-only
     
     km)
   "Keymap used by matlab mode maintainers.")
@@ -310,7 +870,7 @@ Call debug activate/deactivate features."
 (easy-menu-define
   matlab-shell-gud-menu matlab-shell-gud-minor-mode-map "MATLAB Maintainer's Minor Mode"
   '("MATLAB-DEBUG"
-      ["Exit MATLAB Debug mode" matlab-shell-gud-mode-edit
+      ["Edit File (toggle read-only)" matlab-shell-gud-mode-edit
        :help "Exit the MATLAB debug minor mode to edit without exiting MATLAB's K>> prompt."]
       ["dbstop in FILE at point" gud-break
        :active (matlab-shell-active-p)
@@ -333,6 +893,15 @@ Call debug activate/deactivate features."
       ["dbcont" gud-cont
        :active (matlab-shell-active-p)
        :help "When MATLAB debugger is active, run to next break point or finish"]
+      ["Show Stack" mlg-show-stack
+       :active (matlab-any-shell-active-p)
+       :help "When MATLAB debugger is active, show value of the symbol under point."]
+      ["Show Breakpoints" mlg-show-breakpoints
+       :active (matlab-any-shell-active-p)
+       :help "When MATLAB debugger is active, show value of the symbol under point."]
+      ["Show symbol value" matlab-shell-gud-show-symbol-value
+       :active (matlab-any-shell-active-p)
+       :help "When MATLAB debugger is active, show value of the symbol under point."]
       ["dbquit" gud-finish
        :active (matlab-shell-active-p)
        :help "When MATLAB debugger is active, stop debugging"]
@@ -360,14 +929,30 @@ Debug commands are:
   
   ;; Make the buffer read only
   (if matlab-shell-gud-minor-mode
-      ;; Enable
       (progn
-	(gud-tooltip-mode 1)
-	(add-hook 'tooltip-functions 'gud-matlab-tooltip-tips)
+	;; Enable
+	(when (buffer-file-name) (setq buffer-read-only t))
+	(when matlab-shell-debug-tooltips-p
+	  (gud-tooltip-mode 1)
+	  (add-hook 'tooltip-functions 'gud-matlab-tooltip-tips)
+	  )
+	;; Replace gud's toolbar which keeps stomping
+	;; on our toolbar.
+	(make-local-variable 'gud-tool-bar-map)
+	(setq gud-tool-bar-map gud-matlab-tool-bar-map)
 	)
     ;; Disable
+    (when (buffer-file-name)
+      (setq buffer-read-only (not (file-writable-p (buffer-file-name)))))
+      
+    ;; Always disable tooltips, in case configured while in the mode.
     (gud-tooltip-mode -1)
     (remove-hook 'tooltip-functions 'gud-matlab-tooltip-tips)
+
+    ;; Disable the debug toolboar
+    (when (boundp 'tool-bar-map)            ; not --without-x
+      (kill-local-variable 'tool-bar-map))
+    
     )
   )
 
@@ -381,7 +966,7 @@ Debug commands are:
   )
 
 (defun matlab-shell-gud-show-symbol-value (sym)
-  "Show the value of the symbol under point from MATLAB shell."
+  "Show the value of the symbol SYM under point from MATLAB shell."
   (interactive
    (list
     (if (use-region-p)
@@ -405,7 +990,7 @@ Debug commands are:
   "Default binding for most keys in `matlab-shell-gud-minor-mode'.
 Shows a help message in the mini buffer."
   (interactive)
-  (error "MATLAB shell GUD minor-mode: Press 'h' for help, 'e' to go back to editing."))
+  (error "MATLAB shell GUD minor-mode: Press 'h' for help, 'e' to go back to editing"))
 
 (defun matlab-shell-gud-mode-help ()
   "Show the default binding for most keys in `matlab-shell-gud-minor-mode'."
@@ -423,7 +1008,7 @@ Shows a help message in the mini buffer."
 Much of this was copied from `gud-tooltip-tips'.
 
 This function must return nil if it doesn't handle EVENT."
-  (when (eventp event)
+  (when (and (eventp event) (tooltip-event-buffer event))
     (with-current-buffer (tooltip-event-buffer event)
       (when (and gud-tooltip-mode
 		 matlab-shell-gud-minor-mode
@@ -441,7 +1026,7 @@ This function must return nil if it doesn't handle EVENT."
 			    (or gud-tooltip-echo-area
 				tooltip-use-echo-area
 				(not tooltip-mode)))
-	      t)))))))  
+	      t)))))))
 
 (defun matlab-shell-gud-find-tooltip-expression (event)
   "Identify an expression to output in a tooltip at EVENT.

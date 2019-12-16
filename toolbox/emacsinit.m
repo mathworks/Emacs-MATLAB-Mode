@@ -1,12 +1,25 @@
-function emacsinit(clientcommand, startnetshell)
+function emacsinit()
 % EMACSINIT Initialize the current MATLAB session for matlab-shell-mode
 %
 % clientcommand is the emacsclient command used to open files in emacs. It
 % is defined by `matlab-shell-emacsclient-command' in matlab.el. If empty,
 % don't instruct MATLAB to use emacsclient to edit files.
 
-    if usejava('jvm')
+    me = mfilename('fullpath');
+    % This command can also update the path for the emacs Toolbox direcory.
+    % This will make it possible to use this one command from a standalone
+    % MATLAB and setup netshell.
+    [ myDir ] = fileparts(me);
+    
+    if ~contains(path, myDir)
+        
+        disp(['Updating MATLAB Path to support Emacs toolbox: addpath(' myDir ')']);
 
+        addpath(myDir,'-begin');
+        rehash;
+    end
+
+    if usejava('jvm')
         %{
         % Leaving in old hot-link code and description (see below)
         % in case someone with older MATLAB's need to use this.
@@ -40,23 +53,34 @@ function emacsinit(clientcommand, startnetshell)
         
         % Disable built-in editor showing up for debugging
         com.mathworks.services.Prefs.setBooleanPref('EditorGraphicalDebugging', false);
-        
-        
-        if nargin == 1 && ~isempty(clientcommand)
-            % Use clientcommand (e.g. emacsclient -n) for text editing
-            com.mathworks.services.Prefs.setBooleanPref('EditorBuiltinEditor', false);
-            com.mathworks.services.Prefs.setStringPref('EditorOtherEditor', clientcommand);
-        end
-
+    
         % Disable wrapping of text lines.  Emacs will wrap or not based on user preference.
         com.mathworks.services.Prefs.setBooleanPref('WrapLines',false)
-    else
-        % TODO - how to specify this preference w/out Java ?
-        
     end
     
-    % If requested, start the Emacs netshell interface.
-    if nargin >= 2 && startnetshell
-        emacsnetshell init
+    % Check if we're running inside emacxs.  If we are NOT, then force the enablement of
+    % the netshell interface to Emacs.
+    emacs_env = getenv('INSIDE_EMACS');
+    
+    if isempty(emacs_env)
+        startnetshell = true;
+    else
+        startnetshell = false;
     end
+
+    % If requested, start the Emacs netshell interface.
+    if startnetshell
+        nso = emacsnetshell('init');
+    else
+        nso = [];
+    end
+
+    % Initialize Emacs breakboint handler.
+    bp = emacs.Breakpoints(nso);
+    setappdata(groot, 'EmacsBreakpoints', bp);
+
+    % Initialize Emacs stack handler.
+    st = emacs.Stack(nso);
+    setappdata(groot, 'EmacsStack', st);
+
 end

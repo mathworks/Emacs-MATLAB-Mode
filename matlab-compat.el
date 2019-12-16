@@ -126,11 +126,31 @@
   (defun matlab-set-keymap-parent (keymap parent)
     "Set KEYMAP's parent to be PARENT."
     (nconc keymap comint-mode-map)))
+
+;; String trim
+(if (fboundp 'string-trim)
+
+    (defalias 'matlab-string-trim 'string-trim)
   
+  (defsubst matlab-string-trim (string &optional regexp)
+    "Trim STRING of leading string matching REGEXP.
+
+REGEXP defaults to \"[ \\t\\n\\r]+\"."
+    (let ((out string)
+	  (regexp_ (or regexp "[ \t\n\r]+")))
+      
+      (when (string-match (concat "\\`\\(?:" regexp_ "\\)") out)
+	(setq out (substring out (match-end 0))))
+      
+      (when (string-match (concat "\\(?:" regexp_ "\\)\\'") out)
+	(setq out (substring out 0 (match-beginning 0))))
+      
+      out))
+  )
 
 ;; Finding executables
 (defun matlab-find-executable-directory (program)
-  "find the executable PROGRAM on the exec path, following any links.
+  "Find the executable PROGRAM on the exec path, following any links.
 Return the base directory it is in."
   (let ((dir nil))
     
@@ -149,14 +169,80 @@ Return the base directory it is in."
 
 ;; Completion Tools
 (defun matlab-display-completion-list (completions common-substring)
-  ;; In emacs 24.4 the common-substring is no longer needed
+  "Method for displaying COMPLETIONS with a COMMON-SUBSTRING."
+  ;; In emacs 24.4 the common-substring is no longer needed.
   (let ((args (if (or (< emacs-major-version 24)
                       (and (= emacs-major-version 24) (< emacs-minor-version 4)))
                   (list completions common-substring)
                 (list completions))))
     (apply 'display-completion-list args)))
 
+;; Font lock
+(require 'font-lock)
+(unless (fboundp 'font-lock-ensure)
+  (defalias 'font-lock-ensure 'font-lock-fontify-buffer))
 
+;; CEDET compat if CEDET isn't around
+(condition-case nil
+    (progn
+      (require 'pulse)
+      )
+  (error
+   (defun pulse-momentary-highlight-region (start end &optional face)
+     "Compat impl of pulse command." nil)))
+
+;; EIEIO compatibility
+(condition-case nil
+    (progn
+      (require 'eieio)
+      (unless (fboundp 'cl-defgeneric)
+	;; We are in an antique Emacs that uses the old eieio.
+	(defalias 'cl-defmethod 'defmethod)
+	)
+      (unless (fboundp 'cl-call-next-method)
+	;; We are in an antique Emacs that uses the old eieio.
+	(defalias 'cl-call-next-method 'call-next-method)
+	)
+      )
+  (error (message "EIEIO not available.  Only MATLAB editing enabled.")))
+
+;;; Finding EmacsClient
+(defun matlab-find-emacsclient ()
+  "Try to find a workable copy of `emacsclient' binary.
+Starts by searching exec path.  If not on exec path as can happen on
+Windows, try to find Emacs, it's bin directory, and then emacsclient."
+  (cond
+   ((and (eq system-type 'windows-nt)
+	 (locate-file "emacsclientw" exec-path))
+    ;; It's just on the path.  Return short form
+    "emacsclientw")
+	
+   ((locate-file "emacsclient" exec-path)
+    ;; It's just on the path.  Return it.
+    "emacsclient")
+
+   (t
+    ;; Not on path.  We need to find the path, and then
+    ;; see if we can find emacsclient there.
+    (let* ((rt (expand-file-name ".." data-directory))
+	   (bin (expand-file-name "bin" rt))
+	   (ec (or (locate-file "emacsclientw.exe" (list bin))
+		   (locate-file "emacsclient.exe" (list bin))))
+	   (bin2 nil)
+	   )
+      (when (and (not ec) (string-match "/share/" bin))
+	;; Not there - look for 'share' in bin, and branch there.
+	(setq bin2 (expand-file-name "bin"
+				     (substring bin 0 (match-beginning
+						       0))))
+
+	(setq ec (or (locate-file "emacsclientw.exe" (list bin2))
+		     (locate-file "emacsclient.exe" (list bin2)))))
+
+      ;; Last resort - just set it to something a user will see.
+      (when (not ec) (setq ec "emacsclient"))
+      ;; Return it.
+      ec))))
 
 (provide 'matlab-compat)
 

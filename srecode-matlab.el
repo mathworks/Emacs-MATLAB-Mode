@@ -1,6 +1,6 @@
 ;;; srecode-matlab.el --- Extra SRecode support for MATLAB
 ;;
-;; Copyright (C) 2014 Eric Ludlam
+;; Copyright (C) 2014, 2019 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <zappo@gnu.org>
 ;; X-RCS: $Id$
@@ -46,8 +46,8 @@ PACKAGE - The package this file is in, or empty if none.
 FILE_CLASS - Show section if filename should be a class.
 FILE_FUNCTION - Show setion if filename is a function.
 
-On class prediction - when filling in an empty file, if the filename and directory it is in
-match, for example @foo/foo.m then foo should be a classdef."
+On class prediction - when filling in an empty file, if the filename and
+directory it is in match, for example @foo/foo.m then foo should be a classdef."
   (when (not (eq major-mode 'matlab-mode))
     (error "Wrong mode for :matlab argument"))
   (let* ((fsym (file-name-sans-extension (file-name-nondirectory (buffer-file-name))))

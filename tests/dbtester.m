@@ -21,6 +21,22 @@ function OUT = localfunc_1(IN)
     
     OUT_TMP = et.dbtest(IN);
     
-    OUT = OUT_TMP(1:2:end);
+    OUT = localfunc_2(OUT_TMP(1:2:end));
     
+end
+
+function A = localfunc_2(B)
+    A = localfunc_3(B);
+end
+
+function A = localfunc_3(B)
+    A = localfunc_4(B);
+end
+
+function A = localfunc_4(B)
+    A = localfunc_5(B);
+end
+
+function A = localfunc_5(B)
+    A = B;
 end

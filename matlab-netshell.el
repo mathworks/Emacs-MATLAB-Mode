@@ -26,13 +26,15 @@
 (require 'matlab)
 
 ;;; Code:
-
+(declare-function matlab-shell-active-p "matlab-shell" ())
+(declare-function matlab-shell--get-emacsclient-command "matlab-shell" ())
+(declare-function matlab-shell-mode-gud-enable-bindings "matlab-shell-gud" ())
 
 (defvar matlab-netshell-listen-port 32475
   "Port used for the Emacs server listening for MATLAB connections.")
 
 (defvar matlab-netshell-server-name "*MATLAB netshell*"
-  "Name used for the Netshell server")
+  "Name used for the Netshell server.")
 
 (defvar matlab-netshell-clients nil
   "List of clients created from the MATLAB netshell server.")
@@ -77,7 +79,8 @@
 (make-variable-buffer-local 'matlab-netshell-acc)
 
 (defun matlab-netshell-filter (proc string)
-  "Filter used for MATLAB Netshell processes."
+  "Filter used for MATLAB Netshell processes.
+PROC is the TCP connection that produced STRING."
   ;; Accumulate from the process
   (setq matlab-netshell-acc (concat matlab-netshell-acc string))
   ;; Wait for a NULL command terminator.
@@ -112,13 +115,20 @@ response from some Emacs based request."
     (goto-char (point-max))
     (when (not (= (current-column) 0))
       (insert "\n"))
-    (insert "Command: " cmd "\n")
+    (insert "Command: [" cmd "]\n")
     (when (not (string= data ""))
       (insert "Data: :" data "\n"))
     )
   ;; Interpret the command.
   (cond ((string= "init" cmd)
-	 nil ; Yep, thanks for letting me know
+	 ;; Make sure GUD bindings are available
+	 (matlab-shell-mode-gud-enable-bindings)
+	 ;; Send info about emacs client
+	 (when (not (matlab-shell-active-p))
+	   (let* ((ecc (matlab-shell--get-emacsclient-command))
+	 	  (ecca (if ecc (format "emacs.set('clientcmd', '%s');" ecc))))
+	     (when ecc
+	       (matlab-netshell-eval ecca))))
 	 (message "MATLAB connection initialized.")
 	 )
 	((string= "ack" cmd)
@@ -130,13 +140,18 @@ response from some Emacs based request."
 	 (message "Ouput: %S" data))
 	((string= "error" cmd)
 	 (message "MATLAB Error: %s" data))
+	((string= "eval" cmd)
+	 ;; (message "MATLAB Evaluating remote request")
+	 (let ((forms (read data)))
+	   (eval forms)))
 	(t
 	 (message "Unknown command from matlab: %S" cmd)
 	 )))
 
 (defun matlab-netshell-sentinel (proc msg)
   "Sentinel used for MATLAB Netshell processes.
-Identify when a connection is lost, and close down services."
+Identify when a connection is lost, and close down services.
+PROC is the TCP stream which generated MSG."
   (cond ((string-match "^open from " msg)
 	 ;; New connection - set it up.
 	 (setq matlab-netshell-clients (cons proc matlab-netshell-clients))
@@ -152,27 +167,27 @@ Identify when a connection is lost, and close down services."
 	 (message "Unhandled event."))))
 
 (defun matlab-netshell-send(cmd data)
-  "Send a command to MATLAB shell connection with DATA."
+  "Send a command CMD to MATLAB shell connection with DATA."
   (let ((C (car matlab-netshell-clients)))
     (if C
 	(process-send-string C (concat cmd "\n" data "\0"))
-      (error "No MATLAB network connection to send to."))))
+      (error "No MATLAB network connection to send to"))))
 
 (defun matlab-netshell-eval (mcode)
-  "Send MSG to the active MATLAB shell connection to eval."
+  "Send MCODE to the active MATLAB shell connection to eval."
   (interactive "sMCode: ")
   (let ((C (car matlab-netshell-clients)))
     (if C
 	(process-send-string C (concat "eval\n" mcode "\0"))
-      (error "No MATLAB network connection to send to."))))
+      (error "No MATLAB network connection to send to"))))
 
 (defun matlab-netshell-evalc (mcode)
-  "Send MSG to the active MATLAB shell connection to eval."
+  "Send MCODE to the active MATLAB shell connection to eval."
   (interactive "sMCode: ")
   (let ((C (car matlab-netshell-clients)))
     (if C
 	(process-send-string C (concat "evalc\n" mcode "\0"))
-      (error "No MATLAB network connection to send to."))))
+      (error "No MATLAB network connection to send to"))))
 
 (defun matlab-netshell-ack ()
   "Send an ACK to MATLAB to see if it can respond."

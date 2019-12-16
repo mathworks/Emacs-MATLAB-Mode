@@ -27,8 +27,9 @@
        )
   (defvar met-testfile-path d1
     "Location of test MATLAB code.")
-  
   (add-to-list 'load-path (expand-file-name d) t))
+
+(defvar met-testfile-path) ; quiet compiler
 
 (require 'matlab-load)
 (require 'matlab)
@@ -56,8 +57,7 @@
   (dolist (F met-stringtest-files)
     (let ((buf (find-file-noselect (expand-file-name F met-testfile-path)))
 	  (cnt 0))
-      (save-excursion
-	(set-buffer buf)
+      (with-current-buffer buf
 	(goto-char (point-min))
 	(message ">> Starting search loop in %S" (current-buffer))
 	(while (re-search-forward "#\\([csve]\\)#" nil t)
@@ -98,8 +98,7 @@
   (dolist (F met-sexptest-files)
     (let ((buf (find-file-noselect (expand-file-name F met-testfile-path)))
 	  (cnt 0))
-      (save-excursion
-	(set-buffer buf)
+      (with-current-buffer buf
 	(goto-char (point-min))
 	(message ">> Starting sexp counting loop in %S" (current-buffer))
 	(while (re-search-forward "#\\([0-9]\\)#" nil t)
@@ -139,8 +138,7 @@
   (dolist (F met-sexptest-files)
     (let ((buf (find-file-noselect (expand-file-name F met-testfile-path)))
 	  (cnt 0))
-      (save-excursion
-	(set-buffer buf)
+      (with-current-buffer buf
 	(goto-char (point-min))
 	(message ">> Starting sexp traversal loop in %S" (current-buffer))
 	(while (re-search-forward ">>\\([0-9]+\\)" nil t)
@@ -179,8 +177,7 @@
   (dolist (F met-indents-files)
     (let ((buf (find-file-noselect (expand-file-name F met-testfile-path)))
 	  (cnt 0))
-      (save-excursion
-	(set-buffer buf)
+      (with-current-buffer buf
 	(goto-char (point-min))
 	;; (indent-region (point-min) (point-max))
 	(message ">> Starting indents loop in %S" (current-buffer))
@@ -209,8 +206,7 @@
     (let ((buf (find-file-noselect (expand-file-name F met-testfile-path)))
 	  exp act
 	  (cnt 0))
-      (save-excursion
-	(set-buffer buf)
+      (with-current-buffer buf
 
 	;; Prep buffer for test
 	(semantic-idle-scheduler-mode -1)

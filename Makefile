@@ -70,6 +70,7 @@ dist: autoloads
 	cp matlab-load.el $(misc_MISC) $(lisp_LISP) $(cedet_LISP) $(ede_FILES) $(DISTDIR)
 	$(MAKE) -C toolbox $(MFLAGS) DISTDIR=$(DISTDIR)/toolbox dist
 	$(MAKE) -C templates $(MFLAGS) DISTDIR=$(DISTDIR)/templates dist
+	$(MAKE) -C tests $(MFLAGS) DISTDIR=$(DISTDIR)/tests dist
 	tar -cvzf $(DISTDIR).tar.gz $(DISTDIR)
 	rm -rf $(DISTDIR)
 
