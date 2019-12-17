@@ -82,7 +82,7 @@ With universal ARG, ask for the code to be run with output tracking turned on."
   (interactive "P")
   (save-excursion
     (matlab-maint-set-buffer-to "tests/Makefile")
-    (if arg
+    (if (or arg matlab-shell-io-testing)
 	;; Ask for dbug
 	(compile "make TESTDEBUG=1")
       ;; No debugging
