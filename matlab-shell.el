@@ -974,11 +974,12 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
 The filter captures indicators with <EMACSCAP> text </EMACSCAP>.
 This strips out that text from the shell and displays in a help.
 STR is provided by comint, but is unused."
-  (save-excursion
-    (let ((start nil) (end nil) (buffname "*MATLAB Output*")
-	  (insertbuff nil) (bufflist nil)
-	  (append nil)
-	  )
+  (let ((start nil) (end nil) (buffname "*MATLAB Output*")
+	(insertbuff nil) (bufflist nil)
+	(append nil)
+	(evalforms nil)
+	)
+    (save-excursion
       (goto-char (point-max))
       
       (while (re-search-backward (regexp-quote matlab-shell-capturetext-end-text) nil t)
@@ -1020,11 +1021,8 @@ STR is provided by comint, but is unused."
 	      (if (string= buffname "eval")
 		  ;; The desire is to evaluate some Emacs Lisp code instead of
 		  ;; capture output to display in Emacs.
-		  (condition-case nil
-		      (let ((forms (read txt)))
-			(eval forms))
-		    (error (message "Failed to evaluate forms from MATLAB: \"%s\"" txt))
-		    )
+		  (setq evalforms (read txt))
+		
 		(save-excursion
 		  (when insertbuff
 		    ;; Already have a buffer to append to.
@@ -1045,9 +1043,15 @@ STR is provided by comint, but is unused."
 		))))
 	  
 	;; Setup for next loop
-	(goto-char (point-max)))
+	(goto-char (point-max))))
 
-      ;; All done, display the buffer.
+    (if evalforms
+	;; Evaluate some forms
+	(condition-case nil
+	    (eval evalforms)
+	  (error (message "Failed to evaluate forms from MATLAB: \"%s\"" txt)))
+
+      ;; Or display the buffer or eval the forms.
       (when bufflist
 	(cond
 	 ((string= "*MATLAB Help*" buffname)
@@ -1056,13 +1060,12 @@ STR is provided by comint, but is unused."
 	 (t
 	  (with-current-buffer (car bufflist)
 	    (view-mode))))
-	
+      
 	(display-buffer (car bufflist)
 			'((display-buffer-below-selected display-buffer-at-bottom)
 			  (inhibit-same-window . t)
-			  (window-height . fit-window-to-buffer))))
-
-      )))
+			  (window-height . shrink-window-if-larger-then-buffer)))))
+    ))
 
 
 ;;; COMMANDS
