@@ -673,18 +673,19 @@ If font lock is not loaded, lay in wait."
       ["Continue (dbcont)" gud-cont
        :active gud-matlab-debug-active
        :help "When MATLAB debugger is active, run to next break point or finish"]
-      ["Show symbol value" matlab-shell-gud-show-symbol-value
+      ["Evaluate Expression" matlab-shell-gud-show-symbol-value
        :active (matlab-any-shell-active-p)
        :help "When MATLAB is active, show value of the symbol under point."]
       ["Show Stack" mlg-show-stack
        :active gud-matlab-debug-active
        :help "When MATLAB debugger is active, show value of the symbol under point."]
-      ["Up Call Stack (dbup)" gud-up
-       :active gud-matlab-debug-active
-       :help "When MATLAB debugger is active and at break point, go up a frame"]
-      ["Down Call Stack (dbdown)" gud-down
-       :active gud-matlab-debug-active
-       :help "When MATLAB debugger is active and at break point, go down a frame"]
+;;;  Advertise these more if we can get them working w/ gud's frame show.
+;;;      ["Up Call Stack (dbup)" gud-up
+;;;       :active gud-matlab-debug-active
+;;;       :help "When MATLAB debugger is active and at break point, go up a frame"]
+;;;      ["Down Call Stack (dbdown)" gud-down
+;;;       :active gud-matlab-debug-active
+;;;       :help "When MATLAB debugger is active and at break point, go down a frame"]
       ["Quit debugging (dbquit)" gud-finish
        :active gud-matlab-debug-active
        :help "When MATLAB debugger is active, stop debugging"]
