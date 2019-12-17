@@ -87,7 +87,7 @@ Disable this option if the tooltips are too slow in your setup."
     (error "Your Emacs is missing `gud-def' which means matlab-shell won't work correctly.  Stopping"))
 
   (gud-def gud-break  (matlab-at-fcn "ebstop in %d%f at %l")  "\C-b" "Set breakpoint at current line.")
-  (gud-def gud-remove (matlab-at-fcn "ebclear in %d%f at %l") "\C-d" "Remove breakpoint at current line.")
+  (gud-def gud-remove (matlab-at-fcn "ebclear in %d%f at %l") "\C-x" "Remove breakpoint at current line.")
   (gud-def gud-step   (matlab-gud-fcn "dbstep in")   "\C-s" "Step one source line, possibly into a function.")
   (gud-def gud-next   (matlab-gud-fcn "dbstep %p")   "\C-n" "Step over one source line.")
   (gud-def gud-cont   (matlab-gud-fcn "dbcont")      "\C-r" "Continue with display.")
@@ -95,6 +95,8 @@ Disable this option if the tooltips are too slow in your setup."
   (gud-def gud-finish (matlab-gud-fcn "dbquit")      "\C-f" "Finish executing current function.")
   (gud-def gud-up     (matlab-gud-fcn "dbup")        "<"    "Up N stack frames (numeric arg).")
   (gud-def gud-down   (matlab-gud-fcn "dbdown")      ">"    "Down N stack frames (numeric arg).")
+  (gud-def gud-list-breakpoints (matlab-at-fcn "ebstatus")  "\C-v"    "List breakpoints")
+  (gud-def gud-show-stack       (matlab-at-fcn "ebstack")   "\C-w"    "Show stack")
   ;; using (gud-def gud-print  "%e" "\C-p" "Eval expression at point") fails
   ;; (gud-def gud-print  "% gud-print not available" "\C-p" "gud-print not available.")
 
@@ -846,22 +848,23 @@ Call debug activate/deactivate features."
 
     ;; gud bindings.
     (define-key km "b" 'gud-break)
-    (define-key km "r" 'gud-remove)
+    (define-key km "x" 'gud-remove)
     (define-key km "c" 'gud-cont)
     (define-key km "s" 'gud-step)
+    (define-key km " " 'gud-step)
     (define-key km "n" 'gud-next)
     (define-key km "f" 'gud-finish)
     (define-key km "q" 'gud-finish)
-    (define-key km "u" 'gud-up)
-    (define-key km "d" 'gud-down)
+    ;(define-key km "u" 'gud-up)
+    ;(define-key km "d" 'gud-down)
     (define-key km "<" 'gud-up)
     (define-key km ">" 'gud-down)
-    (define-key km "v" 'mlg-show-stack)
-    (define-key km "w" 'mlg-show-breakpoints)
-    (define-key km "p" 'matlab-shell-gud-show-symbol-value)
+    (define-key km "w" 'mlg-show-stack)
+    (define-key km "v" 'mlg-show-breakpoints)
+    (define-key km "e" 'matlab-shell-gud-show-symbol-value)
     ;; (define-key km "p" gud-print)
 
-    (define-key km "e" 'matlab-shell-gud-mode-edit)
+    ;;(define-key km "" 'matlab-shell-gud-mode-edit)
     (define-key km "\C-x\C-q" 'matlab-shell-gud-mode-edit) ; like toggle-read-only
     
     km)
@@ -875,16 +878,17 @@ activate debug commands.  It also enables tooltips to appear when the
 mouse hovers over a symbol when debugging.
 \\<matlab-shell-gud-minor-mode-map>
 Debug commands are:
+ \\[matlab-shell-gud-mode-edit]   - Edit file (toggle read-only)
+       Allows editing file without causing MATLAB to exit debug mode.
  \\[gud-break]   - Add breakpoint (ebstop in FILE at point)
  \\[gud-remove]   - Remove breakpoint (ebclear in FILE at point)
- \\[gud-cont]   - Continue (dbcont)
+ \\[mlg-show-breakpoints]   - List breakpoints (ebstatus)
  \\[gud-step]   - Step (dbstep in)
  \\[gud-next]   - Next (dbstep)
- \\[gud-finish]   - Quit (dbquit)
- \\[gud-up]   - Navigate up the call stack (dbup)
- \\[gud-down]   - Navigate down the call stack (dbdown)
- \\[matlab-shell-gud-mode-edit]   - Edit file (toggle read-only)
-       Allows editing file without causing MATLAB to exit debug mode."
+ \\[gud-cont]   - Continue (dbcont)
+ \\[matlab-shell-gud-show-symbol-value]   - Evaluate expression
+ \\[mlg-show-stack]   - Show the stack (ebstack)
+ \\[gud-finish]   - Quit (dbquit)"
   nil " MGUD" matlab-shell-gud-minor-mode-map
   
   ;; Make the buffer read only
