@@ -875,16 +875,16 @@ activate debug commands.  It also enables tooltips to appear when the
 mouse hovers over a symbol when debugging.
 \\<matlab-shell-gud-minor-mode-map>
 Debug commands are:
- \\[gud-break]   - Set a breakpoint on the current line
- \\[gud-remove]   - Clear breakpoint on line
- \\[gud-cont]   - Continue till next breakpoint
- \\[gud-step]   - Step into next functions
- \\[gud-next]   - Next line in current function
- \\[gud-finish]   - Exit debug mode
- \\[gud-up]   - Navigate up the call stack
- \\[gud-down]   - Navigate down the call stack
- \\[matlab-shell-gud-mode-edit]   - Exit gud minor mode so you can edit
-       you file without causing MATLAB to exit debug mode."
+ \\[gud-break]   - Add breakpoint (ebstop in FILE at point)
+ \\[gud-remove]   - Remove breakpoint (ebclear in FILE at point)
+ \\[gud-cont]   - Continue (dbcont)
+ \\[gud-step]   - Step (dbstep in)
+ \\[gud-next]   - Next (dbstep)
+ \\[gud-finish]   - Quit (dbquit)
+ \\[gud-up]   - Navigate up the call stack (dbup)
+ \\[gud-down]   - Navigate down the call stack (dbdown)
+ \\[matlab-shell-gud-mode-edit]   - Edit file (toggle read-only)
+       Allows editing file without causing MATLAB to exit debug mode."
   nil " MGUD" matlab-shell-gud-minor-mode-map
   
   ;; Make the buffer read only
