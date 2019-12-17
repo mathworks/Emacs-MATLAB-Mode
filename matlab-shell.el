@@ -640,6 +640,10 @@ Argument STR is the string to examine for version information."
 
   ;; Notice that this worked.
   (when matlab-shell-running-matlab-version
+    ;; Remove the scrape from our list of things to do.  We are done getting the version.
+    (remove-hook 'comint-output-filter-functions
+		 'matlab-shell-version-scrape t)
+
     (message "Detected MATLAB %s (%s)  -- Loading history file" matlab-shell-running-matlab-release
 	     matlab-shell-running-matlab-version)
   
@@ -648,9 +652,7 @@ Argument STR is the string to examine for version information."
 	  (format matlab-shell-history-file matlab-shell-running-matlab-release))
     (if (fboundp 'comint-read-input-ring)
 	(comint-read-input-ring t))
-    ;; Remove the scrape from our list of things to do.
-    (remove-hook 'comint-output-filter-functions
-		 'matlab-shell-version-scrape t)))
+    ))
 
 ;;; ANCHORS
 ;;
@@ -1049,7 +1051,7 @@ STR is provided by comint, but is unused."
 	;; Evaluate some forms
 	(condition-case nil
 	    (eval evalforms)
-	  (error (message "Failed to evaluate forms from MATLAB: \"%s\"" txt)))
+	  (error (message "Failed to evaluate forms from MATLAB: \"%S\"" evalforms)))
 
       ;; Or display the buffer or eval the forms.
       (when bufflist
