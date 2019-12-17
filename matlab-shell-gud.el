@@ -867,46 +867,6 @@ Call debug activate/deactivate features."
     km)
   "Keymap used by matlab mode maintainers.")
 
-(easy-menu-define
-  matlab-shell-gud-menu matlab-shell-gud-minor-mode-map "MATLAB Maintainer's Minor Mode"
-  '("MATLAB-DEBUG"
-      ["Edit File (toggle read-only)" matlab-shell-gud-mode-edit
-       :help "Exit the MATLAB debug minor mode to edit without exiting MATLAB's K>> prompt."]
-      ["dbstop in FILE at point" gud-break
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active, set break point at current M-file point"]
-      ["dbclear in FILE at point" gud-remove
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active, clear break point at current M-file point"]
-      ["dbstep in" gud-step
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active, step into line"]
-      ["dbstep" gud-next
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active, step one line"]
-      ["dbup" gud-up
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active and at break point, go up a frame"]
-      ["dbdown" gud-down
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active and at break point, go down a frame"]
-      ["dbcont" gud-cont
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active, run to next break point or finish"]
-      ["Show Stack" mlg-show-stack
-       :active (matlab-any-shell-active-p)
-       :help "When MATLAB debugger is active, show value of the symbol under point."]
-      ["Show Breakpoints" mlg-show-breakpoints
-       :active (matlab-any-shell-active-p)
-       :help "When MATLAB debugger is active, show value of the symbol under point."]
-      ["Show symbol value" matlab-shell-gud-show-symbol-value
-       :active (matlab-any-shell-active-p)
-       :help "When MATLAB debugger is active, show value of the symbol under point."]
-      ["dbquit" gud-finish
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active, stop debugging"]
-      ))
-
 ;;;###autoload
 (define-minor-mode matlab-shell-gud-minor-mode
   "Minor mode activated when `matlab-shell' K>> prompt is active.

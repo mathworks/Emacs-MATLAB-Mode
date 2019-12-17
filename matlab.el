@@ -652,29 +652,41 @@ If font lock is not loaded, lay in wait."
       ["Uncomment Region" matlab-uncomment-region t]
       ["Indent Syntactic Block" matlab-indent-sexp])
      ("Debug"
-      ["dbstop in FILE at point" gud-break
+      ["Edit File (toggle read-only)" matlab-shell-gud-mode-edit
+       :help "Exit MATLAB debug minor mode to edit without exiting MATLAB's K>> prompt."
+       :visible gud-matlab-debug-active ]
+      ["Add Breakpoint (ebstop in FILE at point)" gud-break
        :active (matlab-shell-active-p)
        :help "When MATLAB debugger is active, set break point at current M-file point"]
-      ["dbclear in FILE at point" gud-remove
+      ["Remove Breakpoint (ebclear in FILE at point)" gud-remove
        :active (matlab-shell-active-p)
        :help "When MATLAB debugger is active, clear break point at current M-file point"]
-      ["dbstep in" gud-step
+      ["List Breakpoints (ebstatus)" mlg-show-breakpoints
        :active (matlab-shell-active-p)
+       :help "List active breakpoints."]
+      ["Step (dbstep in)" gud-step
+       :active gud-matlab-debug-active
        :help "When MATLAB debugger is active, step into line"]
-      ["dbstep" gud-next
-       :active (matlab-shell-active-p)
+      ["Next (dbstep)" gud-next
+       :active gud-matlab-debug-active
        :help "When MATLAB debugger is active, step one line"]
-      ["dbup" gud-up
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active and at break point, go up a frame"]
-      ["dbdown" gud-down
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active and at break point, go down a frame"]
-      ["dbcont" gud-cont
-       :active (matlab-shell-active-p)
+      ["Continue (dbcont)" gud-cont
+       :active gud-matlab-debug-active
        :help "When MATLAB debugger is active, run to next break point or finish"]
-      ["dbquit" gud-finish
-       :active (matlab-shell-active-p)
+      ["Show symbol value" matlab-shell-gud-show-symbol-value
+       :active (matlab-any-shell-active-p)
+       :help "When MATLAB is active, show value of the symbol under point."]
+      ["Show Stack" mlg-show-stack
+       :active gud-matlab-debug-active
+       :help "When MATLAB debugger is active, show value of the symbol under point."]
+      ["Up Call Stack (dbup)" gud-up
+       :active gud-matlab-debug-active
+       :help "When MATLAB debugger is active and at break point, go up a frame"]
+      ["Down Call Stack (dbdown)" gud-down
+       :active gud-matlab-debug-active
+       :help "When MATLAB debugger is active and at break point, go down a frame"]
+      ["Quit debugging (dbquit)" gud-finish
+       :active gud-matlab-debug-active
        :help "When MATLAB debugger is active, stop debugging"]
       )
 
