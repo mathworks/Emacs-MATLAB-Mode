@@ -660,7 +660,7 @@ If font lock is not loaded, lay in wait."
        :help "When MATLAB debugger is active, set break point at current M-file point"]
       ["Remove Breakpoint (ebclear in FILE at point)" gud-remove
        :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active, clear break point at current M-file point"]
+       :help "Show all active breakpoints in a seperate buffer." ]
       ["List Breakpoints (ebstatus)" mlg-show-breakpoints
        :active (matlab-shell-active-p)
        :help "List active breakpoints."]
@@ -678,7 +678,7 @@ If font lock is not loaded, lay in wait."
        :help "When MATLAB is active, show value of the symbol under point."]
       ["Show Stack" mlg-show-stack
        :active gud-matlab-debug-active
-       :help "When MATLAB debugger is active, show value of the symbol under point."]
+       :help "When MATLAB debugger is active, show the stack in a buffer."]
 ;;;  Advertise these more if we can get them working w/ gud's frame show.
 ;;;      ["Up Call Stack (dbup)" gud-up
 ;;;       :active gud-matlab-debug-active
