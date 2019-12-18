@@ -303,7 +303,7 @@ FILE is ignored, and ARGS is returned."
 	    (sit-for 0)
 	    ))
 
-      ;; Check for any text that would be embarrasing to display partially.
+      ;; Check for any text that would be embarrassing to display partially.
       ;; If we don't see any, feel free to dump the rest of the accumulation buffer
       (unless (or (string-match (regexp-quote "<a href=") gud-marker-acc)
 		  (string-match (regexp-quote "<EMACSCAP") gud-marker-acc)
@@ -472,7 +472,7 @@ LONGESTNAME specifies the how long the longest name we can expect is."
     km)
   "Keymap used in MATLAB stack mode.")
 
-;; Need this to fix wierd problem in define-derived-mode
+;; Need this to fix weird problem in define-derived-mode
 (defvar mlg-stack-mode-syntax-table (make-syntax-table)
   "Syntax table used in `matlab-shell-help-mode'.")
 
@@ -544,7 +544,7 @@ Visit the file presented in that stack frame."
   ((file :initarg :file
 	 :type string
 	 :documentation
-	 "The filename this brekpoint belongs to.")
+	 "The filename this breakpoint belongs to.")
    (name :initarg :name
 	 :type string
 	 :documentation
@@ -555,7 +555,7 @@ Visit the file presented in that stack frame."
 	 "The line number for this breakpoint")
    (overlay :documentation
 	    :default nil
-	    "The overlay indicating the preense of this breakpoint.")
+	    "The overlay indicating the presence of this breakpoint.")
    )
   "Representation of a breakpoint.
 Used to track active breakpoints, and how to show them.")
@@ -739,7 +739,7 @@ LONGESTNAME specifies the how long the longest name we can expect is."
     km)
   "Keymap used in MATLAB breakpoint mode.")
 
-;; Need this to fix wierd problem in define-derived-mode
+;; Need this to fix weird problem in define-derived-mode
 (defvar mlg-breakpoint-mode-syntax-table (make-syntax-table)
   "Syntax table used in `matlab-shell-help-mode'.")
 
@@ -880,17 +880,18 @@ activate debug commands.  It also enables tooltips to appear when the
 mouse hovers over a symbol when debugging.
 \\<matlab-shell-gud-minor-mode-map>
 Debug commands are:
- \\[matlab-shell-gud-mode-edit]   - Edit file (toggle read-only)
-       Allows editing file without causing MATLAB to exit debug mode.
- \\[gud-break]   - Add breakpoint (ebstop in FILE at point)
- \\[gud-remove]   - Remove breakpoint (ebclear in FILE at point)
- \\[mlg-show-breakpoints]   - List breakpoints (ebstatus)
- \\[gud-step]   - Step (dbstep in)
- \\[gud-next]   - Next (dbstep)
- \\[gud-cont]   - Continue (dbcont)
- \\[matlab-shell-gud-show-symbol-value]   - Evaluate expression
- \\[mlg-show-stack]   - Show the stack (ebstack)
- \\[gud-finish]   - Quit (dbquit)"
+ \\[matlab-shell-gud-mode-edit]  - Edit file (toggle read-only)
+            Allows editing file without causing MATLAB to exit debug mode.
+ \\[gud-break]        - Add breakpoint (ebstop in FILE at point)
+ \\[gud-remove]        - Remove breakpoint (ebclear in FILE at point)
+ \\[mlg-show-breakpoints]        - List breakpoints (ebstatus)
+ \\[gud-step]        - Step (dbstep in)
+ \\[gud-next]        - Next (dbstep)
+ \\[gud-finish]        - Finish function (dbstep out)
+ \\[gud-cont]        - Continue (dbcont)
+ \\[matlab-shell-gud-show-symbol-value]        - Evaluate expression
+ \\[mlg-show-stack]        - Where am I (ebstack)
+ \\[gud-stop-subjob]        - Quit (dbquit)"
   nil " MGUD" matlab-shell-gud-minor-mode-map
   
   ;; Make the buffer read only
@@ -944,7 +945,7 @@ Debug commands are:
 	      (concat "disp(" sym ")"))))
     (if (not (string-match "ERRORTXT" txt))
 	(matlab-output-to-temp-buffer "*MATLAB Help*" txt)
-      (message "Error evaluationg MATLAB expression"))))
+      (message "Error evaluating MATLAB expression"))))
 
 
 (defun matlab-shell-gud-mode-edit ()
@@ -970,7 +971,7 @@ Shows a help message in the mini buffer."
 ;; just override the tooltip fcn (see the mode) with this function
 ;; as an additional piece.
 (defun gud-matlab-tooltip-tips (event)
-  "Implementation of the tooltip feture for MATLAB.
+  "Implementation of the tooltip feature for MATLAB.
 Much of this was copied from `gud-tooltip-tips'.
 
 This function must return nil if it doesn't handle EVENT."
@@ -1009,7 +1010,7 @@ if it looks like a function call, it will return nil."
 	    (when (and (<= (region-beginning) point) (<= point (region-end)))
 	      (buffer-substring (region-beginning) (region-end)))
 
-	  ;; This snippent copied from tooltip.el, then modified to
+	  ;; This snippet copied from tooltip.el, then modified to
 	  ;; detect matlab functions
 	  (save-excursion
 	    (goto-char point)
@@ -1040,3 +1041,13 @@ if it looks like a function call, it will return nil."
 (provide 'matlab-shell-gud)
 
 ;;; matlab-shell-gud.el ends here
+
+;; LocalWords:  el Ludlam eludlam emacsvm eieio defcustom keymap dolist subjob
+;; LocalWords:  cdr netshell defmacro defun fboundp ebstop ebclear ebstatus
+;; LocalWords:  ebstack boundp setq realfname progn aset buf noselect dbhotlink
+;; LocalWords:  COMINT errortext dbhlcmd comint endprompt mello mlg EMACSCAP
+;; LocalWords:  defclass initarg defmethod longestname namefmt propertize oref
+;; LocalWords:  newstack nreverse newframe namelen cnt prev MStack BP del NBPS
+;; LocalWords:  defface bp oset ol eol overlayp MBreakpoints MGUD gud's
+;; LocalWords:  toolboar minibuffer ERRORTXT eventp emacstipstring posn pstate
+;; LocalWords:  ppss sexp
