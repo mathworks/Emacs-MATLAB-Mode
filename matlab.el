@@ -670,6 +670,9 @@ If font lock is not loaded, lay in wait."
       ["Next (dbstep)" gud-next
        :active gud-matlab-debug-active
        :help "When MATLAB debugger is active, step one line"]
+      ["Finish function  (dbstep out)" gud-finish
+       :active gud-matlab-debug-active
+       :help "When MATLAB debugger is active, run to end of function"]
       ["Continue (dbcont)" gud-cont
        :active gud-matlab-debug-active
        :help "When MATLAB debugger is active, run to next break point or finish"]
@@ -686,7 +689,7 @@ If font lock is not loaded, lay in wait."
 ;;;      ["Down Call Stack (dbdown)" gud-down
 ;;;       :active gud-matlab-debug-active
 ;;;       :help "When MATLAB debugger is active and at break point, go down a frame"]
-      ["Quit debugging (dbquit)" gud-finish
+      ["Quit debugging (dbquit)" gud-stop-subjob
        :active gud-matlab-debug-active
        :help "When MATLAB debugger is active, stop debugging"]
       )
