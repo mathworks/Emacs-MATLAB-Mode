@@ -66,7 +66,7 @@ Disable this option if the tooltips are too slow in your setup."
   "Define CMD to be a GUD command that works w/ shell or netshell."
   ;; Note `arg' comes from gud-def declaration
   `(if (matlab-shell-active-p)
-       (gud-call ,cmd arg)
+       (gud-call (concat ,cmd "%%") arg)
      (if (matlab-netshell-active-p)
 	 (matlab-netshell-eval (gud-format-command ,cmd arg))
        (error "No MATLAB shell active"))))
