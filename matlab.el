@@ -2249,32 +2249,33 @@ of character based."
 
 (defun matlab-ltype-block-comm-1 ()
   "Return the start positions of block comment if we are in a block comment."
-  (save-excursion
-    (let ((start nil)
-	  (good t)
-	  (end nil))
-      (if (and (looking-at "\\%{")
-	       (not (matlab-cursor-in-string-or-comment)))
-	  (setq start (match-beginning 0))
-	(while (and (setq good (re-search-backward "\\%\\([{}]\\)" nil t))
-		    (matlab-cursor-in-string-or-comment))
-	  nil)
+  (save-match-data
+    (save-excursion
+      (let ((start nil)
+	    (good t)
+	    (end nil))
+	(if (and (looking-at "\\%{")
+		 (not (matlab-cursor-in-string-or-comment)))
+	    (setq start (match-beginning 0))
+	  (while (and (setq good (re-search-backward "\\%\\([{}]\\)" nil t))
+		      (matlab-cursor-in-string-or-comment))
+	    nil)
       
-	(when (and good (looking-at "\\%{"))
-	  (setq start (match-beginning 0))))
+	  (when (and good (looking-at "\\%{"))
+	    (setq start (match-beginning 0))))
 
-      (when start
-	(while (and (setq good (re-search-forward "\\%}" nil t))
-		    (matlab-cursor-in-string t))
-	  nil)
+	(when start
+	  (while (and (setq good (re-search-forward "\\%}" nil t))
+		      (matlab-cursor-in-string t))
+	    nil)
 	
-	(if (and good (goto-char (match-beginning 0)) (looking-at "\\%}"))
-	    (setq end (match-end 0))
-	  (setq end (point-max))))
+	  (if (and good (goto-char (match-beginning 0)) (looking-at "\\%}"))
+	      (setq end (match-end 0))
+	    (setq end (point-max))))
 
-      (if (and start end)
-	  (setq matlab-ltype-block-comm-bounds (cons start end))
-	(setq matlab-ltype-block-comm-bounds nil)))))
+	(if (and start end)
+	    (setq matlab-ltype-block-comm-bounds (cons start end))
+	  (setq matlab-ltype-block-comm-bounds nil))))))
 
 (defun matlab-ltype-block-comm-at-start ()
   "Return non-nil if we are on a block comment start line AND
