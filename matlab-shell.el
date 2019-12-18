@@ -101,6 +101,13 @@ This file is read to initialize the comint input ring."
   :group 'matlab-shell
   :type 'filename)
 
+(defcustom matlab-shell-history-ignore "^%\\|%%$\\|emacs.set"
+  "Regular expression matching items from history to ignore.
+This expression should ignore comments (between sessions) and any command
+that ends in 2 or more %%, added to automatic commands."
+  :group 'matlab-shell
+  :type 'filename)
+
 (defcustom matlab-shell-autostart-netshell nil
   "Use the netshell side-channel for communicating with MATLAB."
   :group 'matlab-shell
@@ -632,7 +639,7 @@ Argument STR is the string to examine for version information."
 	    matlab-shell-running-matlab-release
 	    (match-string 3 str))
     ;; NEWER MATLABS
-    (if (string-match "\\(R[0-9]+[ab]\\)\\s-+\\(?:Update\\s-+[0-9]+\\s-+\\)?(\\([0-9]+\\.[0-9]+\\)\\." str)
+    (if (string-match "\\(R[0-9]+[ab]\\)\\s-+\\(?:Update\\s-+[0-9]+\\s-+\\|Prerelease\\s-+\\)?(\\([0-9]+\\.[0-9]+\\)\\." str)
 	(setq matlab-shell-running-matlab-version
 	      (match-string 2 str)
 	      matlab-shell-running-matlab-release
@@ -649,7 +656,9 @@ Argument STR is the string to examine for version information."
   
     ;; Now get our history loaded
     (setq comint-input-ring-file-name
-	  (format matlab-shell-history-file matlab-shell-running-matlab-release))
+	  (format matlab-shell-history-file matlab-shell-running-matlab-release)
+	  comint-input-history-ignore matlab-shell-history-ignore)
+	  
     (if (fboundp 'comint-read-input-ring)
 	(comint-read-input-ring t))
     ))
