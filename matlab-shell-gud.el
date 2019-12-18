@@ -52,13 +52,15 @@ Disable this option if the tooltips are too slow in your setup."
 		 (gud-cont . "gud/cont")
 		 (gud-next . "gud/next")
 		 (gud-step . "gud/step")
-		 (gud-stop-subjob . "gud/stop")
 		 (gud-finish . "gud/finish")
-		 (gud-up . "gud/up")
-		 (gud-down . "gud/down"))
+		 (gud-stop-subjob . "gud/stop")
+		 (mlg-show-stack . "gud/all")
+		 (mlg-show-breakpoints . "describe")
+		 )
 	       map)
       (tool-bar-local-item-from-menu
-       (car x) (cdr x) map gud-minor-mode-map))))
+       (car x) (cdr x) map matlab-mode-map))
+    map))
 
 (declare-function matlab-netshell-eval "matlab-netshell" (mode))
 
@@ -91,8 +93,8 @@ Disable this option if the tooltips are too slow in your setup."
   (gud-def gud-step   (matlab-gud-fcn "dbstep in")   "\C-s" "Step one source line, possibly into a function.")
   (gud-def gud-next   (matlab-gud-fcn "dbstep %p")   "\C-n" "Step over one source line.")
   (gud-def gud-cont   (matlab-gud-fcn "dbcont")      "\C-r" "Continue with display.")
-  (gud-def gud-stop-subjob (matlab-gud-fcn "dbquit") nil    "Quit debugging.") ;; gud toolbar stop
-  (gud-def gud-finish (matlab-gud-fcn "dbquit")      "\C-f" "Finish executing current function.")
+  (gud-def gud-stop-subjob (matlab-gud-fcn "dbquit") "\C-q" "Quit debugging.") ;; gud toolbar stop
+  (gud-def gud-finish (matlab-gud-fcn "dbstep out")  "\C-f" "Finish executing current function.")
   (gud-def gud-up     (matlab-gud-fcn "dbup")        "<"    "Up N stack frames (numeric arg).")
   (gud-def gud-down   (matlab-gud-fcn "dbdown")      ">"    "Down N stack frames (numeric arg).")
   (gud-def gud-list-breakpoints (matlab-at-fcn "ebstatus")  "\C-v"    "List breakpoints")
@@ -854,7 +856,7 @@ Call debug activate/deactivate features."
     (define-key km " " 'gud-step)
     (define-key km "n" 'gud-next)
     (define-key km "f" 'gud-finish)
-    (define-key km "q" 'gud-finish)
+    (define-key km "q" 'gud-stop-subjob)
     ;(define-key km "u" 'gud-up)
     ;(define-key km "d" 'gud-down)
     (define-key km "<" 'gud-up)
