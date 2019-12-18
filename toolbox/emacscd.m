@@ -12,8 +12,13 @@ function emacscd(dir)
         disp('Not inside Emacs')
     else
         % disp('Inside Emacs - Sending directory cookie.')
+
+        % Set matlab-shell `default-directory' to the current MATLAB pwd. Note, default-directory
+        % requires a trailing slash so things like `find-file' C-x C-f work as expect.
         disp('<EMACSCAP>(eval)')
-        disp(['(setq default-directory "' pwd '")'])
+        disp(['(setq default-directory "' pwd '/")'])
         disp('</EMACSCAP>')
     end
 end
+
+% LocalWords:  dirtrack EMACSCAP setq
