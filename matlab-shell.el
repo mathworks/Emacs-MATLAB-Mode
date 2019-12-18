@@ -139,7 +139,7 @@ matlab-extract - Send region location to MATLAB, and have ML
   :group 'matlab-shell
   :type '(choice (const :tag "Auto" auto)
 		 (const :tag "Extract Line" extract-line)
-		 (const :tag "Extract Sript" extract-script)
+		 (const :tag "Extract Script" extract-script)
 		 (const :tag "Matlab Extract" matlab-extract)))
 
 ;;
@@ -288,6 +288,9 @@ mode.")
     ;; Files
     (define-key km "\C-c." 'matlab-shell-locate-fcn)
 
+    ;; matlab-shell actions
+    (define-key km "\C-c/" 'matlab-shell-sync-buffer-directory)
+    
     km)
 
   "Keymap used in `matlab-shell-mode'.")
@@ -314,6 +317,9 @@ mode.")
     ["Close Current Figure" matlab-shell-close-current-figure t]
     ["Close Figures" matlab-shell-close-figures t]
     "----"
+    ["Sync buffer directory (emacscd)" matlab-shell-sync-buffer-directory
+     :help "Sync the matlab-shell buffer `default-directory' with MATLAB's pwd.\n\
+These will differ when MATLAB code changes directory without notifying Emacs."]
     ["Customize" (customize-group 'matlab-shell)
      (and (featurep 'custom) (fboundp 'custom-declare-variable))
      ]
@@ -633,12 +639,12 @@ it returns empty string"
   "Scrape the MATLAB Version from the MATLAB startup text.
 Argument STR is the string to examine for version information."
   (if (string-match "\\(Version\\)\\s-+\\([.0-9]+\\)\\s-+(\\(R[.0-9]+[ab]?\\))" str)
-      ;; OLDER MATLABS
+      ;; OLDER MATLAB'S
       (setq matlab-shell-running-matlab-version
 	    (match-string 2 str)
 	    matlab-shell-running-matlab-release
 	    (match-string 3 str))
-    ;; NEWER MATLABS
+    ;; NEWER MATLAB'S
     (if (string-match "\\(R[0-9]+[ab]\\)\\s-+\\(?:Update\\s-+[0-9]+\\s-+\\|Prerelease\\s-+\\)?(\\([0-9]+\\.[0-9]+\\)\\." str)
 	(setq matlab-shell-running-matlab-version
 	      (match-string 2 str)
@@ -1985,6 +1991,12 @@ To reference old errors, put the cursor just after the error text."
   (interactive)
   (comint-send-string (get-buffer-process (current-buffer)) "delete(gcf)\n"))
 
+(defun matlab-shell-sync-buffer-directory ()
+  "Sync matlab-shell `default-directory' with MATLAB's pwd.
+These will differ when MATLAB code directory without notifying Emacs."
+  (interactive)
+  (comint-send-string (get-buffer-process (current-buffer)) "emacscd%%\n"))
+
 (defun matlab-shell-exit ()
   "Exit MATLAB shell."
   (interactive)
@@ -2362,19 +2374,19 @@ Argument FNAME specifies if we should echo the region to the command line."
 
 ;;; matlab-shell.el ends here
 
-;; LocalWords:  el Ludlam zappo compat comint gud Slience defcustom el
+;; LocalWords:  el Ludlam zappo compat comint gud Slience defcustom el cb
 ;; LocalWords:  nodesktop defface autostart netshell emacsclient errorscanning
 ;; LocalWords:  cco defun setq Keymaps keymap kbd featurep fboundp subprocess
 ;; LocalWords:  online EDU postoutput progn subjob eol mlfile emacsinit msbn pc
 ;; LocalWords:  Thx Chappaz windowid dirtrackp dbhot erroexamples Ludlam zappo
-;; LocalWords:  compat comint gud Slience defcustom nodesktop defface
+;; LocalWords:  compat comint gud Slience defcustom nodesktop defface emacscd
 ;; LocalWords:  autostart netshell emacsclient errorscanning cco defun setq el
 ;; LocalWords:  Keymaps keymap kbd featurep fboundp subprocess online EDU
 ;; LocalWords:  postoutput progn subjob eol mlfile emacsinit msbn pc Thx Ludlam
 ;; LocalWords:  Chappaz windowid dirtrackp dbhot erroexamples cdr ENDPT dolist
 ;; LocalWords:  overlaystack mref deref errortext ERRORTXT Missmatched zappo
 ;; LocalWords:  shellerror dbhotlink realfname aset buf noselect tcp auth ef
-;; LocalWords:  dbhotlinks compat comint gud Slience defcustom
+;; LocalWords:  dbhotlinks compat comint gud Slience defcustom capturetext
 ;; LocalWords:  nodesktop defface autostart netshell emacsclient errorscanning
 ;; LocalWords:  cco defun setq Keymaps keymap kbd featurep fboundp subprocess
 ;; LocalWords:  online EDU postoutput progn subjob eol mlfile emacsinit msbn pc
@@ -2382,11 +2394,12 @@ Argument FNAME specifies if we should echo the region to the command line."
 ;; LocalWords:  dolist overlaystack mref deref errortext ERRORTXT Missmatched
 ;; LocalWords:  shellerror dbhotlink realfname aset buf noselect tcp auth ef
 ;; LocalWords:  dbhotlinks dbhlcmd endprompt mello pmark memq promptend
-;; LocalWords:  numchars integerp emacsdocomplete mycmd ba nreverse
+;; LocalWords:  numchars integerp emacsdocomplete mycmd ba nreverse EMACSCAP
 ;; LocalWords:  emacsdocompletion subfield fil byteswap stringp cbuff mapcar bw
 ;; LocalWords:  FCN's alist BUILTINFLAG dired bol bobp numberp lattr princ
-;; LocalWords:  minibuffer fn matlabregex stackexchange doesnt lastcmd
+;; LocalWords:  minibuffer fn matlabregex stackexchange doesnt lastcmd Emacsen
 ;; LocalWords:  notimeout stacktop eltest testme localfcn LF mlx meth fileref
-;; LocalWords:  funcall ec basec sk ignoredups boundp nondirectory edir sexp
+;; LocalWords:  funcall ec basec sk ignoredups boundp nondirectory edir sexp iq
 ;; LocalWords:  Fixup mapc ltype noshow emacsrunregion cnt commandline elipsis
-;; LocalWords:  newf bss fname
+;; LocalWords:  newf bss fname nt initcmd nsa ecc ecca clientcmd buffname
+;; LocalWords:  insertbuff bufflist evalforms
