@@ -45,22 +45,8 @@ Disable this option if the tooltips are too slow in your setup."
 (defvar gud-matlab-debug-deactivate-hook nil
   "Hooks run when MATLAB detects a >> prompt after a K>> prompt.")
 
-(defvar gud-matlab-tool-bar-map
-  (let ((map (make-sparse-keymap)))
-    (dolist (x '((gud-break . "gud/break")
-		 (gud-remove . "gud/remove")
-		 (gud-cont . "gud/cont")
-		 (gud-next . "gud/next")
-		 (gud-step . "gud/step")
-		 (gud-finish . "gud/finish")
-		 (gud-stop-subjob . "gud/stop")
-		 (mlg-show-stack . "gud/all")
-		 (mlg-show-breakpoints . "describe")
-		 )
-	       map)
-      (tool-bar-local-item-from-menu
-       (car x) (cdr x) map matlab-mode-map))
-    map))
+(defvar gud-matlab-tool-bar-map nil
+  "Toolbar keymap used when in MATLAB debug mode.")
 
 (declare-function matlab-netshell-eval "matlab-netshell" (mode))
 
@@ -102,6 +88,27 @@ Disable this option if the tooltips are too slow in your setup."
   ;; using (gud-def gud-print  "%e" "\C-p" "Eval expression at point") fails
   ;; (gud-def gud-print  "% gud-print not available" "\C-p" "gud-print not available.")
 
+  (when window-system
+    (matlab-frame-init)
+
+    (setq gud-matlab-tool-bar-map
+	  (let ((map (make-sparse-keymap)))
+	    (dolist (x '((gud-break . "gud/break")
+			 (gud-remove . "gud/remove")
+			 (gud-cont . "gud/cont")
+			 (gud-next . "gud/next")
+			 (gud-step . "gud/step")
+			 (gud-finish . "gud/finish")
+			 (gud-stop-subjob . "gud/stop")
+			 (mlg-show-stack . "gud/all")
+			 (mlg-show-breakpoints . "describe")
+			 ))
+	      (tool-bar-local-item-from-menu
+	       (car x) (cdr x) map matlab-mode-map))
+	    map))
+
+    )
+  
   (if (fboundp 'gud-make-debug-menu)
       (gud-make-debug-menu))
 
