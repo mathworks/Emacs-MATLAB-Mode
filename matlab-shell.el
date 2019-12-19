@@ -523,8 +523,6 @@ Try C-h f matlab-shell RET"))
     (add-hook 'matlab-shell-prompt-appears-hook 'matlab-shell-render-errors-as-anchor nil t)
     (add-hook 'matlab-shell-prompt-appears-hook 'matlab-shell-colorize-errors nil t)
 
-    (add-hook 'matlab-shell-prompt-appears-hook 'matlab-shell-capture-text t t)
-
     ;; Comint and GUD both try to set the mode.  Now reset it to
     ;; matlab mode.
     (matlab-shell-mode))
@@ -560,6 +558,7 @@ STRING is the recent output from PROC to be filtered."
   ;; has been processed.
 
   (let ((buff (process-buffer proc))
+	(captext nil)
 	(matlab-shell-in-process-filter t))
 
     ;; Cleanup garbage before sending it along to the other filters.
@@ -575,15 +574,24 @@ STRING is the recent output from PROC to be filtered."
     ;; Engage the accumulator
     (setq matlab-shell-accumulator (concat matlab-shell-accumulator string)
 	  string "")
-    
-    ;; Check for EMACSCAP - a keyword that we should be capturing output
-    (if (and (not (string-match (regexp-quote matlab-shell-capturetext-end-text) matlab-shell-accumulator))
-	     (string-match (regexp-quote matlab-shell-capturetext-start-text) matlab-shell-accumulator))
-	;; If no end, then send anything before the CAP, and accumulate everything
-	;; else.
-	(setq string (substring matlab-shell-accumulator 0 (match-beginning 0))
-	      matlab-shell-accumulator (substring matlab-shell-accumulator
-						  (match-beginning 0)))
+
+    ;; STARTCAP - push preceeding text to output.
+    (if (string-match (regexp-quote matlab-shell-capturetext-start-text) matlab-shell-accumulator)
+	(progn
+	  (setq string (substring matlab-shell-accumulator 0 (match-beginning 0))
+		matlab-shell-accumulator (substring matlab-shell-accumulator
+						    (match-beginning 0)))
+
+	  ;; START and ENDCAP - save captured text, and push trailing text to output
+	  (when (string-match (concat (regexp-quote matlab-shell-capturetext-end-text)
+				      "\\(:?\n\\)?")
+			      matlab-shell-accumulator)
+	    ;; If no end, then send anything before the CAP, and accumulate everything
+	    ;; else.
+	    (setq string (concat string (substring matlab-shell-accumulator (match-end 0)))
+		  captext (substring matlab-shell-accumulator
+				     0 (match-end 0))
+		  matlab-shell-accumulator "")))
       
       ;; No start capture, or an ended capture, everything goes back to String
       (setq string (concat string matlab-shell-accumulator)
@@ -597,7 +605,13 @@ STRING is the recent output from PROC to be filtered."
       (when matlab-shell-prompt-hook-cookie
 	(setq matlab-shell-prompt-hook-cookie nil)
 	(run-hooks 'matlab-shell-prompt-appears-hook))
-      )))
+      )
+
+    ;; If there was some captext, process it, but only after doing all the other important
+    ;; stuff.
+    (when captext
+      (matlab-shell-process-capture-text captext))
+    ))
 
 (defun matlab-shell-wrapper-sentinel (proc string)
   "MATLAB Shell's process sentinel.  This wraps the GUD and COMINT filters.
@@ -986,104 +1000,67 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
 
 ;;; OUTPUT Capture
 ;;
-(defun matlab-shell-capture-text (&optional str)
-  "Hook function run to capture MATLAB text to display in a buffer.
-The filter captures indicators with <EMACSCAP> text </EMACSCAP>.
-This strips out that text from the shell and displays in a help.
-STR is provided by comint, but is unused."
+(defun matlab-shell-process-capture-text (str)
+  "Process text found between <EMACSCAP> and </EMAACSCAP>.
+Text is found in `matlab-shell-wrapper-filter', and then this
+function is called before removing text from the output stream.
+This function detects the type of ouptut (an eval, or output to buffer)
+and then processes it."
   (let ((start nil) (end nil) (buffname "*MATLAB Output*")
-	(insertbuff nil) (bufflist nil)
-	(append nil)
-	(evalforms nil)
+	(text nil)
+	(showbuff nil)
 	)
-    (save-excursion
-      (goto-char (point-max))
-      
-      (while (re-search-backward (regexp-quote matlab-shell-capturetext-end-text) nil t)
-	;; Start w/ end text to make sure everything is in the buffer already.
+    (save-match-data
+      ;; Strip start anchor.
+      (unless (string-match (regexp-quote matlab-shell-capturetext-start-text) str)
+	(error "Capture text failed to provide start token. [%s]" str))
+      (setq text (substring str (match-end 0)))
+      ;; Strip and ID the directive (eval or buffer name)
+      (when (and (string-match "[ ]*(\\([^)\n]+\\))" text)
+		 (= (match-beginning 0) 0))
+	(setq buffname (match-string 1 text))
+	(setq text (substring text (match-end 0)))
+	)
+      ;; Strip the tail.
+      (if (string-match (regexp-quote matlab-shell-capturetext-end-text) text)
+	  (setq text (substring text 0 (match-beginning 0)))
+	(error "Capture text failed to provide needed end token. [%s]" text))
 
-	;; Then scan for the beginning, and start there.  As we delete text, locations will move,
-	;; so move downward after this.
-	(if (not (re-search-backward (regexp-quote matlab-shell-capturetext-start-text) nil t))
-	    (error "Missmatched capture text tokens from MATLAB")
+      ;; Act on the content
+      (if (string= buffname "eval")
+	  ;; The desire is to evaluate some Emacs Lisp code instead of
+	  ;; capture output to display in Emacs.
+	  (let ((evalforms (read text)))
+	    ;; Evaluate some forms
+	    (condition-case nil
+		(eval evalforms)
+	      (error (message "Failed to evaluate forms from MATLAB: \"%S\"" evalforms))))
+
+	;; Generate the buffer and contents
+	(with-current-buffer (get-buffer-create buffname)
 	  
-	  ;; Save off where we start, and delete the indicator.
-	  (setq start (match-beginning 0))
-	  (delete-region start (match-end 0))
+	  (setq buffer-read-only nil)
+	  ;; Clear it if not appending.
+	  (erase-buffer)
+	  (insert text)
+	  (goto-char (point-min))
+	  (setq showbuff (current-buffer))
+	  )
 
-	  ;; Look to see if a directive name was specified.
-	  (when (looking-at "\\s-*(\\([^)\n]+\\))")
-	    (setq buffname (match-string-no-properties 1))
-	    (delete-region start (match-end 0)))
-
-	  ;; Cleanup newline after the token.
-	  (when (looking-at "\\s-*\n")
-	    (delete-region start (match-end 0)))
-
-	  ;; Find the end.
-	  (if (not (re-search-forward (regexp-quote matlab-shell-capturetext-end-text) nil t))
-	      (error "Internal error scanning for capture text tokens")
-	    
-	    (setq end (match-beginning 0))
-	    (delete-region end (match-end 0))
-
-	    ;; Cleanup newline after the end token.
-	    (when (looking-at "\\s-*\n")
-	      (delete-region end (match-end 0)))
-	    
-	    ;; Now take the text, and act on it.
-	    (let ((txt (buffer-substring-no-properties start end)))
-	      (delete-region start end)
-
-	      (if (string= buffname "eval")
-		  ;; The desire is to evaluate some Emacs Lisp code instead of
-		  ;; capture output to display in Emacs.
-		  (setq evalforms (read txt))
-		
-		(save-excursion
-		  (when insertbuff
-		    ;; Already have a buffer to append to.
-		    (when (not (eq insertbuff (get-buffer-create buffname)))
-		      ;; Different, don't append.
-		      (setq append nil)))
-		  ;; Change to new buffer
-		  (set-buffer (get-buffer-create buffname))
-		  (setq buffer-read-only nil)
-		  ;; Clear it if not appending.
-		  (when (not append) (erase-buffer))
-		  (goto-char (point-max))
-		  (insert txt)
-		  (goto-char (point-min))
-		  (setq append t
-			insertbuff (current-buffer))
-		  (add-to-list 'bufflist (current-buffer)))
-		))))
-	  
-	;; Setup for next loop
-	(goto-char (point-max))))
-
-    (if evalforms
-	;; Evaluate some forms
-	(condition-case nil
-	    (eval evalforms)
-	  (error (message "Failed to evaluate forms from MATLAB: \"%S\"" evalforms)))
-
-      ;; Or display the buffer or eval the forms.
-      (when bufflist
+	;; Display the buffer
 	(cond
 	 ((string= "*MATLAB Help*" buffname)
-	  (with-current-buffer (car bufflist)
+	  (with-current-buffer showbuff
 	    (matlab-shell-help-mode)))
 	 (t
-	  (with-current-buffer (car bufflist)
+	  (with-current-buffer showbuff
 	    (view-mode))))
-      
-	(display-buffer (car bufflist)
+	
+	(display-buffer showbuff
 			'((display-buffer-below-selected display-buffer-at-bottom)
 			  (inhibit-same-window . t)
-			  (window-height . shrink-window-if-larger-then-buffer)))))
-    ))
-
+			  (window-height . shrink-window-if-larger-then-buffer))))
+      )))
 
 ;;; COMMANDS
 ;;
