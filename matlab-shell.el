@@ -84,11 +84,6 @@ Command switches are a list of strings.  Each entry is one switch."
   :group 'matlab-shell
   :type 'string)
 
-(defcustom matlab-shell-run-region-cmd "emacsrunregion"
-  "The MATLAB command to use for running a region."
-  :group 'matlab-shell
-  :type 'string)
-
 (defcustom matlab-shell-echoes t
   "*If `matlab-shell-command' echoes input."
   :group 'matlab-shell
@@ -126,21 +121,33 @@ will disable use emacsclient as the external editor."
 
 ;;
 ;; Run from Emacs
-(defcustom matlab-shell-run-region-command 'auto
+(defcustom matlab-shell-run-region-function 'auto
   "Technique to use for running a line, region, or cell.
 There are different benefits to different kinds of commands.
 Use 'auto to guess which to use by looking at the environment.
 auto           - guess which to use
-extract-line   - Extract region, and generate 1 line of ML code.
-extract-script - Extract region and any local fcns, and write to
-                 tmp script.  Send that to ML.
-matlab-extract - Send region location to MATLAB, and have ML
-                 extract and run that region."
+matlab-shell-region->commandline
+               - Extract region, and generate 1 line of ML code.
+matlab-shell-region->script
+               - Extract region and any local fcns, and write to
+                 tmp script.  Call that from MATLAB.
+matlab-shell-region->internal
+               - Send region location to MATLAB, and have ML
+                 extract and run that region.  Customize
+                 `matlab-shell-emacsrunregion' to specify what ML
+                 function to use for this."
   :group 'matlab-shell
   :type '(choice (const :tag "Auto" auto)
-		 (const :tag "Extract Line" extract-line)
-		 (const :tag "Extract Script" extract-script)
-		 (const :tag "Matlab Extract" matlab-extract)))
+		 (const :tag "Extract Line" matlab-shell-region->commandline)
+		 (const :tag "Extract Script" matlab-shell-region->script)
+		 (const :tag "Matlab Extract" matlab-shell-region->internal)))
+
+(defcustom matlab-shell-internal-emacsrunregion "emacsrunregion"
+  "The MATLAB command to use for running a region.
+This command is used when `matlab-shell-run-region-function' is set
+to auto, or `matlab-shell-region->internal'"
+  :group 'matlab-shell
+  :type 'string)
 
 ;;
 ;; Features in an active shell
@@ -2162,7 +2169,7 @@ This command requires an active MATLAB shell."
 Picks between different options for running the commands.
 Optional argument NOSHOW specifies if we should echo the region to the command line."
   (cond
-   ((eq matlab-shell-run-region-command 'auto)
+   ((eq matlab-shell-run-region-function 'auto)
   
     (let ((cnt (count-lines beg end)))
 
@@ -2175,21 +2182,14 @@ Optional argument NOSHOW specifies if we should echo the region to the command l
 	(if (file-exists-p (buffer-file-name (current-buffer)))
 	    (progn
 	      (save-buffer)
-	      (matlab-shell-run-region-internal beg end noshow))
+	      (matlab-shell-region->internal beg end noshow))
 	
 	  ;; No file, or older emacs, run region as tmp file.
-	  (matlab-shell-extract-region-to-tmp-file beg end noshow)))
+	  (matlab-shell-region->script beg end noshow)))
       ))
 
-   ((eq matlab-shell-run-region-command 'extract-line)
-    (matlab-shell-region->commandline beg end noshow))
-
-   ((eq matlab-shell-run-region-command 'extract-script)
-    (matlab-shell-extract-region-to-tmp-file beg end noshow))
-
-   ((eq matlab-shell-run-region-command 'matlab-extract)
-    (matlab-shell-run-region-internal beg end noshow))
-   ))
+   (t
+    (funcall matlab-shell-run-region-function beg end noshow))))
    
 
 (defun matlab-shell-region->commandline (beg end &optional noshow)
@@ -2229,7 +2229,7 @@ When NOSHOW is non-nil, suppress output by adding ; to commands."
       (setq str (concat str "\n")))
     str))
 
-(defun matlab-shell-run-region-internal (beg end &optional noshow)
+(defun matlab-shell-region->internal (beg end &optional noshow)
   "Create a command to run the region between BEG and END.
 Uses internal MATLAB API to execute the code keeping breakpoints
 and local functions active.
@@ -2250,7 +2250,7 @@ Optional argument NOSHOW specifies if we should echo the region to the command l
 	)))
 
   (format "%s('%s',%d,%d)\n"
-	  matlab-shell-run-region-cmd
+	  matlab-shell-internal-emacsrunregion
 	  (buffer-file-name (current-buffer))
 	  beg end))
 
@@ -2259,7 +2259,7 @@ Optional argument NOSHOW specifies if we should echo the region to the command l
 (declare-function matlab-semantic-tag-text "semantic-matlab")
 (declare-function semantic-tag-name "semantic/tag")
 
-(defun matlab-shell-extract-region-to-tmp-file (beg end &optional noshow)
+(defun matlab-shell-region->script (beg end &optional noshow)
   "Extract region between BEG & END into a temporary M file.
 The tmp file name is based on the name of the current buffer.
 The extracted region is unmodified from src buffer unless NOSHOW is non-nil,
