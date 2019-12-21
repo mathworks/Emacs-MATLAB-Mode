@@ -207,7 +207,7 @@
 
 	(other-window 1)
 
-	(when (not (string= (buffer-name) "*MATLAB Help*"))
+	(when (not (string= (buffer-name) "*MATLAB Help: ls*"))
 	  (mstest-savestate)
 	  (error "Help command failed to create MATLAB Help buffer."))
 
