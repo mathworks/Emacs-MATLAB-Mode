@@ -357,6 +357,9 @@ If LINE is negative then do not test the line number."
       (goto-line 6)
       ;; Use gud fcn
       (mstest-debugger-breakpoint #'gud-break "dbtester" "6")
+
+      (mstest-debugger-breakpointlist '(("dbtester" . 6)))
+      
       (mstest-debugger-navto "dbtester" "dbtester.m" "6")
 
       (mstest-debugger-navto #'gud-next "dbtester.m" 8)
@@ -364,8 +367,84 @@ If LINE is negative then do not test the line number."
       (mstest-debugger-navto #'gud-next "dbtester.m" 10)
 
       (mstest-debugger-navto #'gud-cont "dbtester.m" -1)
-    
-    )))
+
+      (goto-line 41)
+      (mstest-debugger-breakpoint #'gud-break "dbtester" "6" "dbtester>localfunc_5" "41"))
+
+      (mstest-debugger-breakpointlist '(("dbtester>localfunc_5" . 41)
+					("dbtester" . 6)))
+
+      (find-file (expand-file-name "dbtester.m" mst-testfile-path))
+
+      (mstest-debugger-navto "dbtester" "dbtester.m" "6")
+
+      (mstest-debugger-navto #'gud-cont "dbtester.m" 41)
+
+      (mstest-debugger-navto #'gud-finish "dbtester.m" 37)
+
+      (mstest-debugger-stacklist '(("localfunc_4" . 37)
+				   ("localfunc_3" . 33)
+				   ("localfunc_2" . 29)
+				   ("localfunc_1" . 24)
+				   ("dbtester" . 6)
+				   ))
+      
+      (mstest-debugger-navto #'gud-finish "dbtester.m" 33)
+
+      (mstest-debugger-navto #'gud-cont "dbtester.m" -1)
+
+      ))
+
+(defun mstest-debugger-stacklist (expectedstack)
+  "Run ebstack, and check that a stack buffer appeared, and contains EXPECTEDSTACK"
+  (message "DEBUG: Running ebstatus and checking for breakpoints buffer.")
+
+  (let* ((txt (mstest-get-command-output "ebstack"))
+	 (buff (get-buffer "*MATLAB stack*"))
+	 (cnt 1)
+	 )
+
+    (with-current-buffer buff
+
+      (goto-char (point-min))
+      (dolist (SK expectedstack)
+
+	(unless (looking-at (format "\\s-*%d\\s-+\\(>>\\|--\\)\\s-+%s\\s-+%d" cnt (car SK) (cdr SK)))
+	  (mstest-savestate)
+	  (error "DEBUG: Stack buffer did not contain stack frame for %S, found [%s]"
+		 SK (buffer-substring (point-at-bol) (point-at-eol))))
+	(forward-line 1)
+	(setq cnt (1+ cnt)))
+
+      (message "PASS: Found %d matching breakpoints." (1- cnt))
+      
+      )))
+
+(defun mstest-debugger-breakpointlist (expectedbreakpoints)
+  "Run ebstatus, and check that a breakpoit buffer appeared, and contains EXPECTEDBREAKPOINTS."
+
+  (message "DEBUG: Running ebstatus and checking for breakpoints buffer.")
+
+  (let* ((txt (mstest-get-command-output "ebstatus"))
+	 (buff (get-buffer "*MATLAB breakpoints*"))
+	 (cnt 1)
+	 )
+
+    (with-current-buffer buff
+
+      (goto-char (point-min))
+      (dolist (BP expectedbreakpoints)
+
+	(unless (looking-at (format "\\s-*%d\\s-+-\\s-+%s\\s-+%d" cnt (car BP) (cdr BP)))
+	  (mstest-savestate)
+	  (error "DEBUG: Breakpoints buffer did not contain breakpoint for %S, found [%s]"
+		 BP (buffer-substring (point-at-bol) (point-at-eol))))
+	(forward-line 1)
+	(setq cnt (1+ cnt)))
+
+      (message "PASS: Found %d matching breakpoints." (1- cnt))
+      
+      )))
 
 (defun mstest-debugger-navto (command fileexp lineexp &optional skipchecktxt)
   "Run some dbugger nav command, and verify we ended up in FILE at LINE.
@@ -421,8 +500,8 @@ a function."
 
     (message "PASS")))
 
-(defun mstest-debugger-breakpoint (command fileexplst lineexplst)
-  "Test setting a breakpoint with COMMAND.
+(defun mstest-debugger-breakpoint (command &rest inputs)
+  "Test setting a breakpoint withnnn COMMAND.
 COMMAND can be a string (command to send) or a function to run (such as a gud command).
 If a function, it will be called interactively.
 It should create a breakpoint in file FILEEXP on line LINEEXP.
@@ -430,11 +509,6 @@ FILEEXP and LINEEXP can be lists.  If a list, then there should be breakpoints
 set in the same order as specified."
 
   ;;(message "MSDB: %S -> %S %S" command fileexplst lineexplst)
-  
-  (when (stringp fileexplst)
-    (setq fileexplst (list fileexplst))
-    (setq lineexplst (list lineexplst)))
-
   ;; Run the command, then call dbstatus to see what is there.
   (cond
    ((and (functionp command) (commandp command))
@@ -451,43 +525,77 @@ set in the same order as specified."
   ;; Get the breakpoint status to see what's there.
   (let ((txt (mstest-get-command-output "dbstatus")))
 
-    (if (not fileexplst)
-	;; this means no breakpoints.  Check TXT is empty
-	(progn
-	  (message "DEBUG: Expecting no breakpoints.")
-	  (when (not (string= txt "\n"))
-	    (message "DEBUG: Expected no breakpoints.  Found '%S'." txt)
-	    (mstest-savestate)
-	    (error "DEBUG test failed"))
-	  (message "PASS"))
+    (while inputs
+      (let ((fileexplst (car inputs))
+	    (lineexplst (car (cdr inputs))))
+	(setq inputs (cdr (cdr inputs)))
+	
+	(when (stringp fileexplst)
+	  (setq fileexplst (list fileexplst)))
+	(when (stringp lineexplst)
+	  (setq lineexplst (list lineexplst)))
 
-      ;; We are expecting breakpoints.  Make sure they all match.
-      (while (and fileexplst lineexplst)
+	
+	(if (not fileexplst)
+	    ;; this means no breakpoints.  Check TXT is empty
+	    (progn
+	      (message "DEBUG: Expecting no breakpoints.")
+	      (when (not (string= txt "\n"))
+		(message "DEBUG: Expected no breakpoints.  Found '%S'." txt)
+		(mstest-savestate)
+		(error "DEBUG test failed"))
+	      (message "PASS"))
 
-	(let ((fileexp (car fileexplst))
-	      (lineexp (car lineexplst)))
+	  ;; We are expecting breakpoints.  Make sure they all match.
+	  (while (and fileexplst lineexplst)
+
+	    (let ((fileexp (car fileexplst))
+		  (lineexp lineexplst))
     
-	  (message "DEBUG: Expecting Breakpoint for %s line %s..." fileexp lineexp)
-	  (when (not (string-match "Breakpoint for \\([.>a-zA-Z0-9]+\\) is on line \\([0-9]+\\)" txt))
-	    (message "DEBUG: No breakpoints found.  dbstatus returned %S" txt)
-	    (mstest-savestate)
-	    (error "DEBUG test failed"))
-	  (let ((file (match-string-no-properties 1 txt))
-		(line (match-string-no-properties 2 txt)))
-	    (when (not (string= file fileexp))
-	      (message "DEBUG: Breakpoints in wrong place.  Expected %S, found %S" fileexp file)
-	      (mstest-savestate)
-	      (error "DEBUG test failed"))
-	    (when (not (string= line lineexp))
-	      (message "DEBUG: Breakpoints in wrong place.  Expected Line %S, found %S" lineexp line)
-	      (mstest-savestate)
-	      (error "DEBUG test failed"))
-	  
-	    (message "PASS")))
+	      (message "DEBUG: Expecting Breakpoint for %s line %S..." fileexp lineexp)
+	      (when (not (string-match "Breakpoint for \\([.>a-zA-Z0-9_]+\\) \\(is\\|are\\) on line " txt))
+		(message "DEBUG: No breakpoints found.  dbstatus returned %S" txt)
+		(mstest-savestate)
+		(error "DEBUG test failed"))
+	      (let ((file (match-string-no-properties 1 txt))
+		    (txtend (match-end 0)))
 
-	(setq fileexplst (cdr fileexplst)
-	      lineexplst (cdr lineexplst)))))
-  )
+		;; Check file name
+		(when (not (string= file fileexp))
+		  (message "DEBUG: Breakpoints in wrong place.  Expected %S, found %S" fileexp file)
+		  (mstest-savestate)
+		  (error "DEBUG test failed"))
+
+		;; Loop over all the line numbers.
+		(dolist (LN lineexp)
+		  (unless (string-match "[0-9]+" txt txtend)
+		    (message "DEBUG: Breakpoints text found.  No line number found for expected %S" LN)
+		    (mstest-savestate)
+		    (error "DEBUG test failed"))
+		
+		  (let ((line (match-string-no-properties 0 txt)))
+		    (setq txtend (match-end 0))
+		
+		    (when (not (string= line LN))
+		      (message "DEBUG: Breakpoints in wrong place.  Expected Line %S, found %S" LN line)
+		      (mstest-savestate)
+		      (error "DEBUG test failed"))))
+	  
+		(message "PASS")))
+
+	    (setq fileexplst (cdr fileexplst)))))
+
+      ;; Trim the string, but only if there is more to do.
+      (when inputs
+	(unless (string-match "^\\s-*$" txt)
+	  (message "DEBUG: Expected multiple breakpoint sets, but found no separator before exptected sets: %S" inputs)
+	  (mstest-savestate)
+	  (error "DEBUG test failed"))
+
+	(setq txt (substring txt (match-end 0)))
+	)
+
+      )))
   
 
       
