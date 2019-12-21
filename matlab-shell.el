@@ -274,6 +274,9 @@ mode.")
     (substitute-key-definition 'next-error 'matlab-shell-last-error
 			       km global-map)
 
+    ;; Interrupt
+    (define-key km [(control c) (control c)] 'matlab-shell-interrupt-subjob)
+    
     ;; Help system
     (define-key km [(control h) (control m)] matlab-help-map)
 
@@ -547,6 +550,8 @@ Try C-h f matlab-shell RET"))
 (defvar matlab-shell-accumulator ""
   "Accumulate text that is being captured.")
 (make-variable-buffer-local 'matlab-shell-accumulator)
+(defvar matlab-shell-flush-accumulation-buffer nil
+  "When non-nil, flush the accumulation buffer.")
 
 (defvar matlab-shell-in-process-filter nil
   "Non-nil when inside `matlab-shell-wrapper-filter'.")
@@ -584,7 +589,8 @@ STRING is the recent output from PROC to be filtered."
 	  string "")
 
     ;; STARTCAP - push preceeding text to output.
-    (if (string-match (regexp-quote matlab-shell-capturetext-start-text) matlab-shell-accumulator)
+    (if (and (not matlab-shell-flush-accumulation-buffer)
+	     (string-match (regexp-quote matlab-shell-capturetext-start-text) matlab-shell-accumulator))
 	(progn
 	  (setq string (substring matlab-shell-accumulator 0 (match-beginning 0))
 		matlab-shell-accumulator (substring matlab-shell-accumulator
@@ -603,7 +609,8 @@ STRING is the recent output from PROC to be filtered."
       
       ;; No start capture, or an ended capture, everything goes back to String
       (setq string (concat string matlab-shell-accumulator)
-	    matlab-shell-accumulator ""))
+	    matlab-shell-accumulator ""
+	    matlab-shell-flush-accumulation-buffer nil))
 
     (with-current-buffer buff
       (gud-filter proc string))
@@ -1075,6 +1082,16 @@ and then processes it."
 ;;; COMMANDS
 ;;
 ;; Commands for interacting with the MATLAB shell buffer
+
+(defun matlab-shell-interrupt-subjob ()
+  "Call `comint-interrupt-subjob' and flush accumulation buffer."
+  (interactive)
+  ;; Look at the accumulation buffer, and flush it.
+  (setq matlab-shell-flush-accumulation-buffer t)
+
+  ;; Continue on to do what comint does.
+  (comint-interrupt-subjob)
+  )
 
 (defun matlab-shell-next-matching-input-from-input (n)
   "Get the Nth next matching input from for the command line."
