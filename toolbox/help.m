@@ -6,14 +6,27 @@ function [out, docTopic] = help(varargin)
     origPath = path;
     cleanup = onCleanup(@()path(origPath));
     me = mfilename('fullpath');
+
+    % Recursion Detection.  (Not sure why we sometimes recurse in the first call to help.)
+    [ST] = dbstack('-completenames',1);
+    files = { ST.file };
+    mask = strncmp(files, me, length(me));
+    if any(mask)
+        disp('MATLAB Emacs help override recursion detected.  Exiting.');
+        return;
+    end
+
+    % Remove this dir from path so we can get to the built-in version of help.
     myDir = fileparts(me);
     rmpath(myDir);
 
     builtinHelp = which('help');
     clear cleanup;
-
+    
     helpPath = fileparts(builtinHelp);
 
+    % Cd to where built-in help is so we call that first.  On cleanup restore
+    % old working directory.
     oldCWD = pwd;
     cd(helpPath);
     cleanup = onCleanup(@()cd(oldCWD));
@@ -29,9 +42,13 @@ function [out, docTopic] = help(varargin)
     switch nargout
       case 0
         if cookie
-            disp('<EMACSCAP>(*MATLAB Help*)');
+            disp(['<EMACSCAP>(*MATLAB Help: ' args{:} '*)']);
         end
-        help(args{:});
+        try
+            help(args{:});
+        catch ERR
+            disp(ERR)
+        end
         if cookie
             disp('</EMACSCAP>');
         end
