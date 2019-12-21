@@ -661,7 +661,7 @@ If font lock is not loaded, lay in wait."
       ["Remove Breakpoint (ebclear in FILE at point)" gud-remove
        :active (matlab-shell-active-p)
        :help "Show all active breakpoints in a seperate buffer." ]
-      ["List Breakpoints (ebstatus)" mlg-show-breakpoints
+      ["List Breakpoints (ebstatus)" gud-list-breakpoints
        :active (matlab-shell-active-p)
        :help "List active breakpoints."]
       ["Step (dbstep in)" gud-step

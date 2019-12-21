@@ -101,7 +101,7 @@ Disable this option if the tooltips are too slow in your setup."
 			 (gud-finish . "gud/finish")
 			 (gud-stop-subjob . "gud/stop")
 			 (mlg-show-stack . "gud/all")
-			 (mlg-show-breakpoints . "describe")
+			 (gud-list-breakpoints . "describe")
 			 ))
 	      (tool-bar-local-item-from-menu
 	       (car x) (cdr x) map matlab-mode-map))
@@ -869,7 +869,7 @@ Call debug activate/deactivate features."
     (define-key km "<" 'gud-up)
     (define-key km ">" 'gud-down)
     (define-key km "w" 'mlg-show-stack)
-    (define-key km "v" 'mlg-show-breakpoints)
+    (define-key km "v" 'gud-list-breakpoints)
     (define-key km "e" 'matlab-shell-gud-show-symbol-value)
     ;; (define-key km "p" gud-print)
 
@@ -891,7 +891,7 @@ Debug commands are:
             Allows editing file without causing MATLAB to exit debug mode.
  \\[gud-break]        - Add breakpoint (ebstop in FILE at point)
  \\[gud-remove]        - Remove breakpoint (ebclear in FILE at point)
- \\[mlg-show-breakpoints]        - List breakpoints (ebstatus)
+ \\[gud-list-breakpoints]        - List breakpoints (ebstatus)
  \\[gud-step]        - Step (dbstep in)
  \\[gud-next]        - Next (dbstep)
  \\[gud-finish]        - Finish function (dbstep out)
