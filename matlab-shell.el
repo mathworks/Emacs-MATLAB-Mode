@@ -546,6 +546,7 @@ Try C-h f matlab-shell RET"))
 
 (defvar matlab-shell-accumulator ""
   "Accumulate text that is being captured.")
+(make-variable-buffer-local 'matlab-shell-accumulator)
 
 (defvar matlab-shell-in-process-filter nil
   "Non-nil when inside `matlab-shell-wrapper-filter'.")
@@ -1056,7 +1057,7 @@ and then processes it."
 
 	;; Display the buffer
 	(cond
-	 ((string= "*MATLAB Help*" buffname)
+	 ((string-match "^\\*MATLAB Help" buffname)
 	  (with-current-buffer showbuff
 	    (matlab-shell-help-mode)))
 	 (t
@@ -1064,9 +1065,11 @@ and then processes it."
 	    (view-mode))))
 	
 	(display-buffer showbuff
-			'((display-buffer-below-selected display-buffer-at-bottom)
+			'((display-buffer-use-some-window
+			   display-buffer-below-selected
+			   display-buffer-at-bottom)
 			  (inhibit-same-window . t)
-			  (window-height . shrink-window-if-larger-then-buffer))))
+			  (window-height . shrink-window-if-larger-than-buffer))))
       )))
 
 ;;; COMMANDS
