@@ -1015,6 +1015,8 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
 
 ;;; OUTPUT Capture
 ;;
+(declare-function matlab-shell-help-mode "matlab-topic")
+
 (defun matlab-shell-process-capture-text (str)
   "Process text found between <EMACSCAP> and </EMAACSCAP>.
 Text is found in `matlab-shell-wrapper-filter', and then this

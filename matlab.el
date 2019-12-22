@@ -1383,8 +1383,8 @@ All Key Bindings:
   ;; Save hook for verifying src.  This lets us change the name of
   ;; the function in `write-file' and have the change be saved.
   ;; It also lets us fix mistakes before a `save-and-go'.
-  (make-local-variable 'write-contents-hooks)
-  (add-hook 'write-contents-hooks 'matlab-mode-verify-fix-file-fn)
+  (make-local-variable 'write-contents-functions)
+  (add-hook 'write-contents-functions 'matlab-mode-verify-fix-file-fn)
   ;; when a buffer changes, flush parsing data.
   (add-hook 'after-change-functions 'matlab-change-function nil t)
   ;; give each file it's own parameter history
@@ -3707,7 +3707,7 @@ ARG is passed to `fill-paragraph' and will justify the text."
 	(t
 	 (message "Paragraph Fill not supported in this context."))))
 
-(defvar gud-matlab-debug-active)
+(defvar gud-matlab-debug-active nil)
 (declare-function matlab-shell-gud-minor-mode "matlab-shell-gud")
 
 (defun matlab-toggle-read-only (&optional arg interactive)
