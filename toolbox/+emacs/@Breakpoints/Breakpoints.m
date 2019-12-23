@@ -17,7 +17,7 @@ classdef Breakpoints < handle
             bp.resetEmacs();
         end
         
-        function updateEmacs(bp, show)
+        function str = updateString(bp, show)
         % update Emacs with just the breakpoint deltas.
         % if there is a delta, display prefix text before sending
         % our update.
@@ -64,17 +64,38 @@ classdef Breakpoints < handle
 
             if show
                 showcmd = [ newline '(mlg-show-breakpoints)'];
+            elseif ~isempty(delpts) || ~isempty(addpts)
+                showcmd = [ newline '(mlg-refresh-breakpoint-buffer)'];
             else
-                showcmd = '(mlg-refresh-breakpoint-buffer)';
+                showcmd = '';
             end
+
+            bp.EmacsBreakpoints = currpts;
             
             if ~isempty(delpts) || ~isempty(addpts) || ~isempty(showcmd)
-                % Send the sequence of Emacs commands to update breakpoints
-                str = [ '(progn' newline ...
+                str = [ '(progn ;;breakpoint' newline ...
                         sendPtList('del', delpts) ...
                         sendPtList('add', addpts)  ...
                         showcmd ...
                         ')' ];
+            else
+                str = '';
+            end
+        end
+        
+        function updateEmacs(bp, show)
+        % update Emacs with just the breakpoint deltas.
+        % if there is a delta, display prefix text before sending
+        % our update.
+
+            if nargin < 2
+                show = false;
+            end
+            
+            str = bp.updateString(show);
+            
+            if ~isempty(str)
+                % Send the sequence of Emacs commands to update breakpoints
                 if isempty(bp.NetShellObject)
                     disp(['<EMACSCAP>(eval)' newline]);
                     disp(str)
@@ -82,10 +103,17 @@ classdef Breakpoints < handle
                 else
                     bp.NetShellObject.SendEval(str);
                 end
-                
-
-                bp.EmacsBreakpoints = currpts;
             end
+
+        end
+        
+        function updateForHotLinks(bp)
+            
+            str = bp.updateString(false);
+            if ~isempty(str)
+                disp(str)
+            end
+            
         end
         
         function resetEmacs(bp)

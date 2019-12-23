@@ -33,6 +33,7 @@
 (require 'matlab)
 (require 'linemark)
 (eval-when-compile
+  (require 'font-lock)
   (require 'cl))
 
 (eval-and-compile
@@ -630,7 +631,7 @@ This includes nested-function and cross-function-variables."
 "Remove cross-function-variable overalys and re-fontify buffer."
   (mlint-clear-nested-function-info-overlays)
   (if (and (boundp 'global-font-lock-mode) global-font-lock-mode
-	   (not font-lock-mode))
+	   (boundp 'font-lock-flush) (not font-lock-mode))
       (font-lock-flush (point-min) (point-max))))
 
 (defun mlint-buffer ()

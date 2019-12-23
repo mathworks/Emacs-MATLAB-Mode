@@ -652,29 +652,45 @@ If font lock is not loaded, lay in wait."
       ["Uncomment Region" matlab-uncomment-region t]
       ["Indent Syntactic Block" matlab-indent-sexp])
      ("Debug"
-      ["dbstop in FILE at point" gud-break
+      ["Edit File (toggle read-only)" matlab-shell-gud-mode-edit
+       :help "Exit MATLAB debug minor mode to edit without exiting MATLAB's K>> prompt."
+       :visible gud-matlab-debug-active ]
+      ["Add Breakpoint (ebstop in FILE at point)" gud-break
        :active (matlab-shell-active-p)
        :help "When MATLAB debugger is active, set break point at current M-file point"]
-      ["dbclear in FILE at point" gud-remove
+      ["Remove Breakpoint (ebclear in FILE at point)" gud-remove
        :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active, clear break point at current M-file point"]
-      ["dbstep in" gud-step
+       :help "Show all active breakpoints in a seperate buffer." ]
+      ["List Breakpoints (ebstatus)" gud-list-breakpoints
        :active (matlab-shell-active-p)
+       :help "List active breakpoints."]
+      ["Step (dbstep in)" gud-step
+       :active gud-matlab-debug-active
        :help "When MATLAB debugger is active, step into line"]
-      ["dbstep" gud-next
-       :active (matlab-shell-active-p)
+      ["Next (dbstep)" gud-next
+       :active gud-matlab-debug-active
        :help "When MATLAB debugger is active, step one line"]
-      ["dbup" gud-up
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active and at break point, go up a frame"]
-      ["dbdown" gud-down
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active and at break point, go down a frame"]
-      ["dbcont" gud-cont
-       :active (matlab-shell-active-p)
+      ["Finish function  (dbstep out)" gud-finish
+       :active gud-matlab-debug-active
+       :help "When MATLAB debugger is active, run to end of function"]
+      ["Continue (dbcont)" gud-cont
+       :active gud-matlab-debug-active
        :help "When MATLAB debugger is active, run to next break point or finish"]
-      ["dbquit" gud-finish
-       :active (matlab-shell-active-p)
+      ["Evaluate Expression" matlab-shell-gud-show-symbol-value
+       :active (matlab-any-shell-active-p)
+       :help "When MATLAB is active, show value of the symbol under point."]
+      ["Show Stack" mlg-show-stack
+       :active gud-matlab-debug-active
+       :help "When MATLAB debugger is active, show the stack in a buffer."]
+;;;  Advertise these more if we can get them working w/ gud's frame show.
+;;;      ["Up Call Stack (dbup)" gud-up
+;;;       :active gud-matlab-debug-active
+;;;       :help "When MATLAB debugger is active and at break point, go up a frame"]
+;;;      ["Down Call Stack (dbdown)" gud-down
+;;;       :active gud-matlab-debug-active
+;;;       :help "When MATLAB debugger is active and at break point, go down a frame"]
+      ["Quit debugging (dbquit)" gud-stop-subjob
+       :active gud-matlab-debug-active
        :help "When MATLAB debugger is active, stop debugging"]
       )
 
@@ -1367,8 +1383,8 @@ All Key Bindings:
   ;; Save hook for verifying src.  This lets us change the name of
   ;; the function in `write-file' and have the change be saved.
   ;; It also lets us fix mistakes before a `save-and-go'.
-  (make-local-variable 'write-contents-hooks)
-  (add-hook 'write-contents-hooks 'matlab-mode-verify-fix-file-fn)
+  (make-local-variable 'write-contents-functions)
+  (add-hook 'write-contents-functions 'matlab-mode-verify-fix-file-fn)
   ;; when a buffer changes, flush parsing data.
   (add-hook 'after-change-functions 'matlab-change-function nil t)
   ;; give each file it's own parameter history
@@ -2236,32 +2252,33 @@ of character based."
 
 (defun matlab-ltype-block-comm-1 ()
   "Return the start positions of block comment if we are in a block comment."
-  (save-excursion
-    (let ((start nil)
-	  (good t)
-	  (end nil))
-      (if (and (looking-at "\\%{")
-	       (not (matlab-cursor-in-string-or-comment)))
-	  (setq start (match-beginning 0))
-	(while (and (setq good (re-search-backward "\\%\\([{}]\\)" nil t))
-		    (matlab-cursor-in-string-or-comment))
-	  nil)
+  (save-match-data
+    (save-excursion
+      (let ((start nil)
+	    (good t)
+	    (end nil))
+	(if (and (looking-at "\\%{")
+		 (not (matlab-cursor-in-string-or-comment)))
+	    (setq start (match-beginning 0))
+	  (while (and (setq good (re-search-backward "\\%\\([{}]\\)" nil t))
+		      (matlab-cursor-in-string-or-comment))
+	    nil)
       
-	(when (and good (looking-at "\\%{"))
-	  (setq start (match-beginning 0))))
+	  (when (and good (looking-at "\\%{"))
+	    (setq start (match-beginning 0))))
 
-      (when start
-	(while (and (setq good (re-search-forward "\\%}" nil t))
-		    (matlab-cursor-in-string t))
-	  nil)
+	(when start
+	  (while (and (setq good (re-search-forward "\\%}" nil t))
+		      (matlab-cursor-in-string t))
+	    nil)
 	
-	(if (and good (goto-char (match-beginning 0)) (looking-at "\\%}"))
-	    (setq end (match-end 0))
-	  (setq end (point-max))))
+	  (if (and good (goto-char (match-beginning 0)) (looking-at "\\%}"))
+	      (setq end (match-end 0))
+	    (setq end (point-max))))
 
-      (if (and start end)
-	  (setq matlab-ltype-block-comm-bounds (cons start end))
-	(setq matlab-ltype-block-comm-bounds nil)))))
+	(if (and start end)
+	    (setq matlab-ltype-block-comm-bounds (cons start end))
+	  (setq matlab-ltype-block-comm-bounds nil))))))
 
 (defun matlab-ltype-block-comm-at-start ()
   "Return non-nil if we are on a block comment start line AND
@@ -3690,7 +3707,7 @@ ARG is passed to `fill-paragraph' and will justify the text."
 	(t
 	 (message "Paragraph Fill not supported in this context."))))
 
-(defvar gud-matlab-debug-active)
+(defvar gud-matlab-debug-active nil)
 (declare-function matlab-shell-gud-minor-mode "matlab-shell-gud")
 
 (defun matlab-toggle-read-only (&optional arg interactive)

@@ -57,7 +57,7 @@ classdef Stack < handle
 
             es.captureStack(newstack, newframe);
 
-            str = [ '(progn ' newline ];
+            str = [ '(progn ;;Stack' newline ];
                 
             if es.StackPending
                 str = [ str ...
@@ -91,29 +91,33 @@ classdef Stack < handle
             
             % updateEmacs(es, newstack, newframe);
             
-            str = [ '(progn ' newline ];
-                
-            if es.StackPending
-                str = [ str ...
-                        stackFrames(es.EmacsStack) ...
-                        newline ];
-            end
             if es.StackPending || es.FramePending
+                str = [ '(progn ;;Stack' newline ];
+                
+                if es.StackPending
+                    str = [ str ...
+                            stackFrames(es.EmacsStack) ...
+                            newline ];
+                end
                 str = [ str ...
                         '  (mlg-set-stack-frame-via-gud ' num2str(es.EmacsFrame) ')' ];
+                
+                str = [ str ')'];
+                
+            else
+                str = '';
             end
-            
-            str = [ str ')'];
                 
             es.StackPending = false;
             es.FramePending = false;
-                
-            if isempty(es.NetShellObject)
-                disp(str);
-            else
-                es.NetShellObject.SendEval(str);
+
+            if ~isempty(str)
+                if isempty(es.NetShellObject)
+                    disp(str);
+                else
+                    es.NetShellObject.SendEval(str);
+                end
             end
-            
         end
         
     end

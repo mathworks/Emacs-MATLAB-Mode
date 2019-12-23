@@ -60,20 +60,23 @@
       (with-current-buffer buf
 	(goto-char (point-min))
 	(message ">> Starting search loop in %S" (current-buffer))
-	(while (re-search-forward "#\\([csve]\\)#" nil t)
+	(while (re-search-forward "#\\([csveb]\\)#" nil t)
 	  (goto-char (match-end 1))
 	  (let ((md (match-data))
 		(mc (match-string 1))
+		(bc (matlab-ltype-block-comm))
 		(qd (matlab-cursor-comment-string-context)))
 	    ;; Test 1 - what are we?
-	    (unless (or (and (string= "v" mc) (eq 'charvector qd))
+	    (unless (or (and (string= "b" mc) bc)
+			(and (string= "v" mc) (eq 'charvector qd))
 			(and (string= "s" mc) (eq 'string qd))
 			(and (string= "c" mc) (eq 'comment qd))
 			(and (string= "e" mc) (eq 'elipsis qd))
 			)
 	      (error "Syntax Test Failure @ line %d: Expected %s but found %S"
 		     (line-number-at-pos)
-		     (cond ((string= mc "v") "charvector")
+		     (cond ((string= mc "b") "block comment")
+			   ((string= mc "v") "charvector")
 			   ((string= mc "s") "string")
 			   ((string= mc "c") "comment")
 			   ((string= mc "e") "elipsis")
@@ -90,7 +93,7 @@
       ))
   (message ""))
   
-(defvar met-sexptest-files '("expressions.m" "mclass.m" "indents.m")
+(defvar met-sexptest-files '("expressions.m" "mclass.m")
   "List of files for running syntactic expression tests.")
 
 (defun metest-sexp-counting-test ()

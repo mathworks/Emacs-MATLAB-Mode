@@ -45,20 +45,8 @@ Disable this option if the tooltips are too slow in your setup."
 (defvar gud-matlab-debug-deactivate-hook nil
   "Hooks run when MATLAB detects a >> prompt after a K>> prompt.")
 
-(defvar gud-matlab-tool-bar-map
-  (let ((map (make-sparse-keymap)))
-    (dolist (x '((gud-break . "gud/break")
-		 (gud-remove . "gud/remove")
-		 (gud-cont . "gud/cont")
-		 (gud-next . "gud/next")
-		 (gud-step . "gud/step")
-		 (gud-stop-subjob . "gud/stop")
-		 (gud-finish . "gud/finish")
-		 (gud-up . "gud/up")
-		 (gud-down . "gud/down"))
-	       map)
-      (tool-bar-local-item-from-menu
-       (car x) (cdr x) map gud-minor-mode-map))))
+(defvar gud-matlab-tool-bar-map nil
+  "Toolbar keymap used when in MATLAB debug mode.")
 
 (declare-function matlab-netshell-eval "matlab-netshell" (mode))
 
@@ -66,7 +54,7 @@ Disable this option if the tooltips are too slow in your setup."
   "Define CMD to be a GUD command that works w/ shell or netshell."
   ;; Note `arg' comes from gud-def declaration
   `(if (matlab-shell-active-p)
-       (gud-call ,cmd arg)
+       (gud-call (concat ,cmd "%%") arg)
      (if (matlab-netshell-active-p)
 	 (matlab-netshell-eval (gud-format-command ,cmd arg))
        (error "No MATLAB shell active"))))
@@ -87,17 +75,40 @@ Disable this option if the tooltips are too slow in your setup."
     (error "Your Emacs is missing `gud-def' which means matlab-shell won't work correctly.  Stopping"))
 
   (gud-def gud-break  (matlab-at-fcn "ebstop in %d%f at %l")  "\C-b" "Set breakpoint at current line.")
-  (gud-def gud-remove (matlab-at-fcn "ebclear in %d%f at %l") "\C-d" "Remove breakpoint at current line.")
+  (gud-def gud-remove (matlab-at-fcn "ebclear in %d%f at %l") "\C-x" "Remove breakpoint at current line.")
   (gud-def gud-step   (matlab-gud-fcn "dbstep in")   "\C-s" "Step one source line, possibly into a function.")
   (gud-def gud-next   (matlab-gud-fcn "dbstep %p")   "\C-n" "Step over one source line.")
   (gud-def gud-cont   (matlab-gud-fcn "dbcont")      "\C-r" "Continue with display.")
-  (gud-def gud-stop-subjob (matlab-gud-fcn "dbquit") nil    "Quit debugging.") ;; gud toolbar stop
-  (gud-def gud-finish (matlab-gud-fcn "dbquit")      "\C-f" "Finish executing current function.")
+  (gud-def gud-stop-subjob (matlab-gud-fcn "dbquit") "\C-q" "Quit debugging.") ;; gud toolbar stop
+  (gud-def gud-finish (matlab-gud-fcn "dbstep out")  "\C-f" "Finish executing current function.")
   (gud-def gud-up     (matlab-gud-fcn "dbup")        "<"    "Up N stack frames (numeric arg).")
   (gud-def gud-down   (matlab-gud-fcn "dbdown")      ">"    "Down N stack frames (numeric arg).")
+  (gud-def gud-list-breakpoints (matlab-at-fcn "ebstatus")  "\C-v"    "List breakpoints")
+  (gud-def gud-show-stack       (matlab-at-fcn "ebstack")   "\C-w"    "Show stack")
   ;; using (gud-def gud-print  "%e" "\C-p" "Eval expression at point") fails
   ;; (gud-def gud-print  "% gud-print not available" "\C-p" "gud-print not available.")
 
+  (when window-system
+    (matlab-frame-init)
+
+    (setq gud-matlab-tool-bar-map
+	  (let ((map (make-sparse-keymap)))
+	    (dolist (x '((gud-break . "gud/break")
+			 (gud-remove . "gud/remove")
+			 (gud-cont . "gud/cont")
+			 (gud-next . "gud/next")
+			 (gud-step . "gud/step")
+			 (gud-finish . "gud/finish")
+			 (gud-stop-subjob . "gud/stop")
+			 (mlg-show-stack . "gud/all")
+			 (gud-list-breakpoints . "describe")
+			 ))
+	      (tool-bar-local-item-from-menu
+	       (car x) (cdr x) map matlab-mode-map))
+	    map))
+
+    )
+  
   (if (fboundp 'gud-make-debug-menu)
       (gud-make-debug-menu))
 
@@ -299,7 +310,7 @@ FILE is ignored, and ARGS is returned."
 	    (sit-for 0)
 	    ))
 
-      ;; Check for any text that would be embarrasing to display partially.
+      ;; Check for any text that would be embarrassing to display partially.
       ;; If we don't see any, feel free to dump the rest of the accumulation buffer
       (unless (or (string-match (regexp-quote "<a href=") gud-marker-acc)
 		  (string-match (regexp-quote "<EMACSCAP") gud-marker-acc)
@@ -468,7 +479,7 @@ LONGESTNAME specifies the how long the longest name we can expect is."
     km)
   "Keymap used in MATLAB stack mode.")
 
-;; Need this to fix wierd problem in define-derived-mode
+;; Need this to fix weird problem in define-derived-mode
 (defvar mlg-stack-mode-syntax-table (make-syntax-table)
   "Syntax table used in `matlab-shell-help-mode'.")
 
@@ -540,7 +551,7 @@ Visit the file presented in that stack frame."
   ((file :initarg :file
 	 :type string
 	 :documentation
-	 "The filename this brekpoint belongs to.")
+	 "The filename this breakpoint belongs to.")
    (name :initarg :name
 	 :type string
 	 :documentation
@@ -551,7 +562,7 @@ Visit the file presented in that stack frame."
 	 "The line number for this breakpoint")
    (overlay :documentation
 	    :default nil
-	    "The overlay indicating the preense of this breakpoint.")
+	    "The overlay indicating the presence of this breakpoint.")
    )
   "Representation of a breakpoint.
 Used to track active breakpoints, and how to show them.")
@@ -735,7 +746,7 @@ LONGESTNAME specifies the how long the longest name we can expect is."
     km)
   "Keymap used in MATLAB breakpoint mode.")
 
-;; Need this to fix wierd problem in define-derived-mode
+;; Need this to fix weird problem in define-derived-mode
 (defvar mlg-breakpoint-mode-syntax-table (make-syntax-table)
   "Syntax table used in `matlab-shell-help-mode'.")
 
@@ -846,66 +857,27 @@ Call debug activate/deactivate features."
 
     ;; gud bindings.
     (define-key km "b" 'gud-break)
-    (define-key km "r" 'gud-remove)
+    (define-key km "x" 'gud-remove)
     (define-key km "c" 'gud-cont)
     (define-key km "s" 'gud-step)
+    (define-key km " " 'gud-step)
     (define-key km "n" 'gud-next)
     (define-key km "f" 'gud-finish)
-    (define-key km "q" 'gud-finish)
-    (define-key km "u" 'gud-up)
-    (define-key km "d" 'gud-down)
+    (define-key km "q" 'gud-stop-subjob)
+    ;(define-key km "u" 'gud-up)
+    ;(define-key km "d" 'gud-down)
     (define-key km "<" 'gud-up)
     (define-key km ">" 'gud-down)
-    (define-key km "v" 'mlg-show-stack)
-    (define-key km "w" 'mlg-show-breakpoints)
-    (define-key km "p" 'matlab-shell-gud-show-symbol-value)
+    (define-key km "w" 'mlg-show-stack)
+    (define-key km "v" 'gud-list-breakpoints)
+    (define-key km "e" 'matlab-shell-gud-show-symbol-value)
     ;; (define-key km "p" gud-print)
 
-    (define-key km "e" 'matlab-shell-gud-mode-edit)
+    ;;(define-key km "" 'matlab-shell-gud-mode-edit)
     (define-key km "\C-x\C-q" 'matlab-shell-gud-mode-edit) ; like toggle-read-only
     
     km)
   "Keymap used by matlab mode maintainers.")
-
-(easy-menu-define
-  matlab-shell-gud-menu matlab-shell-gud-minor-mode-map "MATLAB Maintainer's Minor Mode"
-  '("MATLAB-DEBUG"
-      ["Edit File (toggle read-only)" matlab-shell-gud-mode-edit
-       :help "Exit the MATLAB debug minor mode to edit without exiting MATLAB's K>> prompt."]
-      ["dbstop in FILE at point" gud-break
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active, set break point at current M-file point"]
-      ["dbclear in FILE at point" gud-remove
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active, clear break point at current M-file point"]
-      ["dbstep in" gud-step
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active, step into line"]
-      ["dbstep" gud-next
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active, step one line"]
-      ["dbup" gud-up
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active and at break point, go up a frame"]
-      ["dbdown" gud-down
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active and at break point, go down a frame"]
-      ["dbcont" gud-cont
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active, run to next break point or finish"]
-      ["Show Stack" mlg-show-stack
-       :active (matlab-any-shell-active-p)
-       :help "When MATLAB debugger is active, show value of the symbol under point."]
-      ["Show Breakpoints" mlg-show-breakpoints
-       :active (matlab-any-shell-active-p)
-       :help "When MATLAB debugger is active, show value of the symbol under point."]
-      ["Show symbol value" matlab-shell-gud-show-symbol-value
-       :active (matlab-any-shell-active-p)
-       :help "When MATLAB debugger is active, show value of the symbol under point."]
-      ["dbquit" gud-finish
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active, stop debugging"]
-      ))
 
 ;;;###autoload
 (define-minor-mode matlab-shell-gud-minor-mode
@@ -915,16 +887,18 @@ activate debug commands.  It also enables tooltips to appear when the
 mouse hovers over a symbol when debugging.
 \\<matlab-shell-gud-minor-mode-map>
 Debug commands are:
- \\[gud-break]   - Set a breakpoint on the current line
- \\[gud-remove]   - Clear breakpoint on line
- \\[gud-cont]   - Continue till next breakpoint
- \\[gud-step]   - Step into next functions
- \\[gud-next]   - Next line in current function
- \\[gud-finish]   - Exit debug mode
- \\[gud-up]   - Navigate up the call stack
- \\[gud-down]   - Navigate down the call stack
- \\[matlab-shell-gud-mode-edit]   - Exit gud minor mode so you can edit
-       you file without causing MATLAB to exit debug mode."
+ \\[matlab-shell-gud-mode-edit]  - Edit file (toggle read-only)
+            Allows editing file without causing MATLAB to exit debug mode.
+ \\[gud-break]        - Add breakpoint (ebstop in FILE at point)
+ \\[gud-remove]        - Remove breakpoint (ebclear in FILE at point)
+ \\[gud-list-breakpoints]        - List breakpoints (ebstatus)
+ \\[gud-step]        - Step (dbstep in)
+ \\[gud-next]        - Next (dbstep)
+ \\[gud-finish]        - Finish function (dbstep out)
+ \\[gud-cont]        - Continue (dbcont)
+ \\[matlab-shell-gud-show-symbol-value]        - Evaluate expression
+ \\[mlg-show-stack]        - Where am I (ebstack)
+ \\[gud-stop-subjob]        - Quit (dbquit)"
   nil " MGUD" matlab-shell-gud-minor-mode-map
   
   ;; Make the buffer read only
@@ -978,7 +952,7 @@ Debug commands are:
 	      (concat "disp(" sym ")"))))
     (if (not (string-match "ERRORTXT" txt))
 	(matlab-output-to-temp-buffer "*MATLAB Help*" txt)
-      (message "Error evaluationg MATLAB expression"))))
+      (message "Error evaluating MATLAB expression"))))
 
 
 (defun matlab-shell-gud-mode-edit ()
@@ -1004,7 +978,7 @@ Shows a help message in the mini buffer."
 ;; just override the tooltip fcn (see the mode) with this function
 ;; as an additional piece.
 (defun gud-matlab-tooltip-tips (event)
-  "Implementation of the tooltip feture for MATLAB.
+  "Implementation of the tooltip feature for MATLAB.
 Much of this was copied from `gud-tooltip-tips'.
 
 This function must return nil if it doesn't handle EVENT."
@@ -1043,7 +1017,7 @@ if it looks like a function call, it will return nil."
 	    (when (and (<= (region-beginning) point) (<= point (region-end)))
 	      (buffer-substring (region-beginning) (region-end)))
 
-	  ;; This snippent copied from tooltip.el, then modified to
+	  ;; This snippet copied from tooltip.el, then modified to
 	  ;; detect matlab functions
 	  (save-excursion
 	    (goto-char point)
@@ -1074,3 +1048,13 @@ if it looks like a function call, it will return nil."
 (provide 'matlab-shell-gud)
 
 ;;; matlab-shell-gud.el ends here
+
+;; LocalWords:  el Ludlam eludlam emacsvm eieio defcustom keymap dolist subjob
+;; LocalWords:  cdr netshell defmacro defun fboundp ebstop ebclear ebstatus
+;; LocalWords:  ebstack boundp setq realfname progn aset buf noselect dbhotlink
+;; LocalWords:  COMINT errortext dbhlcmd comint endprompt mello mlg EMACSCAP
+;; LocalWords:  defclass initarg defmethod longestname namefmt propertize oref
+;; LocalWords:  newstack nreverse newframe namelen cnt prev MStack BP del NBPS
+;; LocalWords:  defface bp oset ol eol overlayp MBreakpoints MGUD gud's
+;; LocalWords:  toolboar minibuffer ERRORTXT eventp emacstipstring posn pstate
+;; LocalWords:  ppss sexp

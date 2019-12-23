@@ -40,7 +40,9 @@
   matlab-maint-menu matlab-maint-mode-map "MATLAB Maintainer's Minor Mode"
   '("MMaint"
     ["Compile" matlab-maint-compile-matlab-emacs t]
+    ["Clean" matlab-maint-compile-clean t]
     ["Run Tests" matlab-maint-run-tests t]
+    ["Pick Emacs to run" matlab-maint-pick-emacs t]
     ["Toggle IO Logging" matlab-maint-toggle-io-tracking
      :style toggle :selected matlab-shell-io-testing ]
     ["Display logger frame" matlab-maint-toggle-logger-frame
@@ -68,13 +70,43 @@
 ;;; Commands
 ;;
 ;; Helpful commands for maintainers.
+(defcustom matlab-maint-compile-opts '("emacs" "emacs24" "emacs25" "emacs26")
+  "Various emacs versions we can use to compile with."
+  :group 'matlab-maint
+  :type '(repeat (string :tag "Emacs Command: ")))
+
+(defcustom matlab-maint-compile-emacs "emacs"
+  "The EMACS to pass into make."
+  :group 'matlab-maint
+  :type 'string)
+
+(defun matlab-maint-pick-emacs (emacscmd)
+  "Select the Emacs to use for compiling."
+  (interactive (list (completing-read "Emacs to compile MATLAB: "
+				      matlab-maint-compile-opts
+				      nil
+				      t
+				      (car matlab-maint-compile-opts))))
+  (setq matlab-maint-compile-emacs emacscmd)
+  )
 
 (defun matlab-maint-compile-matlab-emacs ()
   "Run make for the matlab-emacs project."
   (interactive)
   (save-excursion
     (matlab-maint-set-buffer-to "matlab.el")
-    (compile "make")))
+    (if (string= matlab-maint-compile-emacs "emacs")
+	(compile "make")
+      (compile (concat "make EMACS=" matlab-maint-compile-emacs))))
+  )
+
+(defun matlab-maint-compile-clean ()
+  "Run make for the matlab-emacs project."
+  (interactive)
+  (save-excursion
+    (matlab-maint-set-buffer-to "matlab.el")
+    (compile "make clean")
+    ))
 
 (defun matlab-maint-run-tests (arg)
   "Run the tests for matlab mode.
@@ -82,7 +114,7 @@ With universal ARG, ask for the code to be run with output tracking turned on."
   (interactive "P")
   (save-excursion
     (matlab-maint-set-buffer-to "tests/Makefile")
-    (if arg
+    (if (or arg matlab-shell-io-testing)
 	;; Ask for dbug
 	(compile "make TESTDEBUG=1")
       ;; No debugging

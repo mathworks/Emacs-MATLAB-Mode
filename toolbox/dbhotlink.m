@@ -6,6 +6,11 @@ function dbhotlink()
     
    [ST, I] = dbstack('-completenames');
    
+   disp('(progn ');
    es = getappdata(groot, 'EmacsStack');
    es.updateForHotLinks(ST, I);
+   bp = getappdata(groot, 'EmacsBreakpoints');
+   bp.updateForHotLinks();
+   disp(')');
+
 end

@@ -368,7 +368,7 @@ Call the new entrie's activate method."
 	  (linemark-display to nil))
       (setq o (cdr o)))))
 
-(add-hook 'find-file-hooks 'linemark-find-file-hook)
+(add-hook 'find-file-hook 'linemark-find-file-hook)
 (add-hook 'kill-buffer-hook 'linemark-kill-buffer-hook)
 
 ;;; Demo mark tool: Emulate MS Visual Studio bookmarks
