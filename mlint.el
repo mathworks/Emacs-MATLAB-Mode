@@ -4,10 +4,10 @@
 ;; Maintainer: Eric M. Ludlam <eludlam@mathworks.com>
 ;; Created: June 25, 2002
 
-(defvar mlint-version "1.3.1"
+(defvar mlint-version "1.3.2"
   "The current version of mlint minor mode.")
 
-;; Copyright (C) 2002-2005, 2013, 2014, 2016-2017 The MathWorks Inc.
+;; Copyright (C) 2002-2005, 2013, 2014, 2016-2017, 2019 The MathWorks Inc.
 ;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -28,9 +28,12 @@
 ;; Run mlint, and highlight the problems in the buffer.
 ;;
 
+(eval-and-compile
+  (require 'matlab-compat))
 (require 'matlab)
 (require 'linemark)
 (eval-when-compile
+  (require 'font-lock)
   (require 'cl))
 
 (eval-and-compile
@@ -40,6 +43,13 @@
         (t
          (defalias 'mlint-object-name-string 'object-name-string)))
   )
+
+;; If we can't find an mlint program this fcn wil lbe needed.
+(autoload 'matlab-mode-determine-matlabroot "matlab-shell" "\
+Return the MATLABROOT for the 'matlab-shell-command'.
+
+\(fn)" nil nil)
+
 
 ;; `goto-line' is for interactive use only; use `forward-line' instead.
 (defun mlint-goto-line (n) (goto-char (point-min)) (forward-line (1- n)))
@@ -108,8 +118,10 @@ This value can be automatically set by `mlint-programs'.")
 (defun mlint-reset-program ()
   "Reset `mlint-program'."
   (setq mlint-program
-	(let ((mlp mlint-programs)
-	      (ans nil))
+	(let* ((root (matlab-mode-determine-matlabroot))
+	       (bin (expand-file-name "bin" root))
+	       (mlp mlint-programs)
+	       (ans nil))
 	  (while (and mlp (not ans))
 	    (cond ((null (car mlp))
 		   nil)
@@ -117,6 +129,9 @@ This value can be automatically set by `mlint-programs'.")
 		   (setq ans (car mlp)))
 		  ((executable-find (car mlp))
 		   (setq ans (executable-find (car mlp))))
+		  ;; Use the matlabroot found by matlab-shell
+		  ((file-executable-p (expand-file-name (car mlp) bin))
+		   (setq ans (expand-file-name (car mlp) bin)))
 		  (t nil))
 	    (setq mlp (cdr mlp)))
 	  ans)))
@@ -263,7 +278,9 @@ If BUFFER is nil, use the current buffer."
                     (forward-char (1- (cdr where)))
                     (re-search-backward "function\\b")
                     (setq where (point))
-                    (matlab-forward-sexp)
+		    (condition-case nil
+			(matlab-forward-sexp)
+		      (error (goto-char (point-max))))
                     (if (cadr entry) ; nested
                       (linemark-overlay-put
                        (linemark-make-overlay where (point))
@@ -353,10 +370,11 @@ Different warnings are handled by different classes."
 	(or (cdr (car al)) 'mlint-lm-entry))
     'mlint-lm-entry))
 
-(defmethod linemark-new-entry ((g mlint-lm-group) &rest args)
+(cl-defmethod linemark-new-entry ((g mlint-lm-group) &rest args)
   "Add a `linemark-entry' to G.
 It will be at location FILE and LINE, and use optional FACE.
-Call the new entrie's activate method."
+Call the new entrie's activate method.
+Optional ARGS specifies details about the entry."
   (let* ((f (plist-get args :filename))
 	 (l (plist-get args :line))
 	 (wc (plist-get args :warningcode))
@@ -376,8 +394,9 @@ Call the new entrie's activate method."
 
 (defvar mlint-overlay-map) ;; quiet compiler warning with forward declaration
 
-(defmethod linemark-display ((e mlint-lm-entry) active-p)
-  "Set object E to be active."
+(cl-defmethod linemark-display ((e mlint-lm-entry) active-p)
+  "Set object E to be active.
+ACTIVE-P if it should be made visible."
   ;; A bug in linemark prevents individual entry colors.
   ;; Fix the color here.
   (let ((wc (oref e warningcode)))
@@ -386,7 +405,7 @@ Call the new entrie's activate method."
 		((eq wc 'medium) 'linemark-caution-face)
 		(t 'linemark-go-face))))
   ;; Call our parent method
-  (call-next-method)
+  (cl-call-next-method)
   ;; Add highlight area
   (if active-p
       (when (and (not (slot-boundp e 'coverlay))
@@ -433,18 +452,18 @@ Call the new entrie's activate method."
 	  (slot-makeunbound e 'coverlay)))
       )))
 
-(defmethod mlint-is-fixable ((e mlint-lm-entry))
-  "Return non-nil if this entry can be automatically fixed."
+(cl-defmethod mlint-is-fixable ((e mlint-lm-entry))
+  "Return non-nil if entry E can be automatically fixed."
   (oref-default e fixable-p))
 
-(defmethod mlint-fix-entry :AFTER ((e mlint-lm-entry))
+(cl-defmethod mlint-fix-entry :AFTER ((e mlint-lm-entry))
   "Stuff to do after a warning is considered fixed.
 Subclasses fulfill the duty of actually fixing the code."
   (linemark-display e nil)
   (linemark-delete e))
 
-(defmethod mlint-fix-entry ((e mlint-lm-entry))
-  "This entry cannot fix warnings, so throw an error.
+(cl-defmethod mlint-fix-entry ((e mlint-lm-entry))
+  "This entry E cannot fix warnings, so throw an error.
 Subclasses fulfill the duty of actually fixing the code."
   (error "Don't know how to fix warning"))
 
@@ -457,8 +476,8 @@ Subclasses fulfill the duty of actually fixing the code."
    )
   "Specialized entry for deleting the higlighted entry.")
 
-(defmethod mlint-fix-entry ((ent mlint-lm-delete-focus))
-  "Add semi-colon to end of this line."
+(cl-defmethod mlint-fix-entry ((ent mlint-lm-delete-focus))
+  "Add semi-colon to end of this line ENT."
   (save-excursion
     (mlint-goto-line (oref ent line))
     (let* ((s (progn (move-to-column (1- (oref ent column))) (point)))
@@ -477,17 +496,18 @@ Subclasses fulfill the duty of actually fixing the code."
   "Class which can replace the focus area."
   :abstract t)
 
-(defmethod initialize-instance :AFTER ((this mlint-lm-replace-focus)
+(cl-defmethod initialize-instance :AFTER ((this mlint-lm-replace-focus)
 				       &rest fields)
   "Calculate the new fix description for THIS.
 Optional argument FIELDS are the initialization arguments."
   ;; After basic initialization, update the fix description.
-  (oset this fix-description (concat (oref mlint-lm-replace-focus fix-description)
-				     (oref this new-text))))
+  (oset this fix-description
+	(concat (oref-default mlint-lm-replace-focus fix-description)
+		(oref this new-text))))
 
-(defmethod mlint-fix-entry ((ent mlint-lm-replace-focus))
-  "Replace the focus area with :new-text"
-  (let ((pos (call-next-method)))
+(cl-defmethod mlint-fix-entry ((ent mlint-lm-replace-focus))
+  "Replace the focus area with :new-text."
+  (let ((pos (cl-call-next-method)))
     (save-excursion
       (goto-char (point))
       (insert (oref ent new-text)))))
@@ -501,7 +521,7 @@ Optional argument FIELDS are the initialization arguments."
   "Entry for anything that is depricated.
 Extracts the replacement for the depricated symbol from the warning message.")
    
-(defmethod initialize-instance :AFTER ((this mlint-lm-entry-depricated)
+(cl-defmethod initialize-instance :AFTER ((this mlint-lm-entry-depricated)
 				       &rest fields)
   "Calculate the 'new text' for THIS instance.
 Optional argument FIELDS are the initialization arguments."
@@ -511,8 +531,9 @@ Optional argument FIELDS are the initialization arguments."
 	 (newfcn (when junk (downcase (substring warn (match-beginning 1) (match-end 1))))))
     (oset this new-text newfcn)
     ;; After basic initialization, update the fix description.
-    (oset this fix-description (concat (oref mlint-lm-replace-focus fix-description)
-				       newfcn))
+    (oset this fix-description
+	  (concat (oref-default mlint-lm-replace-focus fix-description)
+		  newfcn))
     ))
   
 (defclass mlint-lm-entry-logicals (mlint-lm-entry)
@@ -521,7 +542,7 @@ Optional argument FIELDS are the initialization arguments."
    )
   "Specialized logical and/or class.")
 
-(defmethod mlint-fix-entry ((ent mlint-lm-entry-logicals))
+(cl-defmethod mlint-fix-entry ((ent mlint-lm-entry-logicals))
   "Replace the single logical with double logical."
   (save-excursion
     (mlint-goto-line (oref ent line))
@@ -539,7 +560,7 @@ Optional argument FIELDS are the initialization arguments."
    )
   "Specialized logical and/or class.")
 
-(defmethod mlint-fix-entry ((ent mlint-lm-entry-unused-argument))
+(cl-defmethod mlint-fix-entry ((ent mlint-lm-entry-unused-argument))
   "Remove the arguments."
   (save-excursion
     (mlint-goto-line (oref ent line))
@@ -560,7 +581,7 @@ Optional argument FIELDS are the initialization arguments."
   "Specialized logical and/or class.")
 
 
-(defmethod mlint-fix-entry ((ent mlint-lm-quiet))
+(cl-defmethod mlint-fix-entry ((ent mlint-lm-quiet))
   "Add semi-colon to end of this line."
   (save-excursion
     (matlab-end-of-command)
@@ -610,8 +631,8 @@ This includes nested-function and cross-function-variables."
 "Remove cross-function-variable overalys and re-fontify buffer."
   (mlint-clear-nested-function-info-overlays)
   (if (and (boundp 'global-font-lock-mode) global-font-lock-mode
-	   (not font-lock-mode))
-      (font-lock-fontify-buffer)))
+	   (boundp 'font-lock-flush) (not font-lock-mode))
+      (font-lock-flush (point-min) (point-max))))
 
 (defun mlint-buffer ()
   "Run mlint on the current buffer.
@@ -808,7 +829,7 @@ With prefix ARG, turn mlint minor mode on iff ARG is positive.
         )
       )
     (if (not mlint-program)
-	(if (y-or-n-p "No MLINT program available.  Configure it?")
+	(if (y-or-n-p "No MLINT program available.  Configure it? ")
 	    (customize-variable 'mlint-programs))
 
       (add-hook 'after-save-hook 'mlint-buffer nil t)

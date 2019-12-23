@@ -1,9 +1,8 @@
 ;;; semantic-matlab.el --- Semantic details for MATLAB files
 
-;;; Copyright (C) 2004, 2005, 2008, 2012, 2013 Eric M. Ludlam: The Mathworks, Inc
+;;; Copyright (C) 2004-2013, 2019 Eric M. Ludlam: The Mathworks, Inc
 
 ;; Author: Eric M. Ludlam <eludlam@mathworks.com>
-;; X-RCS: $Id$
 
 ;; This file is not part of GNU Emacs.
 
@@ -30,8 +29,6 @@
 ;; you can only declare functions.  In addition, the language itself is not
 ;; expressable in a yacc style grammar.  It is therefore more expedient
 ;; to scan for regular expressions.
-;;
-;; Caveat: MCOS classes have property declarations. @todo - support them
 
 (require 'mode-local)
 (require 'semantic)
@@ -44,30 +41,52 @@
     (error (require 'semantic/dep)))
   )
 (require 'matlab)
+(require 'matlab-shell)
 (require 'semanticdb-matlab)
 
 ;;; Code:
+
+;;; Utilities
+;;
+;; These functions wrap behavior provided by semantic for use in parts of matlab mode
+;; that need them.  Take care of users who don't have cedet/semantic enabled by default.
+
+(defun matlab-semantic-get-local-functions-for-script (&optional buffer)
+  "Return the list of functions (as semantic tags) for BUFFER.
+If `semantic-mode' is not enabled, do something hacky to make it work."
+  (save-excursion
+    (when buffer (set-buffer buffer))
+    
+    (let ((tags (save-excursion
+		  (semantic-refresh-tags-safe)
+		  (semantic-find-tags-by-class 'function (current-buffer)))))
+      (when (and (not tags) (not semantic-mode))
+	;; We got no tags, and semantic isn't enabled.
+	;; Lets fake it.
+
+	;; call the parse region function.  It won't be cached, so we have to do the work every
+	;; time, but hopefully it is fast enough for matlab-shell and cell scripts.
+	(setq tags (semantic-matlab-parse-region))
+	
+	)
+      tags)))
+
+(defun matlab-semantic-tag-text (tag buffer)
+  "Return the text string for TAG in BUFFER."
+  (with-current-buffer buffer
+    (buffer-substring-no-properties (semantic-tag-start tag)
+				    (semantic-tag-end tag))))
+
+;;; Configuration
+;;
+
 (defvar semantic-matlab-system-paths-include '("toolbox/matlab/funfun" "toolbox/matlab/general")
   "List of include paths under `semantic-matlab-root-directory'.
 These paths will be parsed recursively by semantic.  Class and
 private directories will be omitted here.")
 
-(defvar semantic-matlab-root-directory
-  (let* ((mlab (locate-file "matlab" exec-path))
-	 (mlint (and (boundp 'mlint-program)
-		     mlint-program))
-	 (exe (or mlab mlint)))
-    (if exe
-	(let ((dir
-	       (or (file-symlink-p exe)
-		   exe)))
-	  ;; If we have a dir, take everything until /bin as root dir.
-	  (string-match "\\(.*\\)/bin.*" dir)
-	  (match-string 1 dir))
-      (message "semantic-matlab: Could not find MATLAB executable in path.")
-      nil))
+(defvar semantic-matlab-root-directory (matlab-mode-determine-matlabroot)
   "Root directory of MATLAB installation.
-Will be automatically determined by MATLAB or mlint executable.
 Use `semantic-matlab-system-paths-include' to let semantic know
 which system directories you would like to include when doing
 completions.")
@@ -78,14 +97,193 @@ completions.")
       (matlab-shell-matlabroot)
     semantic-matlab-root-directory))
 
-;; The version of this variable in MATLAB.el is not condusive to extracting
+;;; File type detection
+;;
+(defvar semantic-matlab-match-filetype-re
+  "^\\s-*\\(classdef\\|function\\)\\>"
+  "Regexp to identify if a file represents a class or a function.")
+
+(defun semantic-matlab-guess-buffer-type (&optional buffer)
+  "Guess what kind of MATLAB content BUFFER contains.
+Looks @ first declaration to determine if it is a class or function."
+  (save-excursion
+    (if buffer (set-buffer buffer))
+    (goto-char (point-min))
+    (if (re-search-forward semantic-matlab-match-filetype-re nil t)
+	(let ((key (match-string 1)))
+	  (cond ((string= key "classdef")
+		 'class)
+		((string= key "function")
+		 'function)))
+      'script)))
+
+;;; TAG MATCHING
+;;
+;; CLASS Defintions
+(defvar semantic-matlab-match-classdef-re
+  "^\\s-*classdef\\b\\s-*\\(?:([^\n)]+)\\)?\\s-*\\<\\(?2:\\w+\\)\\>"
+  "Expression to match a class definition start.")
+
+(defun semantic-matlab-class-tags (&optional buffer)
+  "Find the MATLAB class tag, and all methods (functions) in BUFFER.
+Return argument is:
+  (START END NAME BASECLASSES DOCSTRING METHODS PROPS LOCALFCN)."
+  (save-excursion
+    (if buffer (set-buffer buffer))
+    (let ((re semantic-matlab-match-classdef-re)
+	  start cn end doc base meth
+	  (taglist nil)
+	  )
+      (goto-char (point-min))
+      (when (re-search-forward re nil t)
+	  (setq start (match-beginning 0)
+		cn (buffer-substring-no-properties
+		    (match-beginning 2) (match-end 2))
+		base (save-excursion
+		       (let ((tmp nil))
+			 (while (looking-at "\\s-*[<&]\\s-*\\(\\(\\sw\\|\\.\\)+\\)")
+			   (setq tmp (cons (match-string-no-properties 1) tmp))
+			   (goto-char (match-end 0)))
+			 (nreverse tmp)))
+		doc (save-excursion
+		      (forward-line)
+		      (beginning-of-line)
+		      ;; snarf doc string
+		      (cond
+		       ;; Mathworks standard
+		       ((looking-at "%[A-Z0-9_]+\\s-+\\(.*\\)\\s-*$")
+			(match-string-no-properties 1))
+		       ;; lookfor string
+		       ((looking-at "%\\s-+\\(.*\\)\\s-*$")
+			(match-string-no-properties 1))
+		       ;; otherwise simply snarf first line of
+		       ;; comments under function declaration
+		       (t
+			(re-search-forward "[^[:blank:][:cntrl:]]" nil t)
+			(backward-char)
+			(if (looking-at "%\\s-+\\(.*\\)")
+			    (match-string-no-properties 1)
+			  nil))))
+		end (save-excursion
+		      (goto-char start)
+		      (if matlab-functions-have-end
+			  (condition-case nil
+			      ;; If we get a failure, we should at least
+			      ;; return whatever we got so far.
+			      (matlab-forward-sexp)
+			    (error (point-max)))
+			(matlab-end-of-defun))
+		      (point))
+		meth (semantic-matlab-sort-raw-function-tags (semantic-matlab-function-tags)
+							     end)
+		)
+	  (semantic-matlab-methods-update-tags (car meth) start end)
+	  (setq taglist
+		(cons (list start end
+			    cn
+			    base
+			    doc
+			    (car meth)
+			    (semantic-matlab-properties-tags start end)
+			    (car (semantic-matlab-sort-raw-function-tags (car (cdr meth)) (point-max)))
+			    )
+		      taglist))
+	  )
+      (nreverse taglist))))
+
+(defvar semantic-matlab-match-methods-block-re
+  "^\\s-*\\bmethods\\b"
+  "Regular expression for matching the start of a properties block.")
+
+(defun semantic-matlab-methods-update-tags (rawtags start end)
+  "Create a tags list out of RAWTAGS and properties found between START and END."
+  (save-excursion
+    (goto-char start)
+    (let ((taglist nil)
+	  (tmpend nil)
+	  (attrs nil)
+	  )
+      (while (re-search-forward semantic-matlab-match-methods-block-re nil end)
+	(save-excursion ;; find end of properties block
+	  (goto-char (match-beginning 0))
+	  (matlab-forward-sexp nil nil)
+	  (setq tmpend (point)))
+
+	(setq attrs (semantic-matlab-parse-attributes-and-move))
+
+	(while (and rawtags (< (nth 5 (car rawtags)) tmpend))
+
+	  (while attrs
+	    (semantic-tag-put-attribute (car rawtags) (car attrs) (car (cdr attrs)))
+	    (setq attrs (cdr (cdr attrs))))
+	  (setq rawtags (cdr rawtags))))
+	
+	(goto-char tmpend)
+	)
+      ))
+
+(defvar semantic-matlab-match-properties-block-re
+  "^\\s-*\\bproperties\\b"
+  "Regular expression for matching the start of a properties block.")
+
+(defun semantic-matlab-properties-tags (start end)
+  "Create a tags list out of properties found between START and END."
+  (save-excursion
+    (save-match-data
+      (goto-char start)
+      (let ((taglist nil)
+	    (tmpend nil)
+	    (attrs nil)
+	    )
+	(while (re-search-forward semantic-matlab-match-properties-block-re nil end)
+	  (setq attrs (semantic-matlab-parse-attributes-and-move))
+
+	  (save-excursion ;; find end of properties block
+	    (matlab-forward-sexp nil t)
+	    (beginning-of-line)
+	    (setq tmpend (point)))
+
+	  (while (re-search-forward "^\\s-*\\(\\w+\\)\\>" tmpend t)
+	    (setq taglist (cons
+			   (append
+			    (apply #'semantic-tag-new-variable (match-string-no-properties 1)
+				   nil nil
+				   attrs)
+			    (list (match-beginning 1) (point-at-eol)))
+			   taglist)))
+
+	  (goto-char tmpend)
+	  )
+	(nreverse taglist)
+	))))
+
+(defun semantic-matlab-parse-attributes-and-move ()
+  "Parse the properties or method attributes block, and move cursor to end of list."
+  (when (looking-at "\\s-*(")
+    (let ((end (save-excursion
+		 (matlab-forward-sexp)
+		 (point)))
+	  (attrs nil)
+	  (case-fold-search t)
+	  )
+      (save-excursion
+	;; Protection
+	(when (re-search-forward "\\<Access=['\"]\\(\\w+\\)['\"]" end t)
+	  (setq attrs (append (list :protection (match-string-no-properties 1))
+			      attrs)))
+	;; Add next attr here
+	)
+      (goto-char end)
+      attrs)))
+
+;; FUNCTION Definitions
+
+;; The version of this variable in MATLAB.el is not a condusive to extracting
 ;; the information we need.
 (defvar semantic-matlab-match-function-re
   "\\(^\\s-*function\\b[ \t\n.]*\\)\\(\\[[^]]+\\]\\s-*=\\|\\w+\\s-*=\\|\\)\\s-*\\(\\(\\sw\\|\\s_\\)+\\)\\>"
   "Expression to match a function start line.")
 
-;; This function may someday be a part of matlab.el.
-;; It does the raw scan and split for function tags.
 (defun semantic-matlab-function-tags (&optional buffer)
   "Find all MATLAB function tags in BUFFER.
 Return argument is:
@@ -162,70 +360,72 @@ START=END=0 and no arguments or return values."
 		      taglist))))
 	(nreverse taglist))))
 
-(defun semantic-matlab-parse-oldstyle-class (tags &optional buffer)
-  "Check if BUFFER with current TAGS is the constructor of a class.
-If this is the case, retrieve attributes from the buffer and scan
-the whole directory for methods.  The function returns a single tag
-describing the class.  This means that in semantic-matlab, the
-old-style MATLAB classes are linked to the constructor file."
-  (let* ((name (buffer-file-name buffer))
-	 class method methods retval attributes)
-    (when (string-match ".*/@\\(.*?\\)/\\(.*?\\)\\.m" name)
-      ;; this buffer is part of a class - check
-      (setq class (match-string 1 name))
-      (setq method (match-string 2 name))
-      (when (string= class method)	; is this the constructor?
-	;; get attributes of the class
-	;; TODO - we blindly assume the constructor is correctly defined
-	(setq retval (semantic-tag-get-attribute (car tags) :return))
-	(goto-char (point-min))
-	;; search for attributes
-	(while (re-search-forward
-		(concat "^\\s-*" (car retval)
-			"\\.\\([A-Za-z0-9_]+\\)\\s-*=\\s-*\\(.+\\);")
-		nil t)
-	  (push (list (match-string-no-properties 1) ; name
-		      (match-string-no-properties 2)) ; default value
-		attributes))
-	;; now scan the methods
-	(dolist (cur (delete class
-			     (nthcdr 2
-				     (assoc class semanticdb-matlab-user-class-cache))))
-	  (push
-	   (semantic-tag-put-attribute
-	    (car (semanticdb-file-stream
-		  (concat
-		   (file-name-directory name)
-		   cur ".m")))
-	    :typemodifiers '("public"))
-	   methods))
-	;; generate tag
-	(semantic-tag-new-type
-	 class
-	 "class"
-	 (append
-	  (mapcar (lambda (cur)
-		    (semantic-tag-new-variable
-		      (car cur) nil (cdr cur)
-		      :typemodifiers '("public")))
-		  attributes)
-	  methods)
-	 nil
-	 :typemodifiers '("public"))))))
+;; TODO - commented out the below.  See if anything breaks, then delete.
 
-(defun semantic-matlab-find-oldstyle-classes (files)
-  "Scan FILES for old-style Matlab class system.
-Returns an alist with elements (CLASSNAME LOCATION METHODS)."
-  (let (classes temp tags)
-    (dolist (cur files)
-      ;; scan file path for @-directory
-      (when (string-match "\\(.*\\)/@\\(.*?\\)/\\(.*?\\)\\.m" cur)
-	(if (setq temp
-		  (assoc (match-string 2 cur) classes))
-	    (nconc temp `(,(match-string 3 cur)))
-	  (push `( ,(match-string 2 cur) ,(match-string 1 cur)
-		   ,(match-string 3 cur)) classes))))
-    classes))
+;; (defun semantic-matlab-parse-oldstyle-class (tags &optional buffer)
+;;   "Check if BUFFER with current TAGS is the constructor of a class.
+;; If this is the case, retrieve attributes from the buffer and scan
+;; the whole directory for methods.  The function returns a single tag
+;; describing the class.  This means that in semantic-matlab, the
+;; old-style MATLAB classes are linked to the constructor file."
+;;   (let* ((name (buffer-file-name buffer))
+;; 	 class method methods retval attributes)
+;;     (when (string-match ".*/@\\(.*?\\)/\\(.*?\\)\\.m" name)
+;;       ;; this buffer is part of a class - check
+;;       (setq class (match-string 1 name))
+;;       (setq method (match-string 2 name))
+;;       (when (string= class method)	; is this the constructor?
+;; 	;; get attributes of the class
+;; 	;; TODO - we blindly assume the constructor is correctly defined
+;; 	(setq retval (semantic-tag-get-attribute (car tags) :return))
+;; 	(goto-char (point-min))
+;; 	;; search for attributes
+;; 	(while (re-search-forward
+;; 		(concat "^\\s-*" (car retval)
+;; 			"\\.\\([A-Za-z0-9_]+\\)\\s-*=\\s-*\\(.+\\);")
+;; 		nil t)
+;; 	  (push (list (match-string-no-properties 1) ; name
+;; 		      (match-string-no-properties 2)) ; default value
+;; 		attributes))
+;; 	;; now scan the methods
+;; 	(dolist (cur (delete class
+;; 			     (nthcdr 2
+;; 				     (assoc class semanticdb-matlab-user-class-cache))))
+;; 	  (push
+;; 	   (semantic-tag-put-attribute
+;; 	    (car (semanticdb-file-stream
+;; 		  (concat
+;; 		   (file-name-directory name)
+;; 		   cur ".m")))
+;; 	    :typemodifiers '("public"))
+;; 	   methods))
+;; 	;; generate tag
+;; 	(semantic-tag-new-type
+;; 	 class
+;; 	 "class"
+;; 	 (append
+;; 	  (mapcar (lambda (cur)
+;; 		    (semantic-tag-new-variable
+;; 		      (car cur) nil (cdr cur)
+;; 		      :typemodifiers '("public")))
+;; 		  attributes)
+;; 	  methods)
+;; 	 nil
+;; 	 :typemodifiers '("public"))))))
+
+;; (defun semantic-matlab-find-oldstyle-classes (files)
+;;   "Scan FILES for old-style Matlab class system.
+;; Returns an alist with elements (CLASSNAME LOCATION METHODS)."
+;;   (let (classes temp tags)
+;;     (dolist (cur files)
+;;       ;; scan file path for @-directory
+;;       (when (string-match "\\(.*\\)/@\\(.*?\\)/\\(.*?\\)\\.m" cur)
+;; 	(if (setq temp
+;; 		  (assoc (match-string 2 cur) classes))
+;; 	    (nconc temp `(,(match-string 3 cur)))
+;; 	  (push `( ,(match-string 2 cur) ,(match-string 1 cur)
+;; 		   ,(match-string 3 cur)) classes))))
+;;     classes))
 
 ;;; BEGIN PARSER
 ;;
@@ -235,23 +435,34 @@ IGNORE any arguments which specify a subregion to parse.
 Each tag returned is a semantic FUNCTION tag.  See
 `semantic-tag-new-function'."
   (semanticdb-matlab-cache-files)
-  (let ((raw (condition-case nil
-		 ;; Errors from here ought not to be propagated.
-		 (semantic-matlab-parse-functions)
+  (let* ((bt (semantic-matlab-guess-buffer-type))
+	 (raw (condition-case nil
+		  ;; Errors from here ought not to be propagated.
+		  (cond ((eq bt 'class)
+			 (semantic-matlab-parse-class))
+			((eq bt 'function)
+			 (semantic-matlab-parse-functions))
+			(t nil))
 	       (error nil)))
 	tags ctags)
     (setq tags (mapcar 'semantic-matlab-expand-tag raw))
     ;; check if this is a class constructor
-    (setq ctags (list (semantic-matlab-parse-oldstyle-class tags)))
-    (if (car ctags)
-	ctags
-      tags)))
+    ;; (setq ctags (list (semantic-matlab-parse-oldstyle-class tags)))
+    ;;(if (car ctags) ctags
+    tags))
 
 (defun semantic-matlab-parse-changes ()
   "Parse all changes for the current MATLAB buffer."
   ;; NOTE: For now, just schedule a full reparse.
   ;;       To be implemented later.
   (semantic-parse-tree-set-needs-rebuild))
+
+(define-mode-local-override semantic-tag-components-with-overlays
+  matlab-mode (tag)
+  "Return the list of subfunctions, or class members in TAG."
+  (or
+   (semantic-tag-get-attribute tag :members)
+   (semantic-tag-get-attribute tag :subfunctions)))
 
 (defun semantic-matlab-expand-tag (tag)
   "Expand the MATLAB function tag TAG."
@@ -261,14 +472,43 @@ Each tag returned is a semantic FUNCTION tag.  See
          tag :members (mapcar 'semantic-matlab-expand-tag chil)))
     (car (semantic--tag-expand tag))))
 
-(defun semantic-matlab-parse-functions ()
-  "Parse all functions from the current MATLAB buffer."
+(defun semantic-matlab-parse-class (&optional limit)
+  "Parse the class from the current MATLAB buffer up to LIMIT."
+  (semantic-matlab-sort-raw-class-tags (semantic-matlab-class-tags)))
+
+(defun semantic-matlab-sort-raw-class-tags (tag-list)
+  "Return a split list of tags from TAG-LIST before END."
+  (let ((newlist nil))
+    (dolist (tag tag-list)
+      (let ((start (car tag))
+	    (end (nth 1 tag))
+	    (name (nth 2 tag))
+	    (base (nth 3 tag))
+	    (doc (nth 4 tag))
+	    (meth (nth 5 tag))
+	    (props (nth 6 tag))
+	    (local (nth 7 tag)))
+	(setq newlist
+	      (cons (append
+		     (semantic-tag-new-type name
+					    "class"
+					    (append props meth)
+					    (list base)
+					    :documentation doc)
+		     (list start end))
+		    newlist))
+	(setq newlist (append newlist local))
+	))
+    newlist))
+
+(defun semantic-matlab-parse-functions (&optional limit)
+  "Parse all functions from the current MATLAB buffer up to LIMIT."
   (car
-   (semantic-matlab-sort-raw-tags (semantic-matlab-function-tags)
-				  (point-max))
+   (semantic-matlab-sort-raw-function-tags (semantic-matlab-function-tags)
+					   (or limit (point-max)))
    ))
 
-(defun semantic-matlab-sort-raw-tags (tag-list &optional end)
+(defun semantic-matlab-sort-raw-function-tags (tag-list &optional end)
   "Return a split list of tags from TAG-LIST before END.
 Return list is:
   (TAGS-BEFORE-END REMAINING-TAGS)"
@@ -284,7 +524,7 @@ Return list is:
 	     (args (nth 4 tag))
 	     (doc (nth 5 tag))
 	     (builtin (nth 6 tag))
-	     (parts (semantic-matlab-sort-raw-tags (cdr tag-list) end))
+	     (parts (semantic-matlab-sort-raw-function-tags (cdr tag-list) end))
 	     (chil (car parts)))
 	(setq rest (car (cdr parts)))
 	(setq newlist
@@ -375,7 +615,7 @@ where NAME is unique."
 	       (string= left (match-string 1 right)))
 	  (setq right (match-string 1 right)))
 	;; otherwise reduce right-hand side to first symbol
-	(t 
+	(t
 	 (string-match "[[({ ]*\\([A-Za-z_0-9]*\\)" right)
 	 (setq right (match-string 1 right))))
 	(cond
@@ -467,11 +707,6 @@ where NAME is unique."
       tags)))
 
 
-(define-mode-local-override semantic-tag-components-with-overlays
-  matlab-mode (tag)
-  "Return the list of subfunctions in TAG."
-  (semantic-tag-get-attribute tag :subfunctions))
-
 (define-mode-local-override semantic-format-tag-prototype matlab-mode
   (tag &optional parent color)
   "Return a prototype string describing tag.
@@ -500,19 +735,25 @@ cannot derive an argument list for them."
       (semantic-format-tag-prototype-default tag parent color))))
 
 (defun semantic-idle-summary-format-matlab-mode (tag &optional parent color)
-  "Describe TAG and display corresponding MATLAB 'lookfor' doc-string."
+  "Describe TAG and display corresponding MATLAB 'lookfor' doc-string.
+Optional PARENT and COLOR specify additional details for the tag.
+See `semantic-format-tag-prototype-matlab-mode' for details."
   (let* ((proto (semantic-format-tag-prototype-matlab-mode tag nil color))
 	 (doc (semantic-tag-docstring tag)))
     (concat proto " (" doc ")")))
 
 (defcustom-mode-local-semantic-dependency-system-include-path
   matlab-mode semantic-matlab-dependency-system-include-path
-  (if semantic-matlab-root-directory
+  (when (and semantic-matlab-root-directory
+	     (file-exists-p semantic-matlab-root-directory))
+    (let ((path nil))
       (mapcar (lambda (cur)
-		(concat (file-name-as-directory semantic-matlab-root-directory)
-			cur))
+		(let ((tmp (expand-file-name
+			    cur semantic-matlab-root-directory)))
+		  (when (file-exists-p tmp)
+		    (push tmp path))))
 	      semantic-matlab-system-paths-include)
-    nil)
+      path))
   "The system include paths from MATLAB.")
 
 (defvar semantic-idle-summary-function) ;; quiet compiler warning (not sure where this is defined)
@@ -608,12 +849,13 @@ This will include a list of type/field names when applicable."
 	;; semantic-command-separation-character "."
 	semantic-type-relation-separator-character '(".")
 	semantic-symbol->name-assoc-list '((function . "Function")
+					   (type . "Class")
 					   )
-	semantic-imenu-expandable-tag-classes '(function)
+	semantic-imenu-expandable-tag-classes '(function type)
 	semantic-imenu-bucketize-file nil
 	semantic-imenu-bucketize-type-members nil
 	senator-step-at-start-end-tag-classes '(function)
-	semantic-stickyfunc-sticky-classes '(function)
+	semantic-stickyfunc-sticky-classes '(function type)
 	)
   )
 

@@ -1,6 +1,6 @@
 ;;; matlab-publish.el --- Utilities for editing MATLAB files for publishing
 
-;; Copyright (C) 2009 Uwe Brauer
+;; Copyright (C) 2009, 2019 Uwe Brauer
 
 ;; Author: Uwe Brauer oub@mat.ucm.es
 ;; Maintainer: Uwe Brauer oub@mat.ucm.es
@@ -30,9 +30,8 @@
 
 ;;; Code:
 
-
-
 (require 'matlab)
+(require 'matlab-shell)
 
 ;; Variables
 (defvar matlab-temp-region-file "region.m"
@@ -43,8 +42,7 @@
 
 ;; Functions
 (defun matlab-select-publish-form (ch)
-"This function allows to publish the m file, either as in LaTeX or in
-HTML format."
+"This function allows to publish the m file, either as in LaTeX or in HTML format."
   (interactive "c1: LaTeX, 2: HTML ")
   (setq ch (downcase ch))
   (call-interactively (cond ((eql ch ?1) #'matlab-publish-file-latex)
@@ -54,7 +52,7 @@ HTML format."
 (defun matlab-publish-file-latex ()
   "Publish a matlab file in the LaTeX format."
   (interactive)
-  (let ((pub (file-name-nondirectory (buffer-file-name)))) 
+  (let ((pub (file-name-nondirectory (buffer-file-name))))
 	(matlab-shell-run-command (format "publish('%s','latex')" pub)))
   (if matlab-show-matlab-shell
 	  (matlab-show-matlab-shell-buffer)))
@@ -62,8 +60,8 @@ HTML format."
 
 
 (defun matlab-publish-file-html ()
+  "Publish a matlab file in the html format."
   (interactive)
-"Publish a matlab file in the html format."
   (let ((pub (file-name-nondirectory (buffer-file-name))))
  	(matlab-shell-run-command (format "publish('%s','html')" pub)))
   (if matlab-show-matlab-shell
@@ -72,8 +70,9 @@ HTML format."
 
 
 (defun matlab-select-environment (ch)
-  "This functions inserts structured text, which results for example 
-in LaTeX mode in title, sections, description, boldified text,  unnumbered equations and bullet list."
+  "Inserts structured text.
+This results in LaTeX mode in title, sections, description, boldified text,
+unnumbered equations and bullet list."
   (interactive "c1: title, 2: section, 3:descrip, 4:boldify, 5:equation, 6:list ")
   (setq ch (downcase ch))
   (call-interactively (cond ((eql ch ?1) #'matlab-insert-title)
@@ -109,8 +108,7 @@ in LaTeX mode in title, sections, description, boldified text,  unnumbered equat
 
 
 (defun matlab-boldify ()
-  "Insert either \%\%\\n \% \*BOLD TEXT\*\\n or, when mark is active,
-surrounds region by * *."
+  "Insert either \%\%\\n \% \*BOLD TEXT\*\\n or, when mark is active, surrounds region by * *."
   (interactive)
   (if (or (and (boundp 'zmacs-region-active-p) zmacs-region-active-p)
 		  (and (boundp 'transient-mark-mode) transient-mark-mode mark-active))
@@ -142,7 +140,7 @@ surrounds region by * *."
 (defun matlab-insert-preformated-text ()
   (interactive)
   (insert "%%\n")
-  (insert "%\n") 
+  (insert "%\n")
   (insert "%  PREFORMATTED\n")
   (insert "%  TEXT\n")
   (insert "% \n")
@@ -293,3 +291,7 @@ surrounds region by * *."
 ;;
 
 ;;}}}
+
+(provide 'matlab-publish)
+
+;;; matlab-publish.el ends here

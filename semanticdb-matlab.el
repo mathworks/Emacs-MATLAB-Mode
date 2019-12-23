@@ -1,6 +1,6 @@
 ;;; semanticdb-matlab.el --- Semantic database extensions for MATLAB
 
-;;; Copyright (C) 2008, 2012, 2013 David Engster
+;;; Copyright (C) 2008, 2012, 2013, 2019 David Engster
 
 ;; Author: David Engster <dengste@eml.cc>
 ;; based heavily on semanticdb-skel.el (C) Eric Ludlam
@@ -22,6 +22,10 @@
 ;; Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 ;; Boston, MA 02110-1301, USA.
 
+;;; Commentary:
+;;
+;; Support for Semantic Databases for MATLAB buffers.
+
 ;; For generic function searching.
 (require 'eieio)
 (require 'eieio-opt)
@@ -34,8 +38,9 @@
     (error (require 'semantic/db))))
 
 (eval-and-compile
-  (require 'matlab))
- 
+  (require 'matlab)
+  (require 'matlab-shell))
+
 ;;; Code:
 
 ;; Put all directories which should be recursively scanned for your
@@ -84,8 +89,8 @@ the omniscience database.")
 
 ;;; Filename based methods
 ;;
-(defmethod semanticdb-get-database-tables ((obj semanticdb-project-database-matlab))
-  "For a MATLAB database, there are no explicit tables.
+(cl-defmethod semanticdb-get-database-tables ((obj semanticdb-project-database-matlab))
+  "For a MATLAB database OBJ, there are no explicit tables.
 Create one of our special tables that can act as an intermediary."
   ;; NOTE: This method overrides an accessor for the `tables' slot in
   ;;       a database.  You can either construct your own (like tmp here
@@ -99,29 +104,29 @@ Create one of our special tables that can act as an intermediary."
       (oset newtable parent-db obj)
       (oset newtable tags nil)
       ))
-  (call-next-method))
+  (cl-call-next-method))
 
-(defmethod semanticdb-file-table ((obj semanticdb-project-database-matlab) filename)
+(cl-defmethod semanticdb-file-table ((obj semanticdb-project-database-matlab) filename)
   "From OBJ, return FILENAME's associated table object."
   ;; NOTE: See not for `semanticdb-get-database-tables'.
   (car (semanticdb-get-database-tables obj))
   )
 
-(defmethod semanticdb-get-tags ((table semanticdb-table-matlab ))
+(cl-defmethod semanticdb-get-tags ((table semanticdb-table-matlab ))
   "Return the list of tags belonging to TABLE."
   ;; NOTE: Omniscient databases probably don't want to keep large tabes
   ;;       lolly-gagging about.  Keep internal Emacs tables empty and
   ;;       refer to alternate databases when you need something.
   nil)
 
-(defmethod semanticdb-equivalent-mode ((table semanticdb-table-matlab) &optional buffer)
+(cl-defmethod semanticdb-equivalent-mode ((table semanticdb-table-matlab) &optional buffer)
   "Return non-nil if TABLE's mode is equivalent to BUFFER.
 Equivalent modes are specified by by `semantic-equivalent-major-modes'
 local variable."
   (with-current-buffer buffer
     (eq (or mode-local-active-mode major-mode) 'matlab-mode)))
 
-(defmethod semanticdb-full-filename ((obj semanticdb-table-matlab))
+(cl-defmethod semanticdb-full-filename ((obj semanticdb-table-matlab))
   "Fetch the full filename that OBJ refers to.
 This function is currently a stub."
 ;; FIXME
@@ -146,10 +151,10 @@ database (if available.)"
 	  ;; we append it in this iteration.
 	  (let ((semanticdb-search-system-databases nil)
 		)
-            (if (fboundp 'semanticdb-find-translate-path-default)
-                (semanticdb-find-translate-path-default path brutish)
-              (error "semanticdb-find-translate-path-default doesn't exist")
-              ))))
+	    (if (fboundp 'semanticdb-find-translate-path-default)
+		(semanticdb-find-translate-path-default path brutish)
+	      (error "Variable semanticdb-find-translate-path-default doesn't exist")
+	      ))))
     ;; Don't add anything if BRUTISH is on (it will be added in that fcn)
     ;; or if we aren't supposed to search the system.
     (if (or brutish (not semanticdb-search-system-databases))
@@ -255,12 +260,7 @@ EXCLUDE-PRIVATE, 'private' directories will be skipped."
 	  (cons t
 		(semanticdb-matlab-scan-directories
 		 semanticdb-matlab-include-paths t nil nil)))
-    ;; cache user defined old-style classes
-    (setq semanticdb-matlab-user-class-cache
-	  (if (fboundp 'semantic-matlab-find-oldstyle-classes)
-              (semantic-matlab-find-oldstyle-classes (cdr semanticdb-matlab-user-files-cache))
-            (error "semantic-matlab-find-oldstyle-classes not found"))
-            )))
+    ))
 
 (defun semanticdb-matlab-find-name (name &optional type)
   "Find NAME in matlab file names.
@@ -302,12 +302,12 @@ If point is nil, the current buffer location is used."
 
 ;; Search functions
 
-(defmethod semanticdb-find-tags-by-name-method
+(cl-defmethod semanticdb-find-tags-by-name-method
   ((table semanticdb-table-matlab) name &optional tags)
   "Find all tags named NAME in TABLE.
 Return a list of tags."
   ;; If we have tags, go up.
-  (if tags (call-next-method)
+  (if tags (cl-call-next-method)
     (let (where)
       ;; If MATLAB shell is active, use it.
       (when (and (matlab-shell-active-p)
@@ -322,18 +322,18 @@ Return a list of tags."
 		  name ".m")))))
       (unless (car where)
 	;; Fall back to home-made database.
-	(setq where 
+	(setq where
 	      (list (car (semanticdb-matlab-find-name name)))))
       (if (car where)
 	  (list (car (semanticdb-file-stream (car where))))
 	nil))))
-      
-(defmethod semanticdb-find-tags-by-name-regexp-method
+
+(cl-defmethod semanticdb-find-tags-by-name-regexp-method
   ((table semanticdb-table-matlab) regex &optional tags)
   "Find all tags with name matching REGEX in TABLE.
 Optional argument TAGS is a list of tags to search.
 Return a list of tags."
-  (if tags (call-next-method)
+  (if tags (cl-call-next-method)
     (let ((files (semanticdb-matlab-find-name regex 'regex)))
       (delq nil
 	    (mapcar #'(lambda (x)
@@ -341,32 +341,33 @@ Return a list of tags."
 			 (car (semanticdb-file-stream x))))
 		    files)))))
 
-(defmethod semanticdb-find-tags-for-completion-method
+(cl-defmethod semanticdb-find-tags-for-completion-method
   ((table semanticdb-table-matlab) prefix &optional tags)
   "In TABLE, find all occurances of tags matching PREFIX.
 Optional argument TAGS is a list of tags to search.
 Returns a table of all matching tags."
   ;; If we have tags, go up.
-  (if tags (call-next-method)
+  (if tags (cl-call-next-method)
     ;; first, get completions from home-made database...
     (let ((compdb (semanticdb-matlab-find-name prefix 'prefix))
 	  compshell)
       ;; ...and from MATLAB shell, if available
       (when (matlab-shell-active-p)
 	(setq compshell
-	      (mapcar 
+	      (mapcar
 	       (lambda (x)
-		 (let ((where (matlab-shell-which-fcn (car x))))
-		   ;; correct name for builtin functions
-		   (when (and (cdr where)
-			      (string-match 
-			       "\\(.*\\)/@.*\\(/[A-Za-z_0-9]+\\.m\\)" 
-			       (car where)))
-		     (setq where
-			   (list 
-			    (concat (match-string 1 (car where)) 
-				    (match-string 2 (car where))))))
-		   (list (car where))))
+		 (when (stringp x)
+		   (let ((where (matlab-shell-which-fcn (car x))))
+		     ;; correct name for builtin functions
+		     (when (and (cdr where)
+				(string-match
+				 "\\(.*\\)/@.*\\(/[A-Za-z_0-9]+\\.m\\)"
+				 (car where)))
+		       (setq where
+			     (list
+			      (concat (match-string 1 (car where))
+				      (match-string 2 (car where))))))
+		     (list (car where)))))
 	       (matlab-shell-completion-list prefix)))
 	;; combine results
 	(mapc
@@ -377,8 +378,8 @@ Returns a table of all matching tags."
       ;; generate tags
       (delq nil
 	    (mapcar #'(lambda (x)
-                        (let ((matlab-vers-on-startup nil))
-                          (car (semanticdb-file-stream x))))
+			(let ((matlab-vers-on-startup nil))
+			  (car (semanticdb-file-stream x))))
 		    compdb)))))
 
 (provide 'semanticdb-matlab)
