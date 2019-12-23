@@ -49,10 +49,10 @@ You have the following capabilities when in a MATLAB M-file:
 *** Menu
 
 - The MATLAB menu for M-files is now always present. Prior, there would be cases where the menu
-   disappears. The MATLAB menu also contains a new Debug sub-menu.
+  disappears. The MATLAB menu also contains a new Debug sub-menu.
 
 *** Performance 
--  There are a number of performance improvements, meaning emacs is
+- There are a number of performance improvements, meaning emacs is
   more responsive. For example, in matlab-shell, Emacs is more
   responsive when processing long output lines from MATLAB.
 
@@ -73,6 +73,9 @@ Matlab mode is now a derived mode, based on /prog mode/.
 
 Support for Emacsen older than 20 has been removed. Xemacs supports
 has not touched, but has also not been tested, so it might be buggy.
+The current Matlab version has been successfully compiled with GNU
+emacs 24,25,26 and 27. There have been difficulties to compile it with
+Xemacs 21.4.X or 21.5.X, this issue is currently not resolved.
 
 *** Loading 
 Faster load time by moving rarely used content into other files.
