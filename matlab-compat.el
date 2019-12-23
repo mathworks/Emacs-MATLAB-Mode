@@ -1,0 +1,253 @@
+;;; matlab-compat.el --- Compatibility Code
+;;
+;; Copyright (C) 2019 Eric Ludlam
+;;
+;; Author: Eric Ludlam <eludlam@osboxes>
+;;
+;; This program is free software; you can redistribute it and/or
+;; modify it under the terms of the GNU General Public License as
+;; published by the Free Software Foundation, either version 3 of the
+;; License, or (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful, but
+;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;; General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see https://www.gnu.org/licenses/.
+
+;;; Commentary:
+;;
+;; To support a wide range of different Emacs versions, these compat
+;; functions will hide away the shims needed to work cross platform.
+
+;;; Code:
+
+(eval-and-compile
+  (if (string-match "X[Ee]macs" emacs-version)
+      (progn
+        (defalias 'matlab-make-overlay 'make-extent)
+        (defalias 'matlab-overlay-put 'set-extent-property)
+        (defalias 'matlab-overlay-get 'extent-property)
+        (defalias 'matlab-delete-overlay 'delete-extent)
+        (defalias 'matlab-overlay-start 'extent-start-position)
+        (defalias 'matlab-overlay-end 'extent-end-position)
+        (defalias 'matlab-previous-overlay-change 'previous-extent-change)
+        (defalias 'matlab-next-overlay-change 'next-extent-change)
+        (defalias 'matlab-overlays-at
+          (lambda (pos) (when (fboundp 'extent-list) (extent-list nil pos pos))))
+        (defalias 'matlab-cancel-timer 'delete-itimer)
+        (defun matlab-run-with-idle-timer (secs repeat function &rest args)
+          (condition-case nil
+              (apply 'start-itimer
+                     "matlab" function secs
+                     (if repeat secs nil) t
+                     t (car args)))
+	  (error
+	   ;; If the above doesn't work, then try this old version of
+	   ;; start itimer.
+           (when (fboundp 'start-itimer)
+             (start-itimer "matlab" function secs (if repeat secs nil)))))
+        )
+    ;; Else GNU Emacs
+    (defalias 'matlab-make-overlay 'make-overlay)
+    (defalias 'matlab-overlay-put 'overlay-put)
+    (defalias 'matlab-overlay-get 'overlay-get)
+    (defalias 'matlab-delete-overlay 'delete-overlay)
+    (defalias 'matlab-overlay-start 'overlay-start)
+    (defalias 'matlab-overlay-end 'overlay-end)
+    (defalias 'matlab-previous-overlay-change 'previous-overlay-change)
+    (defalias 'matlab-next-overlay-change 'next-overlay-change)
+    (defalias 'matlab-overlays-at 'overlays-at)
+    (defalias 'matlab-cancel-timer 'cancel-timer)
+    (defalias 'matlab-run-with-idle-timer 'run-with-idle-timer)
+    ))
+
+;;; Helper aliases to suppress compiler warnings ===============================
+
+(eval-and-compile
+  ;; `set-face-underline-p' is an obsolete function (as of 24.3); use `set-face-underline' instead.
+  (cond ((fboundp 'set-face-underlined)
+         (defalias 'matlab-set-face-underline 'set-face-underlined))
+        (t
+         (defalias 'matlab-set-face-underline 'set-face-underline-p)))
+
+  ;; `set-face-bold-p' is an obsolete function (as of 24.4); use `set-face-bold' instead.
+  (cond ((fboundp 'set-face-bold)
+         (defalias 'matlab-set-face-bold 'set-face-bold))
+        (t
+         (defalias 'matlab-set-face-bold 'set-face-bold-p)))
+
+  ;; `default-fill-column' is an obsolete variable (as of 23.2); use `fill-column' instead.
+  (cond ((boundp 'fill-column)
+         (defvaralias 'matlab-fill-column 'fill-column))
+        (t
+         (defvaralias 'matlab-fill-column 'default-fill-column)))
+
+  ;; `interactive-p' is an obsolete function (as of 23.2); use `called-interactively-p' instead.
+  (defun matlab-called-interactively-p-helper ()
+    (called-interactively-p 'interactive))
+  (cond ((fboundp 'called-interactively-p)
+         (defalias 'matlab-called-interactively-p 'matlab-called-interactively-p-helper))
+        (t
+         (defalias 'matlab-called-interactively-p 'interactive-p)))
+
+  ;; `toggle-read-only' is an obsolete function (as of 24.3); use `read-only-mode' instead.
+  ;; (matlab-read-only-mode -1) ==> make writable
+  ;; (matlab-read-only-mode 1) ==> make read-only
+  (cond ((fboundp 'read-only-mode)
+         (defalias 'matlab-read-only-mode 'read-only-mode))
+        (t
+         (defalias 'matlab-read-only-mode 'toggle-read-only)))
+
+  (cond ((fboundp 'point-at-bol)
+         (defalias 'matlab-point-at-bol 'point-at-bol)
+         (defalias 'matlab-point-at-eol 'point-at-eol))
+        ;; Emacs 20.4
+        ((fboundp 'line-beginning-position)
+         (defalias 'matlab-point-at-bol 'line-beginning-position)
+         (defalias 'matlab-point-at-eol 'line-end-position))
+        (t
+         (defmacro matlab-point-at-bol ()
+           (save-excursion (beginning-of-line) (point)))
+         (defmacro matlab-point-at-eol ()
+           (save-excursion (end-of-line) (point)))))
+  )
+
+;; Keymaps
+(if (fboundp 'set-keymap-parent)
+    (defalias 'matlab-set-keymap-parent 'set-keymap-parent)
+      ;; 19.31 doesn't have set-keymap-parent
+
+  (eval-when-compile
+    (require 'comint))
+  
+  (defun matlab-set-keymap-parent (keymap parent)
+    "Set KEYMAP's parent to be PARENT."
+    (nconc keymap comint-mode-map)))
+
+;; String trim
+(if (fboundp 'string-trim)
+
+    (defalias 'matlab-string-trim 'string-trim)
+  
+  (defsubst matlab-string-trim (string &optional regexp)
+    "Trim STRING of leading string matching REGEXP.
+
+REGEXP defaults to \"[ \\t\\n\\r]+\"."
+    (let ((out string)
+	  (regexp_ (or regexp "[ \t\n\r]+")))
+      
+      (when (string-match (concat "\\`\\(?:" regexp_ "\\)") out)
+	(setq out (substring out (match-end 0))))
+      
+      (when (string-match (concat "\\(?:" regexp_ "\\)\\'") out)
+	(setq out (substring out 0 (match-beginning 0))))
+      
+      out))
+  )
+
+;; Finding executables
+(defun matlab-find-executable-directory (program)
+  "Find the executable PROGRAM on the exec path, following any links.
+Return the base directory it is in."
+  (let ((dir nil))
+    
+    (dolist (P exec-path)
+      (let ((nm (expand-file-name program P)))
+	(when (and (file-exists-p nm) (file-executable-p nm))
+	  (let* ((fa (file-attributes nm))
+		 (lnk (car fa)))
+	    (if lnk
+		;; We have a link - use that as our directory.
+		(setq dir (file-name-directory lnk))
+	      ;; No link - just use this path.
+	      (setq dir P)))
+	  )))
+    dir))
+
+;; Completion Tools
+(defun matlab-display-completion-list (completions common-substring)
+  "Method for displaying COMPLETIONS with a COMMON-SUBSTRING."
+  ;; In emacs 24.4 the common-substring is no longer needed.
+  (let ((args (if (or (< emacs-major-version 24)
+                      (and (= emacs-major-version 24) (< emacs-minor-version 4)))
+                  (list completions common-substring)
+                (list completions))))
+    (apply 'display-completion-list args)))
+
+;; Font lock
+(require 'font-lock)
+(unless (fboundp 'font-lock-ensure)
+  (defalias 'font-lock-ensure 'font-lock-fontify-buffer))
+
+;; CEDET compat if CEDET isn't around
+(condition-case nil
+    (progn
+      (require 'pulse)
+      )
+  (error
+   (defun pulse-momentary-highlight-region (start end &optional face)
+     "Compat impl of pulse command." nil)))
+
+;; EIEIO compatibility
+(condition-case nil
+    (progn
+      (require 'eieio)
+      (unless (fboundp 'cl-defgeneric)
+	;; We are in an antique Emacs that uses the old eieio.
+	(defalias 'cl-defmethod 'defmethod)
+	)
+      (unless (fboundp 'cl-call-next-method)
+	;; We are in an antique Emacs that uses the old eieio.
+	(defalias 'cl-call-next-method 'call-next-method)
+	)
+      )
+  (error (message "EIEIO not available.  Only MATLAB editing enabled.")))
+
+;;; Finding EmacsClient
+(defun matlab-find-emacsclient ()
+  "Try to find a workable copy of `emacsclient' binary.
+Starts by searching exec path.  If not on exec path as can happen on
+Windows, try to find Emacs, it's bin directory, and then emacsclient."
+  (cond
+   ((and (eq system-type 'windows-nt)
+	 (locate-file "emacsclientw" exec-path))
+    ;; It's just on the path.  Return short form
+    "emacsclientw")
+	
+   ((locate-file "emacsclient" exec-path)
+    ;; It's just on the path.  Return it.
+    "emacsclient")
+
+   (t
+    ;; Not on path.  We need to find the path, and then
+    ;; see if we can find emacsclient there.
+    (let* ((rt (expand-file-name ".." data-directory))
+	   (bin (expand-file-name "bin" rt))
+	   (ec (or (locate-file "emacsclientw.exe" (list bin))
+		   (locate-file "emacsclient.exe" (list bin))))
+	   (bin2 nil)
+	   )
+      (when (and (not ec) (string-match "/share/" bin))
+	;; Not there - look for 'share' in bin, and branch there.
+	(setq bin2 (expand-file-name "bin"
+				     (substring bin 0 (match-beginning
+						       0))))
+
+	(setq ec (or (locate-file "emacsclientw.exe" (list bin2))
+		     (locate-file "emacsclient.exe" (list bin2)))))
+
+      ;; Last resort - just set it to something a user will see.
+      (when (not ec) (setq ec "emacsclient"))
+      ;; Return it.
+      ec))))
+
+(provide 'matlab-compat)
+
+;;; matlab-compat.el ends here
+
+;; LocalWords:  el Ludlam eludlam osboxes Ee progn defalias fboundp itimer
+;; LocalWords:  defun boundp defvaralias bol eol defmacro Keymaps keymap comint
+;; LocalWords:  KEYMAP's nconc dolist nm lnk setq

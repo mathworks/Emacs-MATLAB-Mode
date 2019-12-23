@@ -3,25 +3,24 @@
 (ede-proj-project "ede-proj-project"
   :file "Project.ede"
   :name "matlab-emacs"
-  :version "3.3.2"
+  :version "4.0"
   :targets
   (list
-    (ede-proj-target-elisp-autoloads "autoloads"
+    (ede-proj-target-elisp-autoloads "ede-proj-target-elisp-autoloads"
       :name "autoloads"
       :path ""
       :autoload-file "matlab-load.el")
-    (ede-proj-target-makefile-miscelaneous "misc"
+    (ede-proj-target-makefile-miscelaneous "ede-proj-target-makefile-miscelaneous"
       :name "misc"
       :path ""
       :source '("ChangeLog" "ChangeLog.old1" "ChangeLog.old2" "INSTALL" "README" "dl_emacs_support.m"))
-    (ede-proj-target-elisp "lisp"
+    (ede-proj-target-elisp "ede-proj-target-elisp"
       :name "lisp"
       :path ""
-      :source '("matlab.el" "mlint.el" "tlc.el" "matlab-publish.el" "linemark.el")
+      :source '("matlab-compat.el" "matlab.el" "matlab-shell.el" "matlab-shell-gud.el" "matlab-netshell.el" "matlab-complete.el" "matlab-cgen.el" "matlab-publish.el" "matlab-topic.el" "mlint.el" "tlc.el" "linemark.el" "matlab-maint.el")
       :versionsource '("matlab.el")
       :aux-packages '("matlab"))
-    (ede-proj-target-elisp "cedet"
+    (ede-proj-target-elisp "ede-proj-target-elisp"
       :name "cedet"
       :path ""
-      :source '("semantic-matlab.el" "semanticdb-matlab.el" "srecode-matlab.el" "cedet-matlab.el" "company-matlab-shell.el")
-      :aux-packages '("semantic"))))
+      :source '("semantic-matlab.el" "semanticdb-matlab.el" "srecode-matlab.el" "cedet-matlab.el" "company-matlab-shell.el"))))

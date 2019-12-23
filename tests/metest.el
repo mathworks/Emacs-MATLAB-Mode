@@ -27,10 +27,18 @@
        )
   (defvar met-testfile-path d1
     "Location of test MATLAB code.")
-  
   (add-to-list 'load-path (expand-file-name d) t))
 
+(defvar met-testfile-path) ; quiet compiler
+
+(require 'matlab-load)
 (require 'matlab)
+(require 'cedet-matlab)
+(require 'semantic-matlab)
+
+;; Enable semantic
+(semantic-mode 1)
+(matlab-cedet-setup)
 
 (defun metest-all-syntax-tests ()
   "Run all the syntax tests in this file."
@@ -38,9 +46,10 @@
   (metest-sexp-counting-test)
   (metest-sexp-traversal-test)
   (metest-indents-test)
+  (metest-parse-test)
   )
 
-(defvar met-stringtest-files '("strings.m")
+(defvar met-stringtest-files '("stringtest.m")
   "List of files for running string tests on.")
 
 (defun metest-comment-string-syntax-test ()
@@ -48,24 +57,26 @@
   (dolist (F met-stringtest-files)
     (let ((buf (find-file-noselect (expand-file-name F met-testfile-path)))
 	  (cnt 0))
-      (save-excursion
-	(set-buffer buf)
+      (with-current-buffer buf
 	(goto-char (point-min))
 	(message ">> Starting search loop in %S" (current-buffer))
-	(while (re-search-forward "#\\([csve]\\)#" nil t)
+	(while (re-search-forward "#\\([csveb]\\)#" nil t)
 	  (goto-char (match-end 1))
 	  (let ((md (match-data))
 		(mc (match-string 1))
+		(bc (matlab-ltype-block-comm))
 		(qd (matlab-cursor-comment-string-context)))
 	    ;; Test 1 - what are we?
-	    (unless (or (and (string= "v" mc) (eq 'charvector qd))
+	    (unless (or (and (string= "b" mc) bc)
+			(and (string= "v" mc) (eq 'charvector qd))
 			(and (string= "s" mc) (eq 'string qd))
 			(and (string= "c" mc) (eq 'comment qd))
 			(and (string= "e" mc) (eq 'elipsis qd))
 			)
 	      (error "Syntax Test Failure @ line %d: Expected %s but found %S"
 		     (line-number-at-pos)
-		     (cond ((string= mc "v") "charvector")
+		     (cond ((string= mc "b") "block comment")
+			   ((string= mc "v") "charvector")
 			   ((string= mc "s") "string")
 			   ((string= mc "c") "comment")
 			   ((string= mc "e") "elipsis")
@@ -82,7 +93,7 @@
       ))
   (message ""))
   
-(defvar met-sexptest-files '("expressions.m" "mclass.m" "indents.m")
+(defvar met-sexptest-files '("expressions.m" "mclass.m")
   "List of files for running syntactic expression tests.")
 
 (defun metest-sexp-counting-test ()
@@ -90,8 +101,7 @@
   (dolist (F met-sexptest-files)
     (let ((buf (find-file-noselect (expand-file-name F met-testfile-path)))
 	  (cnt 0))
-      (save-excursion
-	(set-buffer buf)
+      (with-current-buffer buf
 	(goto-char (point-min))
 	(message ">> Starting sexp counting loop in %S" (current-buffer))
 	(while (re-search-forward "#\\([0-9]\\)#" nil t)
@@ -131,8 +141,7 @@
   (dolist (F met-sexptest-files)
     (let ((buf (find-file-noselect (expand-file-name F met-testfile-path)))
 	  (cnt 0))
-      (save-excursion
-	(set-buffer buf)
+      (with-current-buffer buf
 	(goto-char (point-min))
 	(message ">> Starting sexp traversal loop in %S" (current-buffer))
 	(while (re-search-forward ">>\\([0-9]+\\)" nil t)
@@ -171,8 +180,7 @@
   (dolist (F met-indents-files)
     (let ((buf (find-file-noselect (expand-file-name F met-testfile-path)))
 	  (cnt 0))
-      (save-excursion
-	(set-buffer buf)
+      (with-current-buffer buf
 	(goto-char (point-min))
 	;; (indent-region (point-min) (point-max))
 	(message ">> Starting indents loop in %S" (current-buffer))
@@ -191,6 +199,57 @@
       ))
   (message ""))
 
+(defvar met-parser-files '("mpclass.m")
+  "List of files for running semantic parsing tests.")
+
+(defun metest-parse-test ()
+  "Run the semantic parsing test to make sure the parse works."
+  
+  (dolist (F met-parser-files)
+    (let ((buf (find-file-noselect (expand-file-name F met-testfile-path)))
+	  exp act
+	  (cnt 0))
+      (with-current-buffer buf
+
+	;; Prep buffer for test
+	(semantic-idle-scheduler-mode -1)
+	(semantic-clear-toplevel-cache)
+
+	;; Do the test
+	(goto-char (point-min))
+	(message ">> Starting semantic parser test in %S" (current-buffer))
+
+	(unless (re-search-forward "^%%\\s-*>>\\s-+SEMANTIC TEST" nil t)
+	  (error "Semantic parser test: Failed to find test cookie."))
+	(unless (re-search-forward "^%{[ \t\n]+\\(((\\)" nil t)
+	  (error "Semantic parser test: Failed to find expected values."))
+	(goto-char (match-beginning 1))
+	(setq exp (read (buffer-substring (point)
+					  (save-excursion (re-search-forward "%}" nil t)
+							  (match-beginning 0)))))
+	(setq act (semantic-fetch-tags))
+	
+	;; Compare the two lists ... simply.
+	(while (and exp act)
+	  (unless (metest-compare-tags (car exp) (car act))
+	    (error "Expected tag %s, found %s" (semantic-format-tag-prototype (car exp))
+		   (semantic-format-tag-prototype (car act))))
+	  (setq exp (cdr exp) act (cdr act) cnt (1+ cnt))
+	  )
+	(when (or exp act)
+	  (error "Found tags and expected tag lists differnet lengths.\nExpected Remains: %S\nActual Remains: %S"
+		 exp act))
+	
+	)
+      
+      (message ">> Semantic parser test: %d tags matched" cnt))))
+
+
+(defun metest-compare-tags (EXP ACT)
+  "Return non-nil if EXP tag is similiar to ACT"
+  (semantic-tag-similar-p EXP ACT :documentation)
+
+  )
 
 (provide 'metest)
 

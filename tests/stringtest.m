@@ -133,23 +133,25 @@ L = "string transpose #s#"';
 %% Unreachable
 
 if 0
-   
-    Ac = 'char vector';
-    Bs = "string scalar";
+    % Note: unreachable code doesn't break char vectors or strings.
+    Ac = 'char vector #v#';
+    Bs = "string scalar #s#";
 else
     
-    Cs = "not unreachable";
+    Cs = "not unreachable #s#";
 end
 
 %% Block Comments #c#
 
 %{
-
-   Block Comment:
-
-   'char vector'
-   "string scalar"
- 
- %}
   
- 
+  Block Comment: #b#
+  
+  'char vector #b#'
+  "string scalar #b#"
+  
+%}
+
+not_commented();
+
+% Normal comment #c#
