@@ -2026,6 +2026,34 @@ These will differ when MATLAB code directory without notifying Emacs."
 (defvar matlab-shell-save-and-go-history '("()")
   "Keep track of parameters passed to the MATLAB shell.")
 
+(defvar matlab-shell-save-and-go-command nil
+  "Command to use for `matlab-shell-save-and-go' instead of current buffer.
+This command will override the default computed command if non-nil.
+The command will be run in the shell's current directory without checks, so
+you will need to make sure MATLAB's pwd is correct.
+It is recommended you use directory-local or buffer-local variable settings to
+control this.")
+(make-variable-buffer-local 'matlab-shell-save-and-go-command)
+;; Marking as SAFE b/c we will ask to use this before doing so.
+(put 'matlab-shell-save-and-go-command 'safe-local-variable #'stringp)
+
+(defvar matlab-shell-save-and-go-command-enabled nil
+  "Remember if it is safe to use `matlab-shell-save-and-go-command' in this buffer.")
+(make-variable-buffer-local 'matlab-shell-save-and-go-command-enabled)
+(put 'matlab-shell-save-and-go-command 'risky-local-variable t)
+
+(defun matlab-shell-set-save-and-go-command (command)
+  "Set `matlab-shell-save-and-go-command' for any file in the current directory.
+Value is set to COMMAND."
+  (interactive (list (read-string "sCommand: "
+				  (file-name-sans-extension
+				   (file-name-nondirectory (buffer-file-name))))))
+  (when (not (eq major-mode 'matlab-mode))
+    (error "Cannot set save-and-go command for buffer in %s" major-mode))
+
+  (add-dir-local-variable 'matlab-mode 'matlab-shell-save-and-go-command
+			  command))
+
 (defun matlab-shell-add-to-input-history (string)
   "Add STRING to the input-ring and run `comint-input-filter-functions' on it.
 Similar to  `comint-send-input'."
@@ -2048,61 +2076,97 @@ Similar to  `comint-send-input'."
       (error "Save and go is only useful in a MATLAB buffer!"))
   (if (not (buffer-file-name (current-buffer)))
       (call-interactively 'write-file))
+
   (let* ((fn-name (file-name-sans-extension
-		  (file-name-nondirectory (buffer-file-name))))
-	(msbn (concat "*" matlab-shell-buffer-name "*"))
-        (dir (expand-file-name (file-name-directory buffer-file-name)))
-	(edir dir)
-        (change-cd matlab-change-current-directory)
-	(param ""))
-    (save-buffer)
-    ;; Do we need parameters?
-    (if (save-excursion
-	  (goto-char (point-min))
-	  (end-of-line)
-	  (forward-sexp -1)
-	  (looking-at "([a-zA-Z]"))
-	(setq param (read-string "Parameters: "
-				 (car matlab-shell-save-and-go-history)
-				 'matlab-shell-save-and-go-history)))
+		   (file-name-nondirectory (buffer-file-name))))
+	 (msbn (concat "*" matlab-shell-buffer-name "*"))
+	 (do-local t))
+  
+    (when matlab-shell-save-and-go-command
+      ;; If an override command is set, run that instead of this file.
+      (let* ((cmd matlab-shell-save-and-go-command)
+	     (use (or matlab-shell-save-and-go-command-enabled
+		      (string= cmd fn-name)
+		      (y-or-n-p (format "Run \"%s\" instead of %s? "
+					cmd fn-name)))))
+	(if (not use)
 
-    ;; No buffer?  No net connection?  Make a shell!
-    (if (and (not (get-buffer msbn)) (not (matlab-netshell-active-p)))
-	(matlab-shell))
+	    ;; Revert to old behavior.
+	    nil
 
-    (when (get-buffer msbn)
-      ;; Ok, now fun the function in the matlab shell
-      (if (get-buffer-window msbn t)
-	  (select-window (get-buffer-window msbn t))
-	(switch-to-buffer (concat "*" matlab-shell-buffer-name "*"))))
-
-    ;; Fixup DIR to be a valid MATLAB command
-    (mapc
-     (lambda (e)
-       (while (string-match (car e) dir)
-         (setq dir (replace-match
-                    (format "', char(%s), '" (cdr e)) t t dir))))
-     '(("ô" . "244")
-       ("é" . "233")
-       ("è" . "232")
-       ("à" . "224")))
-    
-    ;; change current directory? - only w/ matlab-shell active.
-    (if (and change-cd (get-buffer msbn))
-	(progn
-	  (when (not (string= dir default-directory))
-	    (matlab-shell-send-command (concat "emacscd(['" dir "'])")))
-
-	  (let ((cmd (concat fn-name " " param)))
-	    (matlab-shell-add-to-input-history cmd)
+	  ;; Else, use it.
+	  (setq do-local nil
+		matlab-shell-save-and-go-command-enabled t)
+	    
+	  ;; No buffer?  No net connection?  Make a shell!
+	  (if (and (not (get-buffer msbn)) (not (matlab-netshell-active-p)))
+	      (matlab-shell))
 	  
-	    (matlab-shell-send-string (concat cmd "\n"))
-	    ))
+	  (when (get-buffer msbn)
+	    ;; Ok, now fun the function in the matlab shell
+	    (if (get-buffer-window msbn t)
+		(select-window (get-buffer-window msbn t))
+	      (switch-to-buffer-other-window (concat "*" matlab-shell-buffer-name "*")))
+	    (goto-char (point-max)))
+	  
+	  (matlab-shell-send-string (concat cmd "\n"))
+	  )))
+
+    (when do-local
+      ;; else - try to make something up to run this specific command.
+      (let* ((dir (expand-file-name (file-name-directory buffer-file-name)))
+	     (edir dir)
+	     (change-cd matlab-change-current-directory)
+	     (param ""))
+	(save-buffer)
+	;; Do we need parameters?
+	(if (save-excursion
+	      (goto-char (point-min))
+	      (end-of-line)
+	      (forward-sexp -1)
+	      (looking-at "([a-zA-Z]"))
+	    (setq param (read-string "Parameters: "
+				     (car matlab-shell-save-and-go-history)
+				     'matlab-shell-save-and-go-history)))
+
+	;; No buffer?  No net connection?  Make a shell!
+	(if (and (not (get-buffer msbn)) (not (matlab-netshell-active-p)))
+	    (matlab-shell))
+
+	(when (get-buffer msbn)
+	  ;; Ok, now fun the function in the matlab shell
+	  (if (get-buffer-window msbn t)
+	      (select-window (get-buffer-window msbn t))
+	    (switch-to-buffer-other-window (concat "*" matlab-shell-buffer-name "*")))
+	  (goto-char (point-max)))
+
+	;; Fixup DIR to be a valid MATLAB command
+	(mapc
+	 (lambda (e)
+	   (while (string-match (car e) dir)
+	     (setq dir (replace-match
+			(format "', char(%s), '" (cdr e)) t t dir))))
+	 '(("ô" . "244")
+	   ("é" . "233")
+	   ("è" . "232")
+	   ("à" . "224")))
+    
+	;; change current directory? - only w/ matlab-shell active.
+	(if (and change-cd (get-buffer msbn))
+	    (progn
+	      (when (not (string= dir default-directory))
+		(matlab-shell-send-command (concat "emacscd(['" dir "'])")))
+
+	      (let ((cmd (concat fn-name " " param)))
+		(matlab-shell-add-to-input-history cmd)
+	  
+		(matlab-shell-send-string (concat cmd "\n"))
+		))
       
-      ;; If not changing dir, maybe we need to use 'run' command instead?
-      (let ((cmd (concat "run('" dir fn-name "')")))
-	(matlab-shell-send-command cmd)))
-    ))
+	  ;; If not changing dir, maybe we need to use 'run' command instead?
+	  (let ((cmd (concat "run('" dir fn-name "')")))
+	    (matlab-shell-send-command cmd)))
+	))))
 
 ;;; Running buffer subset
 ;;
