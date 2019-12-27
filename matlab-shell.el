@@ -2090,7 +2090,8 @@ Similar to  `comint-send-input'."
     ;; change current directory? - only w/ matlab-shell active.
     (if (and change-cd (get-buffer msbn))
 	(progn
-          (matlab-shell-send-command (concat "cd(['" dir "'])"))
+	  (when (not (string= dir default-directory))
+	    (matlab-shell-send-command (concat "emacscd(['" dir "'])")))
 
 	  (let ((cmd (concat fn-name " " param)))
 	    (matlab-shell-add-to-input-history cmd)
