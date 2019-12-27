@@ -1,4 +1,4 @@
-;; Object ede-proj-project
+;; Object ede-proj-project-15781502eb88
 ;; EDE Project Files are auto generated: Do Not Edit
 (ede-proj-project "ede-proj-project"
   :file "Project.ede"
@@ -8,4 +8,4 @@
     (ede-proj-target-makefile-miscelaneous "ede-proj-target-makefile-miscelaneous"
       :name "matlab"
       :path ""
-      :source '("emacsinit.m" "opentoline.m" "emacsdocomplete.m" "dbhotlink.m" "emacsnetshell.m" "emacsrunregion.m" "+emacs/@EmacsServer/EmacsServer.m"))))
+      :source '("emacsinit.m" "opentoline.m" "emacsdocomplete.m" "dbhotlink.m" "emacsnetshell.m" "emacsrunregion.m" "+emacs/@EmacsServer/EmacsServer.m" "help.m" "emacscd.m" "dbstop.m" "emacss_dbstop.m" "ebstatus.m" "ebstack.m" "emacspathinit.m" "ebstop.m" "ebquit.m" "ebcont.m" "ebstep.m" "ebup.m"))))
