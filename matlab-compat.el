@@ -208,41 +208,41 @@ Return the base directory it is in."
 
 ;;; Finding EmacsClient
 (defun matlab-find-emacsclient ()
-  "Try to find a workable copy of `emacsclient' binary.
-Starts by searching exec path.  If not on exec path as can happen on
-Windows, try to find Emacs, it's bin directory, and then emacsclient."
-  (cond
-   ((and (eq system-type 'windows-nt)
-	 (locate-file "emacsclientw" exec-path))
-    ;; It's just on the path.  Return short form
-    "emacsclientw")
-	
-   ((locate-file "emacsclient" exec-path)
-    ;; It's just on the path.  Return it.
-    "emacsclient")
-
-   (t
-    ;; Not on path.  We need to find the path, and then
-    ;; see if we can find emacsclient there.
-    (let* ((rt (expand-file-name ".." data-directory))
-	   (bin (expand-file-name "bin" rt))
-	   (ec (or (locate-file "emacsclientw.exe" (list bin))
-		   (locate-file "emacsclient.exe" (list bin))))
-	   (bin2 nil)
-	   )
-      (when (and (not ec) (string-match "/share/" bin))
-	;; Not there - look for 'share' in bin, and branch there.
-	(setq bin2 (expand-file-name "bin"
-				     (substring bin 0 (match-beginning
-						       0))))
-
-	(setq ec (or (locate-file "emacsclientw.exe" (list bin2))
-		     (locate-file "emacsclient.exe" (list bin2)))))
-
-      ;; Last resort - just set it to something a user will see.
-      (when (not ec) (setq ec "emacsclient"))
-      ;; Return it.
-      ec))))
+  "Locate the emacsclient correspoinding to the current emacs
+binary defined by `invocation-name' in `invocation-directory'"
+  (let ((ec "emacsclient"))
+    (cond
+     ;; Mac
+     ((equal system-type 'darwin)
+      (if (file-exists-p (concat invocation-directory "emacsclient")) ;; running the default emacs?
+          (setq ec (concat invocation-directory "emacsclient"))
+        ;; On Mac, one can install into
+        ;;    /Applications/Emacs.app/Contents/MacOS/Emacs
+        ;;    /Applications/Emacs.app/Contents/MacOS/bin/emacsclient
+        (if (file-exists-p (concat invocation-directory "bin/emacsclient"))
+            (setq ec (concat invocation-directory "bin/emacsclient")))))
+     ;; Windows
+     ((equal system-type 'windows-nt)
+      (if (file-exists-p (concat invocation-directory "emacsclientw.exe"))
+          (setq ec (concat invocation-directory "emacsclientw.exe"))
+        (error "unable to locate emacsclientw.exe. It should be in %s" invocation-directory)))
+     ;; Linux or other UNIX system
+     (t
+      ;; Debian 9 can be setup to have:
+      ;;   /usr/bin/emacs
+      ;;   /usr/bin/emacsclient
+      ;;   /usr/bin/emacs24
+      ;;   /usr/bin/emacsclient.emacs24
+      ;;   /usr/bin/emacs25
+      ;;   /usr/bin/emacsclient.emacs25
+      (if (and (equal invocation-name "emacs")
+                 (file-exists-p (concat invocation-directory "emacsclient")))
+          (setq ec (concat invocation-directory "emacsclient"))
+        (if (file-exists-p (concat invocation-directory "emacsclient." invocation-name))
+            (setq ec (concat invocation-directory "emacsclient." invocation-name))))))
+    ;; Return, ec, the emacsclient to use
+    ec
+    ))
 
 (provide 'matlab-compat)
 
