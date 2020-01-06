@@ -156,15 +156,16 @@ Return the base directory it is in."
     
     (dolist (P exec-path)
       (let ((nm (expand-file-name program P)))
-	(when (and (file-exists-p nm) (file-executable-p nm))
-	  (let* ((fa (file-attributes nm))
-		 (lnk (car fa)))
-	    (if lnk
-		;; We have a link - use that as our directory.
-		(setq dir (file-name-directory lnk))
-	      ;; No link - just use this path.
-	      (setq dir P)))
-	  )))
+        (when (and (file-exists-p nm) (file-executable-p nm))
+          (let* ((fa (file-attributes nm))
+                 (lnk (car fa)))
+            ;; The car is t for a directory, a string for a link, nil otherwise
+            (if (stringp lnk)
+                ;; We have a link - use that as our directory.
+                (setq dir (file-name-directory lnk))
+              ;; No link - just use this path.
+              (setq dir P)))
+          )))
     dir))
 
 ;; Completion Tools
