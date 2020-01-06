@@ -1,5 +1,5 @@
 ;;; matlab-pkg.el --- define matlab for package.el
-(define-package "matlab-mode" "3.3.5" "Major mode for MATLAB(R) dot-m files"
+(define-package "matlab-mode" "4.0" "Major mode for MATLAB(R) dot-m files"
   'nil
   :keywords
   '("matlab" "programming" "language" "(X)emacs")
