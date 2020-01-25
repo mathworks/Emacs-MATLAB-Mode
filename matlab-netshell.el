@@ -121,8 +121,11 @@ response from some Emacs based request."
     )
   ;; Interpret the command.
   (cond ((string= "init" cmd)
-	 ;; Make sure GUD bindings are available
-	 (matlab-shell-mode-gud-enable-bindings)
+	 ;; Make sure GUD bindings are available, but do so in
+	 ;; the netshell buffer so when gud bundings run, they
+	 ;; don't stomp on C-c matlab-mode bindings.
+	 (with-current-buffer (process-buffer proc)
+	   (matlab-shell-mode-gud-enable-bindings))
 	 ;; Send info about emacs client
 	 (when (not (matlab-shell-active-p))
 	   (let* ((ecc (matlab-shell--get-emacsclient-command))
