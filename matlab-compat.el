@@ -218,9 +218,13 @@ Windows, try to find Emacs, it's bin directory, and then emacsclient."
     ;; It's just on the path.  Return short form
     "emacsclientw")
 	
-   ((locate-file "emacsclient" exec-path)
+   ((let ((lf (locate-file "emacsclient" exec-path)))
+      ;; cygwin paths really confuses MATLAB, so use the
+      ;; backup mechanism instead.
+      (and lf (not (string-match "cygwin" lf))))
     ;; It's just on the path.  Return it.
     "emacsclient")
+
 
    (t
     ;; Not on path.  We need to find the path, and then
