@@ -8,7 +8,7 @@
   "The current version of TLC mode.")
 
 ;;
-;; Copyright 1997-2017 The MathWorks, Inc.
+;; Copyright 1997-2017 Eric Ludlam
 ;;
 ;; This program is derived from free software; you can redistribute it
 ;; and/or modify it under the terms of the GNU General Public License

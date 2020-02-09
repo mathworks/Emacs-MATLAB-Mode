@@ -7,7 +7,7 @@
 (defvar mlint-version "1.3.2"
   "The current version of mlint minor mode.")
 
-;; Copyright (C) 2002-2005, 2013, 2014, 2016-2017, 2019 The MathWorks Inc.
+;; Copyright (C) 2002-2020 Eric Ludlam
 ;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by

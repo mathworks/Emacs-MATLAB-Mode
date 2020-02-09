@@ -1,6 +1,6 @@
 ;;; semantic-matlab.el --- Semantic details for MATLAB files
 
-;;; Copyright (C) 2004-2013, 2019 Eric M. Ludlam: The Mathworks, Inc
+;;; Copyright (C) 2004-2020 Eric M. Ludlam
 
 ;; Author: Eric M. Ludlam <eludlam@mathworks.com>
 

@@ -11,8 +11,7 @@
   "Current version of MATLAB(R) mode.")
 
 ;;
-;; Copyright (C) 2004-2010, 2014, 2016-2017, 2019 The Mathworks, Inc
-;; Copyright (C) 1997-2004 Eric M. Ludlam: The MathWorks, Inc
+;; Copyright (C) 1997-2020 Eric M. Ludlam
 ;; Copyright (C) 1991-1997 Matthew R. Wette
 ;;
 ;; This program is free software; you can redistribute it and/or modify
