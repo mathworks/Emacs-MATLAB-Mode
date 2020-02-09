@@ -2109,7 +2109,7 @@ Similar to  `comint-send-input'."
 	      (switch-to-buffer-other-window (concat "*" matlab-shell-buffer-name "*")))
 	    (goto-char (point-max)))
 	  
-	  (matlab-shell-send-string (concat cmd "\n"))
+	  (matlab-shell-send-command (concat cmd "\n"))
 	  )))
 
     (when do-local
