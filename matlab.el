@@ -194,7 +194,7 @@ See `matlab-indent-function-body' variable."
     matlab-indent-function-body))
 
 (defcustom matlab-indent-past-arg1-functions
-  "[sg]et\\(_param\\)?\\|waitfor"
+  "[sg]et\\(_param\\)?\\|waitfor\\|notify"
   "*Regex describing functions whose first arg is special.
 This specialness means that all following parameters which appear on
 continued lines should appear indented to line up with the second

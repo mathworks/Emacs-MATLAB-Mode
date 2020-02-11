@@ -43,6 +43,9 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
 
             % !!12
             
+            notify(obj,'Event1',...
+                       'indent test');
+            
             % >>17
             while obj.AB % #3#
                 
