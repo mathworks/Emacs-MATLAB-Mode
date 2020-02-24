@@ -1,4 +1,4 @@
-function indents()
+function indents(a,b,stuff)
 % Help text
 % !!0
 % of many lines
@@ -6,7 +6,17 @@ function indents()
     
 % including a gap
 % !!0
-
+    
+    arguments (Repeating) % !!4
+        a (1,1) {mustBeNumeric}                                 % !!8
+        b (:,:) double                                          % !!8
+        stuff {mustBeMember(stuff, { 'this' 'that' 'other' })}  % !!8
+    end % !!4
+    
+    locala = a; %#ok
+    localb = b; %#ok
+    localstuff = stuff; %#ok
+    
     ends_in_comments_and_strings(); % has end in name
     
     % !!4

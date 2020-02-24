@@ -1027,6 +1027,7 @@ Argument LIMIT is the maximum distance to search."
 				 "catch" "tic" "toc"
 				 ;; MCOS keywords
 				 "properties" "methods" "enumeration" "events"
+				 "arguments"
 				 )
   "List of keywords for MATLAB used in highlighting.
 Customizing this variable is only useful if `regexp-opt' is available."
@@ -1204,7 +1205,7 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
     	 '("\\s-*[<&]\\s-*\\(\\(\\sw\\|\\.\\)+\\)" nil nil
    	   (1 font-lock-constant-face)))
    ;; Property and Method blocks have attributes to highlight
-   (list "^\\s-*\\(classdef\\|properties\\|methods\\|events\\)\\s-*("
+   (list "^\\s-*\\(classdef\\|properties\\|methods\\|events\\|arguments\\)\\s-*("
 	 '("\\(\\sw+\\)\\s-*\\(=\\s-*[^,)]+\\)?" nil nil
 	   (1 font-lock-type-face)
 	   ))
@@ -1212,7 +1213,7 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
    '("^\\s-*\\w+\\s-*\\(([:0-9,]+)\\s-*[^{=\n]+\\)"
      (1 font-lock-type-face nil nil))
    ;; Properties blocks are full of variables
-   '("^\\s-*\\(properties\\|events\\)\\>"
+   '("^\\s-*\\(properties\\|events\\|arguments\\)\\>"
      ("^\\s-*\\(\\sw+\\)\\>" ;; This part matches the variable
       ;; extend region to match in
       (save-excursion (matlab-forward-sexp nil t) (beginning-of-line) (point))
@@ -1635,7 +1636,7 @@ Return nil if it is being used to dereference an array."
 (defconst matlab-defun-regex "^\\(\\s-*function\\|classdef\\)[ \t.[]"
   "Regular expression defining the beginning of a MATLAB function.")
 
-(defconst matlab-mcos-regexp "\\|classdef\\|properties\\|methods\\|events\\|enumeration"
+(defconst matlab-mcos-regexp "\\|classdef\\|properties\\|methods\\|events\\|enumeration\\|arguments"
   "Keywords which mark the beginning of mcos blocks.")
 
 (defcustom matlab-block-indent-tic-toc-flag nil
