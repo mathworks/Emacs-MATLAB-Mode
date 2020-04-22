@@ -872,12 +872,32 @@ Argument LIMIT is the maximum distance to scan."
       ;; We made a change
       t)))
 
+(defconst matlab-block-comment-start-re "^\\s-*%{\\s-*$"
+  "Regexp that matches the beginning of a block comment.
+Block comment indicators must be on a line by themselves.")
+
+(defun matlab-ltype-block-comment-start ()
+  "Return non-nil if the current line is a block comment start."
+  (save-excursion
+    (beginning-of-line)
+    (looking-at matlab-block-comment-start-re)))
+
+(defconst matlab-block-comment-end-re "^\\s-*%}\\s-*$"
+  "Regexp that matches the end of a block comment.
+Block comment indicators must be on a line by themselves.")
+
+(defun matlab-ltype-block-comment-end ()
+  "Return non-nil if the current line is a block comment start."
+  (save-excursion
+    (beginning-of-line)
+    (looking-at matlab-block-comment-end-re)))
+
 
 (defun matlab-find-block-comments (limit)
   "Find code that is commented out with %{ until %}.
 Argument LIMIT is the maximum distance to search."
   (if (and (< (point) limit)
-	   (re-search-forward "%{" limit t))
+	   (re-search-forward matlab-block-comment-start-re limit t))
       (let ((b1 (match-beginning 0))
 	    (e1 (match-end 0))
 	    (b2 nil) (e2 nil)
@@ -892,7 +912,7 @@ Argument LIMIT is the maximum distance to search."
 	      nil)
 	  ;; Else, find the end.  We will certainly be in
 	  ;; a comment, so no need to check on the end.
-	  (setq b2 (re-search-forward "%}" limit t))
+	  (setq b2 (re-search-forward matlab-block-comment-end-re limit t))
 	  (if (not b2)
 	      (progn
 		;; No end ?  Let's tell font-lock to just go
@@ -1982,7 +2002,7 @@ forward until we exit that block."
         (cond
 	 ;; no autostart, and looking at a block comment.
 	 ((and (not autostart)
-	       (looking-at (concat "%{")))
+	       (matlab-ltype-block-comment-start))
 	  (goto-char (match-end 0))
 	  (let ((bc (matlab-ltype-block-comm)))
 	    (when bc (goto-char (cdr bc))))
@@ -2257,22 +2277,23 @@ of character based."
       (let ((start nil)
 	    (good t)
 	    (end nil))
-	(if (and (looking-at "\\%{")
+	(if (and (matlab-ltype-block-comment-start)
 		 (not (matlab-cursor-in-string-or-comment)))
-	    (setq start (match-beginning 0))
-	  (while (and (setq good (re-search-backward "\\%\\([{}]\\)" nil t))
+	    (setq start (match-beginning 0)) ;; CHECK
+	  
+	  (while (and (setq good (re-search-backward "^\\s-*\\%\\([{}]\\)\\s-*$" nil t))
 		      (matlab-cursor-in-string-or-comment))
 	    nil)
       
-	  (when (and good (looking-at "\\%{"))
+	  (when (and good (matlab-ltype-block-comment-start))
 	    (setq start (match-beginning 0))))
 
 	(when start
-	  (while (and (setq good (re-search-forward "\\%}" nil t))
+	  (while (and (setq good (re-search-forward matlab-block-comment-end-re nil t))
 		      (matlab-cursor-in-string t))
 	    nil)
 	
-	  (if (and good (goto-char (match-beginning 0)) (looking-at "\\%}"))
+	  (if (and good (goto-char (match-beginning 0)) (matlab-ltype-block-comment-end))
 	      (setq end (match-end 0))
 	    (setq end (point-max))))
 
@@ -2282,33 +2303,13 @@ of character based."
 
 (defun matlab-ltype-block-comm-at-start ()
   "Return non-nil if we are on a block comment start line AND
-the %{ is the first non-whitespace text on the line.
-This function depends on `matlab-ltype-block-comm' without the linebounds
-input having run before moving point."
-  (when matlab-ltype-block-comm-bounds
-    (save-excursion
-      (let ((bcs (car matlab-ltype-block-comm-bounds)))
-	;; From our current line - are we near the start?
-	(beginning-of-line)
-	(and (<= (point) bcs) (looking-at "\\s-*%{"))))
-    ))
+the %{ is the only non-whitespace text on the line."
+  (matlab-ltype-block-comment-start))
 
 (defun matlab-ltype-block-comm-at-end ()
   "Return non-nil if we are on a block comment end line AND
-the %{ is not also on this line.
-This function depends on `matlab-ltype-block-comm` without the linebounds
-input having run before moving point."
-  (when matlab-ltype-block-comm-bounds
-    (save-excursion
-      (let ((bcs (car matlab-ltype-block-comm-bounds))
-	    (bce (cdr matlab-ltype-block-comm-bounds)))
-	;; From our current line - are we near the start?
-	(end-of-line)
-	(and (>= (point) bce)
-	     (progn
-	       (beginning-of-line)
-	       (not (looking-at "\\s-*%{"))))))
-    ))
+the %{ is the only non-whitespace text on this line."
+  (matlab-ltype-block-comment-end))
 
 
 (defun matlab-ltype-continued-comm ()
@@ -3193,10 +3194,8 @@ Argument ARG specifies how many %s to insert."
   (self-insert-command (or arg 1))
   (let ((bc (save-excursion (beginning-of-line) (matlab-ltype-block-comm))))
     
-    (cond ((save-excursion
-	   (back-to-indentation)
-	   (looking-at "%{"))
-
+    (cond ((matlab-ltype-block-comment-start)
+	   
 	 ;; Starting block comment.  Check if we are alreayd in a block
 	 ;; comment, and blink it if a problem.
 	 (let ((bcwrapped (save-excursion
@@ -3230,7 +3229,7 @@ Argument ARG specifies how many %s to insert."
 	   (message "Block comment end has no matching %%{")
 	   (save-excursion
 	     (beginning-of-line)
-	     (when (re-search-backward "\\%}" nil t)
+	     (when (re-search-backward matlab-block-comment-end-re nil t)
 	       (pulse-momentary-highlight-region (match-beginning 0) (match-end 0))))
 	   )
 	  )))

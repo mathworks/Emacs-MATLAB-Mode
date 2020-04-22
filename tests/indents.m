@@ -157,17 +157,24 @@ function B = continuations_and_block_comments
 % !!0
 % !!0
     
-    %{  !!4
+    %{
       !!6
       !!6
-    %}  !!4
+    %}
     
-    %{ !!4
+    %{
     %  !!4
       !!6
     % !!4
-    %} !!4
-  
+    %}
+    
+    % Block comment indicators MUST be on a line by themselves.
+    %{ Not a block comment }
+    
+    foo(1); % !!4   - don't indent this special
+    
+    %} Not an end to a block comment {
+    
     foo(arg1, ... %!!4
         arg2);  %!!8
     
