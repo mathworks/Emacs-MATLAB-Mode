@@ -1298,6 +1298,7 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.m$" . matlab-mode))
 
+(defvar mlint-minor-mode)
 (declare-function mlint-minor-mode "mlint.el")
 (declare-function mlint-buffer "mlint.el")
 (declare-function mlint-clear-warnings "mlint.el")
@@ -1305,7 +1306,7 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
 (defvar show-paren-data-function)
 
 ;;;###autoload
-(define-derived-mode matlab-mode prog-mode "MATLAB" ()
+(define-derived-mode matlab-mode prog-mode "MATLAB"
   "MATLAB(R) mode is a major mode for editing MATLAB dot-m files.
 \\<matlab-mode-map>
 Convenient editing commands are:
@@ -1359,6 +1360,8 @@ Variables:
 
 All Key Bindings:
 \\{matlab-mode-map}"
+  :after-hook (matlab-mode-init-mlint-if-needed)
+  
   (kill-all-local-variables)
   (use-local-map matlab-mode-map)
   (setq major-mode 'matlab-mode)
@@ -1488,10 +1491,15 @@ All Key Bindings:
    (t)
    )
 
+  (if matlab-vers-on-startup (matlab-show-version)))
 
-  (if (or (featurep 'mlint)
-	  matlab-show-mlint-warnings
-	  matlab-highlight-cross-function-variables)
+(defun matlab-mode-init-mlint-if-needed ()
+  "Check if we should start `mlint-minor-mode' for this buffer."
+  ;; Check to see if the user asked for any features that need mlint.
+  (if (and (or (not (boundp 'mlint-minor-mode))
+	       (not mlint-minor-mode))	; prevent double init
+	   (or matlab-show-mlint-warnings
+	       matlab-highlight-cross-function-variables)) ; check settings for need
       ;; Some users may not feel like getting all the extra stuff
       ;; needed for mlint working.  Do this only if we can get
       ;; mlint loaded ok.
@@ -1500,13 +1508,11 @@ All Key Bindings:
 	   (if (or matlab-show-mlint-warnings matlab-highlight-cross-function-variables)
 	       1
 	     0))
+
 	;; If there is an error loading the stuff, don't
 	;; continue.
-	(error nil)))
-  (save-excursion
-    (goto-char (point-min))
-    (run-hooks 'matlab-mode-hook))
-  (if matlab-vers-on-startup (matlab-show-version)))
+	(error nil))))  
+
 
 ;;; Utilities =================================================================
 
