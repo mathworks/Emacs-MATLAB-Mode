@@ -32,8 +32,15 @@ function [out, docTopic] = help(varargin)
     cleanup = onCleanup(@()cd(oldCWD));
 
     args = varargin;
-
-    cookie = true;
+    
+    nso = emacsnetshell('fetch');
+    
+    if isempty(nso)
+        cookie = true;
+    else
+        cookie = false;
+    end
+    
     if nargin > 0 && strcmp(args{1}, '-emacs')
         cookie=false;
         args = args(2:end);
