@@ -1,18 +1,15 @@
 function emacsinit()
 % EMACSINIT Initialize the current MATLAB session for matlab-shell-mode
 %
-% clientcommand is the emacsclient command used to open files in emacs. It
-% is defined by `matlab-shell-emacsclient-command' in matlab.el. If empty,
-% don't instruct MATLAB to use emacsclient to edit files.
 
     me = mfilename('fullpath');
-    % This command can also update the path for the emacs Toolbox direcory.
+    % This command can also update the path for the emacs Toolbox directory.
     % This will make it possible to use this one command from a standalone
     % MATLAB and setup netshell.
     [ myDir ] = fileparts(me);
-    
+
     if ~contains(path, myDir)
-        
+
         disp(['Updating MATLAB Path to support Emacs toolbox: addpath(' myDir ')']);
 
         addpath(myDir,'-begin');
@@ -23,7 +20,7 @@ function emacsinit()
         %{
         % Leaving in old hot-link code and description (see below)
         % in case someone with older MATLAB's need to use this.
-        
+
         v = ver('MATLAB');
         if str2double(v.Version) < 8.5
             % In 8.5 (R2015b) the MATLAB removed the ability to display hot link's when
@@ -50,18 +47,18 @@ function emacsinit()
         % Starting in matlab-emacs v 4.0, we can simulate debugging
         % hot links, so we should always disable graphical
         % debugging.
-        
+
         % Disable built-in editor showing up for debugging
         com.mathworks.services.Prefs.setBooleanPref('EditorGraphicalDebugging', false);
-    
+
         % Disable wrapping of text lines.  Emacs will wrap or not based on user preference.
         com.mathworks.services.Prefs.setBooleanPref('WrapLines',false)
     end
-    
-    % Check if we're running inside emacxs.  If we are NOT, then force the enablement of
+
+    % Check if we're running inside emacs.  If we are NOT, then force the enablement of
     % the netshell interface to Emacs.
     emacs_env = getenv('INSIDE_EMACS');
-    
+
     if isempty(emacs_env)
         startnetshell = true;
     else
@@ -75,7 +72,7 @@ function emacsinit()
         nso = [];
     end
 
-    % Initialize Emacs breakboint handler.
+    % Initialize Emacs breakpoint handler.
     bp = emacs.Breakpoints(nso);
     setappdata(groot, 'EmacsBreakpoints', bp);
 
@@ -84,3 +81,5 @@ function emacsinit()
     setappdata(groot, 'EmacsStack', st);
 
 end
+
+% LocalWords:  netshell nodesktop testit hotlinking
