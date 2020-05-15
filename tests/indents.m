@@ -99,6 +99,9 @@ function B = ends_in_comments_and_strings()
     str = 'This is a char array with ... in it';
     foo(str); % !!4
     
+    fcncall(arg1, '...', arg3); % !!4
+    1; % !!4
+
     % Multi-ends
     % >>8
     if foo %#ok

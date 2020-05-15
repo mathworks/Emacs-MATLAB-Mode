@@ -2384,9 +2384,9 @@ based on what it ends with."
     (beginning-of-line)
     (or
      ;; Here, if the line ends in ..., then it is what we are supposed to do.
-     (and (re-search-forward "[^ \t.][ \t]*\\.\\.+[ \t]*\\(.*\\)?$"
+     (and (re-search-forward "[^ \t.][ \t]*\\(\\.\\.\\.+\\)[ \t]*\\(.*\\)?$"
 				(matlab-point-at-eol) t)
-	  (progn (goto-char (match-beginning 0))
+	  (progn (goto-char (match-beginning 1))
 		 (not (matlab-cursor-in-string-or-comment))))
      ;; If the line doesn't end in ..., but we have optional ..., then
      ;; use this annoying heuristic.
