@@ -1358,16 +1358,6 @@ indicates as such."
 ;;;###autoload
 (add-to-list 'magic-mode-alist '(matlab-is-matlab-file . matlab-mode))
 
-;; MCR (MATLAB common run-time) *.m should enter fundamental-mode because they are binary.
-;;;###autoload
-(defun matlab-is-mcr-file ()
-  (and buffer-file-name
-       (string-match "^\\(.*/\\)?[a-zA-Z][a-zA-Z0-9_]*\\.m$" buffer-file-name)
-       (looking-at "^[A-Z0-9]+MCR")))
-
-;;;###autoload
-(add-to-list 'magic-mode-alist '(matlab-is-mcr-file . fundamental-mode))
-
 (defvar mlint-minor-mode)
 (declare-function mlint-minor-mode "mlint.el")
 (declare-function mlint-buffer "mlint.el")
