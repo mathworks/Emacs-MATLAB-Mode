@@ -801,7 +801,11 @@ when attempting to understand the current context.")
   "When font locking strings, call this function for normal character vectors.
 Argument LIMIT is the maximum distance to scan."
   (when (and (< (point) limit)
-	     (re-search-forward matlab-font-lock-string-and-comment-start-regexp limit t))
+	     (re-search-forward matlab-font-lock-string-and-comment-start-regexp
+                                (if (eq limit (point-max))
+                                    (- limit 1) ;; consider case of "..." at EOF
+                                  limit)
+                                t))
 
     ;; We might match a comment, string or unterminated string.
     (let ((strchar (preceding-char))
@@ -1322,7 +1326,12 @@ file or for empty files *.m files when `matlab-mode-for-new-mfiles'
 indicates as such."
   (and buffer-file-name ;; have a file?
        ;; AND a valid MATLAB file name
-       (string-match "^\\(.*/\\)?[a-zA-Z][a-zA-Z0-9_]*\\.m$" buffer-file-name)
+       (string-match
+        "^\\(?:.*/\\)?[a-zA-Z][a-zA-Z0-9_]*\\.m\\'"  ;; /path/to/file.m ?
+        (file-name-sans-versions
+         (if (and (boundp 'archive-subfile-mode) archive-subfile-mode)
+             (aref archive-subfile-mode 0)   ;; Will just be file.m without the directory
+           buffer-file-name)))
        ;; AND (have MATLAB code OR an empty file that should enter matlab-mode)
        (or
         ;; Is content MATLAB code? We can definitely identify *some* MATLAB content using
@@ -4407,8 +4416,8 @@ desired.  Optional argument FAST is not used."
 ;; LocalWords:  bs eu bc ec searchlim eol charvec Matchers ltype cdr if'd setcdr bcwrapped
 ;; LocalWords:  uicontext setcolor mld keywordlist mapconcat pragmas Classdefs
 ;; LocalWords:  dem Za Imenu imenu alist prog reindent unindent boundp fn
-;; LocalWords:  Parens symbolp prev lst nlst nreverse Aki Vehtari backquote
-;; LocalWords:  defmacro oldsyntax edebug parens cline ctxt eobp bobp sc fc
+;; LocalWords:  symbolp prev lst nlst nreverse Aki Vehtari backquote
+;; LocalWords:  defmacro oldsyntax edebug cline ctxt eobp bobp sc fc
 ;; LocalWords:  udir funcall sexps skipnav eolp autoend noerror returnme
 ;; LocalWords:  Unstarted includeelse autostart lattr zerop cellstart blockcomm
 ;; LocalWords:  linebounds bol commtype startmove nomove charvector sregex
