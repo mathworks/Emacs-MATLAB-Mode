@@ -1,6 +1,6 @@
 ;;; matlab-complete.el --- Simple completion tool for matlab-mode
 ;;
-;; Copyright (C) 2019 Eric Ludlam
+;; Copyright (C) 2019, 2020 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <zappo@gnu.org>
 ;;
@@ -397,6 +397,37 @@ The last type of semantic used while completing things.")
 
 ;;;###autoload
 (defun matlab-complete-symbol (&optional arg)
+  "Complete a partially typed symbol in a MATLAB mode buffer."
+  (interactive "P")
+  (if (and (matlab-shell-active-p) matlab-shell-ask-MATLAB-for-completions)
+      ;; Use MATLAB shell if active and asking for completions is enabled.
+      (matlab-complete-symbol-with-shell arg)
+    ;; Else, do the antique version.
+    (matlab-complete-symbol-local arg)
+    ))
+
+(defun matlab-complete-symbol-with-shell (&optional arg)
+  "Complete a partially typed symbol in a MATLAB mode buffer using `matlab-shell'.
+Use `completion-in-region' to support the completion behavior."
+  (interactive "P")
+  ;; Try to do completion with the shell
+  (matlab-navigation-syntax
+    (let* ((common-substr-start-pt nil)
+	   (common-substr-end-pt nil)
+	   (prefix (if (and (not (eq last-command 'matlab-complete-symbol))
+			    (member (preceding-char) '(?  ?\t ?\n ?, ?\( ?\[ ?\')))
+		       ""
+		     (buffer-substring-no-properties
+		      (save-excursion (forward-word -1) (setq common-substr-start-pt (point)))
+		      (setq common-substr-end-pt (point)))))
+	   (completion-info (matlab-shell-completion-list prefix))
+           (completions (cdr (assoc 'completions completion-info)))
+	   )
+      (completion-in-region common-substr-start-pt common-substr-end-pt completions)
+      ))
+  )
+  
+(defun matlab-complete-symbol-local (&optional arg)
   "Complete a partially typed symbol in a MATLAB mode buffer.
 If the previously entered command was also `matlab-complete-symbol'
 then undo the last completion, and find a new one.
