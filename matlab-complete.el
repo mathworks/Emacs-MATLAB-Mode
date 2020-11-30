@@ -399,7 +399,7 @@ The last type of semantic used while completing things.")
 (defun matlab-complete-symbol (&optional arg)
   "Complete a partially typed symbol in a MATLAB mode buffer."
   (interactive "P")
-  (if (and (matlab-shell-active-p) matlab-shell-ask-MATLAB-for-completions)
+  (if (and (featurep 'matlab-shell) (matlab-shell-active-p) matlab-shell-ask-MATLAB-for-completions)
       ;; Use MATLAB shell if active and asking for completions is enabled.
       (matlab-complete-symbol-with-shell arg)
     ;; Else, do the antique version.
