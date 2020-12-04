@@ -20,6 +20,13 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
         AF (1,1) char {mustBeMember(AF, {'High','Medium','Low'})} = 'Low'; % #5#
         AG (1,1) matlab.lang.OnOffSwitchState = 'on'; % #6#
     end % <<111
+
+    % >> 112
+    events
+        % !!8
+        Event1
+        Event2
+    end % <<112
     
     % >>12
     methods
@@ -35,6 +42,9 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
             disp('charvect with if and for words [ in it'); % #2#
 
             % !!12
+            
+            notify(obj,'Event1',...
+                       'indent test');
             
             % >>17
             while obj.AB % #3#

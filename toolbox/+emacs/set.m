@@ -20,8 +20,20 @@ function set(varargin)
     if ~isempty(clientcommand)
         if usejava('jvm')
             % Use clientcommand (e.g. emacsclient -n) for text editing
-            com.mathworks.services.Prefs.setBooleanPref('EditorBuiltinEditor', false);
-            com.mathworks.services.Prefs.setStringPref('EditorOtherEditor', clientcommand);
+            if verLessThan('MATLAB','9.4')
+                % Before settings API was introduced
+                com.mathworks.services.Prefs.setBooleanPref('EditorBuiltinEditor',false);
+            else
+                s = settings;
+                s.matlab.editor.UseMATLABEditor.TemporaryValue = 0;
+            end
+            if verLessThan('MATLAB','9.9')
+                % Before OtherEditor was read from settings API
+                com.mathworks.services.Prefs.setStringPref('EditorOtherEditor', clientcommand);
+            else
+                s = settings;
+                s.matlab.editor.OtherEditor.TemporaryValue = clientcommand;
+            end
         end
         if isunix
             % In some cases 'edit foo.m' requires EDITOR to be set so we see foo.m in Emacs.

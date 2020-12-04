@@ -1,4 +1,4 @@
-function indents()
+function indents(a,b,stuff)
 % Help text
 % !!0
 % of many lines
@@ -6,7 +6,17 @@ function indents()
     
 % including a gap
 % !!0
-
+    
+    arguments (Repeating) % !!4
+        a (1,1) {mustBeNumeric}                                 % !!8
+        b (:,:) double                                          % !!8
+        stuff {mustBeMember(stuff, { 'this' 'that' 'other' })}  % !!8
+    end % !!4
+    
+    locala = a; %#ok
+    localb = b; %#ok
+    localstuff = stuff; %#ok
+    
     ends_in_comments_and_strings(); % has end in name
     
     % !!4
@@ -89,6 +99,9 @@ function B = ends_in_comments_and_strings()
     str = 'This is a char array with ... in it';
     foo(str); % !!4
     
+    fcncall(arg1, '...', arg3); % !!4
+    1; % !!4
+
     % Multi-ends
     % >>8
     if foo %#ok
@@ -147,17 +160,24 @@ function B = continuations_and_block_comments
 % !!0
 % !!0
     
-    %{  !!4
+    %{
       !!6
       !!6
-    %}  !!4
+    %}
     
-    %{ !!4
+    %{
     %  !!4
       !!6
     % !!4
-    %} !!4
-  
+    %}
+    
+    % Block comment indicators MUST be on a line by themselves.
+    %{ Not a block comment }
+    
+    foo(1); % !!4   - don't indent this special
+    
+    %} Not an end to a block comment {
+    
     foo(arg1, ... %!!4
         arg2);  %!!8
     

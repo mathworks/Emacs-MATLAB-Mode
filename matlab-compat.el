@@ -128,9 +128,11 @@
     (nconc keymap comint-mode-map)))
 
 ;; String trim
-(if (fboundp 'string-trim)
-
-    (defalias 'matlab-string-trim 'string-trim)
+(if (locate-library "subr-x")
+    (progn
+      (require 'subr-x)
+      (defalias 'matlab-string-trim 'string-trim)
+      )
   
   (defsubst matlab-string-trim (string &optional regexp)
     "Trim STRING of leading string matching REGEXP.

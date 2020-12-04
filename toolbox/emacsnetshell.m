@@ -16,10 +16,21 @@ function nso = emacsnetshell(cmd, data)
     EMACSSERVER = getappdata(groot, 'EmacsNetShell');
 
     if nargin == 0
-        cmd = 'init';
+        if isempty(EMACSSERVER)
+            cmd = 'init';
+        else
+            cmd = 'fetch';
+        end
     end
 
-    if strcmp(cmd, 'shutdown')
+    if strcmp(cmd, 'fetch')
+        % Fetch means to get the server and return it.  Do not create
+        % the server on fetch - otherwise no way to know if a server was started
+        % or not.
+        nso = EMACSSERVER;
+        return;
+        
+    elseif strcmp(cmd, 'shutdown')
         % Shutdown our connection to emacs.
         setappdata(groot, 'EmacsNetShell', []);
 

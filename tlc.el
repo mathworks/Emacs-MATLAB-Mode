@@ -8,7 +8,7 @@
   "The current version of TLC mode.")
 
 ;;
-;; Copyright 1997-2017 The MathWorks, Inc.
+;; Copyright 1997-2017 Eric Ludlam
 ;;
 ;; This program is derived from free software; you can redistribute it
 ;; and/or modify it under the terms of the GNU General Public License
@@ -52,6 +52,11 @@
 (defgroup tlc nil
   "Major mode for editing tlc files."
   :group 'languages)
+
+(defcustom tlc-mode-hook nil
+  "*List of functions to call on entry to TLC mode."
+  :group 'tlc
+  :type 'hook)
 
 (defvar tlc-syntax-table nil
   "Syntax table used in an TLC file.")
@@ -130,9 +135,8 @@
   "List of keywords for nicely coloring X defaults.")
 
 ;;;###autoload
-(defun tlc-mode ()
+(define-derived-mode tlc-mode prog-mode "TLC" ()
   "Major mode for editing Tlc files, or files found in tlc directories."
-  (interactive)
   (kill-all-local-variables)
   (setq major-mode 'tlc-mode)
   (setq mode-name "TLC")
@@ -162,6 +166,9 @@
 			     ;; simplifying our keywords significantly
 			     ((?_ . "w"))))
   (tlc-version)
+  (save-excursion
+    (goto-char (point-min))
+    (run-hooks 'tlc-mode-hook))
   )
 
 (defun tlc-return ()
