@@ -1,3 +1,28 @@
+2021-02-25 John Ciolfi ciolfi@mathworks.com
+	* tlc.el (new version 1.3): revamped implementation
+	1. Make tlc indent by 4 spaces. Previously we were indenting by 2 spaces
+	   as this was used when we created tlc. Updating to 4 to be consistent
+	   with matlab-mode, etc.
+        2. Don't indent "TLC file guards"
+      	   %if EXISTS(::_FILE_NAME_) == 0
+      	   %assign _FILE_NAME_ = 1
+      	   <tlc file body starts at first column, 0>
+      	   %endif
+        3. Don't indent when inside of multi-line comments,
+	   fixed multi-line comment detection
+        4. Various indent fixes
+        5. Always align %if/%elseif/%else/%endif statements, even when unbalanced
+	   "{", "}" language elements exist.
+        6. Add support for special "%%{", "%%{{", "%%}", "%%}}", etc. 'indent
+	   comment shift operators' adjust indentation by 4, 8, -4, -8, etc.
+	7. Add support for "%%{N}" 'indent comment shift operators' that adjust
+	   what follows to indent to column N
+	8. Fix the tlc syntax table to correctly handle single and multiline
+	   comments
+	9. Make M-; use single line "%% ..." comments
+	10. Improved (TAB) indent-region performance by simplify logic
+	    and only checking for multiline comments when required.
+
 2020-01-06  Uwe Brauer  <oub@mat.ucm.es>
 
 	* matlab-compat.el (matlab-find-executable-directory): Apply patch
