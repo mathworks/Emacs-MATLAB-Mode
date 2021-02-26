@@ -1199,22 +1199,22 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
    ;; function name, and an optional (possibly empty) list of input variables
    (list (concat "^\\s-*\\(function\\)\\>[ \t\n.]*"
 		 "\\(\\[[^]]*\\]\\|\\sw+\\)[ \t\n.]*"
-		 "=[ \t\n.]*\\(\\sw+\\)[ \t\n.]*"
+		 "=[ \t\n.]*\\(\\(?:[sg]et\\.\\)?\\sw+\\)[ \t\n.]*"
 		 matlab-function-arguments)
 	 '(1 font-lock-keyword-face append)
 	 '(2 font-lock-variable-name-face append)
-	 '(3 font-lock-function-name-face append))
+	 '(3 font-lock-function-name-face prepend))
    ;; defining a function, a function name, and an optional (possibly
    ;; empty) list of input variables
    (list (concat "^\\s-*\\(function\\)[ \t\n.]+"
-		 "\\(\\sw+\\)[ \t\n.]*"
+		 "\\(\\(?:[sg]et\\.\\)?\\sw+\\)[ \t\n.]*"
 		 matlab-function-arguments)
 	 '(1 font-lock-keyword-face append)
-	 '(2 font-lock-function-name-face append))
+	 '(2 font-lock-function-name-face prepend))
    ;; Anchor on the function keyword, highlight params
    (list (concat "^\\s-*function\\>[ \t\n.]*"
 		 "\\(\\(\\[[^]]*\\]\\|\\sw+\\)[ \t\n.]*=[ \t\n.]*\\)?"
-		 "\\sw+\\s-*(")
+		 "\\(?:[sg]et\\.\\)?\\sw+\\s-*(")
 	 '("\\s-*\\(\\sw+\\)\\s-*[,)]"
 	   (save-excursion (matlab-end-of-command) (point))
 	   nil
