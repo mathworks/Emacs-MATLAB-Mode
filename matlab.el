@@ -1065,11 +1065,16 @@ Argument LIMIT is the maximum distance to search."
 				 "return" "break" "continue"
 				 "switch" "case" "otherwise" "try"
 				 "catch" "tic" "toc"
-				 ;; MCOS keywords
-				 "properties" "methods" "enumeration" "events"
-				 "arguments"
 				 )
   "List of keywords for MATLAB used in highlighting.
+Customizing this variable is only useful if `regexp-opt' is available."
+  :group 'matlab
+  :type '(repeat (string :tag "Keyword: ")))
+
+(defcustom matlab-keyword-first-on-line-list '( "properties" "methods" "enumeration" "events"
+						"arguments"
+						)
+  "List of keywords for MATLAB that should be highilghted only if the first word on a line.
 Customizing this variable is only useful if `regexp-opt' is available."
   :group 'matlab
   :type '(repeat (string :tag "Keyword: ")))
@@ -1136,6 +1141,11 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
    ;; General keywords
    (list (matlab-font-lock-regexp-opt matlab-keyword-list)
 	 '(0 font-lock-keyword-face))
+   ;; Keywords that should be the first word on a line
+   (list (concat "^\\s-*\\("
+		 (matlab-font-lock-regexp-opt matlab-keyword-first-on-line-list)
+		 "\\)")
+	 '(1 font-lock-keyword-face))
    ;; The end keyword is only a keyword when not used as an array
    ;; dereferencing part.
    '("\\(^\\|[;,]\\)[ \t]*\\(end\\)\\b"
@@ -1739,7 +1749,12 @@ Return nil if it is being used to dereference an array."
 (defconst matlab-defun-regex "^\\(\\s-*function\\|classdef\\)[ \t.[]"
   "Regular expression defining the beginning of a MATLAB function.")
 
-(defconst matlab-mcos-regexp "\\|classdef\\|properties\\|methods\\|events\\|enumeration\\|arguments"
+(defconst matlab-mcos-innerblock-regexp "\\|properties\\|methods\\|events\\|enumeration\\|arguments"
+  "Keywords which mark the beginning of mcos blocks.
+These keywords can be overriden as variables or functions in other contexts
+asside from that which they declare their content.")
+
+(defconst matlab-mcos-regexp (concat "\\|classdef" matlab-mcos-innerblock-regexp)
   "Keywords which mark the beginning of mcos blocks.")
 
 (defcustom matlab-block-indent-tic-toc-flag nil
@@ -1747,6 +1762,16 @@ Return nil if it is being used to dereference an array."
 This variable should be set before loading matlab.el"
   :group 'matlab
   :type 'boolean)
+
+(defconst matlab-block-syntax-re
+  (concat "\\(function" matlab-mcos-regexp "\\)\\>")
+  "Keywords that represent blocks that have custom internal syntax.
+Used by `matlab-cursor-on-valid-block-start'.") 
+
+(defconst matlab-innerblock-syntax-re
+  (concat "\\(function" matlab-mcos-innerblock-regexp "\\)\\>")
+  "Keywords that represent blocks that have custom internal syntax.
+Used by `matlab-cursor-on-valid-block-start'.") 
 
 (defconst matlab-block-beg-pre-if
   (if matlab-block-indent-tic-toc-flag
@@ -1813,6 +1838,13 @@ blocks.")
   	  matlab-block-mid-pre "\\|"
  	  (matlab-block-end-pre) "\\|"
  	  matlab-endless-blocks "\\)\\b"))
+
+(defun matlab-block-start-scan-re ()
+  "Expression used to scan over matching pairs of begin/ends.
+Assume cursor is on the beginning of the upcoming word."
+  (concat "\\("
+ 	  (matlab-block-beg-pre) "\\|"
+ 	  matlab-block-mid-pre "\\)\\b"))
 
 (defun matlab-block-scan-re ()
   "Expression used to scan over matching pairs of begin/ends."
@@ -2062,7 +2094,10 @@ This assumes that expressions do not cross \"function\" at the left margin."
 		      (unless (matlab-backward-sexp nil noerror)
 			(setq done t
 			      returnme nil)))
-		  (if (not (matlab-cursor-in-string-or-comment))
+		  ;; Make sure we are at a valid block construct and not
+		  ;; comments or other weird spot.
+		  (if (and (not (matlab-cursor-in-string-or-comment))
+			   (matlab-cursor-on-valid-block-start))
 		      (setq done t))))
 	    (goto-char start)
 	    (if noerror
@@ -2071,11 +2106,13 @@ This assumes that expressions do not cross \"function\" at the left margin."
 	      (error "Unstarted END construct"))))
 	returnme)))))
 
-(defun matlab-forward-sexp (&optional includeelse autostart)
+(defun matlab-forward-sexp (&optional includeelse autostart parentblock)
   "Go forward one balanced set of MATLAB expressions.
 Optional argument INCLUDEELSE will stop on ELSE if it matches the starting IF.
 If AUTOSTART is non-nil, assume we are already inside a block, and navigate
-forward until we exit that block."
+forward until we exit that block.
+PARENTBLOCK is used when recursing to validate block starts as being in
+a valid context."
   (interactive "P")
   (let (p) ;; go to here if no error.
     (save-excursion ;; don't go anywhere if there is an error
@@ -2092,11 +2129,8 @@ forward until we exit that block."
 	  )
 	 ;; No autostart, and looking at a block keyword.
 	 ((and (not autostart)
-	       (or (not (looking-at (concat "\\("
-					    (matlab-block-beg-pre)
-					    "\\|"
-					    (matlab-block-mid-re)
-					    "\\)\\>")))
+	       (or (not (looking-at (matlab-block-start-scan-re)))
+		   ;;    ^^ (concat "\\(" (matlab-block-beg-pre) "\\|" (matlab-block-mid-re) "\\)\\>")
 		   (matlab-cursor-in-string-or-comment)))
           ;; Go forwards one simple expression
 	  (matlab-move-simple-sexp-internal 1))
@@ -2107,8 +2141,11 @@ forward until we exit that block."
 
 	 ;; Default behavior.
 	 (t
-          ;; Not autostart, skip next word.
-	  (unless autostart (forward-word 1))
+          ;; Not autostart, skip next word, and also track what it is
+	  ;; for nesting purposes.
+	  (unless autostart
+	    (setq parentblock (buffer-substring-no-properties
+			       (point) (progn (forward-word 1) (point)))))
           (let ((done nil) (s nil)
                 (expr-scan (if includeelse
                                (matlab-block-re)
@@ -2120,11 +2157,18 @@ forward until we exit that block."
                             (pos-visible-in-window-p)))
               (goto-char (match-beginning 2))
               (if (looking-at expr-look)
-                  (if (matlab-cursor-in-string-or-comment)
+                  (if (or (matlab-cursor-in-string-or-comment)
+			  ;; We'd like to do this:
+			  ;;(not (matlab-cursor-on-valid-block-start))
+			  ;; but it travels backwards.  Instead, we need to track the
+			  ;; last block we are diving down from and just use that
+			  ;; instead of looking it up along the way.
+			  (not (matlab-cursor-on-valid-block-start parentblock))
+			  )
                       (forward-word 1)
                     ;; we must skip the expression and keep searching
                     ;; NEVER EVER call with value of INCLUDEELSE
-                    (matlab-forward-sexp))
+                    (matlab-forward-sexp nil nil (match-string-no-properties 1)))
                 (forward-word 1)
                 (if (and (not (matlab-cursor-in-string-or-comment))
                          (matlab-valid-end-construct-p))
@@ -2133,6 +2177,106 @@ forward until we exit that block."
                 (error "Unterminated block")))))
         (setq p (point)))) ;; really go here
     (goto-char p)))
+
+(defvar matlab-valid-block-start-slow-and-careful t
+  "Be very careful with determining of a block is valid when t.
+Set to nil if fast-and-loose is ok.")
+
+(defun matlab-cursor-on-valid-block-start (&optional known-parent-block)
+  "Return t if cursor is on a valid block start.
+Valid block starts are those that represent a syntax context, like function,
+classdef, properties, etc.
+KNOWN-PARENT-BLOCK is a string that represents the context cursor is in.
+Use this if you know what context you're in."
+  (save-match-data
+    (save-restriction
+      (widen)
+      (cond
+       ((not (looking-at (matlab-block-beg-re)))
+	;; Not looking at a valid block
+	nil)
+       ;; Else, are we on a block that has special syntax?
+       ((not (looking-at matlab-innerblock-syntax-re))
+	;; Not an innerblock syntax that only work withing special blocks
+	;; thus automatically true.
+	t)
+   
+       ;; Else, a special block.  We need to check the context of this
+       ;; block to know if this innerblock is valid.
+
+       ;; Cheap check - if functions don't have end, then always invalid
+       ;; since these context blocks can't exist.
+       ((not matlab-functions-have-end)
+	t)
+
+       ;; Cheap check - is this block keyword not the first word on the line?
+       ((save-excursion (skip-syntax-backward " ") (not (bolp)))
+	;; Not first on line, not valid block.
+	;; Technically it COULD be valid, but we need some cheap ways
+	;; to skip over some types of syntaxes that look dumb.
+	nil)
+	
+       ;; Expensive check - is this block in the right context?
+       ((or matlab-valid-block-start-slow-and-careful known-parent-block)
+	
+	(let ((foundblock (match-string-no-properties 1))
+	      (myblock (if known-parent-block
+			   (cons known-parent-block nil) ;; shortcut if known
+			 (matlab-current-syntactic-block))))
+	  (cond ((and (string= foundblock "arguments")
+		      (string= (car myblock) "function"))
+		 ;; We found correct usage of arguments.
+		 t)
+		((and (string= foundblock "function")
+		      (or (not (car myblock))
+			  (string= (car myblock) "methods")))
+		 ;; We found correct usage of function.
+		 t)
+		((string= (car myblock) "classdef")
+		 ;; We found correct usage of methods, events, etc.
+		 t)
+		(t
+		 ;; Some other case is bad.
+		 nil)))
+	)
+
+       ;; A cheap version of the expensive check
+       ((and (not matlab-valid-block-start-slow-and-careful)
+	     (looking-at matlab-innerblock-syntax-re))
+	;; If we are not slow and careful, we just need to return t if we see
+	;; of of these keywords since these were filtered out earlier.
+	t)
+
+       ;; If none of the valid cases, must be invalid
+       (t nil)
+       ))))
+
+(defun matlab-current-syntactic-block ()
+  "Return information about the current syntactic block the cursor is in.
+Value returned is of the form ( BLOCK-TYPE . PT ) where BLOCK-TYPE is a
+string, such as 'function' or 'properties', and PT is the location that
+the block starts at.
+
+This function skips over blocks such as 'switch' and 'if', and only returns
+blocks that change the syntax of their contents, such as:
+  function, classdef, properties, events, methods, arguments
+"
+  (let ((block-type nil)
+	(block-beg nil))
+
+    (save-excursion
+      ;; By specifying NOERROR, returns nil if we can't move
+      ;; backward, which means we should stop.
+
+      ;; backward sexp also knows to skip invlaid block starts, so we'll
+      ;; only land on safe blocks.
+      (when (and (matlab-backward-sexp t t)
+		 (looking-at matlab-block-syntax-re))
+	(setq block-type (match-string-no-properties 1)
+	      block-beg (point)))
+      )
+
+    (cons block-type block-beg)))
 
 (defun matlab-indent-sexp ()
   "Indent the syntactic block starting at point."
@@ -2506,8 +2650,11 @@ Optional EOL indicates a virtual end of line."
 	(matlab-navigation-syntax
 	  (while (re-search-forward (concat "\\<" (matlab-block-beg-re) "\\>")
 				    nil t)
-	    (if (matlab-cursor-in-string-or-comment)
-		;; Do nothing
+	    (if (or (matlab-cursor-in-string-or-comment)
+		    (not (save-excursion (forward-word -1)
+					 (matlab-cursor-on-valid-block-start))))
+		;; Do nothing if in comment, or if the thing we skipped over was
+		;; an invalid block construct (based on local context)
 		nil
 	      ;; Increment counter, move to end.
 	      (setq v (1+ v))
@@ -3876,7 +4023,7 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 		(t
 		 ;; Part 2: Are we looking at a block start/end, such as if end;
 
-		 ;; If we are on On a word character, or just after a
+		 ;; If we are on a word character, or just after a
 		 ;; word character move back one symbol. This will let
 		 ;; us use the block begin / end matchers to figure
 		 ;; out where we are.
@@ -3899,7 +4046,11 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 			       there-end (match-end 0)
 			       mismatch nil)
 			 )
-			((looking-at (concat (matlab-block-beg-re) "\\>"))
+			((matlab-cursor-on-valid-block-start)
+			 ;; Above is similar to vvv but with special checks.
+			 ;; Still need to do vvv b/c we need the match-data.
+			 (looking-at (concat (matlab-block-beg-re) "\\>"))
+			 
 			 ;; We are at the beginning of a block.  Navigate forward to the end
 			 ;; statement.
 			 (setq here-beg (match-beginning 0)
