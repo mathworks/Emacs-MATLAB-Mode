@@ -1749,12 +1749,12 @@ Return nil if it is being used to dereference an array."
 (defconst matlab-defun-regex "^\\(\\s-*function\\|classdef\\)[ \t.[]"
   "Regular expression defining the beginning of a MATLAB function.")
 
-(defconst matlab-mcos-innerblock-regexp "\\|properties\\|methods\\|events\\|enumeration\\|arguments"
+(defconst matlab-mcos-innerblock-regexp "properties\\|methods\\|events\\|enumeration\\|arguments"
   "Keywords which mark the beginning of mcos blocks.
 These keywords can be overriden as variables or functions in other contexts
 asside from that which they declare their content.")
 
-(defconst matlab-mcos-regexp (concat "\\|classdef" matlab-mcos-innerblock-regexp)
+(defconst matlab-mcos-regexp (concat "\\|classdef\\|" matlab-mcos-innerblock-regexp)
   "Keywords which mark the beginning of mcos blocks.")
 
 (defcustom matlab-block-indent-tic-toc-flag nil
@@ -1769,7 +1769,7 @@ This variable should be set before loading matlab.el"
 Used by `matlab-cursor-on-valid-block-start'.") 
 
 (defconst matlab-innerblock-syntax-re
-  (concat "\\(function" matlab-mcos-innerblock-regexp "\\)\\>")
+  (concat "\\(" matlab-mcos-innerblock-regexp "\\)\\>")
   "Keywords that represent blocks that have custom internal syntax.
 Used by `matlab-cursor-on-valid-block-start'.") 
 
@@ -2226,11 +2226,6 @@ Use this if you know what context you're in."
 	  (cond ((and (string= foundblock "arguments")
 		      (string= (car myblock) "function"))
 		 ;; We found correct usage of arguments.
-		 t)
-		((and (string= foundblock "function")
-		      (or (not (car myblock))
-			  (string= (car myblock) "methods")))
-		 ;; We found correct usage of function.
 		 t)
 		((string= (car myblock) "classdef")
 		 ;; We found correct usage of methods, events, etc.
