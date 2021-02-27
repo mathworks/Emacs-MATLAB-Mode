@@ -2186,7 +2186,7 @@ Similar to  `comint-send-input'."
 		))
       
 	  ;; If not changing dir, maybe we need to use 'run' command instead?
-	  (let ((cmd (concat "run('" dir fn-name "')")))
+	  (let ((cmd (concat "emacsrun('" dir fn-name "')")))
 	    (matlab-shell-send-command cmd)))
 	))))
 
