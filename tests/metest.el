@@ -93,11 +93,11 @@
       ))
   (message ""))
   
-(defvar met-sexptest-files '("expressions.m" "mclass.m")
+(defvar met-sexptest-files '("expressions.m" "mclass.m" "blocks.m")
   "List of files for running syntactic expression tests.")
 
 (defun metest-sexp-counting-test ()
-  "Run a test to make sure string nd comment highlighting work."
+  "Run a test to make sure string and comment highlighting work."
   (dolist (F met-sexptest-files)
     (let ((buf (find-file-noselect (expand-file-name F met-testfile-path)))
 	  (cnt 0))
@@ -172,7 +172,7 @@
   (message ""))
 
 
-(defvar met-indents-files '("indents.m" "mclass.m")
+(defvar met-indents-files '("indents.m" "mclass.m" "blocks.m")
   "List of files for running syntactic indentation tests.")
 
 (defun metest-indents-test ()

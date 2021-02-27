@@ -1175,10 +1175,11 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
   (append
    matlab-basic-font-lock-keywords
    (list
-    ;; Keywords that should be the first word on a line
+    ;; Keywords that should be the first word on a line AND
+    ;; also be alone, or have parameters after it.
     (list (concat "^\\s-*\\("
 		  (matlab-font-lock-regexp-opt matlab-keyword-first-on-line-list)
-		  "\\)")
+		  "\\)\\s-*[(,;%\n]")
 	  '(1 font-lock-keyword-face))
     ;; How about unreachable code?  MUST BE AFTER KEYWORDS in order to
     ;; get double-highlighting.
@@ -1278,7 +1279,7 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
    '("^\\s-*\\w+\\s-*\\(([:0-9,]+)\\s-*[^{=\n]+\\)"
      (1 font-lock-type-face nil nil))
    ;; Properties blocks are full of variables
-   '("^\\s-*\\(properties\\|events\\|arguments\\)\\>"
+   '("^\\s-*\\(properties\\|events\\|arguments\\)\\s-*[(,;%\n]"
      ("^\\s-*\\(\\sw+\\)\\>" ;; This part matches the variable
       ;; extend region to match in
       (save-excursion (matlab-forward-sexp nil t) (beginning-of-line) (point))
@@ -1630,15 +1631,16 @@ All Key Bindings:
   (interactive)
   (message "matlab-mode, version %s" matlab-mode-version))
 
-(defun matlab-find-prev-line ()
+(defun matlab-find-prev-line (&optional ignorecomments)
   "Recurse backwards until a code line is found."
   (if (= -1 (forward-line -1)) nil
     (if (or (matlab-ltype-empty)
-	    (matlab-ltype-comm-ignore))
-	(matlab-find-prev-line) t)))
+	    (matlab-ltype-comm-ignore)
+	    (and ignorecomments (matlab-ltype-comm)))
+	(matlab-find-prev-line ignorecomments) t)))
 
 (defun matlab-prev-line ()
-  "Go to the previous line of code.  Return nil if not found."
+  "Go to the previous line of code or comment.  Return nil if not found."
   (interactive)
   (let ((old-point (point)))
     (if (matlab-find-prev-line) t (goto-char old-point) nil)))
@@ -2223,7 +2225,7 @@ Use this if you know what context you're in."
 	;; thus automatically true.
 	t)
    
-       ;; Else, a special block.  We need to check the context of this
+       ;; Else, a special block keyword.  We need to check the context of this
        ;; block to know if this innerblock is valid.
 
        ;; Cheap check - if functions don't have end, then always invalid
@@ -2231,31 +2233,44 @@ Use this if you know what context you're in."
        ((not matlab-functions-have-end)
 	t)
 
-       ;; Cheap check - is this block keyword not the first word on the line?
+       ;; Cheap check - is this block keyword not the first word for this command?
        ((save-excursion (skip-syntax-backward " ") (not (bolp)))
 	;; Not first on line, not valid block.
 	;; Technically it COULD be valid, but we need some cheap ways
 	;; to skip over some types of syntaxes that look dumb.
 	nil)
+
+       ;; Cheap check - is this at the beginning of a command line (ignore ... )
+       ((not (eq (point) (save-excursion (matlab-beginning-of-command) (point))))
+	;; If this statement is not also the first word on this command
+	;; then it can't be one of these features.
+	nil)
 	
        ;; Expensive check - is this block in the right context?
        ((or matlab-valid-block-start-slow-and-careful known-parent-block)
 	
-	(let ((foundblock (match-string-no-properties 1))
-	      (myblock (if known-parent-block
-			   (cons known-parent-block nil) ;; shortcut if known
-			 (matlab-current-syntactic-block))))
-	  (cond ((and (string= foundblock "arguments")
-		      (string= (car myblock) "function"))
-		 ;; We found correct usage of arguments.
-		 t)
-		((string= (car myblock) "classdef")
-		 ;; We found correct usage of methods, events, etc.
-		 t)
-		(t
-		 ;; Some other case is bad.
-		 nil)))
-	)
+	(let ((foundblock (match-string-no-properties 1)))
+	  (cond
+	   ((string= foundblock "arguments")
+	    ;; Argument is only valid if it is the FIRST thing in a funtion.
+	    (save-excursion
+	      (if (and (matlab-find-prev-line t) (looking-at "\\s-*function\\>"))
+		  ;; If the previous code line (ignoring whitespace and comments)
+		  ;; is 'arguments', then that is a valid block.
+		  t
+		;; Otherewise, all other argument cases are bad.
+		nil)))
+	   ;; Other special blocks are in a class.  Go look.
+	   (t
+	    (let ((myblock (if known-parent-block
+			       (cons known-parent-block nil) ;; shortcut if known
+			     (matlab-current-syntactic-block))))
+	      (if (string= (car myblock) "classdef")
+		  ;; We found correct usage of methods, events, etc.
+		  t
+		;; Some other case is bad.
+		nil)))
+	   )))
 
        ;; A cheap version of the expensive check
        ((and (not matlab-valid-block-start-slow-and-careful)
@@ -2348,30 +2363,31 @@ If `matlab-functions-have-end', skip over functions with end."
 Travels across continuations."
   (interactive)
   (beginning-of-line)
-  (let ((p nil)
-	;; This restriction is a wild guess where to end reverse
-	;; searching for array continuations.  The reason is that
-	;; matlab up list is very slow, and most people would never
-	;; put a blank line in a matrix.  Either way, it's worth the
-	;; trade off to speed this up for large files.
-	;; This list of keywords is NOT meant to be comprehensive.
-	(r (save-excursion
-	     (re-search-backward
-	      "^\\s-*\\(%\\|if\\|else\\(if\\)\\|while\\|\\(par\\)?for\\|$\\)\\>"
-	      nil t)))
-	(bc (matlab-ltype-block-comm)))
-    (if	bc
-	;; block comment - just go to the beginning.
-	(goto-char (car bc))
+  (save-match-data
+    (let ((p nil)
+	  ;; This restriction is a wild guess where to end reverse
+	  ;; searching for array continuations.  The reason is that
+	  ;; matlab up list is very slow, and most people would never
+	  ;; put a blank line in a matrix.  Either way, it's worth the
+	  ;; trade off to speed this up for large files.
+	  ;; This list of keywords is NOT meant to be comprehensive.
+	  (r (save-excursion
+	       (re-search-backward
+		"^\\s-*\\(%\\|if\\|else\\(if\\)\\|while\\|\\(par\\)?for\\|$\\)\\>"
+		nil t)))
+	  (bc (matlab-ltype-block-comm)))
+      (if	bc
+	  ;; block comment - just go to the beginning.
+	  (goto-char (car bc))
 
-      ;; Scan across lines that are related.
-      (while (and (or (matlab-prev-line-cont)
-		      (matlab-ltype-continued-comm)
-		      (setq p (matlab-lattr-array-cont r)))
-		  (save-excursion (beginning-of-line) (not (bobp))))
-	(if p (goto-char p) (matlab-prev-line))
-	(setq p nil)))
-    (back-to-indentation)))
+	;; Scan across lines that are related.
+	(while (and (or (matlab-prev-line-cont)
+			(matlab-ltype-continued-comm)
+			(setq p (matlab-lattr-array-cont r)))
+		    (save-excursion (beginning-of-line) (not (bobp))))
+	  (if p (goto-char p) (matlab-prev-line))
+	  (setq p nil)))
+      (back-to-indentation))))
 
 (defun matlab-end-of-command (&optional beginning)
   "Go to the end of an M command.
