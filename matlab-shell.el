@@ -204,10 +204,9 @@ If multiple prompts are seen together, only call this once.")
 ;;; Font Lock
 ;;
 ;; Extra font lock keywords for the MATLAB shell.
-(defvar matlab-shell-font-lock-keywords
+(defconst matlab-shell-font-lock-keywords
   (list
    ;; Startup notices
-   ;; Various notices
    '(" M A T L A B " 0 'underline)
    '("All Rights Reserved" 0 'italic)
    '("\\(\\(?:(c)\\)?\\s-+Copyright[^\n]+\\)" 1 font-lock-comment-face)
@@ -233,18 +232,41 @@ If multiple prompts are seen together, only call this once.")
   "Additional keywords used by MATLAB when reporting errors in interactive\
 mode.")
 
-(defvar matlab-shell-font-lock-keywords-1
-  (append matlab-font-lock-keywords matlab-shell-font-lock-keywords)
-  "Keyword symbol used for font-lock mode.")
+(defconst matlab-shell-font-lock-keywords-1
+  (append matlab-basic-font-lock-keywords
+	  matlab-shell-font-lock-keywords)
+  "Keyword symbol used for basic font-lock for MATLAB shell.")
 
-(defvar matlab-shell-font-lock-keywords-2
-  (append matlab-shell-font-lock-keywords-1 matlab-gaudy-font-lock-keywords)
-  "Keyword symbol used for gaudy font-lock symbols.")
+(defconst matlab-shell-object-output-font-lock-keywords
+  (list
+   ;; disp of objects usually looks like this:
+   '("^\\s-*\\(\\w+\\) with properties:" (1 font-lock-type-face))
+   ;; object output - highlight property names after  'with properties:' indicator
+   ;; NOTE: Normally a block like this would require us to use `font-lock-multiline' feature
+   ;;       but since this is shell output, and not a thing you edit, we can skip it and rely
+   ;;       on matlab-shell dumping the text as a unit.
+   '("^\\s-*\\(\\w+ with properties:\\)\n\\s-*\n"
+     ("^\\s-*\\(\\w+\\):[^\n]+$" ;; match the property before the :
+      ;; Extend search region across lines.
+      (save-excursion (re-search-forward "\n\\s-*\n" nil t)
+		      (beginning-of-line)
+		      (point))
+      nil
+      (1 font-lock-variable-name-face)))
+   '("[[{]\\([0-9]+\\(?:x[0-9]+\\)+ \\w+\\)[]}]" (1 font-lock-comment-face))
+   )
+  "Highlight various extra outputs that are typical for MATLAB.")
 
-(defvar matlab-shell-font-lock-keywords-3
+(defconst matlab-shell-font-lock-keywords-2
+  (append matlab-shell-font-lock-keywords-1
+	  matlab-function-font-lock-keywords
+	  matlab-shell-object-output-font-lock-keywords)
+  "Keyword symbol used for gaudy font-lock for MATLAB shell.")
+
+(defconst matlab-shell-font-lock-keywords-3
   (append matlab-shell-font-lock-keywords-2
 	  matlab-really-gaudy-font-lock-keywords)
-  "Keyword symbol used for really gaudy font-lock symbols.")
+  "Keyword symbol used for really gaudy font-lock for MATLAB shell.")
 
 ;;; ROOT
 ;;

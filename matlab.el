@@ -1126,8 +1126,17 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
 	    (mapconcat (lambda (s) s) keywordlist "\\|"))
 	  "\\)\\>"))
 
-;; font-lock keywords
-(defvar matlab-font-lock-keywords
+;;; Font Lock keyword handling
+;;
+;; Many parts of the keyword handling are shared with matlab-shell.
+;; The matlab based variables here are divided up between generic keywords
+;; and keywords only for M files.  This means the M shell won't highlight
+;; some syntaxes like classdef stuff even though someone might paste them in.
+;;
+;; matlab-*-keywords      -- MATLAB Files or Shell
+;; matlab-file-*-keywords -- MATLAB Files only
+
+(defconst matlab-basic-font-lock-keywords
   (list
    ;; charvec and string quote chars are also used as transpose, but only if directly
    ;; after characters, numbers, underscores, or closing delimiters.
@@ -1141,37 +1150,10 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
    ;; General keywords
    (list (matlab-font-lock-regexp-opt matlab-keyword-list)
 	 '(0 font-lock-keyword-face))
-   ;; Keywords that should be the first word on a line
-   (list (concat "^\\s-*\\("
-		 (matlab-font-lock-regexp-opt matlab-keyword-first-on-line-list)
-		 "\\)")
-	 '(1 font-lock-keyword-face))
    ;; The end keyword is only a keyword when not used as an array
    ;; dereferencing part.
    '("\\(^\\|[;,]\\)[ \t]*\\(end\\)\\b"
      2 (if (matlab-valid-end-construct-p) font-lock-keyword-face nil))
-   ;; How about unreachable code?  MUST BE AFTER KEYWORDS in order to
-   ;; get double-highlighting.
-   '(matlab-find-unreachable-code
-     (1 'underline prepend)		;if part
-     (2 'underline prepend)		;end part
-     (3 'underline prepend)		;else part (if applicable)
-     (4 font-lock-comment-face prepend)	;commented out part.
-     )
-   ;; block comments need to be commented out too!
-   '(matlab-find-block-comments
-     (1 font-lock-comment-face prepend) ; commented out
-     (2 'underline prepend)
-     (3 'underline prepend)		;the comment parts
-     )
-   ;; Cell mode breaks get special treatment
-   '("^\\s-*\\(%%[^\n]*\n\\)" (1 matlab-cellbreak-face append))
-   ;; Highlight cross function variables
-   '(matlab-font-lock-cross-function-variables-match
-     (1 matlab-cross-function-variable-face prepend))
-   ;; Highlight nested function/end keywords
-   '(matlab-font-lock-nested-function-keyword-match
-     (0 matlab-nested-function-keyword-face prepend))
    ;; The global keyword defines some variables.  Mark them.
    '("^\\s-*global\\s-+"
      ("\\(\\w+\\)\\(\\s-*=[^,; \t\n]+\\|[, \t;]+\\|$\\)"
@@ -1187,13 +1169,46 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
    ;; Imaginary number support
    '("\\<[0-9]\\.?\\(i\\|j\\)\\>" 1 font-lock-reference-face)
    )
-  "Expressions to highlight in MATLAB mode.")
+  "Basic Expressions to highlight in MATLAB mode or shell.")
 
+(defconst matlab-file-basic-font-lock-keywords
+  (append
+   matlab-basic-font-lock-keywords
+   (list
+    ;; Keywords that should be the first word on a line
+    (list (concat "^\\s-*\\("
+		  (matlab-font-lock-regexp-opt matlab-keyword-first-on-line-list)
+		  "\\)")
+	  '(1 font-lock-keyword-face))
+    ;; How about unreachable code?  MUST BE AFTER KEYWORDS in order to
+    ;; get double-highlighting.
+    '(matlab-find-unreachable-code
+      (1 'underline prepend)		;if part
+      (2 'underline prepend)		;end part
+      (3 'underline prepend)		;else part (if applicable)
+      (4 font-lock-comment-face prepend) ;commented out part.
+      )
+    ;; block comments need to be commented out too!
+    '(matlab-find-block-comments
+      (1 font-lock-comment-face prepend) ; commented out
+      (2 'underline prepend)
+      (3 'underline prepend)		;the comment parts
+      )
+    ;; Cell mode breaks get special treatment
+    '("^\\s-*\\(%%[^\n]*\n\\)" (1 matlab-cellbreak-face append))
+    ;; Highlight cross function variables
+    '(matlab-font-lock-cross-function-variables-match
+      (1 matlab-cross-function-variable-face prepend))
+    ;; Highlight nested function/end keywords
+    '(matlab-font-lock-nested-function-keyword-match
+      (0 matlab-nested-function-keyword-face prepend))
+    ))
+  "Basic Expressions to highlight in MATLAB Files.")
 
 (defconst matlab-function-arguments
   "\\(([^)]*)\\)?\\s-*\\([,;\n%]\\|$\\)")
 
-(defvar matlab-function-font-lock-keywords
+(defconst matlab-function-font-lock-keywords
   (list
    ;; defining a function, a (possibly empty) list of assigned variables,
    ;; function name, and an optional (possibly empty) list of input variables
@@ -1239,7 +1254,7 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
   "\\s-*\\(?2:(\\([^)]+\\))\\|\\)"
   "Regular expression for matching an attributes block.")
 
-(defvar matlab-class-font-lock-keywords
+(defconst matlab-file-class-font-lock-keywords
   (list
    ;; Classdefs keyword and the class name
    (list (concat "^\\s-*\\(classdef\\)"
@@ -1273,17 +1288,17 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
    )
   "List of font-lock keywords used when an MATLAB file contains a class.")
 
-(defvar matlab-gaudy-font-lock-keywords
+(defconst matlab-file-gaudy-font-lock-keywords
   (append
-   matlab-font-lock-keywords
+   matlab-basic-font-lock-keywords
+   matlab-file-basic-font-lock-keywords
    matlab-function-font-lock-keywords
-   matlab-class-font-lock-keywords
+   matlab-file-class-font-lock-keywords
    )
   "Expressions to highlight in MATLAB mode.")
 
-(defvar matlab-really-gaudy-font-lock-keywords
+(defconst matlab-really-gaudy-font-lock-keywords
   (append
-   matlab-gaudy-font-lock-keywords
    (list
     ;; Since it's a math language, how bout dem symbols?
     '("\\([<>~]=?\\|\\.[/*^']\\|==\\|\\<xor\\>\\|[-!^&|*+\\/~:]\\)"
@@ -1314,6 +1329,13 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
 	;;		    "\\)\\>")
 	      1 matlab-simulink-keyword-face)
     ))
+  "Expressions to highlight in MATLAB mode.")
+
+(defconst matlab-file-really-gaudy-font-lock-keywords
+  (append
+   matlab-file-gaudy-font-lock-keywords
+   matlab-really-gaudy-font-lock-keywords
+   )
   "Expressions to highlight in MATLAB mode.")
 
 ;; Imenu support.
@@ -1497,9 +1519,9 @@ All Key Bindings:
   ;; give each file it's own parameter history
   (make-local-variable 'matlab-shell-save-and-go-history)
   (make-local-variable 'font-lock-defaults)
-  (setq font-lock-defaults '((matlab-font-lock-keywords
-			      matlab-gaudy-font-lock-keywords
-			      matlab-really-gaudy-font-lock-keywords
+  (setq font-lock-defaults '((matlab-file-font-lock-keywords
+			      matlab-file-gaudy-font-lock-keywords
+			      matlab-file-really-gaudy-font-lock-keywords
 			      )
 			     t ; do not do string/comment highlighting
 			     nil ; keywords are case sensitive.
