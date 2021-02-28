@@ -142,7 +142,7 @@ changed, and functions are indented based on `matlab-functions-have-end'."
 
 (make-variable-buffer-local 'matlab-indent-function-body)
 
-(defcustom matlab-functions-have-end t
+(defcustom matlab-functions-have-end 'guess
   "*If non-nil, functions-have-end minor mode is on by default.
 If the value is 'guess, then we guess if a file has end when
 `matlab-mode' is initialized."
@@ -160,32 +160,74 @@ If the value is 'guess, then we guess if a file has end when
 (easy-mmode-define-minor-mode matlab-functions-have-end-minor-mode
   "Toggle functions-have-end minor mode, indicating function/end pairing."
   nil
-  " function...end"
+  (:eval (cond ((eq matlab-functions-have-end 'guess)
+		" function...?")
+	       ((eq matlab-functions-have-end 'class)
+		" classdef...end")
+	       (matlab-functions-have-end
+		" function...end")
+	       (t
+		" function...")))
   nil ; empty mode-map
   ;; body of matlab-functions-have-end-minor-mode
-  (if matlab-functions-have-end-minor-mode
-      (setq matlab-functions-have-end t)
-    (setq matlab-functions-have-end nil)
-    )
+  (let ((type (matlab-guess-script-type)))
+    (if matlab-functions-have-end-minor-mode
+	(if (eq type 'empty)
+	    (setq matlab-functions-have-end 'guess)
+	  (setq matlab-functions-have-end type))
+      (setq matlab-functions-have-end nil)
+      ))
   )
 
+(defun matlab-guess-script-type ()
+  "Guess the type of script this `matlab-mode' file contains.
+Returns one of 'empty, 'script, 'function, 'class."
+  (save-excursion
+    (goto-char (point-min))
+    (if (matlab-find-code-line)
+	;; We found some code, what is it?
+	(if (looking-at matlab-defun-regex)
+	    ;; A match - figure out the type of thing.
+	    (let ((str (match-string-no-properties 1)))
+	      (cond ((string= str "function")
+		     'function)
+		    ((string= str "classdef")
+		     'class)))
+	  ;; No function or class - just a script.
+	  'script)
+      ;; No lines of code, we are empty, so undecided.
+      'empty)))
+	
 (defvar matlab-defun-regex) ;; Quiet compiler warning (is defined below)
-(defun matlab-do-functions-have-end-p ()
+(defun matlab-do-functions-have-end-p (&optional no-navigate)
   "Look at the contents of the current buffer and decide if functions have end.
 If the current value of `matlab-functions-have-end' is 'guess, look @ the buffer.
 If the value is t, then return that."
   (if (eq matlab-functions-have-end 'guess)
-      (save-excursion
-	(goto-char (point-min))
-	(if (re-search-forward matlab-defun-regex nil t)
-            (let ((matlab-functions-have-end t))
-              (beginning-of-line)
-              (condition-case nil
-		  (progn (matlab-forward-sexp) t)
-		(error nil))
-              )
-	  nil
-	  )
+      ;; Lets guess what we think the answer is.
+      (let ((type (matlab-guess-script-type)))
+	(cond ((eq type 'empty)
+	       'guess) ;; Keep guessing until we get some code.
+	      ((eq type 'script)
+	       'script) ;; modern scripts can have functions, and they are required to have an end.
+	      ((eq type 'class)
+	       'class)  ;; classes always have ends.
+	      (no-navigate
+	       ;; Functions, but don't navigate ... stay in guess mode.
+	       'guess)
+	      (t
+	       ;; functions but do navigate - we need to see if there is an end.
+	       (save-excursion
+		 (goto-char (point-min))
+		 (matlab-find-code-line)
+		 (let ((matlab-functions-have-end t)) ;; pretend we have ends
+		   (beginning-of-line)
+		   (condition-case nil
+		       ;; Try to navigate.  If success, then t
+		       (progn (matlab-forward-sexp) t)
+		     ;; On failure, then no ends.
+		     (error nil))
+		   ))))
 	)
     ;; Else, just return the default.
     matlab-functions-have-end))
@@ -197,7 +239,7 @@ If the value is t, then return that."
       (progn
 	(matlab-functions-have-end-minor-mode -1)
 	(error "Mode `matlab-functions-have-end' minor mode is only for MATLAB Major mode")))
-  (setq matlab-functions-have-end matlab-functions-have-end-minor-mode))
+  )
 
 (defun matlab-indent-function-body-p ()
   "Non-nil if functions bodies are indented.
@@ -1551,9 +1593,9 @@ All Key Bindings:
   ;; If first function is terminated with an end statement, then functions have
   ;; ends.
   (if (matlab-do-functions-have-end-p)
+      ;; minor mode now treat's 'guess' as true when passing in 1.
       (matlab-functions-have-end-minor-mode 1)
-    (matlab-functions-have-end-minor-mode -1)
-    )
+    (matlab-functions-have-end-minor-mode -1))
 
   ;; When matlab-indent-function-body is set to 'MathWorks-Standard,
   ;;    - we indent all functions that terminate with an end statement
@@ -1644,6 +1686,17 @@ All Key Bindings:
   (interactive)
   (let ((old-point (point)))
     (if (matlab-find-prev-line) t (goto-char old-point) nil)))
+
+(defun matlab-find-code-line ()
+  "Walk forwards until we are on a line of code return t on success.
+If the currnet line is code, return immediately.
+Ignore comments and whitespace."
+  (if (or (matlab-ltype-empty)
+	  (matlab-ltype-comm))
+      (if (= 1 (forward-line 1))
+	  nil ;; end of buffer.
+	(matlab-find-code-line)) ;; try again.
+    t))
 
 (defun matlab-uniquify-list (lst)
   "Return a list that is a subset of LST where all elements are unique."
@@ -1770,7 +1823,7 @@ Return nil if it is being used to dereference an array."
 ;; "-pre" means "partial regular expression"
 ;; "-if" and "-no-if" means "[no] Indent Function"
 
-(defconst matlab-defun-regex "^\\(\\s-*function\\|classdef\\)[ \t.[]"
+(defconst matlab-defun-regex "^\\s-*\\(function\\|classdef\\)[ \t.[]"
   "Regular expression defining the beginning of a MATLAB function.")
 
 (defconst matlab-mcos-innerblock-regexp "properties\\|methods\\|events\\|enumeration\\|arguments"
@@ -2970,7 +3023,7 @@ If there isn't one, then return nil, point otherwise."
 	(beginning-of-line)
 	(delete-horizontal-space)
 	(indent-to i)))
-    (if (<= cc ci) (move-to-column i))
+    (if (<= cc ci) (move-to-column (max 0 i)))
     ))
 
 (defun matlab-calc-indent ()
@@ -3073,8 +3126,7 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
         (if end-of-function
             (if (or matlab-functions-have-end
                     (if (yes-or-no-p matlab-functions-have-end-should-be-true)
-			;; TODO - ask user to reindent the fcn now?
-                        (setq matlab-functions-have-end t)
+                        (matlab-functions-have-end-minor-mode 1)
                       (error "Unmatched end")))
                 (if (matlab-indent-function-body-p)
                     (setq ci (- ci matlab-indent-level))))
@@ -4407,7 +4459,9 @@ Optional argument FAST is ignored."
 (defun matlab-mode-vf-add-ends (&optional fast)
   "Verify/Fix adding ENDS to functions.
 Optional argument FAST skips this test in fast mode."
-  (when (and matlab-functions-have-end (not fast))
+  ;; We used to do extra checking here, but now we do
+  ;; checking in the verifier
+  (when (not fast)
     (matlab-mode-vf-block-matches-forward nil t)
     ))
 
@@ -4420,11 +4474,55 @@ not be needed.
 Optional argument FAST causes this check to be skipped.
 Optional argument ADDEND asks to add ends to functions, and is used
 by `matlab-mode-vf-add-ends'"
-  (goto-char (point-min))
   (let ((go t)
-	(expr (concat "\\<\\(" (matlab-block-beg-pre) "\\)\\>"))
+	(expr nil)
+	;; lets avoid asking questions based on id of this file
+	;; and if ends are optional in the first place.
+	(filetype (matlab-guess-script-type))
 	)
+    ;; Before checking syntax, lets re-look at the file if we were in
+    ;; guess mode and re-assert what we should do.
+    (cond
+     ;; If the file is empty of code (from before, or just now)
+     ;; then optimize out this step.
+     ((eq filetype 'empty)
+      ;; No code, no need to loop.
+      (setq fast t)
+      ;; If user deleted content, go back into guess mode.
+      (setq matlab-functions-have-end 'guess)
+      (matlab-functions-have-end-minor-mode 1)
+      )
+
+     ;; If we are in guess mode, but user added content, we can
+     ;; not have a fresh new guess.
+     ((eq matlab-functions-have-end 'guess)
+      (let ((guess (matlab-do-functions-have-end-p 'no-navigate)))
+	(if guess (matlab-functions-have-end-minor-mode 1)
+	  (matlab-functions-have-end-minor-mode -1)))
+      )
+
+     ;; If we are in no-end mode, BUT the filetype is wrong, say something.
+     ((and (not matlab-functions-have-end) (or (eq filetype 'script) (eq filetype 'class)))
+      (message "Type of file detected no longer matches `matlab-functions-have-end' of nil, assume t.")
+      (matlab-functions-have-end-minor-mode 1)
+      (sit-for 1)
+      )
+
+     ;; If functions have end but the style changes, re-up the lighter on the minor mode.
+     ;; note, we can ignore that 'empty == 'guess b/c handled earlier.
+     ((and matlab-functions-have-end (not (eq matlab-functions-have-end filetype)))
+      (matlab-functions-have-end-minor-mode 1))
+
+     ;; If the variable was specified and file is not empty, then do nothing.
+     ;; TODO - maybe we should force to t for scripts and classes?
+     )
+
+    ;; compute expression after changing state of funtions have end above.
+    (setq expr (concat "\\<\\(" (matlab-block-beg-pre) "\\)\\>"))
+    
+    ;; Navigate our sexp's and make sure we're all good.
     (matlab-navigation-syntax
+      (goto-char (point-min))
       (while (and (not fast) go (re-search-forward expr nil t))
 	(forward-word -1)		;back over the special word
 	(let ((s (point))
@@ -4441,7 +4539,23 @@ by `matlab-mode-vf-add-ends'"
 			(setq go nil)))
 		(forward-word 1))
 	    (error (setq go nil)))
-	  (when (not go)
+
+	  (cond
+	   ;; If we are still in guess mode and file is good, then we now have our answer.
+	   ((and go (eq matlab-functions-have-end 'guess))
+	    (matlab-functions-have-end-minor-mode 1))
+	  
+	   ;; If we had an error and still in guess mode we can look at the latest
+	   ;; content and decide if we should have ends anyway.
+	   ((and (not go) (eq matlab-functions-have-end 'guess))
+	    (if (matlab-do-functions-have-end-p 'no-navigate)
+		;; minor mode now looks at file type when passing in 1
+		(matlab-functions-have-end-minor-mode 1)
+	      ;; Turn off for this file.  No questions.
+	      (matlab-functions-have-end-minor-mode -1)))
+
+	   ;; If we had an error, but none of the above, try to fix?
+	   ((not go)
 	    (goto-char s)
 	    (setq e (save-excursion (forward-word 1) (point)))
 	    ;; Try to add an end to the broken block
@@ -4451,18 +4565,23 @@ by `matlab-mode-vf-add-ends'"
 		    (progn
 		      (matlab-mode-vf-add-end-to-this-block)
 		      (setq go t))
-		  ;; Else, mark this buffer as not needing ends.
-		  (setq matlab-functions-have-end nil)
-		  (message "Marking buffer as not needing END for this session.")
-		  (sit-for 1)
-		  )
+		  ;; Else, mark this buffer as not needing ends,
+		  ;; but ONLY if a function buffer
+		  (when (eq filetype 'function)
+		    (if (matlab-mode-highlight-ask
+			 s e "Should funtions have end in this file?")
+			(matlab-functions-have-end-minor-mode 1)
+		      (matlab-functions-have-end-minor-mode -1)
+		      (message "Marking buffer as not needing END for this session.")
+		      (sit-for 1))))
 	      ;; We aren't in addend mode then we are in plain verify
 	      ;; mode
 	      (if (matlab-mode-highlight-ask
 		   s e
 		   "Unterminated block.  Continue anyway?")
 		  nil ;; continue anyway.
-		(error "Unterminated Block found!")))))
+		(error "Unterminated Block found!"))))
+	   )) ;; cond, let
 	(message "Block-check: %d%%" (/ (/ (* 100 (point)) (point-max)) 2))))))
 
 (defun matlab-mode-vf-add-end-to-this-block ()
