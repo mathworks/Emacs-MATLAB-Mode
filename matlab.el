@@ -179,6 +179,7 @@ If the value is 'guess, then we guess if a file has end when
       ))
   )
 
+(defvar matlab-defun-regex) ;; Quiet compiler warning (is defined below)
 (defun matlab-guess-script-type ()
   "Guess the type of script this `matlab-mode' file contains.
 Returns one of 'empty, 'script, 'function, 'class."
@@ -198,7 +199,6 @@ Returns one of 'empty, 'script, 'function, 'class."
       ;; No lines of code, we are empty, so undecided.
       'empty)))
 	
-(defvar matlab-defun-regex) ;; Quiet compiler warning (is defined below)
 (defun matlab-do-functions-have-end-p (&optional no-navigate)
   "Look at the contents of the current buffer and decide if functions have end.
 If the current value of `matlab-functions-have-end' is 'guess, look @ the buffer.
@@ -1673,6 +1673,16 @@ All Key Bindings:
   (interactive)
   (message "matlab-mode, version %s" matlab-mode-version))
 
+(defun matlab-find-prev-code-line ()
+  "Navigate backward until a code line is found.
+Navigate across continuations until we are at the beginning of
+that command.
+Return t on success, nil if we couldn't navigate backwards."
+  (let ((ans (matlab-find-prev-line 'ignore-comments)))
+    (when ans
+      (matlab-beginning-of-command)
+      ans)))
+
 (defun matlab-find-prev-line (&optional ignorecomments)
   "Recurse backwards until a code line is found."
   (if (= -1 (forward-line -1)) nil
@@ -2307,22 +2317,34 @@ Use this if you know what context you're in."
 	   ((string= foundblock "arguments")
 	    ;; Argument is only valid if it is the FIRST thing in a funtion.
 	    (save-excursion
-	      (if (and (matlab-find-prev-line t) (looking-at "\\s-*function\\>"))
+	      (if (and (matlab-find-prev-code-line) (looking-at "\\s-*function\\>"))
 		  ;; If the previous code line (ignoring whitespace and comments)
 		  ;; is 'arguments', then that is a valid block.
 		  t
 		;; Otherewise, all other argument cases are bad.
 		nil)))
-	   ;; Other special blocks are in a class.  Go look.
+
+	   ;; Other special blocks are in a class.  If not in a class file, fail.
+	   ((not (eq matlab-functions-have-end 'class))
+	    nil)
+
+	   ;; This is a speed test for classdef stuff.  It only navigates backward
+	   ;; one step.  If the previous thing also belongs to a class, then we must
+	   ;; be in a class.
+	   ((matlab-previous-line-belongs-to-classdef-p)
+	    t)
+	   ;; We are in a class, so identify if this is in a class context.
 	   (t
-	    (let ((myblock (if known-parent-block
-			       (cons known-parent-block nil) ;; shortcut if known
-			     (matlab-current-syntactic-block))))
-	      (if (string= (car myblock) "classdef")
-		  ;; We found correct usage of methods, events, etc.
-		  t
-		;; Some other case is bad.
-		nil)))
+	   ;; (let ((myblock (if known-parent-block
+	   ;;		       (cons known-parent-block nil) ;; shortcut if known
+	   ;;		     (matlab-current-syntactic-block))))
+	   ;;   (if (string= (car myblock) "classdef")
+	   ;;	  ;; We found correct usage of methods, events, etc.
+	   ;;	  t
+	   ;;	;; Some other case is bad.
+	    nil)
+	   ;;))
+	   
 	   )))
 
        ;; A cheap version of the expensive check
@@ -2335,6 +2357,31 @@ Use this if you know what context you're in."
        ;; If none of the valid cases, must be invalid
        (t nil)
        ))))
+
+(defun matlab-previous-line-belongs-to-classdef-p ()
+  "Return the nature of the line of code before this one.
+Ignores comments, etc.
+Returns non-nil if that previous thing is unique to a classdef."
+  (save-excursion
+    (save-match-data
+      ;; Move to the syntax in question.
+      (if (not (matlab-find-prev-code-line))
+	  nil ;; No code
+	;; Lets see what it is.
+	(back-to-indentation)
+	;; Is it an end?  Nav backward
+	(if (looking-at "\\<end\\>")
+	    (if (not (matlab-backward-sexp t t))
+		nil ;; failed to nav - just skip it.
+	      ;; If no errors so far, compute the kind of block.
+	      (if (looking-at matlab-innerblock-syntax-re)
+		  t ;; found something that belongs to a classdef.
+		nil))
+	  ;; Not on an end.  Is that because we are now on a classdef?
+	  ;; If so, then this is our context, so that's ok.
+	  (if (looking-at "\\<classdef\\>")
+	      t ;; Yep, that's a class
+	    nil))))))
 
 (defun matlab-current-syntactic-block ()
   "Return information about the current syntactic block the cursor is in.
@@ -3121,7 +3168,7 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
              (let ((matlab-functions-have-end t))
                (save-excursion
                  (beginning-of-line)
-                 (matlab-backward-sexp t) ;; may throw "unstarted block" error
+                 (matlab-backward-sexp t t)
                  (matlab-ltype-function-definition)))))
         (if end-of-function
             (if (or matlab-functions-have-end
