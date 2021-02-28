@@ -9,21 +9,25 @@ classdef blocks < handle
 
     %>>12
     properties(Access='public') %!!4
+
         % See if we can create properties using keywords
         %properties = 1;
         %methods = 1;
         %events = 1;
         arguments %!!8
         prop = 1;
+        
     end %<<12
     
     % >> 13
     events (Access='private') %!!4
+        
         %properties
         %events
         %methods
         arguments %!!8
         misc %!!8
+        
     end % <<13
     
     %>>14
@@ -72,9 +76,20 @@ classdef blocks < handle
         end %<<19
 
         %>>20
-        function arguments(~)%!!8
+        function events=arguments(arguments)%!!8
+            arguments, arguments(:,:) {mustBeNumeric}, end %!!12
+        
+            enumeration ... %!!12
+                = arguments;
+            
+            if enumeration > 0  %!!12
+                arguments = -enumeration;  %!!16
+            end  %!!12
+            
+            events ...  %!!12
+                = arguments + 1;
         end %<<20
-
+        
         %>>21
         function enumeration(~)%!!8
         end %<<21
@@ -123,7 +138,11 @@ classdef blocks < handle
             
             s = enumeration; %!!12
         end %<<24
-        
+
+        function methods=foo3(obj,properties) %!!8
+            methods=obj.arguments(properties); %!!12
+        end %!!8
+
         %!!8
     end %<<14
     
