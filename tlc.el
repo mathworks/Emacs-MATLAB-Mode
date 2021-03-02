@@ -159,7 +159,6 @@
     (define-key km "\C-m" 'tlc-return)
     (define-key km [return] 'tlc-return)
     (define-key km "\C-i" 'tlc-indent)
-    (substitute-key-definition 'comment-region 'tlc-comment-region km global-map)
     km)
   "Keymap for `tlc-mode'.")
 
