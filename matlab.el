@@ -2294,7 +2294,7 @@ Use this if you know what context you're in."
        ;; Cheap check - if functions don't have end, then always invalid
        ;; since these context blocks can't exist.
        ((not matlab-functions-have-end)
-	t)
+	nil)
 
        ;; Cheap check - is this block keyword not the first word for this command?
        ((save-excursion (skip-syntax-backward " ") (not (bolp)))
@@ -2328,30 +2328,56 @@ Use this if you know what context you're in."
 	   ((not (eq matlab-functions-have-end 'class))
 	    nil)
 
-	   ;; This is a speed test for classdef stuff.  It only navigates backward
+	   ;; If a known parent block was passed in, then this will be a very
+	   ;; fast check, so do that next.  If it is the right thing, then
+	   ;; true!
+	   (known-parent-block
+	    (if (string= known-parent-block "classdef")
+		t
+	      ;; otherwise not correct.
+	      nil))
+
+	   ;; This test goes back one command.  If it is an end, and it is indented just
+	   ;; one level, then we are good b/c we already check we're in a classdef file.
+	   ((save-excursion
+	      (if (not (matlab-find-prev-code-line))
+		  nil ;; no code, so not in a class.
+		(back-to-indentation)
+		(or
+		 ;; Looking at correctly indented end
+		 (and (looking-at "\\<end\\>")
+		      (eq (current-indentation) matlab-indent-level))
+		 ;; Looking at the classdef itself
+		 (looking-at "\\<classdef\\>") )))
+	    t)
+	   
+	   ;; This is a medium speed test for classdef stuff.  It only navigates backward
 	   ;; one step.  If the previous thing also belongs to a class, then we must
 	   ;; be in a class.
-	   ((matlab-previous-line-belongs-to-classdef-p)
-	    t)
-	   ;; We are in a class, so identify if this is in a class context.
-	   (t
-	   ;; (let ((myblock (if known-parent-block
-	   ;;		       (cons known-parent-block nil) ;; shortcut if known
-	   ;;		     (matlab-current-syntactic-block))))
-	   ;;   (if (string= (car myblock) "classdef")
-	   ;;	  ;; We found correct usage of methods, events, etc.
-	   ;;	  t
-	   ;;	;; Some other case is bad.
-	    nil)
-	   ;;))
+	   ;;((matlab-previous-line-belongs-to-classdef-p) t)
+
+	   ;; This is a slow operation - navigating backward to find the current syntactic
+	   ;; block is pretty expensive, but it also always gets it right.
+	   ;;
+	   ;; Since We are in a class, identify if this is in a class context.
+	   ;; ((let ((myblock (if known-parent-block
+	   ;; 		       (cons known-parent-block nil) ;; shortcut if known
+	   ;; 		     (matlab-current-syntactic-block))))
+	   ;;    (string= (car myblock) "classdef"))
+	   ;;    ;; We found correct usage of methods, events, etc.
+	   ;;  t)
+
+	   ;; All else fails - so not valid.
+	   (t nil)
 	   
-	   )))
+	   ))) ;; End slow-and-careful
 
        ;; A cheap version of the expensive check
        ((and (not matlab-valid-block-start-slow-and-careful)
 	     (looking-at matlab-innerblock-syntax-re))
 	;; If we are not slow and careful, we just need to return t if we see
-	;; of of these keywords since these were filtered out earlier.
+	;; one of these keywords since other cases where these weren't 1st on the line
+	;; or not in a classdef file are already filtered out.
 	t)
 
        ;; If none of the valid cases, must be invalid
