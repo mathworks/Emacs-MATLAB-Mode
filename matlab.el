@@ -1903,8 +1903,8 @@ Excludes function.")
 (defun matlab-block-end-pre ()
   "Partial regular expression to recognize MATLAB block-end keywords."
   (if matlab-functions-have-end
-      matlab-block-end-pre-if
-    matlab-block-end-pre-no-if))
+      matlab-block-end-pre-no-if
+    matlab-block-end-pre-if))
 
 ;; Not used.
 ;;(defconst matlab-other-pre
@@ -3438,6 +3438,7 @@ See `matlab-calculate-indentation'."
 			(setq bc (1- bc))
 		      (if (>= ci matlab-indent-level)
 			  (setq bc -1))))
+	      ;; Else, funtions don't have ends in this file.
 	      (if (and (matlab-indent-function-body-p) (matlab-ltype-function-definition))
 		  (setq bc (1+ bc))))
 	    ;; Remove 1 from the close count if there is an END on the beginning
@@ -4588,7 +4589,8 @@ by `matlab-mode-vf-add-ends'"
 
      ;; If the variable was specified and file is not empty, then do nothing.
      ;; TODO - maybe we should force to t for scripts and classes?
-     )
+
+     ) ;; end cond
 
     ;; compute expression after changing state of funtions have end above.
     (setq expr (concat "\\<\\(" (matlab-block-beg-pre) "\\)\\>"))

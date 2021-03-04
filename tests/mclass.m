@@ -51,13 +51,13 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
                 
                 disp("while loop going on here ("); % #2#
                                                     % !!52
-                                                    
+                
                 % !!16
                 
             end % <<17
-      
+            
             error('function mclass in charvec }'); % #2#
-                                                   
+            
             % !!12
             
         end % <<16
@@ -66,7 +66,7 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
     methods (Access='public')
         % >>13
         function meth(obj) % #3#
-    
+            
         % >>14
             if obj.AP % #3#
                 
@@ -74,8 +74,8 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
                 
             else
                 
-                 % >>15
-                 try
+                % >>15
+                try
                     
                     % comment with if, while, parfor words in it.
                     
@@ -91,13 +91,24 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
     end % <<12
     
     methods (Abstract, Hidden=true) % #2#
-       
+        
         result = abs_func(a,b) % #3#
 
         result = other_abs_fun(a,b) % #3#
         
     end
 
+    methods %!!4
+        
+        function end_separate_line(~) %!!8
+        end  %!!8
+        
+        function end_same_line(~), end  %!!8
+        
+        function after_end_same_line(~), end  %!!8
+        
+    end %!!4
+    
 end % <<1
 
 % End

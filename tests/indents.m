@@ -132,7 +132,7 @@ function C = block_starts_in_comments_and_strings()
     % see previous function
     % !!4
     for x=1:length(C) % !!4
-    
+        
         % !!8
     end
 
@@ -149,7 +149,7 @@ function C = block_starts_in_comments_and_strings()
     try
         % !!8
     catch %!!4    
-    
+        
         % !!8
     end
     
@@ -217,6 +217,13 @@ function has_nested_fcn
     
     %!!4
     am_nested_fcn();
-    
-    
+    function_end_same_line(1);
+    function_after_end_same_line();
 end
+
+function b=function_end_same_line(a), b=a; end %!!0
+
+function function_after_end_same_line()%!!0
+%!!0
+    disp('foo');%!!4
+end%!!0

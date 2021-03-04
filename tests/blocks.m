@@ -78,7 +78,7 @@ classdef blocks < handle
         %>>20
         function events=arguments(arguments)%!!8
             arguments, arguments(:,:) {mustBeNumeric}, end %!!12
-        
+            
             enumeration ... %!!12
                 = arguments;
             
