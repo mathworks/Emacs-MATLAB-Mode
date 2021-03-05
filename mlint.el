@@ -190,6 +190,9 @@ be cause for being turned off in a buffer."
     ( NOCOM . mlint-lm-delete-focus )
     ( ST2NM . mlint-lm-str2num )
     ( FDEPR . mlint-lm-entry-deprecated )
+    ( ENDCT2 . mlint-lm-missing-end )
+    ( FNDEF . mlint-lm-function-name )
+    ( MCFIL . mlint-lm-function-name )
     )
   "List of warning IDs and auto-fix functions.
 If the CAR of an association matches an error id then the linemark entry
@@ -468,7 +471,7 @@ ACTIVE-P if it should be made visible."
   "Return non-nil if entry E can be automatically fixed."
   (oref-default e fixable-p))
 
-(cl-defmethod mlint-fix-entry :AFTER ((e mlint-lm-entry))
+(cl-defmethod mlint-fix-entry :after ((e mlint-lm-entry))
   "Stuff to do after a warning is considered fixed.
 Subclasses fulfill the duty of actually fixing the code."
   (linemark-display e nil)
@@ -508,7 +511,7 @@ Subclasses fulfill the duty of actually fixing the code."
   "Class which can replace the focus area."
   :abstract t)
 
-(cl-defmethod initialize-instance :AFTER ((this mlint-lm-replace-focus)
+(cl-defmethod initialize-instance :after ((this mlint-lm-replace-focus)
 					  &rest fields)
   "Calculate the new fix description for THIS.
 Optional argument FIELDS are the initialization arguments."
@@ -533,7 +536,7 @@ Optional argument FIELDS are the initialization arguments."
   "Entry for anything that is deprecated.
 Extracts the replacement for the deprecated symbol from the warning message.")
 
-(cl-defmethod initialize-instance :AFTER ((this mlint-lm-entry-deprecated)
+(cl-defmethod initialize-instance :after ((this mlint-lm-entry-deprecated)
 				       &rest fields)
   "Calculate the 'new text' for THIS instance.
 Optional argument FIELDS are the initialization arguments."
@@ -548,6 +551,28 @@ Optional argument FIELDS are the initialization arguments."
 		  newfcn))
     ))
 
+(defclass mlint-lm-function-name (mlint-lm-replace-focus)
+  ()
+  "When function name is missmatched with the file name."
+  )
+
+(cl-defmethod initialize-instance :after ((this mlint-lm-function-name) &rest fields)
+  "Compute the 'new text' for THIS to be the file name from the message.
+Optional arguments FIELDS are the initialization arguments."
+  (let* ((warn (oref this warning))
+	 (junk (or (string-match "file name: '\\([a-zA-z][a-zA-z0-9]+\\)'" warn)
+		   (string-match "do not agree: '\\([a-zA-z][a-zA-z0-9]+\\)'" warn))
+		   )
+	 (newfcn (when junk (match-string 1 warn))))
+    (oset this new-text newfcn)
+    ;; After basic initialization, update the fix description.
+    (oset this fix-description
+	  (concat (oref-default mlint-lm-replace-focus fix-description)
+		  newfcn))
+    ))
+
+;;; Custom auto-fix entries
+;;
 (defclass mlint-lm-entry-logicals (mlint-lm-entry)
   ((fixable-p :initform t)
    (fix-description :initform "perform a replacement.")
@@ -599,6 +624,32 @@ Optional argument FIELDS are the initialization arguments."
     (matlab-end-of-command)
     (insert ";"))
   )
+
+(defclass mlint-lm-missing-end (mlint-lm-entry)
+  ((fixable-p :initform t)
+   (fix-description :initform "Add matching end for this line."))
+  "Missing end with guess as to where it might go."
+  )
+
+(cl-defmethod mlint-fix-entry ((ent mlint-lm-missing-end))
+  "Add semi-colon to end of this line."
+  (save-excursion
+    (let* ((msg (oref ent warning))
+	   line blockname)
+      ;; Extract info about this.
+      (when (string-match "(after line \\([0-9]+\\))" msg)
+	(setq line (match-string 1 msg)))
+      (when (string-match "possibly matching \\([A-Z]+\\)\\." msg)
+	(setq blockname (match-string 1 msg)))
+
+      ;; Did we get the right kind of warning
+      (when (and line blockname)
+	(mlint-goto-line (string-to-number line))
+
+	;; add the end and indent
+	(indent-region (point) (save-excursion (insert "end\n") (point)))
+	)
+      )))
 
 ;;; User functions
 ;;
