@@ -190,6 +190,7 @@ be cause for being turned off in a buffer."
     ( NOCOM . mlint-lm-delete-focus )
     ( ST2NM . mlint-lm-str2num )
     ( FDEPR . mlint-lm-entry-deprecated )
+    ( ENDCT . mlint-lm-missing-end )
     ( ENDCT2 . mlint-lm-missing-end )
     ( FNDEF . mlint-lm-function-name )
     ( MCFIL . mlint-lm-function-name )
@@ -643,12 +644,32 @@ Optional arguments FIELDS are the initialization arguments."
 	(setq blockname (match-string 1 msg)))
 
       ;; Did we get the right kind of warning
-      (when (and line blockname)
-	(mlint-goto-line (string-to-number line))
-
-	;; add the end and indent
-	(indent-region (point) (save-excursion (insert "end\n") (point)))
-	)
+      (if line
+	  ;; We have a line number, just go for it there.
+	  (progn
+	    (mlint-goto-line (string-to-number line))
+	    ;; add the end and indent
+	    (indent-region (point) (save-excursion (insert "end\n") (point)))
+	    )
+	(if (and blockname (string= blockname "FUNCTION"))
+	    ;; It is a function, but no line number.  Let's guess where this end
+	    ;; should go.
+	    (save-excursion
+	      (mlint-goto-line (oref ent line)) ;; go to the fcn
+	      (end-of-line)
+	      (if (re-search-forward "^function " nil t)
+		  (progn
+		    (beginning-of-line)
+		    ;; skip over comments that might be headers to the found function.
+		    (matlab-find-prev-code-line)
+		    (forward-line 1)
+		    (save-excursion (insert "end\n\n"))
+		    (matlab-indent-line))
+		(goto-char (point-max))
+		(save-excursion (insert "\nend\n\n"))
+		(matlab-indent-line))))
+	      )
+	  ))
       )))
 
 ;;; User functions
