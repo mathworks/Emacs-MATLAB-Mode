@@ -154,4 +154,6 @@ end
 
 not_commented();
 
+%{ just a regular comment #c# %} should_be_comment #c#
+
 % Normal comment #c#

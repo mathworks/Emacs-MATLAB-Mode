@@ -670,7 +670,7 @@ Optional arguments FIELDS are the initialization arguments."
 		(matlab-indent-line))))
 	      )
 	  ))
-      )))
+      )
 
 ;;; User functions
 ;;

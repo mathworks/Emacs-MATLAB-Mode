@@ -1795,38 +1795,41 @@ restricted."
 Return nil if it is being used to dereference an array."
   (let ((p (point))
 	(err1 t))
-    (condition-case nil
-	(save-match-data
-	  (matlab-with-current-command
-	    ;; This used to add some sort of protection, but I don't know what
-	    ;; the condition was, or why the simple case doesn't handle it.
-	    ;;
-	    ;; The above replacement fixes a case where a continuation in an array
-	    ;; befuddles the identifier.
-	    ;;		      (progn ;;(matlab-end-of-command (point))
-	    ;;			(end-of-line)
-	    ;;			(if (> p (point))
-	    ;;			    (progn
-	    ;;			      (setq err1 nil)
-	    ;;			      (error)))
-	    ;;    		(point))))
-	    (save-excursion
-	      ;; beginning of param list
-	      (matlab-up-list -1)
-	      ;; backup over the parens.  If that fails
-	      (condition-case nil
-		  (progn
-		    (forward-sexp 1)
-		    ;; If we get here, the END is inside parens, which is not a
-		    ;; valid location for the END keyword.  As such it is being
-		    ;; used to dereference array parameters
-		    nil)
-		;; This error means that we have an unterminated paren
-		;; block, so this end is currently invalid.
-		(error nil)))))
-      ;; an error means the list navigation failed, which also means we are
-      ;; at the top-level
-      (error err1))))
+    (if (eq (preceding-char) ?.)
+	;; This is a struct field, not valid.
+	nil
+      (condition-case nil
+	  (save-match-data
+	    (matlab-with-current-command
+	      ;; This used to add some sort of protection, but I don't know what
+	      ;; the condition was, or why the simple case doesn't handle it.
+	      ;;
+	      ;; The above replacement fixes a case where a continuation in an array
+	      ;; befuddles the identifier.
+	      ;;		      (progn ;;(matlab-end-of-command (point))
+	      ;;			(end-of-line)
+	      ;;			(if (> p (point))
+	      ;;			    (progn
+	      ;;			      (setq err1 nil)
+	      ;;			      (error)))
+	      ;;    		(point))))
+	      (save-excursion
+		;; beginning of param list
+		(matlab-up-list -1)
+		;; backup over the parens.  If that fails
+		(condition-case nil
+		    (progn
+		      (forward-sexp 1)
+		      ;; If we get here, the END is inside parens, which is not a
+		      ;; valid location for the END keyword.  As such it is being
+		      ;; used to dereference array parameters
+		      nil)
+		  ;; This error means that we have an unterminated paren
+		  ;; block, so this end is currently invalid.
+		  (error nil)))))
+	;; an error means the list navigation failed, which also means we are
+	;; at the top-level
+	(error err1)))))
 
 ;;; Regexps for MATLAB language ===============================================
 
@@ -2281,6 +2284,9 @@ Use this if you know what context you're in."
       (cond
        ((not (looking-at (matlab-block-beg-re)))
 	;; Not looking at a valid block
+	nil)
+       ((eq (preceding-char) ?.)
+	;; Any block preceeded by a '.' is a field in a struct, and not valid.
 	nil)
        ;; Else, are we on a block that has special syntax?
        ((not (looking-at matlab-innerblock-syntax-re))

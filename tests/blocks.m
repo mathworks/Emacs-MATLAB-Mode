@@ -143,6 +143,18 @@ classdef blocks < handle
             methods=obj.arguments(properties); %!!12
         end %!!8
 
+        function s=struct_stuff(~) %!!8
+            
+            s.if = 1;      %!!12
+            s.else = 1.5;  %!!12
+            s.while = 2;   %!!12
+            s.switch = 3;  %!!12
+            s.case = 3.1;  %!!12
+            s.end = 5;     %!!12
+                    
+        end %!!8
+        
+        
         %!!8
     end %<<14
     
