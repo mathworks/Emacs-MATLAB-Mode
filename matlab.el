@@ -2869,7 +2869,10 @@ Argument START is where to start searching from."
 	(goto-char (point-max))
 
 	;; If in a comment, move out of it first.
-	(matlab-backward-up-string-or-comment)
+	(when (matlab-backward-up-string-or-comment)
+	  ;; in case of no space between comment and end, need to move back
+	  ;; over the comment chart for next search to work.
+	  (forward-char 1))
 
 	;; Count every END in the line, skipping over active blocks
 	(while (re-search-backward (concat "\\<" (matlab-block-end-re) "\\>")

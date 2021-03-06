@@ -153,8 +153,15 @@ classdef blocks < handle
             s.end = 5;     %!!12
                     
         end %!!8
-        
-        
+
+        function tightcomments%!!8
+            if condition%!!12
+                switch thing%!!16
+                  case b%!!18
+                end%!!16
+            end%!!12
+        end%!!8
+                
         %!!8
     end %<<14
     
