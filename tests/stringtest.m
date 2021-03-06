@@ -79,9 +79,9 @@ Ecv = 'string with ... in #v# it';
 Es = "string with ... in #s# it";
 % Comment with ... in it #c#
 
-x = [ 'foo bar',newline,...
-     '  ''-goo'', ... #v#',newline,...
-     '  ''-bar'', ... #v#',newline];
+x = [ 'foo bar', newline, ... #e#
+     '  ''-goo'', ... #v#', newline, ... #e#
+     '  ''-bar'', ... #v#', newline ];
 
 func_call1('function with charvec', ... #e#
            'after ellipsis charvec with ellipsis ... #v#');
