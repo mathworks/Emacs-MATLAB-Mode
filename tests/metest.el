@@ -42,6 +42,7 @@
 
 (defun metest-all-syntax-tests ()
   "Run all the syntax tests in this file."
+  (metest-end-detect-test)
   (metest-comment-string-syntax-test)
   (metest-sexp-counting-test)
   (metest-sexp-traversal-test)
@@ -49,17 +50,47 @@
   (metest-parse-test)
   )
 
+(defvar met-end-detect-files '("empty.m" "stringtest.m" "mfuncnoend.m" "mfuncends.m" "mclass.m" )
+  "List of files for running end detection tests on.")
+
+(defun metest-end-detect-test ()
+  "Run a test to make sure we correctly detect the state of managing 'end'."
+  (dolist (F met-end-detect-files)
+    (let ((buf (metest-find-file F))
+	  (cnt 0))
+      (with-current-buffer buf
+	(goto-char (point-min))
+	(message ">> Checking END detection in %S" (current-buffer))
+	(if (re-search-forward "%%%\\s-*\\(\\w+\\)\\s-+\\(\\w+\\)$" nil t)
+	    (let ((st-expect (intern (match-string-no-properties 1)))
+		  (end-expect (intern (match-string-no-properties 2)))
+		  (st-actual (matlab-guess-script-type))
+		  (end-actual (matlab-do-functions-have-end-p)))
+	      (unless (eq st-actual st-expect)
+		(error "Script type detection failure: Expected %s but found %s"
+		       st-expect st-actual))
+	      (unless (eq end-actual end-expect)
+		(error "Script end detection failure: Expected %s but found %s"
+		       end-expect end-actual))
+	      
+	      (message "<< Script type and end detection passed: %s, %s" st-actual end-actual)
+	      )
+	  ;; No expected values found in the file.
+	  (error "Test file did not include expected script-type cookie")
+	  ))))
+  (message ""))
+
 (defvar met-stringtest-files '("stringtest.m")
   "List of files for running string tests on.")
 
 (defun metest-comment-string-syntax-test ()
   "Run a test to make sure string nd comment highlighting work."
   (dolist (F met-stringtest-files)
-    (let ((buf (find-file-noselect (expand-file-name F met-testfile-path)))
+    (let ((buf (metest-find-file F))
 	  (cnt 0))
       (with-current-buffer buf
 	(goto-char (point-min))
-	(message ">> Starting search loop in %S" (current-buffer))
+	(message ">> Starting string/comment detect loop in %S" (current-buffer))
 	(while (re-search-forward "#\\([csveb]\\)#" nil t)
 	  (goto-char (match-end 1))
 	  (let ((md (match-data))
@@ -100,7 +131,7 @@
 (defun metest-sexp-counting-test ()
   "Run a test to make sure string and comment highlighting work."
   (dolist (F met-sexptest-files)
-    (let ((buf (find-file-noselect (expand-file-name F met-testfile-path)))
+    (let ((buf (metest-find-file F))
 	  (cnt 0))
       (with-current-buffer buf
 	(goto-char (point-min))
@@ -140,7 +171,7 @@
 (defun metest-sexp-traversal-test ()
   "Run a test to make sure high level block navigation works."
   (dolist (F met-sexptest-files)
-    (let ((buf (find-file-noselect (expand-file-name F met-testfile-path)))
+    (let ((buf (metest-find-file F))
 	  (cnt 0))
       (with-current-buffer buf
 	(goto-char (point-min))
@@ -173,13 +204,13 @@
   (message ""))
 
 
-(defvar met-indents-files '("indents.m" "mclass.m" "blocks.m")
+(defvar met-indents-files '("indents.m" "mclass.m" "blocks.m" "mfuncends.m")
   "List of files for running syntactic indentation tests.")
 
 (defun metest-indents-test ()
   "Run a test to make sure high level block navigation works."
   (dolist (F met-indents-files)
-    (let ((buf (find-file-noselect (expand-file-name F met-testfile-path)))
+    (let ((buf (metest-find-file F))
 	  (cnt 0))
       (with-current-buffer buf
 	(goto-char (point-min))
@@ -207,7 +238,7 @@
   "Run the semantic parsing test to make sure the parse works."
   
   (dolist (F met-parser-files)
-    (let ((buf (find-file-noselect (expand-file-name F met-testfile-path)))
+    (let ((buf (metest-find-file F))
 	  exp act
 	  (cnt 0))
       (with-current-buffer buf
@@ -251,6 +282,14 @@
   (semantic-tag-similar-p EXP ACT :documentation)
 
   )
+
+(defun metest-find-file (file)
+  "Read FILE into a buffer and return it.
+Do error checking to provide easier debugging."
+  (let ((F (expand-file-name file met-testfile-path)))
+    (unless (file-exists-p F)
+      (error "Test file %s does not exist in %s" file met-testfile-path))
+    (find-file-noselect F)))
 
 (provide 'metest)
 

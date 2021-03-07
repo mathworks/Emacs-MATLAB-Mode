@@ -2459,7 +2459,7 @@ Argument START is where to start searching from."
     (save-excursion
       (when start (goto-char start))
       (matlab-with-current-command
-	(goto-char (point-max))
+	(goto-char (point-at-eol))
 
 	;; If in a comment, move out of it first.
 	(when (matlab-backward-up-string-or-comment)

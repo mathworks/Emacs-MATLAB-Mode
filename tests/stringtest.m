@@ -1,6 +1,8 @@
 %% Tests for char vector and string handling.
 %
 %  #c#
+%
+% %%%script script
 
 %% Basic strings
 
