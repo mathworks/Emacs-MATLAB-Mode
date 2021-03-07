@@ -69,19 +69,24 @@ icell_in_strs2_nested = { 'charv  innercell " #v# }' "strinc  innercel ' #s# }" 
 %% Elipsis as comment
 
 fun_call(); ...  This is a comment after an elipsis #e#
-fun_call(); ...  'charvec in elipsis comment #e#'
-fun_call(); ...  "string in elipsis comment #e#"
-fun_call(); ...  % comment after an elipsis is still elipsis #e#
 
+fun_call(); ...  'charvec in elipsis comment #e#'
+
+fun_call(); ...  "string in elipsis comment #e#"
+
+fun_call(); ...  % comment after an elipsis is still elipsis #e#
+    
 %% Elipsis and strings and other comments
 
 Ecv = 'string with ... in #v# it';
 Es = "string with ... in #s# it";
 % Comment with ... in it #c#
+eecv = '...'; % string with only ellipsis in it #c#
+ees = "..."; % string with only ellipsis in it #c#
 
 x = [ 'foo bar', newline, ... #e#
-     '  ''-goo'', ... #v#', newline, ... #e#
-     '  ''-bar'', ... #v#', newline ];
+      '  ''-goo'', ... #v#', newline, ... #e#
+      '  ''-bar'', ... #v#', newline ];
 
 func_call1('function with charvec', ... #e#
            'after ellipsis charvec with ellipsis ... #v#');

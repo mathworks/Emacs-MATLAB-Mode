@@ -64,22 +64,23 @@
 	  (goto-char (match-end 1))
 	  (let ((md (match-data))
 		(mc (match-string 1))
-		(bc (matlab-ltype-block-comm))
+		(bc (matlab-block-comment-bounds))
 		(qd (matlab-cursor-comment-string-context)))
 	    ;; Test 1 - what are we?
 	    (unless (or (and (string= "b" mc) bc)
 			(and (string= "v" mc) (eq 'charvector qd))
 			(and (string= "s" mc) (eq 'string qd))
 			(and (string= "c" mc) (eq 'comment qd))
-			(and (string= "e" mc) (eq 'elipsis qd))
+			(and (string= "e" mc) (eq 'ellipsis qd))
 			)
-	      (error "Syntax Test Failure @ line %d: Expected %s but found %S"
+	      (error "Syntax Test Failure @ line %d, char %d: Expected %s but found %S"
 		     (line-number-at-pos)
+		     (point)
 		     (cond ((string= mc "b") "block comment")
 			   ((string= mc "v") "charvector")
 			   ((string= mc "s") "string")
 			   ((string= mc "c") "comment")
-			   ((string= mc "e") "elipsis")
+			   ((string= mc "e") "ellipsis")
 			   (t "unknown test token"))
 		     qd))
 	    ;; Test 2 - is match-data unchanged?
