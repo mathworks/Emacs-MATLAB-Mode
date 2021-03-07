@@ -31,6 +31,7 @@
 
 ;;; Code:
 (require 'matlab)
+(require 'matlab-shell)
 
 ;;; Customizations ===========================================================
 ;;
@@ -183,6 +184,14 @@ This list still needs lots of help.")
 
 ;;; Completion Framework ===================================================
 ;;
+(defun matlab-uniquify-list (lst)
+  "Return a list that is a subset of LST where all elements are unique."
+  (let ((nlst nil))
+    (while lst
+      (if (and (car lst) (not (member (car lst) nlst)))
+	  (setq nlst (cons (car lst) nlst)))
+      (setq lst (cdr lst)))
+    (nreverse nlst)))
 
 (defun matlab-find-recent-variable-list (prefix)
   "Return a list of most recent variables starting with PREFIX as a string.

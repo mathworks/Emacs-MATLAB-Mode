@@ -818,52 +818,6 @@ when attempting to understand the current context.")
       ;; We made a change
       t)))
 
-(defun matlab-find-block-comments (limit)
-  "Find code that is commented out with %{ until %}.
-Argument LIMIT is the maximum distance to search."
-  (if (and (< (point) limit)
-	   (re-search-forward matlab-block-comment-start-re limit t))
-      (let ((b1 (match-beginning 0))
-	    (e1 (match-end 0))
-	    (b2 nil) (e2 nil)
-	    (b3 nil) (e3 nil))
-	(goto-char b1)
-	(if (and (not (bolp))
-		 (progn
-		   (forward-char -1)
-		   (matlab-cursor-in-string-or-comment)))
-	    (progn
-	      (goto-char e1) ;; skip over this one.
-	      nil)
-	  ;; Else, find the end.  We will certainly be in
-	  ;; a comment, so no need to check on the end.
-	  (setq b2 (re-search-forward matlab-block-comment-end-re limit t))
-	  (if (not b2)
-	      (progn
-		;; No end ?  Let's tell font-lock to just go
-		;; to point-at-eol can call it done.
-		(goto-char e1)
-		(set-match-data
-		 (list b1 (point-max)
-		       b1 (point-max)
-		       b1 e1
-		       (point-max) (point-max)
-		       ))
-		(goto-char (point-max))
-		t)
-
-	    ;; We have a match.  Return that region.
-	    (setq b2 (match-beginning 0)
-		  e2 (match-end 0))
-	    (set-match-data
-	     (list b1 e2  ; full match
-		   b1 e2  ; the full comment
-		   b1 e1  ; the block start
-		   b2 e2  ; the block end
-		   ))
-	    (goto-char e2); move to end
-	    t
-	    )))))
 
 (defun matlab-find-unreachable-code (limit)
   "Find code that is if'd out with if(0) or if(false), and mark it as a comment.
@@ -1088,12 +1042,6 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
       (3 'underline prepend)		;else part (if applicable)
       (4 font-lock-comment-face prepend) ;commented out part.
       )
-    ;; block comments need to be commented out too!
-    ;;'(matlab-find-block-comments
-    ;;  (1 font-lock-comment-face prepend) ; commented out
-    ;;  (2 'underline prepend)
-    ;;  (3 'underline prepend)		;the comment parts
-    ;;  )
     ;; Cell mode breaks get special treatment
     '("^\\s-*\\(%%[^\n]*\n\\)" (1 matlab-cellbreak-face append))
     ;; Highlight cross function variables
@@ -1563,15 +1511,6 @@ Ignore comments and whitespace."
 	(matlab-find-code-line)) ;; try again.
     t))
 
-(defun matlab-uniquify-list (lst)
-  "Return a list that is a subset of LST where all elements are unique."
-  (let ((nlst nil))
-    (while lst
-      (if (and (car lst) (not (member (car lst) nlst)))
-	  (setq nlst (cons (car lst) nlst)))
-      (setq lst (cdr lst)))
-    (nreverse nlst)))
-
 
 (defvar matlab-in-command-restriction nil
   "Non-nil if currently in a `matlab-with-current-command' form.")
@@ -1712,11 +1651,6 @@ Excludes function.")
       matlab-block-end-pre-no-if
     matlab-block-end-pre-if))
 
-;; Not used.
-;;(defconst matlab-other-pre
-;;  "function\\|return"
-;;  "Partial regular express to recognize MATLAB non-block keywords.")
-
 (defconst matlab-endless-blocks
   "case\\|otherwise"
   "Keywords which initialize new blocks, but don't have explicit ends.
@@ -1789,33 +1723,6 @@ The class name is match 2."
   "When this is set to non-nil, then forward/backward sexp stops off screen.
 This is so the block highlighter doesn't gobble up lots of time when
 a block is not terminated.")
-
-(defun matlab-up-string-or-comment ()
-  "If the cursor is in a string or comment, move cursor to end of that syntax.
-Returns new location if the cursor is moved.  nil otherwise."
-  (interactive)
-  (let* ((bounds nil)
-	 (ctxt (matlab-cursor-comment-string-context 'bounds)))
-    (when ctxt
-      (goto-char (nth 1 bounds))
-      (unless (eobp)
-	(when (eq ctxt 'comment) (forward-char 1)))
-      t)))
-
-(defun matlab-backward-up-string-or-comment ()
-  "If the cursor is in a string or comment, move cursor to beginning of that syntax.
-Returns new location if the cursor is moved.  nil otherwise."
-  (interactive)
-  (let* ((bounds nil)
-	 (ctxt (matlab-cursor-comment-string-context 'bounds)))
-    (when ctxt
-      (goto-char (nth 0 bounds))
-      (unless (bobp)
-	(when (eq ctxt 'comment) (forward-char -1))
-	(when (eq ctxt 'ellipsis) (forward-char -1)))
-      t)))
-
-
 
 (defun matlab-backward-sexp (&optional autoend noerror)
   "Go backwards one balanced set of MATLAB expressions.
@@ -2462,10 +2369,11 @@ Argument START is where to start searching from."
 	(goto-char (point-at-eol))
 
 	;; If in a comment, move out of it first.
-	(when (matlab-backward-up-string-or-comment)
+	(when (matlab-beginning-of-string-or-comment)
 	  ;; in case of no space between comment and end, need to move back
 	  ;; over the comment chart for next search to work.
-	  (forward-char 1))
+	  ;;(forward-char 1)
+	  )
 
 	;; Count every END in the line, skipping over active blocks
 	(while (re-search-backward (concat "\\<" (matlab-block-end-re) "\\>")
@@ -2473,8 +2381,8 @@ Argument START is where to start searching from."
 	  (let ((startmove (match-end 0))
 		(nomove (point)))
 	    (cond
-	     ((matlab-backward-up-string-or-comment)
-	      ;; Above returns t if it was in a string or comment.
+	     ((matlab-beginning-of-string-or-comment)
+	      ;; Above returns non-nil if it was in a string or comment.
 	      ;; In that case, we need to keep going.
 	      nil)
 	     ((not (matlab-valid-end-construct-p))

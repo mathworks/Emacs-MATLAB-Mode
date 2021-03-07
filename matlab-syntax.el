@@ -381,6 +381,13 @@ bounds of the string or comment the cursor is in"
     ;; Return the syntax
     syntax))
 
+(defun matlab-beginning-of-string-or-comment ()
+  "If the cursor is in a string or comment, move to the beginning.
+Returns non-nil if the cursor moved."
+  (let* ((pps (syntax-ppss (point))))
+    (when (nth 8 pps) (goto-char (nth 8 pps))
+      )))
+
 ;;; Block Comment handling
 ;;
 ;; Old version block comments were handled in a special way.
