@@ -437,17 +437,29 @@ of character based."
 
 (defun matlab-up-list (count &optional restrict)
   "Move forwards or backwards up a list by COUNT.
-Optional argument RESTRICT is ignored."
+When travelling backward, use `syntax-ppss' counted paren
+starts to navigate upward.
+When travelling forward, use 'up-list' diretly, but disable
+comment and string crossing.
+Optional argument RESTRICT specifies max point to travel to."
   (save-restriction
     (when restrict (narrow-to-region restrict (point)))
-    (let ((dir (if (> count 0) 1 -1)))
-      (while (/= count 0)
-	(up-list dir nil nil)
-	(unless (matlab-cursor-in-string-or-comment)
-	  ;; Only count this as moving up a list if we aren't
-	  ;; in a comment.
-	  (setq count (- count dir)))
-	))))
+    (let* ((bounds nil)
+	   (ctxt (matlab-cursor-comment-string-context 'bounds)))
+      (when ctxt
+	(goto-char (if (< 0 count) (car bounds) (cdr bounds))))
+      (if (< count 0)
+	  (let ((pps (syntax-ppss)))
+	    (when (or (not (numberp (nth 0 pps)))
+		      (< (nth 0 pps) (abs count)))
+	      (error "Cannot navigate up %d lists" (abs count)))
+	    ;; When travelling in reverse, we can just use pps'
+	    ;; parsed paren list in slot 9.
+	    (let ((posn (reverse (nth 9 pps)))) ;; Location of parens
+	      (goto-char (nth (1- (abs count)) posn))))
+	;; Else - travel forward
+	(up-list count nil t)) ;; will this correctly ignore comments, etc?
+      )))
 
 ;;; Syntax Compat functions
 ;;
