@@ -67,16 +67,16 @@
 		  (st-actual (matlab-guess-script-type))
 		  (end-actual (matlab-do-functions-have-end-p)))
 	      (unless (eq st-actual st-expect)
-		(error "Script type detection failure: Expected %s but found %s"
-		       st-expect st-actual))
+		(metest-error "Script type detection failure: Expected %s but found %s"
+			      st-expect st-actual))
 	      (unless (eq end-actual end-expect)
-		(error "Script end detection failure: Expected %s but found %s"
-		       end-expect end-actual))
+		(metest-error "Script end detection failure: Expected %s but found %s"
+			      end-expect end-actual))
 	      
 	      (message "<< Script type and end detection passed: %s, %s" st-actual end-actual)
 	      )
 	  ;; No expected values found in the file.
-	  (error "Test file did not include expected script-type cookie")
+	  (metest-error "Test file did not include expected script-type cookie")
 	  ))))
   (message ""))
 
@@ -104,19 +104,18 @@
 			(and (string= "c" mc) (eq 'comment qd))
 			(and (string= "e" mc) (eq 'ellipsis qd))
 			)
-	      (error "Syntax Test Failure @ line %d, char %d: Expected %s but found %S"
-		     (line-number-at-pos)
-		     (point)
-		     (cond ((string= mc "b") "block comment")
-			   ((string= mc "v") "charvector")
-			   ((string= mc "s") "string")
-			   ((string= mc "c") "comment")
-			   ((string= mc "e") "ellipsis")
-			   (t "unknown test token"))
-		     qd))
+	      (metest-error "Syntax Test Failure @ char %d: Expected %s but found %S"
+		(point)
+		(cond ((string= mc "b") "block comment")
+		      ((string= mc "v") "charvector")
+		      ((string= mc "s") "string")
+		      ((string= mc "c") "comment")
+		      ((string= mc "e") "ellipsis")
+		      (t "unknown test token"))
+		qd))
 	    ;; Test 2 - is match-data unchanged?
 	    (unless (equal md (match-data))
-	      (error "Syntax checking transmuted the match data"))
+	      (metest-error "Syntax checking transmuted the match data"))
 	    ;; Track
 	    (setq cnt (1+ cnt))
 	    ))
@@ -148,18 +147,16 @@
 		(if (not (eq (point) (point-min)))
 		    (save-restriction
 		      (widen)
-		      (error "error at %d: Backward Sexp miscount tried %d, point %d, min %d"
-			     (line-number-at-pos)
-			     num (point) (point-at-bol))))
+		      (metest-error "Backward Sexp miscount tried %d, point %d, min %d"
+			num (point) (point-at-bol))))
 		(skip-chars-forward " \t;.=%")
 		(matlab-move-simple-sexp-internal num)
 		(skip-chars-forward " \t\n;.=%")
 		(if (not (eq (point) (point-max)))
 		    (save-restriction
 		      (widen)
-		      (error "Error at %d: Forward Sexp miscount tried %d, point %d, dest %d"
-			     (line-number-at-pos)
-			     num (point) (point-at-eol)))))
+		      (metest-error "Forward Sexp miscount tried %d, point %d, dest %d"
+			num (point) (point-at-eol)))))
 	      ))
 	  (end-of-line)
 	  (setq cnt (1+ cnt))))
@@ -185,16 +182,16 @@
 	    (matlab-forward-sexp)
 	    (skip-chars-forward " \n\t;%")
 	    (if (not (looking-at "<<\\([0-9]+\\)"))
-		(error "Error at %d: Failed to find matching test end token for %d"
-		       (line-number-at-pos) num)
+		(metest-error "Failed to find matching test end token for %d"
+		  num)
 	      (setq num2 (string-to-number (match-string 1)))
 	      (when (/= num num2)
-		(error "Error at %d: Failed to match correct test token. Start is %d, end is %d"
-		       (line-number-at-pos) num num2)))
+		(metest-error "Failed to match correct test token. Start is %d, end is %d"
+		  num num2)))
 	    (matlab-backward-sexp)
 	    (when (/= (point) begin)
-	      (error "Error at %d: Failed to reverse navigate sexp for %d"
-		     (line-number-at-pos) num))
+	      (metest-error "Failed to reverse navigate sexp for %d"
+		num))
 	    )
 	  (end-of-line)
 	  (setq cnt (1+ cnt))))
@@ -221,8 +218,8 @@
 		 (calc (matlab-calc-indent))
 		 (begin nil))
 	    (when (not (= num calc))
-	      (error "Error at %d: Indentation found is %d, expected %d"
-		     (line-number-at-pos) calc num))
+	      (metest-error "Indentation found is %d, expected %d"
+			    calc num))
 	    )
 	  (end-of-line)
 	  (setq cnt (1+ cnt))))
@@ -252,9 +249,9 @@
 	(message ">> Starting semantic parser test in %S" (current-buffer))
 
 	(unless (re-search-forward "^%%\\s-*>>\\s-+SEMANTIC TEST" nil t)
-	  (error "Semantic parser test: Failed to find test cookie."))
+	  (metest-error "Semantic parser test: Failed to find test cookie."))
 	(unless (re-search-forward "^%{[ \t\n]+\\(((\\)" nil t)
-	  (error "Semantic parser test: Failed to find expected values."))
+	  (metest-error "Semantic parser test: Failed to find expected values."))
 	(goto-char (match-beginning 1))
 	(setq exp (read (buffer-substring (point)
 					  (save-excursion (re-search-forward "%}" nil t)
@@ -264,12 +261,12 @@
 	;; Compare the two lists ... simply.
 	(while (and exp act)
 	  (unless (metest-compare-tags (car exp) (car act))
-	    (error "Expected tag %s, found %s" (semantic-format-tag-prototype (car exp))
-		   (semantic-format-tag-prototype (car act))))
+	    (metest-error "Expected tag %s, found %s" (semantic-format-tag-prototype (car exp))
+			  (semantic-format-tag-prototype (car act))))
 	  (setq exp (cdr exp) act (cdr act) cnt (1+ cnt))
 	  )
 	(when (or exp act)
-	  (error "Found tags and expected tag lists differnet lengths.\nExpected Remains: %S\nActual Remains: %S"
+	  (metest-error "Found tags and expected tag lists differnet lengths.\nExpected Remains: %S\nActual Remains: %S"
 		 exp act))
 	
 	)
@@ -290,6 +287,15 @@ Do error checking to provide easier debugging."
     (unless (file-exists-p F)
       (error "Test file %s does not exist in %s" file met-testfile-path))
     (find-file-noselect F)))
+
+(defun metest-error (&rest args)
+  "Produce an err with standardized file/line prefix."
+  (declare (indent 1))
+  (let ((pre (format "%s:%d: Error: "
+		     (file-name-nondirectory (buffer-file-name))
+		     (line-number-at-pos)))
+	(post (apply 'format args)))
+    (error (concat pre post))))
 
 (provide 'metest)
 
