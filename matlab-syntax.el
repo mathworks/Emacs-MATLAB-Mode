@@ -93,11 +93,11 @@
   (declare (indent 0))
   (list 'let '((oldsyntax (syntax-table))
 	       (case-fold-search nil))
-	 (list 'unwind-protect
-		(list 'progn
-		       '(set-syntax-table matlab-navigation-syntax-table)
-			(cons 'progn forms))
-		'(set-syntax-table oldsyntax))))
+	(list 'unwind-protect
+	      (list 'progn
+		    '(set-syntax-table matlab-navigation-syntax-table)
+		    (cons 'progn forms))
+	      '(set-syntax-table oldsyntax))))
 
 (add-hook 'edebug-setup-hook
 	  (lambda ()
@@ -242,7 +242,6 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
     (when (and (re-search-forward "%{" nil t) (not (looking-at "\\s-*$")))
       (goto-char (1- (match-end 0)))
       t)))
-  
 
 (defun matlab--scan-line-for-ellipsis ()
   "Scan this line for an ellipsis."
@@ -317,6 +316,24 @@ Safe to use in `matlab-mode-hook'."
 ;;; Syntax Testing for Strings and Comments
 ;;
 ;; These functions detect syntactic context based on the syntax table.
+(defun matlab-cursor-in-string-or-comment ()
+  "Return non-nil if the cursor is in a valid MATLAB comment or string."
+  (let* ((pps (syntax-ppss (point))))
+    (nth 8 pps)))
+
+(defun matlab-cursor-in-comment ()
+  "Return t if the cursor is in a valid MATLAB comment."
+  (let* ((pps (syntax-ppss (point))))
+    (nth 4 pps)))
+
+(defun matlab-cursor-in-string (&optional incomplete)
+  "Return t if the cursor is in a valid MATLAB character vector or string scalar.
+Note: INCOMPLETE is now obsolete
+If the optional argument INCOMPLETE is non-nil, then return t if we
+are in what could be a an incomplete string. (Note: this is also the default)"
+  (let* ((pps (syntax-ppss (point))))
+    (nth 3 pps)))
+
 (defun matlab-cursor-comment-string-context (&optional bounds-sym)
   "Return the comment/string context of cursor for the current line.
 Return 'comment if in a comment.
@@ -363,24 +380,6 @@ bounds of the string or comment the cursor is in"
 
     ;; Return the syntax
     syntax))
-
-(defun matlab-cursor-in-string-or-comment ()
-  "Return t if the cursor is in a valid MATLAB comment or string."
-  ;; comment and string depend on each other.  Here is one test
-  ;; that does both.
-  (when (matlab-cursor-comment-string-context) t))
-
-(defun matlab-cursor-in-comment ()
-  "Return t if the cursor is in a valid MATLAB comment."
-  (eq (matlab-cursor-comment-string-context) 'comment))
-
-(defun matlab-cursor-in-string (&optional incomplete)
-  "Return t if the cursor is in a valid MATLAB character vector or string scalar.
-Note: INCOMPLETE is now obsolete
-If the optional argument INCOMPLETE is non-nil, then return t if we
-are in what could be a an incomplete string. (Note: this is also the default)"
-  (let ((ctxt (matlab-cursor-comment-string-context)))
-    (or (eq ctxt 'string) (eq ctxt 'charvector))))
 
 ;;; Block Comment handling
 ;;
