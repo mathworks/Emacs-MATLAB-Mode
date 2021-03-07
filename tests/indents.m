@@ -22,6 +22,7 @@ function indents(a,b,stuff)
     % !!4
 
     block_starts_in_comments_and_strings();
+    array_constant_decls();
     
     % !!4
     
@@ -117,6 +118,25 @@ function B = ends_in_comments_and_strings()
     % !!4
     B = A;
 
+end
+
+function out = array_constant_decls()
+    
+    A = [ 1 2 3 ]; %!!4
+    
+    Blong = [ 1 2; %!!4
+              3 4; %!!14
+            ]; %!!12
+    
+    Csep = [
+        1 2; %!!8
+        3 4; %!!8
+           ]; %!!11
+    
+    out = { A     %!!4
+            Blong %!!12
+            Csep  %!!12
+          };      %!!10
 end
 
 function C = block_starts_in_comments_and_strings()
