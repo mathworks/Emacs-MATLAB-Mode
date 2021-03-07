@@ -234,14 +234,16 @@ the region.  BEGIN and END mark the region to be stringified."
   "Spell check valid strings in region with Ispell.
 Argument BEGIN and END mark the region boundary."
   (interactive "r")
+  (error "This function needs to be reimplemented.")
   (require 'ispell)
   (save-excursion
     (goto-char begin)
     ;; Here we use the font lock function for finding strings.
     ;; Its cheap, fast, and accurate.
     ;; NOTE: This now also does comments
-    (while (and (matlab-font-lock-allstring-comment-match-normal end)
-		(ispell-region (match-beginning 0) (match-end 0))))))
+    ;;(while (and (matlab-font-lock-allstring-comment-match-normal end)
+    ;;	(ispell-region (match-beginning 0) (match-end 0))))
+    ))
 
 (defun matlab-ispell-strings-and-comments ()
   "Spell check valid strings in the current buffer with Ispell.
