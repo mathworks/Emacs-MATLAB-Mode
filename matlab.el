@@ -2127,8 +2127,8 @@ Optional BEGINNING is where the command starts from."
   (while (and (or (matlab-lattr-cont)
 		  (save-excursion
 		    (forward-line 1)
-                    (or (matlab-ltype-continued-comm)
-                        (matlab-lattr-array-cont beginning))))
+                    (or (matlab-lattr-array-cont beginning)
+                        (matlab-ltype-continued-comm))))
 	      ;; This hack is a short circuit.  If a user did not
 	      ;; correctly end a matrix, this will short-circuit
 	      ;; as soon as something that would never appear in a matrix
@@ -2413,32 +2413,6 @@ Argument START is where to start searching from."
     (and (looking-at (concat "\\<" (matlab-block-end-re) "\\>"))
          (matlab-valid-end-construct-p))))
 
-(declare-function matlab-property-function "matlab-complete" ())
-(defun matlab-lattr-semantics (&optional prefix)
-  "Return the semantics of the current position.
-Values are nil 'solo, 'value, and 'boolean.  Boolean is a subset of
-value.  nil means there is no semantic content (ie, string or comment.)
-If optional PREFIX, then return 'solo if that is the only thing on the
-line."
-  (cond ;((matlab-cursor-in-string-or-comment)
-	 ;nil)
-	((or (matlab-ltype-empty)
-	     (and prefix (save-excursion
-			   (beginning-of-line)
-			   (looking-at (concat "\\s-*" prefix "\\s-*$")))))
-	 'solo)
-	((save-excursion
-	   (matlab-beginning-of-command)
-	   (looking-at "\\s-*\\(if\\|elseif\\|while\\)\\>"))
-	 'boolean)
-	((save-excursion
-	   (matlab-beginning-of-command)
-	   (looking-at (concat "\\s-*\\(" (matlab-property-function)
-			       "\\)\\>")))
-	 'property)
-	(t
-	 'value)))
-
 (defun matlab-function-called-at-point ()
   "Return a string representing the function called nearby point."
   (save-excursion
@@ -2449,20 +2423,6 @@ line."
 		(looking-at "\\s-*\\([a-zA-Z]\\w+\\)\\s-*[^=]"))
 	   (match-string 1))
 	  (t nil))))
-
-(defun matlab-show-cursor-context ()
-  "Display something about the context the cursor is in."
-  (interactive)
-  (let* ((bounds nil)
-	 (ctxt (matlab-cursor-comment-string-context 'bounds)))
-    (if (not ctxt)
-	(message "Cursor not in a comment or string.")
-
-      (message "Ctxt: %s  Bounds: %S" ctxt bounds)
-      (when (featurep 'pulse)
-	(pulse-momentary-highlight-region (car bounds) (car (cdr bounds)))
-	))))
-
 
 
 (defun matlab-comment-on-line ()
