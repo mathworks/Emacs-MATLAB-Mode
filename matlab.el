@@ -2111,9 +2111,10 @@ Travels across continuations."
 	  (goto-char (car bc))
 
 	;; Scan across lines that are related.
-	(while (and (or (matlab-prev-line-cont)
+	(while (and (or (setq p (matlab-lattr-array-cont r)) ;; do this first b/c fast
+			(matlab-prev-line-cont)
 			(matlab-ltype-continued-comm)
-			(setq p (matlab-lattr-array-cont r)))
+			)
 		    (save-excursion (beginning-of-line) (not (bobp))))
 	  (if p (goto-char p) (matlab-prev-line))
 	  (setq p nil)))
