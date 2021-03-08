@@ -50,7 +50,7 @@
   (metest-parse-test)
   )
 
-(defvar met-end-detect-files '("empty.m" "stringtest.m" "mfuncnoend.m" "mfuncends.m" "mclass.m" )
+(defvar met-end-detect-files '("empty.m" "stringtest.m" "mfuncnoend.m" "mfuncnoendblock.m" "mfuncends.m" "mclass.m" )
   "List of files for running end detection tests on.")
 
 (defun metest-end-detect-test ()

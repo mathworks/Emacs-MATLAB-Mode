@@ -2167,7 +2167,8 @@ Return the symbol 'blockcomm if we are in a block comment."
   (save-excursion
     (beginning-of-line)
     (cond
-     ((matlab-block-comment-bounds)
+     ((or (matlab-ltype-block-comment-start)
+	  (matlab-block-comment-bounds))
       'blockcomm)
      ((matlab-ltype-comm-noblock)
       t)
@@ -2525,6 +2526,14 @@ this line's indentation should be.  See `matlab-next-line-indentation'."
   (matlab-navigation-syntax
     (matlab-calculate-indentation-1 current-indentation)))
 
+(defun matlab--maybe-yes-or-no-p (prompt noninteractive-default)
+  "When in non-interactive mode run (yes-or-no-p prompt),
+otherwise return NONINTERACTIVE-DEFAULT"
+  (if noninteractive
+      noninteractive-default
+    (yes-or-no-p prompt)))
+
+
 (defun matlab-calculate-indentation-1 (current-indentation)
   "Do the indentation work of `matlab-calculate-indentation'.
 Argument CURRENT-INDENTATION is what the previous line recommends for indentation."
@@ -2597,7 +2606,7 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
                  (matlab-ltype-function-definition)))))
         (if end-of-function
             (if (or matlab-functions-have-end
-                    (if (yes-or-no-p matlab-functions-have-end-should-be-true)
+                    (if (matlab--maybe-yes-or-no-p matlab-functions-have-end-should-be-true t)
                         (matlab-functions-have-end-minor-mode 1)
                       (error "Unmatched end")))
                 (if (matlab-indent-function-body-p)
