@@ -2452,9 +2452,18 @@ If there isn't one, then return nil, point otherwise."
   (interactive)
   ;; The first step is to find the current indentation.
   ;; This is defined to be zero if all previous lines are empty.
-  (let* ((ci (save-excursion (if (not (matlab-prev-line))
+  (let* ((ci (if (matlab-lattr-array-cont)
+		 ;; If we are inside an array continuation, then we shouldn't
+		 ;; need to do anything complicated here b/c we'll just ignore
+		 ;; the returned value in the next step.  Return current indentation.
+		 (save-excursion
+		   (matlab-prev-line)
+		   (current-indentation))
+	       ;; Else, the next line might recommend an indentation based
+	       ;; on it's own context.
+	       (save-excursion (if (not (matlab-prev-line))
                                  0
-                               (matlab-next-line-indentation))))
+                               (matlab-next-line-indentation)))))
          (sem (matlab-calculate-indentation ci)))
     ;; simplistic
     (nth 1 sem)))

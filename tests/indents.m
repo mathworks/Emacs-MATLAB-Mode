@@ -52,8 +52,9 @@ function B = ends_in_comments_and_strings()
     symbol_with_end_in_it;
     
     B = A(1:end); %#ok
-    
-    if foo
+
+    %% cell start comment !!4
+    if foo %!!4
         C = "this is the end of the line";
         % !!8
     else %!!4
@@ -89,7 +90,7 @@ function B = ends_in_comments_and_strings()
     end ... the other end
     % !! 4
     
-    code1() ...
+    code1(), ...
         code2(); %!!8
 
     % NOTE: Blank space below should cancel the indent effect of ellipsis.
@@ -133,10 +134,23 @@ function out = array_constant_decls()
         3 4; %!!8
            ]; %!!11
     
+    multinest = { [ 1 2               %!!4
+                    3 4 ];            %!!20
+                  { 5 6 7 ...         %!!18
+                    8 9 10 };         %!!20
+                  fcncall(10, ...     %!!18
+                          12, ...     %!!26
+                          [ 13 14;    %!!26
+                            15 16 ])  %!!28
+                } ;  %!!16
+
+    % !!4
     out = { A     %!!4
             Blong %!!12
             Csep  %!!12
+            multinest%!!12
           };      %!!10
+
 end
 
 function C = block_starts_in_comments_and_strings()
