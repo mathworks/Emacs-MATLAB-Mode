@@ -2258,14 +2258,13 @@ This is only useful for new versions of MATLAB where ... is optional."
 If `matlab-cont-requires-ellipsis' is nil, then we need to apply
 a heuristic to determine if this line would use continuation
 based on what it ends with."
-  (save-excursion
-    (beginning-of-line)
+  (let* ((pps (syntax-ppss (point-at-eol)))
+	 (csc (nth 8 pps)))
     (or
-     ;; Here, if the line ends in ..., then it is what we are supposed to do.
-     (and (re-search-forward "[^ \t.][ \t]*\\(\\.\\.\\.+\\)[ \t]*\\(.*\\)?$"
-				(matlab-point-at-eol) t)
-	  (progn (goto-char (match-beginning 1))
-		 (not (matlab-cursor-in-string-or-comment))))
+     ;; When the line ends with a comment, it might be an ellipsis.
+     ;; Can only be tail comment w/ no % start if it is an ellipsis.
+     (and csc (/= (char-after csc) ?\%))
+    
      ;; If the line doesn't end in ..., but we have optional ..., then
      ;; use this annoying heuristic.
      (and (null matlab-cont-requires-ellipsis)
