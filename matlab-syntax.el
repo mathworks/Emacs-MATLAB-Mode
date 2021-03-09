@@ -442,15 +442,13 @@ of character based."
 ;; We used to need to do special stuff, but now I think this
 ;; is just a call striaght to up-list.
 
-(defun matlab-up-list (count &optional restrict)
+(defun matlab-up-list (count)
   "Move forwards or backwards up a list by COUNT.
 When travelling backward, use `syntax-ppss' counted paren
 starts to navigate upward.
 When travelling forward, use 'up-list' diretly, but disable
-comment and string crossing.
-Optional argument RESTRICT specifies max point to travel to."
+comment and string crossing."
   (save-restriction
-    (when restrict (narrow-to-region restrict (point)))
     (matlab-beginning-of-string-or-comment)
     (if (< count 0)
 	(let ((pps (syntax-ppss)))

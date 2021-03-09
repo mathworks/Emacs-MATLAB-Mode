@@ -2277,14 +2277,13 @@ based on what it ends with."
   (save-excursion (and (if (= -1 (forward-line -1)) nil t)
 		       (matlab-lattr-cont))))
 
-(defun matlab-lattr-array-cont (&optional restrict)
+(defun matlab-lattr-array-cont ()
   "Return non-nil if current line is in an array.
-If the entirety of the array is on this line, return nil.
-Optional option RESTRICT is the distance to restrict the search."
+If the entirety of the array is on this line, return nil."
   (condition-case nil
       (save-excursion
 	(beginning-of-line)
-	(matlab-up-list -1 restrict)
+	(matlab-up-list -1)
 	(and (looking-at "[[{]") (point)))
     (error nil)))
 
