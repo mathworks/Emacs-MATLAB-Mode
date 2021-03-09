@@ -3503,7 +3503,7 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 	  ;; These checks are much faster than regexp
 
 	  ;; Step one - check for parens
-	  (cond ((and here-syntax (= (car here-syntax) 4)) ; open paren
+	  (cond ((and here-syntax (= (syntax-class here-syntax) 4)) ; open paren
 		 (setq here-beg (point)
 		       here-end (1+ (point)))
 		 (condition-case err
@@ -3513,14 +3513,14 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 			     there-end (point)
 			     there-syntax (syntax-after there-beg)
 			     there-char (char-after there-beg))
-		       (when (or (/= (car there-syntax) 5)
+		       (when (or (/= (syntax-class there-syntax) 5)
 				 (/= (cdr there-syntax) here-char)
 				 (/= (cdr here-syntax) there-char)) ; this part seems optional
 					;(message "ts = %S  hs=%S tc = %d hc = %d" there-syntax here-syntax there-char here-char)
 			 (setq mismatch t))
 		       )
 		   (error (setq mismatch t))))
-		((and here-prev-syntax (= (car here-prev-syntax) 5))
+		((and here-prev-syntax (= (syntax-class here-prev-syntax) 5))
 		 (setq here-beg (1- (point))
 		       here-end (point))
 		 (condition-case err
@@ -3530,7 +3530,7 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 			     there-beg (point)
 			     there-syntax (syntax-after there-beg)
 			     there-char (char-after there-beg))
-		       (when (or (/= (car there-syntax) 4)
+		       (when (or (/= (syntax-class there-syntax) 4)
 				 (/= (cdr there-syntax) here-prev-char)
 				 (/= (cdr here-prev-syntax) there-char)) ; this part seems optional
 			 (setq mismatch t))
@@ -3543,7 +3543,7 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 		 ;; word character move back one symbol. This will let
 		 ;; us use the block begin / end matchers to figure
 		 ;; out where we are.
-		 (when (and (not (eobp)) (not (bobp)) (= (car here-prev-syntax) 2))
+		 (when (and (not (eobp)) (not (bobp)) (= (syntax-class here-prev-syntax) 2))
 		   (forward-symbol -1))
 
 		 (matlab-navigation-syntax
