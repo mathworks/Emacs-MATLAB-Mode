@@ -2095,23 +2095,13 @@ Travels across continuations."
   (beginning-of-line)
   (save-match-data
     (let ((p nil)
-	  ;; This restriction is a wild guess where to end reverse
-	  ;; searching for array continuations.  The reason is that
-	  ;; matlab up list is very slow, and most people would never
-	  ;; put a blank line in a matrix.  Either way, it's worth the
-	  ;; trade off to speed this up for large files.
-	  ;; This list of keywords is NOT meant to be comprehensive.
-	  (r (save-excursion
-	       (re-search-backward
-		"^\\s-*\\(%\\|if\\|else\\(if\\)\\|while\\|\\(par\\)?for\\|$\\)\\>"
-		nil t)))
 	  (bc (matlab-block-comment-bounds)))
-      (if	bc
-	  ;; block comment - just go to the beginning.
+      ;; block comment - just go to the beginning.
+      (if bc
 	  (goto-char (car bc))
 
-	;; Scan across lines that are related.
-	(while (and (or (setq p (matlab-lattr-array-cont r)) ;; do this first b/c fast
+	;; ELSE : Scan across lines that are related.
+	(while (and (or (setq p (matlab-lattr-array-cont)) ;; do this first b/c fast
 			(matlab-prev-line-cont)
 			(matlab-ltype-continued-comm)
 			)
@@ -2120,14 +2110,14 @@ Travels across continuations."
 	  (setq p nil)))
       (back-to-indentation))))
 
-(defun matlab-end-of-command (&optional beginning)
+(defun matlab-end-of-command ()
   "Go to the end of an M command.
-Optional BEGINNING is where the command starts from."
+Travells a cross continuations"
   (interactive)
   (while (and (or (matlab-lattr-cont)
 		  (save-excursion
 		    (forward-line 1)
-                    (or (matlab-lattr-array-cont beginning)
+                    (or (matlab-lattr-array-cont)
                         (matlab-ltype-continued-comm))))
 	      ;; This hack is a short circuit.  If a user did not
 	      ;; correctly end a matrix, this will short-circuit
@@ -2880,7 +2870,7 @@ Must be one of:
 		      (looking-at "\\s-*;")))
 	       (save-excursion
 		 (let ((p (point)))
-		   (matlab-end-of-command (point))
+		   (matlab-end-of-command)
 		   (eq p (point))))
 	       (save-excursion
 		 (matlab-beginning-of-command)
@@ -4108,7 +4098,7 @@ desired.  Optional argument FAST is not used."
 	(setq msgpos (+ msgpos dir))
 	(if (or (> msgpos 5) (< msgpos 0)) (setq dir (- dir)
 						 msgpos (+ (* 2 dir) msgpos)))
-	(matlab-end-of-command (point))
+	(matlab-end-of-command)
 	(if (matlab-cursor-in-comment)
 	    (progn
 	      (matlab-comment-on-line)

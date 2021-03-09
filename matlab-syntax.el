@@ -451,22 +451,18 @@ comment and string crossing.
 Optional argument RESTRICT specifies max point to travel to."
   (save-restriction
     (when restrict (narrow-to-region restrict (point)))
-    (let* ((bounds nil)
-	   (ctxt (matlab-cursor-comment-string-context 'bounds)))
-      (when ctxt
-	(goto-char (if (< 0 count) (car bounds) (cdr bounds))))
-      (if (< count 0)
-	  (let ((pps (syntax-ppss)))
-	    (when (or (not (numberp (nth 0 pps)))
-		      (< (nth 0 pps) (abs count)))
-	      (error "Cannot navigate up %d lists" (abs count)))
-	    ;; When travelling in reverse, we can just use pps'
-	    ;; parsed paren list in slot 9.
-	    (let ((posn (reverse (nth 9 pps)))) ;; Location of parens
-	      (goto-char (nth (1- (abs count)) posn))))
-	;; Else - travel forward
-	(up-list count nil t)) ;; will this correctly ignore comments, etc?
-      )))
+    (matlab-beginning-of-string-or-comment)
+    (if (< count 0)
+	(let ((pps (syntax-ppss)))
+	  (when (< (nth 0 pps) (abs count))
+	    (error "Cannot navigate up %d lists" (abs count)))
+	  ;; When travelling in reverse, we can just use pps'
+	  ;; parsed paren list in slot 9.
+	  (let ((posn (reverse (nth 9 pps)))) ;; Location of parens
+	    (goto-char (nth (1- (abs count)) posn))))
+      ;; Else - travel forward
+      (up-list count nil t)) ;; will this correctly ignore comments, etc?
+    ))
 
 ;;; Syntax Compat functions
 ;;
