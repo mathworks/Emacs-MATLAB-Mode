@@ -2101,9 +2101,18 @@ Travels across continuations."
 	  (goto-char (car bc))
 
 	;; ELSE : Scan across lines that are related.
+	;; Step one, skip all comments indented as continutions of a previous.
+	;; Using forward-comment is very fast, and just skipps all comments until
+	;; we hit a line of code.
+	;; NOTE: This may fail with poorly indented code.
+	(when (matlab-ltype-continued-comm)
+	  (forward-comment -100000))
+
+	;; Now walk backward across continued code lines.
 	(while (and (or (setq p (matlab-lattr-array-cont)) ;; do this first b/c fast
 			(matlab-prev-line-cont)
-			(matlab-ltype-continued-comm)
+			;; We used to do this, now handled w/ forward-comment above.
+			;;(matlab-ltype-continued-comm)
 			)
 		    (save-excursion (beginning-of-line) (not (bobp))))
 	  (if p (goto-char p) (matlab-prev-line))
