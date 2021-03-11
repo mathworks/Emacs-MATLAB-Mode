@@ -52,6 +52,7 @@
 
 (require 'matlab-compat)
 (require 'matlab-syntax)
+(require 'matlab-scan)
 (require 'easymenu)
 (require 'derived)
 
@@ -1257,7 +1258,9 @@ indicates as such."
 (defun matlab-mode-leave ()
   "When leaving `matlab-mode', turn off `mlint-minor-mode'"
   (when (eq major-mode 'matlab-mode)
-    (mlint-minor-mode -1)))
+    (mlint-minor-mode -1)
+    (matlab-scan-disable)
+    ))
 
 ;;;###autoload
 (define-derived-mode matlab-mode prog-mode "MATLAB"
@@ -1328,7 +1331,8 @@ All Key Bindings:
   ;; This includes syntax table definitions, misc syntax regexps
   ;; and font-lock for comments/strings.
   (matlab-syntax-setup)
-
+  (matlab-scan-setup)
+  
   ;; Indentation setup.
   (setq indent-tabs-mode nil)
   (make-local-variable 'indent-line-function)
@@ -2505,44 +2509,41 @@ otherwise return NONINTERACTIVE-DEFAULT"
   "Do the indentation work of `matlab-calculate-indentation'.
 Argument CURRENT-INDENTATION is what the previous line recommends for indentation."
   (let ((ci current-indentation)
+	(lvl1 (matlab-compute-line-context 1))
 	(blockcomm nil)
 	(tmp nil))
     (cond
+     ;; BLOCK COMMENT END _or_ body prefixed with %
+     ((and (setq blockcomm (save-excursion
+			     (back-to-indentation)
+			     (matlab-block-comment-bounds)))
+	   (or (matlab-ltype-block-comment-end)
+	       (matlab-ltype-comm-noblock)))
+      (list 'comment (save-excursion
+		       (goto-char (car blockcomm))
+		       (current-indentation)))
+      )
+     ;; BLOCK COMMENT START
+     ((matlab-ltype-block-comment-start)
+      (list 'comment (+ ci matlab-comment-anti-indent))
+      )
+     ;; BLOCK COMMENT BODY.
+     (blockcomm
+      (list 'comment
+	    (+ (save-excursion
+		 (goto-char (car blockcomm))
+		 (current-indentation))
+	       2))
+      )
      ;; COMMENTS
-     ((matlab-ltype-comm)
+     ((matlab-line-comment-p lvl1)
       (cond
        ;; HELP COMMENT and COMMENT REGION
-       ((or (setq tmp (matlab-ltype-help-comm))
-	    (matlab-ltype-comm-ignore))
-	(list 'comment-help
-	      (if tmp
-		  (save-excursion
-		    (goto-char tmp)
-		    (current-indentation))
-		(save-excursion
-		  (matlab-beginning-of-defun)
-		  (current-indentation)))))
-       ;; BLOCK COMMENT END _or_ body prefixed with %
-       ((and (setq blockcomm (matlab-block-comment-bounds))
-	     (or (matlab-ltype-block-comment-end)
-		 (matlab-ltype-comm-noblock)))
-	(list 'comment (save-excursion
-			 (goto-char (car blockcomm))
-			 (current-indentation)))
-	)
-       ;; BLOCK COMMENT START
-       ((and blockcomm
-	     (matlab-ltype-block-comment-start))
-	(list 'comment (+ ci matlab-comment-anti-indent))
-	)
-	;; BLOCK COMMENT BODY.
-       (blockcomm
-	(list 'comment
-	      (+ (save-excursion
-		   (goto-char (car blockcomm))
-		   (current-indentation))
-		 2))
-	)
+       ((setq tmp (matlab-line-comment-help-p lvl1))
+	(list 'comment-help tmp))
+       ;; COMMENT REGION comments
+       ((matlab-line-comment-ignore-p lvl1)
+	(list 'comment-ignore 0))
        ;; COMMENT Continued From Previous Line
        ((setq tmp (matlab-ltype-continued-comm))
 	(list 'comment tmp))
@@ -2599,7 +2600,7 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
                              (goto-char (match-beginning 0))
                              (current-column)))
                           )
-                    (setq ci (- match-col-end match-col-beginning)))
+                      (setq ci (- match-col-end match-col-beginning)))
                     (throw 'indent nil)))))
             ;; End of special case for end and match after "^[ \t]*".
             (setq ci (+ ci
@@ -2633,20 +2634,20 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
      ;; End of a MATRIX
      ((matlab-lattr-array-end)
       (list 'array-end (save-excursion
-			(back-to-indentation)
-			(matlab-up-list -1)
-			(let* ((fc (following-char))
-			       (mi (assoc fc matlab-maximum-indents))
-			       (max (if mi (if (listp (cdr mi))
-					       (car (cdr mi)) (cdr mi))
-				      nil))
-			       (ind (if mi (if (listp (cdr mi))
-					       (cdr (cdr mi)) (cdr mi))
-				      nil)))
-			  ;; apply the maximum limits.
-			  (if (and ind (> (- (current-column) ci) max))
-			      (1- ind) ; decor
-			    (current-column))))))
+			 (back-to-indentation)
+			 (matlab-up-list -1)
+			 (let* ((fc (following-char))
+				(mi (assoc fc matlab-maximum-indents))
+				(max (if mi (if (listp (cdr mi))
+						(car (cdr mi)) (cdr mi))
+				       nil))
+				(ind (if mi (if (listp (cdr mi))
+						(cdr (cdr mi)) (cdr mi))
+				       nil)))
+			   ;; apply the maximum limits.
+			   (if (and ind (> (- (current-column) ci) max))
+			       (1- ind) ; decor
+			     (current-column))))))
      ;; Code lines
      ((and (not (matlab-lattr-array-cont))
 	   (not (matlab-prev-line-cont)))
@@ -2741,30 +2742,30 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
 				 (if (and ind (> (- (current-column) ci) max))
 				     (+ ci ind)
 				   (current-column))))))))
-	      (error
-	       ;; Line up to an equals sign.
-	       (save-excursion
-		 (goto-char boc)
-		 (while (and (re-search-forward "=" (matlab-point-at-eol) t)
-			     (matlab-cursor-in-string-or-comment)))
-		 (if (/= (preceding-char) ?=)
-		     (+ ci matlab-cont-level)
-		   (skip-chars-forward " \t")
-		   (let ((cc (current-column))
-			 (mi (assoc ?= matlab-maximum-indents)))
-		     (if (looking-at "\\.\\.\\.\\|$")
-			 ;; In this case, the user obviously wants the
-			 ;; indentation to be somewhere else.
-			 (+ ci (cdr (cdr mi)))
-		       ;; If the indent delta is greater than the max,
-		       ;; use the max + current
-		       (if (and mi (> (- cc ci) (if (listp (cdr mi))
-						    (car (cdr mi))
-						  (cdr mi))))
-			   (setq cc (+ ci (if (listp (cdr mi))
-					      (cdr (cdr mi))
-					    (cdr mi)))))
-		       cc)))))))))
+		(error
+		 ;; Line up to an equals sign.
+		 (save-excursion
+		   (goto-char boc)
+		   (while (and (re-search-forward "=" (matlab-point-at-eol) t)
+			       (matlab-cursor-in-string-or-comment)))
+		   (if (/= (preceding-char) ?=)
+		       (+ ci matlab-cont-level)
+		     (skip-chars-forward " \t")
+		     (let ((cc (current-column))
+			   (mi (assoc ?= matlab-maximum-indents)))
+		       (if (looking-at "\\.\\.\\.\\|$")
+			   ;; In this case, the user obviously wants the
+			   ;; indentation to be somewhere else.
+			   (+ ci (cdr (cdr mi)))
+			 ;; If the indent delta is greater than the max,
+			 ;; use the max + current
+			 (if (and mi (> (- cc ci) (if (listp (cdr mi))
+						      (car (cdr mi))
+						    (cdr mi))))
+			     (setq cc (+ ci (if (listp (cdr mi))
+						(cdr (cdr mi))
+					      (cdr mi)))))
+			 cc)))))))))
      )))
 
 (defun matlab-next-line-indentation ()
