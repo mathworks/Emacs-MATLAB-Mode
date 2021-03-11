@@ -2105,7 +2105,8 @@ Travels across continuations."
 	;; Using forward-comment is very fast, and just skipps all comments until
 	;; we hit a line of code.
 	;; NOTE: This may fail with poorly indented code.
-	(when (matlab-ltype-continued-comm)
+	(when (or (matlab-ltype-help-comm)
+		  (matlab-ltype-continued-comm))
 	  (forward-comment -100000))
 
 	;; Now walk backward across continued code lines.
@@ -2766,22 +2767,27 @@ Assume that the following line does not contribute its own indentation
     not indenting function bodies.
 See `matlab-calculate-indentation'."
   (matlab-navigation-syntax
-    (let ((startpnt (point-at-eol)))
+    (let ((startpnt (point-at-eol))
+	  (lvl1 nil)
+	  ) 
       (save-excursion
 	(matlab-with-current-command
 	  ;;(matlab-beginning-of-command)
 	  (goto-char (point-min))
 	  (back-to-indentation)
+	  (setq lvl1 (matlab-compute-line-context 1))
 	  (let ((cc (or (matlab-lattr-block-close startpnt) 0))
-		(end (matlab-lattr-local-end))
+		(end (matlab-line-end-p lvl1)) ;(matlab-lattr-local-end))
 		(bc (matlab-lattr-block-cont startpnt))
-		(mc (matlab-lattr-middle-block-cont))
-		(ec (matlab-lattr-endless-block-cont))
-		(hc (and (matlab-indent-function-body-p) (matlab-ltype-help-comm)))
+		(mc (and (matlab-line-block-middle-p lvl1) 1)) ;(matlab-lattr-middle-block-cont))
+		(ec (and (matlab-line-block-case-p lvl1) 1)) ;(matlab-lattr-endless-block-cont))
+		(hc (and (matlab-indent-function-body-p)
+			 (matlab-line-comment-help-p lvl1))) ;(matlab-ltype-help-comm)))
 		(rc (and (/= 0 matlab-comment-anti-indent)
-			 (matlab-ltype-comm-noblock)
-			 (not (matlab-ltype-help-comm))
-			 (not (matlab-ltype-continued-comm))))
+			 (matlab-line-regular-comment-p lvl1) ;(matlab-ltype-comm-noblock)
+			 ;;(not (matlab-ltype-help-comm))
+			 (not (matlab-ltype-continued-comm))
+			 ))
 		(ci (current-indentation)))
 	    ;; When the current point is on a line with a function, the value of bc will
 	    ;; reflect the function in a block count iff if matlab-functions-have-end is
@@ -2794,8 +2800,8 @@ See `matlab-calculate-indentation'."
 	    (if matlab-functions-have-end
 		(if (and
 		     (not (matlab-indent-function-body-p))
-		     (or (matlab-ltype-function-definition)
-			 (and (matlab-lattr-local-end)
+		     (or (matlab-line-declaration-p lvl1) ;(matlab-ltype-function-definition)
+			 (and (matlab-line-end-p lvl1) ;(matlab-lattr-local-end)
 			      (save-excursion
 				(matlab-backward-sexp t)
 				(looking-at "function\\b")))))
@@ -2804,7 +2810,8 @@ See `matlab-calculate-indentation'."
 		      (if (>= ci matlab-indent-level)
 			  (setq bc -1))))
 	      ;; Else, funtions don't have ends in this file.
-	      (if (and (matlab-indent-function-body-p) (matlab-ltype-function-definition))
+	      (if (and (matlab-indent-function-body-p)
+		       (matlab-line-declaration-p lvl1)) ; (matlab-ltype-function-definition))
 		  (setq bc (1+ bc))))
 	    ;; Remove 1 from the close count if there is an END on the beginning
 	    ;; of this line, since in that case, the unindent has already happened.

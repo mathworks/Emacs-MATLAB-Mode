@@ -242,6 +242,10 @@ These are more expensive checks queued off of a lvl1 context."
   "Return t if the current line is a comment based on LVL1 cache."
   (eq (car lvl1) 'comment))
 
+(defsubst matlab-line-regular-comment-p (lvl1)
+  "Return t if the current line is a boring style comment based on LVL1 cache."
+  (and (eq (car lvl1) 'comment) (eq (nth 1 lvl1) nil)))
+
 (defsubst matlab-line-comment-ignore-p (lvl1)
   "Return t if the current line is a comment based on LVL1 cache."
   (and (matlab-line-comment-p lvl1) (eq (nth mlf-stype lvl1) 'indent-ignore)))
