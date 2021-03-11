@@ -42,13 +42,27 @@
 
 (defun metest-all-syntax-tests ()
   "Run all the syntax tests in this file."
-  (metest-end-detect-test)
-  (metest-comment-string-syntax-test)
-  (metest-sexp-counting-test)
-  (metest-sexp-traversal-test)
-  (metest-indents-test)
-  (metest-parse-test)
+  (metest-log-init)
+  
+  (metest-timeit 'metest-end-detect-test)
+  (metest-timeit 'metest-comment-string-syntax-test)
+  (metest-timeit 'metest-sexp-counting-test)
+  (metest-timeit 'metest-sexp-traversal-test)
+  (metest-timeit 'metest-indents-test)
+  (metest-timeit 'metest-parse-test)
+
+  (setq debug-on-error t)
+  (metest-log-report (metest-log-write))
   )
+
+(defmacro metest-condition-case-error-msg (&rest forms)
+  "Run FORMS, capturing any errors and associating with (point)."
+  (declare (indent 0) (debug t))
+  `(condition-case err
+       ,@forms
+     (error (metest-error "Lisp: %s" (error-message-string err))
+	    0)
+     ))
 
 (defvar met-end-detect-files '("empty.m" "stringtest.m" "mfuncnoend.m" "mfuncnoendblock.m" "mfuncends.m" "mclass.m" )
   "List of files for running end detection tests on.")
@@ -215,17 +229,18 @@
 	(message ">> Starting indents loop in %S" (current-buffer))
 	(while (re-search-forward "!!\\([0-9]+\\)" nil t)
 	  (let* ((num (string-to-number (match-string 1)))
-		 (calc (matlab-calc-indent))
+		 (calc (metest-condition-case-error-msg
+			 (matlab-calc-indent)))
 		 (begin nil))
-	    (when (not (= num calc))
-	      (metest-error "Indentation found is %d, expected %d"
-			    calc num))
+	    (when (not (eq num calc))
+	      (metest-error "Indentation found is %s, expected %s"
+		calc num))
 	    )
 	  (end-of-line)
 	  (setq cnt (1+ cnt))))
-      (kill-buffer buf)
-      (message "<< Indentation syntax test: %d points passed" cnt)
-      ))
+	(kill-buffer buf)
+	(message "<< Indentation syntax test: %s points passed" cnt)
+	))
   (message ""))
 
 (defvar met-parser-files '("mpclass.m")
@@ -277,7 +292,6 @@
 (defun metest-compare-tags (EXP ACT)
   "Return non-nil if EXP tag is similiar to ACT"
   (semantic-tag-similar-p EXP ACT :documentation)
-
   )
 
 (defun metest-find-file (file)
@@ -295,7 +309,71 @@ Do error checking to provide easier debugging."
 		     (file-name-nondirectory (buffer-file-name))
 		     (line-number-at-pos)))
 	(post (apply 'format args)))
-    (error (concat pre post))))
+    (message (concat pre post))))
+
+;;; Logging prormance data for the tests
+;;
+(defvar metest-log-file "metest_timing_log.dat"
+  "File to store timing data to.")
+
+(defvar metest-time-log nil
+  "Data stored for each run.")
+
+(defun metest-log-init ()
+  "Init the log file and data variable."
+  (setq metest-time-log nil)
+  )
+
+(defun metest-shorten (sym)
+  "Convert SYM into a column header."
+  (let ((str (symbol-name sym)))
+    (substring str 7 -5)))
+
+(defun metest-log-write ()
+  "Write dta into our log file."
+  (save-current-buffer
+    (set-buffer (find-file-noselect metest-log-file))
+    (let ((LOG (reverse metest-time-log)))
+      (when (= (point-min) (point-max))
+	;; Initialize the new buffer
+	(insert "Time\t")
+	(insert (mapconcat (lambda (log) (metest-shorten (car log))) LOG "\t")))
+      ;; Insert our measurements
+      (goto-char (point-max))
+      (newline)
+      (insert (format-time-string "\"%Y/%m/%d %H:%M\"\t" (current-time)))
+      (insert (mapconcat (lambda (log2) (format "%f" (cdr log2))) LOG "\t"))
+      (save-buffer)
+      ;; Go back and find our baseline and return it.
+      (goto-char (point-min))
+      (forward-line 1)
+      (read (concat "(" (buffer-substring-no-properties (point-at-bol) (point-at-eol)) ")"))
+      )))
+
+(defun metest-log-report (baseline)
+  "Report via message what happened during the test suite."
+  (let ((log (reverse metest-time-log))
+	(base (cdr baseline)))
+    (princ "Baseln\tRun\tImprovement\tTest\n")
+    (while (and log base)
+      (princ (format "%.4f\t" (car base)))
+      (princ (format "%.4f\t" (cdr (car log))))
+      (princ (format "%.4f\t\t" (- (car base) (cdr (car log)))))
+      (princ (metest-shorten (car (car log))))
+      (princ "\n")
+      (setq log (cdr log)
+	    base (cdr base)))
+    ))
+
+(defun metest-timeit (fcn)
+  "Time running FCN and save result in LOGFILE.
+Use this to track perforamnce improvements during development automatically."
+  (let* ((start (current-time))
+	 (out (funcall fcn))
+	 (end (current-time)))
+    (push (cons fcn (float-time (time-subtract end start)))
+	  metest-time-log)
+    ))
 
 (provide 'metest)
 
