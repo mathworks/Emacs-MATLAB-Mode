@@ -30,7 +30,7 @@ function indents(a,b,stuff)
     
 % $$$ !!0
 % $$$ special ignore comments
-
+    
     has_nested_fcn();
     
     % !!4  - after ignore comments
@@ -137,13 +137,19 @@ function out = array_constant_decls()
     multinest = { [ 1 2               %!!4
                     3 4 ];            %!!20
                   { 5 6 7 ...         %!!18
-                    8 9 10 };         %!!20
+                    8 9 10 ...        %!!20
+                  };                  %!!18
                   fcncall(10, ...     %!!18
                           12, ...     %!!26
                           [ 13 14;    %!!26
                             15 16 ])  %!!28
                 } ;  %!!16
 
+    % Line starting with end inside parens
+    disp(Csep(1:  ...  %!!4
+              end));   %!!14
+    
+    
     % !!4
     out = { A     %!!4
             Blong %!!12
@@ -160,13 +166,17 @@ function C = block_starts_in_comments_and_strings()
     
     if true % if true
         
+        % !!8
+    else % !!4
+        
+        % !!8
     end % if true
     
     
     % see previous function
     % !!4
     for x=1:length(C) % !!4
-        
+                
         % !!8
     end
 
@@ -234,7 +244,7 @@ function B = continuations_and_block_comments
                  % continuation-comment !!17
     
     % !!4 -blank between this & continuation comment
-    
+    % !!4 - more comments
     
 end
 

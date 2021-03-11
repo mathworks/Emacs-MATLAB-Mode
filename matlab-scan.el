@@ -143,10 +143,10 @@ Return list has these fields:
        ((and (nth 4 pps) (eq (nth 7 pps) 2))
 	(setq ltype 'comment
 	      stype (cond ((looking-at "%}\\s-*$")
-			   'block-comment-end)
+			   'block-end)
 			  ((looking-at "%")
-			   'block-comment-body-prefix)
-			  (t 'block-comment-body))))
+			   'block-body-prefix)
+			  (t 'block-body))))
 
        ;; If indentation lands on end of line, this is an empty line
        ;; so nothing left to do.  Keep after block-comment-body check
@@ -158,7 +158,7 @@ Return list has these fields:
        ((eq (char-after (point)) ?\%)
 	(setq ltype 'comment
 	      stype (cond ((looking-at "%{\\s-*$")
-			   'block-comment-start)
+			   'block-start)
 			  ((looking-at "%%")
 			   'cell-start)
 			  ((looking-at "% \\$\\$\\$")
@@ -168,20 +168,29 @@ Return list has these fields:
        ;; Looking at word constituent.  If so, identify if it is one of our
        ;; special identifiers.
        ((looking-at "\\w+\\>")
-	(let* ((word (match-string-no-properties 0))
-	       (sym (intern-soft word matlab-keyword-table))
-	       )
-	  (if sym
-	      (if (eq (symbol-value sym) 'end)
-		  ;; Special end keyword is in a class all it's own
-		  (setq ltype 'end)
-		;; If we found this in our keyword table, then it is a start
-		;; of a block with a subtype.
-		(setq ltype 'block-start
-		      stype (symbol-value sym)))
-	    ;; Else - not a sym - just some random code.
+	(if (/= paren-depth 0)
 	    (setq ltype 'code)
-	    )))
+	  
+	  ;; If not in parens, this might be a keyword.
+	  ;; Look up our various keywords.
+	  (let* ((word (match-string-no-properties 0))
+		 (sym (intern-soft word matlab-keyword-table))
+		 )
+	    (if sym
+		(if (eq (symbol-value sym) 'end)
+		    ;; Special end keyword is in a class all it's own
+		    (setq ltype 'end)
+		  ;; If we found this in our keyword table, then it is a start
+		  ;; of a block with a subtype.
+		  (setq ltype 'block-start
+			stype (symbol-value sym)))
+	      ;; Else - not a sym - just some random code.
+	      (setq ltype 'code)
+	      ))))
+
+       ;; Looking at a close paren.
+       ((and (< 0 paren-depth) (looking-at "\\s)"))
+	(setq ltype 'close-paren))
        
        ;; Last stand - drop in 'code' to say - yea, just some code.
        (t (setq ltype 'code))
@@ -194,10 +203,16 @@ Return list has these fields:
       ;; When the line ends with a comment.
       ;; Also tells us about continuations and comment start for lining up tail comments.
       (let ((csc (nth 8 ppsend)))
+	(when (and (not csc) (eq stype 'block-end))
+	  ;; block comment end lines must end in a comment, so record
+	  ;; the beginning of that block comment instead.
+	  (setq csc (nth 8 pps)) )
+
+	;; If we have something, record what it is.
 	(when csc
 	  (setq ec-col csc
-		ec-type (if (= (char-after csc) ?\%) 'comment 'ellipsis)) ;; type
-	  ))
+		ec-type (if (= (char-after csc) ?\%) 'comment 'ellipsis))) ;; type
+	)
 
       (list ltype stype cc paren-depth paren-char paren-col paren-delta ec-type ec-col)
       )))
@@ -231,15 +246,60 @@ These are more expensive checks queued off of a lvl1 context."
   "Return t if the current line is a comment based on LVL1 cache."
   (and (matlab-line-comment-p lvl1) (eq (nth mlf-stype lvl1) 'indent-ignore)))
 
+(defsubst matlab-line-comment-style (lvl1)
+  "Return type type of comment on this line."
+  (and (matlab-line-comment-p lvl1) (nth mlf-stype lvl1)))
+
+(defsubst matlab-line-end-comment-column (lvl1)
+  "Return column of comment on line, or nil if no comment.
+All lines that start with a comment end with a comment."
+  (when (eq (nth mlf-end-comment-type lvl1) 'comment)
+    (save-excursion
+      (goto-char (nth mlf-end-comment-col lvl1))
+      (current-column))))
+
+(defsubst matlab-line-ellipsis-p (lvl1)
+  "Return if this line ends with a comment.
+All lines that start with a comment end with a comment."
+  (eq (nth mlf-end-comment-type lvl1) 'ellipsis))
+
+;; Code and Declarations
 (defsubst matlab-line-block-start-keyword-p (lvl1)
   "Return t if the current line starts with block keyword."
   (eq (car lvl1) 'block-start))
 
-;; Code and Declarations
 (defsubst matlab-line-declaration-p (lvl1)
   "If the current line is a declaration, return the column it starts on.
 Declarations are things like function or classdef."
   (and (matlab-line-block-start-keyword-p lvl1) (eq (nth mlf-stype lvl1) 'decl)))
+
+(defsubst matlab-line-end-p (lvl1)
+  "Non nil If the current line starts with an end."
+  (eq (car lvl1) 'end))
+
+(defsubst matlab-line-block-middle-p (lvl1)
+  "Non nil If the current line starts with a middle block keyword.
+These are keywords like `else' or `catch'."
+  (and (eq (car lvl1) 'block-start) (eq (nth 1 lvl1) 'mid)))
+
+(defsubst matlab-line-block-case-p (lvl1)
+  "Non nil If the current line starts with a middle block keyword.
+These are keywords like `else' or `catch'."
+  (and (eq (car lvl1) 'block-start) (eq (nth 1 lvl1) 'case)))
+
+;; Parenthetical blocks
+(defsubst matlab-line-close-paren-p (lvl1)
+  "Non nil If the current line starts with closing paren (any type.)"
+  (eq (car lvl1) 'close-paren))
+
+(defsubst matlab-line-close-paren-char (lvl1)
+  "Non nil If the current line starts with closing paren (any type.)"
+  (nth mlf-paren-char lvl1))
+
+(defsubst matlab-line-close-paren-col (lvl1)
+  "Non nil If the current line starts with closing paren (any type.)"
+  (nth mlf-paren-col lvl1))
+
 
 ;;; Scanning Accessor utilities
 ;;
@@ -319,7 +379,7 @@ Used to speed up repeated queries on the same set of lines.")
 	(setq extraclose (format "%d>" (nth mlf-paren-delta lvl1)))))
 
     
-    (message "%s%s %s%s%d%s%s %s" (nth mlf-ltype lvl1)
+    (message "%s%s %s%s%d%s%s %s %s" (nth mlf-ltype lvl1)
 	     (format " %s" (or (nth mlf-stype lvl1) ""))
 	     ;; paren system
 	     extraopen
@@ -330,6 +390,9 @@ Used to speed up repeated queries on the same set of lines.")
 	     (cond ((eq (nth mlf-end-comment-type lvl1) 'comment) "%")
 		   ((eq (nth mlf-end-comment-type lvl1) 'ellipsis) "...")
 		   (t ""))
+	     (if (matlab-line-end-comment-column lvl1)
+		 (format " %d" (matlab-line-end-comment-column lvl1))
+	       "")
 	     )
 
     )

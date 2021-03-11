@@ -1363,10 +1363,6 @@ All Key Bindings:
   (make-local-variable 'write-contents-functions)
   (add-hook 'write-contents-functions 'matlab-mode-verify-fix-file-fn)
 
-  ;; DELETE
-  ;; when a buffer changes, flush parsing data.
-  ;;(add-hook 'after-change-functions 'matlab-change-function nil t)
-
   ;; give each file it's own parameter history
   (make-local-variable 'matlab-shell-save-and-go-history)
 
@@ -2513,44 +2509,35 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
 	(blockcomm nil)
 	(tmp nil))
     (cond
-     ;; BLOCK COMMENT END _or_ body prefixed with %
-     ((and (setq blockcomm (save-excursion
-			     (back-to-indentation)
-			     (matlab-block-comment-bounds)))
-	   (or (matlab-ltype-block-comment-end)
-	       (matlab-ltype-comm-noblock)))
-      (list 'comment (save-excursion
-		       (goto-char (car blockcomm))
-		       (current-indentation)))
-      )
-     ;; BLOCK COMMENT START
-     ((matlab-ltype-block-comment-start)
-      (list 'comment (+ ci matlab-comment-anti-indent))
-      )
-     ;; BLOCK COMMENT BODY.
-     (blockcomm
-      (list 'comment
-	    (+ (save-excursion
-		 (goto-char (car blockcomm))
-		 (current-indentation))
-	       2))
-      )
      ;; COMMENTS
      ((matlab-line-comment-p lvl1)
-      (cond
-       ;; HELP COMMENT and COMMENT REGION
-       ((setq tmp (matlab-line-comment-help-p lvl1))
-	(list 'comment-help tmp))
-       ;; COMMENT REGION comments
-       ((matlab-line-comment-ignore-p lvl1)
-	(list 'comment-ignore 0))
-       ;; COMMENT Continued From Previous Line
-       ((setq tmp (matlab-ltype-continued-comm))
-	(list 'comment tmp))
-       (t
-	(list 'comment (+ ci matlab-comment-anti-indent)))))
+      (let ((comment-style (matlab-line-comment-style lvl1)))
+	(cond
+	 ;; BLOCK START is like regular comment
+	 ((eq comment-style 'block-start)
+	  ;; indent like code, but some users like anti-indent
+	  (list 'comment (+ ci matlab-comment-anti-indent))
+	  )
+	 ;; BLOCK END undoes body indent
+	 ((or (eq comment-style 'block-end)
+	      (eq comment-style 'block-body-prefix)) ; body prefix has same lineup rule
+	  (list 'comment (matlab-line-end-comment-column lvl1)))
+	 ;; BLOCK BODY is indented slightly from the start.
+	 ((eq comment-style 'block-body)
+	  (list 'comment (+ 2 (matlab-line-end-comment-column lvl1))))
+	 ;; HELP COMMENT and COMMENT REGION
+	 ((setq tmp (matlab-line-comment-help-p lvl1))
+	  (list 'comment-help tmp))
+	 ;; COMMENT REGION comments
+	 ((matlab-line-comment-ignore-p lvl1)
+	  (list 'comment-ignore 0))
+	 ;; COMMENT Continued From Previous Line
+	 ((setq tmp (matlab-ltype-continued-comm)) ;;; TODO : REPLACE
+	  (list 'comment tmp))
+	 (t
+	  (list 'comment (+ ci matlab-comment-anti-indent))))))
      ;; FUNCTION DEFINITION
-     ((matlab-ltype-function-definition)
+     ((matlab-line-declaration-p lvl1)
       (if matlab-functions-have-end
           ;; A function line has intrinsic indentation iff function bodies are
           ;; not indented and the function line is nested within another function.
@@ -2565,7 +2552,8 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
         (setq ci 0))
       (list 'function ci))
      ;; END keyword
-     ((matlab-lattr-local-end)
+     ((matlab-line-end-p lvl1)
+      ;;(matlab-lattr-local-end)
       (let ((end-of-function
              (let ((matlab-functions-have-end t))
                (save-excursion
@@ -2608,7 +2596,8 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
                            matlab-indent-level))))))
       (list 'blockend ci))
      ;; ELSE/CATCH keywords
-     ((matlab-lattr-middle-block-cont)
+     ((matlab-line-block-middle-p lvl1)
+      ;(matlab-lattr-middle-block-cont)
       (let ((m (match-string 1)))
 	(list 'blockmid
 	      (condition-case nil
@@ -2619,7 +2608,8 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
 		    (current-column))
 		(error (error "Unmatched %s" m))))))
      ;; CASE/OTHERWISE keywords
-     ((matlab-lattr-endless-block-cont)
+     ((matlab-line-block-case-p lvl1)
+      ;;(matlab-lattr-endless-block-cont)
       (list 'blockendless
 	    (condition-case nil
 		(save-excursion
@@ -2632,22 +2622,21 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
 		       matlab-case-level)))
 	      (error (error "Unmatched case/otherwise part")))))
      ;; End of a MATRIX
-     ((matlab-lattr-array-end)
-      (list 'array-end (save-excursion
-			 (back-to-indentation)
-			 (matlab-up-list -1)
-			 (let* ((fc (following-char))
-				(mi (assoc fc matlab-maximum-indents))
-				(max (if mi (if (listp (cdr mi))
-						(car (cdr mi)) (cdr mi))
-				       nil))
-				(ind (if mi (if (listp (cdr mi))
-						(cdr (cdr mi)) (cdr mi))
-				       nil)))
-			   ;; apply the maximum limits.
-			   (if (and ind (> (- (current-column) ci) max))
-			       (1- ind) ; decor
-			     (current-column))))))
+     ((matlab-line-close-paren-p lvl1)
+      ;;(matlab-lattr-array-end)
+      (list 'array-end (let* ((fc (matlab-line-close-paren-char lvl1)) ;;following-char))
+			      (pc (matlab-line-close-paren-col lvl1))
+			      (mi (assoc fc matlab-maximum-indents))
+			      (max (if mi (if (listp (cdr mi))
+					      (car (cdr mi)) (cdr mi))
+				     nil))
+			      (ind (if mi (if (listp (cdr mi))
+					      (cdr (cdr mi)) (cdr mi))
+				     nil)))
+			 ;; apply the maximum limits.
+			 (if (and ind (> (- pc ci) max))
+			     (1- ind)	; decor
+			   pc))))
      ;; Code lines
      ((and (not (matlab-lattr-array-cont))
 	   (not (matlab-prev-line-cont)))
