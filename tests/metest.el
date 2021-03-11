@@ -309,7 +309,7 @@ Do error checking to provide easier debugging."
 		     (file-name-nondirectory (buffer-file-name))
 		     (line-number-at-pos)))
 	(post (apply 'format args)))
-    (message (concat pre post))))
+    (error (concat pre post))))
 
 ;;; Logging prormance data for the tests
 ;;
