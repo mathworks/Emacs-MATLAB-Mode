@@ -2088,37 +2088,39 @@ If `matlab-functions-have-end', skip over functions with end."
 	  (goto-char (match-end 0))
 	  (current-word)))))
 
-(defun matlab-beginning-of-command ()
+(defun matlab-beginning-of-command (&optional arg)
   "Go to the beginning of an M command.
 Travels across continuations."
-  (interactive)
-  (beginning-of-line)
-  (save-match-data
-    (let ((p nil)
-	  (bc (matlab-block-comment-bounds)))
-      ;; block comment - just go to the beginning.
-      (if bc
-	  (goto-char (car bc))
+  (interactive "P")
+  (if arg
+      (matlab-scan-beginning-of-command)
+    (beginning-of-line)
+    (save-match-data
+      (let ((p nil)
+	    (bc (matlab-block-comment-bounds)))
+	;; block comment - just go to the beginning.
+	(if bc
+	    (goto-char (car bc))
 
-	;; ELSE : Scan across lines that are related.
-	;; Step one, skip all comments indented as continutions of a previous.
-	;; Using forward-comment is very fast, and just skipps all comments until
-	;; we hit a line of code.
-	;; NOTE: This may fail with poorly indented code.
-	(when (or (matlab-ltype-help-comm)
-		  (matlab-ltype-continued-comm))
-	  (forward-comment -100000))
+	  ;; ELSE : Scan across lines that are related.
+	  ;; Step one, skip all comments indented as continutions of a previous.
+	  ;; Using forward-comment is very fast, and just skipps all comments until
+	  ;; we hit a line of code.
+	  ;; NOTE: This may fail with poorly indented code.
+	  (when (or (matlab-ltype-help-comm)
+		    (matlab-ltype-continued-comm))
+	    (forward-comment -100000))
 
-	;; Now walk backward across continued code lines.
-	(while (and (or (setq p (matlab-lattr-array-cont)) ;; do this first b/c fast
-			(matlab-prev-line-cont)
-			;; We used to do this, now handled w/ forward-comment above.
-			;;(matlab-ltype-continued-comm)
-			)
-		    (save-excursion (beginning-of-line) (not (bobp))))
-	  (if p (goto-char p) (matlab-prev-line))
-	  (setq p nil)))
-      (back-to-indentation))))
+	  ;; Now walk backward across continued code lines.
+	  (while (and (or (setq p (matlab-lattr-array-cont)) ;; do this first b/c fast
+			  (matlab-prev-line-cont)
+			  ;; We used to do this, now handled w/ forward-comment above.
+			  ;;(matlab-ltype-continued-comm)
+			  )
+		      (save-excursion (beginning-of-line) (not (bobp))))
+	    (if p (goto-char p) (matlab-prev-line))
+	    (setq p nil)))
+	(back-to-indentation)))))
 
 (defun matlab-end-of-command ()
   "Go to the end of an M command.
@@ -2527,7 +2529,7 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
 	 ((eq comment-style 'block-body)
 	  (list 'comment (+ 2 (matlab-line-end-comment-column lvl1))))
 	 ;; HELP COMMENT and COMMENT REGION
-	 ((setq tmp (matlab-line-comment-help-p lvl1))
+	 ((setq tmp (matlab-scan-comment-help-p lvl1))
 	  (list 'comment-help tmp))
 	 ;; COMMENT REGION comments
 	 ((matlab-line-comment-ignore-p lvl1)
@@ -2625,8 +2627,8 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
      ;; End of a MATRIX
      ((matlab-line-close-paren-p lvl1)
       ;;(matlab-lattr-array-end)
-      (list 'array-end (let* ((fc (matlab-line-close-paren-char lvl1)) ;;following-char))
-			      (pc (matlab-line-close-paren-col lvl1))
+      (list 'array-end (let* ((fc (matlab-line-close-paren-inner-char lvl1)) ;;following-char))
+			      (pc (matlab-line-close-paren-inner-col lvl1))
 			      (mi (assoc fc matlab-maximum-indents))
 			      (max (if mi (if (listp (cdr mi))
 					      (car (cdr mi)) (cdr mi))
@@ -2782,7 +2784,7 @@ See `matlab-calculate-indentation'."
 		(mc (and (matlab-line-block-middle-p lvl1) 1)) ;(matlab-lattr-middle-block-cont))
 		(ec (and (matlab-line-block-case-p lvl1) 1)) ;(matlab-lattr-endless-block-cont))
 		(hc (and (matlab-indent-function-body-p)
-			 (matlab-line-comment-help-p lvl1))) ;(matlab-ltype-help-comm)))
+			 (matlab-scan-comment-help-p lvl1))) ;(matlab-ltype-help-comm)))
 		(rc (and (/= 0 matlab-comment-anti-indent)
 			 (matlab-line-regular-comment-p lvl1) ;(matlab-ltype-comm-noblock)
 			 ;;(not (matlab-ltype-help-comm))

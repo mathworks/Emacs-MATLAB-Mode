@@ -86,30 +86,22 @@ return the cache if it finds it."
 (defconst mlf-ltype 0)
 (defconst mlf-stype 1)
 (defconst mlf-indent 2)
-(defconst mlf-paren-depth 3)
-(defconst mlf-paren-char 4)
-(defconst mlf-paren-col 5)
-(defconst mlf-paren-delta 6)
-(defconst mlf-end-comment-type 7)
-(defconst mlf-end-comment-col 8)
+(defconst mlf-entity-start 3)
+(defconst mlf-paren-depth 4)
+(defconst mlf-paren-inner-char 5)
+(defconst mlf-paren-inner-col 6)
+(defconst mlf-paren-outer-char 7)
+(defconst mlf-paren-outer-point 8)
+(defconst mlf-paren-delta 9)
+(defconst mlf-end-comment-type 10)
+(defconst mlf-end-comment-col 11)
 
 (defun matlab-compute-line-context-lvl-1 ()
   "Compute and return the level1 context for the current line of MATLAB code.
 Level 1 contexts are things quickly derived from `syntax-ppss'
 and other simple states.
 Computes multiple styles of line by checking for multiple types of context
-in a single call using fastest methods.
-Return list has these fields:
-  0 - Primary line type
-  1 - Secondary line type
-  2 - Indentation
-  3 - Parenthisis depth
-  4 - Char for innermost beginning paren
-  5 - Column of innermost beginning paren
-  6 - Parenthisis depth change on this line
-  7 - End Comment type (ellipsis, comment, or nil)
-  8 - End Comment start column
-"
+in a single call using fastest methods."
   (save-excursion
     (back-to-indentation)
     (let* ((ppsend (save-excursion (syntax-ppss (point-at-eol))))
@@ -117,13 +109,16 @@ Return list has these fields:
 	   (ltype 'empty)
 	   (stype nil)
 	   (cc 0)
+	   (start (point))
 	   (paren-depth (nth 0 pps))
-	   (paren-char nil)
-	   (paren-col nil)
+	   (paren-inner-char nil)
+	   (paren-inner-col nil)
+	   (paren-outer-char nil)
+	   (paren-outer-point nil)
 	   (paren-delta (- (car pps) (car ppsend)))
 	   (ec-type nil)
 	   (ec-col nil)
-	   
+	   (cont-from-prev nil)
 	  )
 
       ;; This means we are somewhere inside a cell, array, or arg list.
@@ -133,8 +128,10 @@ Return list has these fields:
       (when (> (nth 0 pps) 0)
 	(save-excursion
 	  (goto-char (car (last (nth 9 pps))))
-	  (setq paren-char (char-after (point))
-		paren-col  (current-column))))
+	  (setq paren-inner-char (char-after (point))
+		paren-inner-col  (current-column)
+		paren-outer-point (car (nth 9 pps))
+		paren-outer-char (char-after paren-outer-point) )))
 
       (cond
        ;; For comments - We can only ever be inside a block comment, so
@@ -146,7 +143,8 @@ Return list has these fields:
 			   'block-end)
 			  ((looking-at "%")
 			   'block-body-prefix)
-			  (t 'block-body))))
+			  (t 'block-body))
+	      start (nth 8 pps)))
 
        ;; If indentation lands on end of line, this is an empty line
        ;; so nothing left to do.  Keep after block-comment-body check
@@ -214,7 +212,9 @@ Return list has these fields:
 		ec-type (if (= (char-after csc) ?\%) 'comment 'ellipsis))) ;; type
 	)
 
-      (list ltype stype cc paren-depth paren-char paren-col paren-delta ec-type ec-col)
+      (list ltype stype cc start paren-depth
+	    paren-inner-char paren-inner-col paren-outer-char paren-outer-point paren-delta
+	    ec-type ec-col cont-from-prev)
       )))
 
 
@@ -267,6 +267,13 @@ All lines that start with a comment end with a comment."
 All lines that start with a comment end with a comment."
   (eq (nth mlf-end-comment-type lvl1) 'ellipsis))
 
+(defsubst matlab-line-block-comment-start (lvl1)
+  "Return the start of the block comment we are in, or nil."
+  (when (and (matlab-line-comment-p lvl1)
+	     (memq (nth mlf-stype lvl1)
+		   '(block-start block-end block-body block-body-prefix)))
+    (nth mlf-entity-start lvl1)))
+
 ;; Code and Declarations
 (defsubst matlab-line-block-start-keyword-p (lvl1)
   "Return t if the current line starts with block keyword."
@@ -296,32 +303,87 @@ These are keywords like `else' or `catch'."
   "Non nil If the current line starts with closing paren (any type.)"
   (eq (car lvl1) 'close-paren))
 
-(defsubst matlab-line-close-paren-char (lvl1)
-  "Non nil If the current line starts with closing paren (any type.)"
-  (nth mlf-paren-char lvl1))
+(defsubst matlab-line-close-paren-inner-char (lvl1)
+  "Return the paren character for the parenthetical expression LVL1 is in."
+  (nth mlf-paren-inner-char lvl1))
 
-(defsubst matlab-line-close-paren-col (lvl1)
-  "Non nil If the current line starts with closing paren (any type.)"
-  (nth mlf-paren-col lvl1))
+(defsubst matlab-line-close-paren-inner-col (lvl1)
+  "Return the paren column for the prenthetical expression LVL1 is in."
+  (nth mlf-paren-inner-col lvl1))
+
+(defsubst matlab-line-close-paren-outer-char (lvl1)
+  "The paren character for the outermost prenthetical expression LVL1 is in."
+  (nth mlf-paren-outer-char lvl1))
+
+(defsubst matlab-line-close-paren-outer-point (lvl1)
+  "The poit the outermost parenthetical expression start is at."
+  (nth mlf-paren-outer-point lvl1))
 
 
 ;;; Scanning Accessor utilities
 ;;
-;; some utilities require some level of buffer scanning to get the answer.
+;; Some utilities require some level of buffer scanning to get the answer.
 ;; Keep those separate so they can depend on the earlier decls.
-(defun matlab-line-comment-help-p (lvl1)
+(defun matlab-scan-comment-help-p (lvl1 &optional pt)
   "Return declaration column if the current line is part of a help comment.
 Declarations are things like functions and classdefs.
-Indentation a help comment depends on the column of the declaration."
+Indentation a help comment depends on the column of the declaration.
+Optional PT, if non-nil, means return the point instead of column"
   (and (matlab-line-comment-p lvl1)
        (save-excursion
 	(beginning-of-line)
 	(forward-comment -100000)
 	(let ((c-lvl1 (matlab-compute-line-context 1)))
 	  (when (matlab-line-declaration-p c-lvl1)
-	    (current-indentation)))
+	    (if pt (point) (current-indentation))))
 	)))
 
+(defun matlab-scan-previous-line-ellipsis-p ()
+  "Return the point of the previous line's continuation if there is one.
+This is true iff the previous line has an ellipsis, but not if this line
+is in an array with an implied continuation."
+  (save-excursion
+    (beginning-of-line)
+    (when (not (bobp))
+      (forward-char -1)
+      (let* ((pps (syntax-ppss (point)))
+	     (csc (nth 8 pps)))
+	;; If the comment active on eol does NOT start with %, then it must be
+	;; and ellipsis.
+	(and (/= (char-after csc) ?\%)
+	     csc)))))
+
+(defun matlab-scan-beginning-of-command (&optional lvl1)
+  "Return point in buffer at the beginning of this command.
+This function walks up any enclosing parens, and skips
+backward over lines that include ellipsis."
+  (unless lvl1 (setq lvl1 (matlab-compute-line-context 1)))
+  ;; If we are in a block comment, just jump to the beginning, and
+  ;; that's it.
+  (let ((bcs (matlab-line-block-comment-start lvl1)))
+    (when bcs
+      (goto-char bcs)
+      (setq lvl1 (matlab-compute-line-context 1)))
+      
+    ;; If we are in a help comment, jump over that first.
+    (setq bcs (matlab-scan-comment-help-p lvl1 'point))
+    (when bcs
+      (goto-char bcs)
+      (setq lvl1 (matlab-compute-line-context 1)))
+    
+    ;; Now scan backward till we find the beginning.
+    (let ((found nil))
+      (while (not found)
+	;; first - just jump to our outermost point.
+	(goto-char (or (matlab-line-close-paren-outer-point lvl1) (point)))
+	;; Second - is there an ellipsis on prev line?
+	(let ((prev (matlab-scan-previous-line-ellipsis-p)))
+	  (if (not prev)
+	      (setq found t)
+	    ;; Move to prev location if not found.
+	    (goto-char prev))))
+      (back-to-indentation)
+      (point))))
 
 ;;; Caching
 ;;
@@ -363,13 +425,13 @@ Used to speed up repeated queries on the same set of lines.")
   "Describe the indentation context for the current line."
   (interactive)
   (let* ((lvl1 (matlab-compute-line-context 1))
-	 (paren-char (nth mlf-paren-char lvl1))
-	 (open (format "%c" (or paren-char ?\()))
+	 (paren-inner-char (nth mlf-paren-inner-char lvl1))
+	 (open (format "%c" (or paren-inner-char ?\()))
 	 (close (format "%c"
-			(cond ((not paren-char) ?\))
-			      ((= paren-char ?\() ?\))
-			      ((= paren-char ?\[) ?\])
-			      ((= paren-char ?\{) ?\})
+			(cond ((not paren-inner-char) ?\))
+			      ((= paren-inner-char ?\() ?\))
+			      ((= paren-inner-char ?\[) ?\])
+			      ((= paren-inner-char ?\{) ?\})
 			      (t ??))))
 	 (extraopen "")
 	 (extraclose "")
