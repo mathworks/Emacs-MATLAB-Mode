@@ -237,19 +237,15 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
 
 (defun matlab--scan-line-bad-blockcomment ()
   "Scan this line for invalid block comment starts."
-  (save-restriction
-    (narrow-to-region (point-at-bol) (point-at-eol))
-    (when (and (re-search-forward "%{" nil t) (not (looking-at "\\s-*$")))
-      (goto-char (1- (match-end 0)))
-      t)))
+  (when (and (re-search-forward "%{" (point-at-eol) t) (not (looking-at "\\s-*$")))
+    (goto-char (1- (match-end 0)))
+    t))
 
 (defun matlab--scan-line-for-ellipsis ()
   "Scan this line for an ellipsis."
-  (save-restriction
-    (narrow-to-region (point-at-bol) (point-at-eol))
-    (when (re-search-forward "\\.\\.\\." nil t)
-      (goto-char (match-beginning 0))
-      t)))
+  (when (re-search-forward "\\.\\.\\." (point-at-eol) t)
+    (goto-char (match-beginning 0))
+    t))
 
 ;;; Font Lock Support:
 ;;
@@ -268,9 +264,9 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
       ;; This is a string.  Check the start char to see if it was
       ;; marked as an unterminate string.
       (if (get-text-property (nth 8 pps) 'unterminated)
-	  matlab-unterminated-string-face
-	font-lock-string-face)
-    font-lock-comment-face)
+	  'matlab-unterminated-string-face
+	'font-lock-string-face)
+    'font-lock-comment-face)
   )
 
 ;;;
