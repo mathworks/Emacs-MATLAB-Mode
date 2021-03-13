@@ -66,15 +66,15 @@ classdef blocks < handle
         %>>17
         function properties(~)%!!8
         end %<<17
-
+        
         %>>18
         function methods(~)%!!8
         end %<<18
-
+        
         %>>19
         function events(~)%!!8
         end %<<19
-
+        
         %>>20
         function events=arguments(arguments)%!!8
             arguments, arguments(:,:) {mustBeNumeric}, end %!!12

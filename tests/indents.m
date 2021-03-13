@@ -80,9 +80,9 @@ function B = ends_in_comments_and_strings()
         
     end; B = [ 1 2 ...  % is this the end?
                3 4 ];   % !!15
-
+    
     % !!4
-
+    
     if foo
         
         A = E;
@@ -92,7 +92,7 @@ function B = ends_in_comments_and_strings()
     
     code1(), ...
         code2(); %!!8
-
+    
     % NOTE: Blank space below should cancel the indent effect of ellipsis.
     code1() ...
         
@@ -145,6 +145,15 @@ function out = array_constant_decls()
                             15 16 ])  %!!28
                 } ;  %!!16
 
+    % TODO
+    % I don't know why the below indents this way.
+    % It should either do all max indent, or all lined up with parens.
+    thing.thing.long.long.longname({ 'str' %!!4
+                        'str' %!!24
+                                     'str'  %!!37
+                                     'str'  %!!37
+                                   });   %!!35
+    
     % Line starting with end inside parens
     disp(Csep(1:  ...  %!!4
               end));   %!!14
@@ -176,7 +185,7 @@ function C = block_starts_in_comments_and_strings()
     % see previous function
     % !!4
     for x=1:length(C) % !!4
-                
+        
         % !!8
     end
 
@@ -215,8 +224,8 @@ function B = continuations_and_block_comments
     % !!4
     %}
     
-    % Block comment indicators MUST be on a line by themselves.
-    %{ Not a block comment }
+% Block comment indicators MUST be on a line by themselves.
+%{ Not a block comment }
     
     foo(1); % !!4   - don't indent this special
     
