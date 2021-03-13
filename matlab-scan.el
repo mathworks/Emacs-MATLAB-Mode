@@ -108,7 +108,7 @@ in a single call using fastest methods."
 	   (pps (syntax-ppss (point)))
 	   (ltype 'empty)
 	   (stype nil)
-	   (cc 0)
+	   (cc (current-indentation))
 	   (start (point))
 	   (paren-depth (nth 0 pps))
 	   (paren-inner-char nil)
@@ -424,6 +424,7 @@ Used to speed up repeated queries on the same set of lines.")
 (defun matlab-describe-line-indent-context ()
   "Describe the indentation context for the current line."
   (interactive)
+  (back-to-indentation)
   (let* ((lvl1 (matlab-compute-line-context 1))
 	 (paren-inner-char (nth mlf-paren-inner-char lvl1))
 	 (open (format "%c" (or paren-inner-char ?\()))
@@ -433,25 +434,46 @@ Used to speed up repeated queries on the same set of lines.")
 			      ((= paren-inner-char ?\[) ?\])
 			      ((= paren-inner-char ?\{) ?\})
 			      (t ??))))
+	 (innerparenstr (format "%s%d%s" open (nth mlf-paren-depth lvl1) close))
+	 (outerp-char (nth mlf-paren-outer-char lvl1))
+	 (outerp-open (if outerp-char (format "%c" outerp-char) ""))
+	 (outerp-close (if (not outerp-char) ""
+			 (format "%c"
+				 (cond ((= outerp-char ?\() ?\))
+				       ((= outerp-char ?\[) ?\])
+				       ((= outerp-char ?\{) ?\})
+				       (t ??)))))
+	 (outerparenopen "")
+	 (outerparenclose "")
 	 (extraopen "")
 	 (extraclose "")
 	 )
-    (when (= (nth mlf-paren-depth lvl1) 0)
-      (setq open (propertize open 'face 'shadow)
-	    close (propertize close 'face 'shadow)))
+    (cond ((= (nth mlf-paren-depth lvl1) 0)
+	   ;; 0 means no parens - so shade out parens to indicate.
+	   (setq open (propertize open 'face 'shadow)
+		 close (propertize close 'face 'shadow)))
+	  ((<= (nth mlf-paren-depth lvl1) 1)
+	   ;; If 1 or fewer parens, clear out outer chars
+	   (setq outerp-open ""
+		 outerp-close ""))
+	  ((> (nth mlf-paren-depth lvl1) 2)
+	   ;; If more than 2, signal more unknown parens in between
+	   (setq outerp-open (concat outerp-open (string (decode-char 'ucs #x2026)))
+		 outerp-close (concat (string (decode-char 'ucs #x2026)) outerp-close))))
     (if (< (nth mlf-paren-delta lvl1) 0)
 	(setq extraopen (format "<%d" (abs (nth mlf-paren-delta lvl1))))
       (when (> (nth mlf-paren-delta lvl1) 0)
 	(setq extraclose (format "%d>" (nth mlf-paren-delta lvl1)))))
 
     
-    (message "%s%s %s%s%d%s%s %s %s" (nth mlf-ltype lvl1)
+    (message "%s%s >>%d %s%s%s%s%s %s %s" (nth mlf-ltype lvl1)
 	     (format " %s" (or (nth mlf-stype lvl1) ""))
+	     (nth mlf-indent lvl1)
 	     ;; paren system
 	     extraopen
-	     open
-	     (nth mlf-paren-depth lvl1)
-	     close
+	     outerp-open
+	     innerparenstr
+	     outerp-close
 	     extraclose
 	     (cond ((eq (nth mlf-end-comment-type lvl1) 'comment) "%")
 		   ((eq (nth mlf-end-comment-type lvl1) 'ellipsis) "...")
