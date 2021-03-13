@@ -182,24 +182,31 @@ If the value is 'guess, then we guess if a file has end when
   )
 
 (defvar matlab-defun-regex) ;; Quiet compiler warning (is defined below)
+(defvar matlab-last-script-type-guess nil
+  "The last time we guessed the script type, what was it?")
+(defun matlab-last-guess-decl-p ()
+  "Return non-nil if our last guess at a script type was function or class."
+  (memq matlab-last-script-type-guess '(function class)))
+
 (defun matlab-guess-script-type ()
   "Guess the type of script this `matlab-mode' file contains.
 Returns one of 'empty, 'script, 'function, 'class."
-  (save-excursion
-    (goto-char (point-min))
-    (if (matlab-find-code-line)
-	;; We found some code, what is it?
-	(if (looking-at matlab-defun-regex)
-	    ;; A match - figure out the type of thing.
-	    (let ((str (match-string-no-properties 1)))
-	      (cond ((string= str "function")
-		     'function)
-		    ((string= str "classdef")
-		     'class)))
-	  ;; No function or class - just a script.
-	  'script)
-      ;; No lines of code, we are empty, so undecided.
-      'empty)))
+  (setq matlab-last-script-type-guess
+	(save-excursion
+	  (goto-char (point-min))
+	  (if (matlab-find-code-line)
+	      ;; We found some code, what is it?
+	      (if (looking-at matlab-defun-regex)
+		  ;; A match - figure out the type of thing.
+		  (let ((str (match-string-no-properties 1)))
+		    (cond ((string= str "function")
+			   'function)
+			  ((string= str "classdef")
+			   'class)))
+		;; No function or class - just a script.
+		'script)
+	    ;; No lines of code, we are empty, so undecided.
+	    'empty))))
 	
 (defun matlab-do-functions-have-end-p (&optional no-navigate)
   "Look at the contents of the current buffer and decide if functions have end.
@@ -2093,7 +2100,8 @@ Travels across continuations."
 	  ;; Using forward-comment is very fast, and just skipps all comments until
 	  ;; we hit a line of code.
 	  ;; NOTE: This may fail with poorly indented code.
-	  (when (or (matlab-scan-comment-help-p lvl1) ;(matlab-ltype-help-comm)
+	  (when (or (and (matlab-last-guess-decl-p)
+			 (matlab-scan-comment-help-p lvl1)) ;(matlab-ltype-help-comm)
 		    (matlab-ltype-continued-comm))
 	    (forward-comment -100000))
 
@@ -2201,7 +2209,8 @@ Return the symbol 'blockcomm if we are in a block comment."
 
 (defun matlab-ltype-code ()		; line of code
   "Return t if current line is a MATLAB code line."
-  (matlab-line-code-p (matlab-compute-line-context 1)))
+  (let ((lvl  (matlab-compute-line-context 1)))
+    (not (or (matlab-line-comment-p lvl) (matlab-line-empty-p lvl)))))
   ;(and (not (matlab-ltype-empty)) (not (matlab-ltype-comm))))
 
 (defun matlab-lattr-comm ()		; line has comment
@@ -2279,30 +2288,36 @@ by close, the first character is the end of an array."
   "Return a number representing the number of unterminated block constructs.
 This is any block, such as if or for, that doesn't have an END on this line.
 Optional EOL indicates a virtual end of line."
-  (let ((v 0))
-    (save-excursion
-      (beginning-of-line)
-      (save-restriction
-	(narrow-to-region (point) (or eol (matlab-point-at-eol)))
-	(matlab-navigation-syntax
-	  (while (re-search-forward (concat "\\<" (matlab-block-beg-re) "\\>")
-				    nil t)
-	    (if (or (matlab-cursor-in-string-or-comment)
-		    (not (save-excursion (forward-word -1)
-					 (matlab-cursor-on-valid-block-start))))
-		;; Do nothing if in comment, or if the thing we skipped over was
-		;; an invalid block construct (based on local context)
-		nil
-	      ;; Increment counter, move to end.
-	      (setq v (1+ v))
-	      (let ((p (point)))
-		(forward-word -1)
-		(condition-case nil
-		    (progn
-		      (matlab-forward-sexp)
-		      (setq v (1- v)))
-		  (error (goto-char p))))))
-	  v)))))
+  (let ((v 0)
+	(lvl (matlab-compute-line-context 1)))
+    (if (or (matlab-line-comment-p lvl)
+	    (matlab-line-empty-p lvl))
+	;; If this line is comments or empty, no code to scan
+	0
+      (save-excursion
+	(beginning-of-line)
+	(save-restriction
+	  (narrow-to-region (point) (or eol (save-excursion (matlab-line-end-of-code lvl)
+							    (point))))
+	  (matlab-navigation-syntax
+	    (while (re-search-forward (concat "\\<" (matlab-block-beg-re) "\\>")
+				      nil t)
+	      (if (or (matlab-cursor-in-string-or-comment)
+		      (not (save-excursion (forward-word -1)
+					   (matlab-cursor-on-valid-block-start))))
+		  ;; Do nothing if in comment, or if the thing we skipped over was
+		  ;; an invalid block construct (based on local context)
+		  nil
+		;; Increment counter, move to end.
+		(setq v (1+ v))
+		(let ((p (point)))
+		  (forward-word -1)
+		  (condition-case nil
+		      (progn
+			(matlab-forward-sexp)
+			(setq v (1- v)))
+		    (error (goto-char p))))))
+	    v))))))
 
 (defun matlab-lattr-middle-block-cont ()
   "Return the number of middle block continuations.
@@ -2334,47 +2349,56 @@ special items."
 (defun matlab-lattr-block-close (&optional start)
   "Return the number of closing block constructs.
 Argument START is where to start searching from."
-  (let ((v 0))
+  (let ((v 0)
+	(lvl1 (matlab-compute-line-context 1)))
     (save-excursion
       (when start (goto-char start))
-      (matlab-with-current-command
-	(goto-char (point-at-eol))
+      (if (matlab-line-comment-p lvl1)
+	  ;; If this is even vagely a comment line, then there is no
+	  ;; need to do any scanning.
+	  0
+	;; Else, lets scan.
+	(matlab-with-current-command
+	  ;; We used to do this, but now...
+	  ;;(goto-char (point-at-eol))
+	  ;; lets only scan from the beginning of the comment
+	  (matlab-line-end-of-code lvl1)
 
-	;; If in a comment, move out of it first.
-	(when (matlab-beginning-of-string-or-comment)
-	  ;; in case of no space between comment and end, need to move back
-	  ;; over the comment chart for next search to work.
-	  ;;(forward-char 1)
-	  )
+	  ;; If in a comment, move out of it first.
+	  (when (matlab-beginning-of-string-or-comment)
+	    ;; in case of no space between comment and end, need to move back
+	    ;; over the comment char for next search to work.
+	    ;;(forward-char 1)
+	    )
 
-	;; Count every END in the line, skipping over active blocks
-	(while (re-search-backward (concat "\\<" (matlab-block-end-re) "\\>")
-				   nil t)
-	  (let ((startmove (match-end 0))
-		(nomove (point)))
-	    (cond
-	     ((matlab-beginning-of-string-or-comment)
-	      ;; Above returns non-nil if it was in a string or comment.
-	      ;; In that case, we need to keep going.
-	      nil)
-	     ((not (matlab-valid-end-construct-p))
-	      ;; Not a valid end, just move past it.
-	      (goto-char nomove))
-	     (t
-	      ;; Lets count these end constructs.
-	      (setq v (1+ v))
-	      (if (matlab-backward-sexp t t)
-		  (setq v (1- v))
-		(goto-char nomove)))
-	     )))
-	;; If we can't scoot back, do a cheat-test to see if there
-	;; is a matching else or elseif.
-	(goto-char (point-min))
-	(back-to-indentation)
-	(if (looking-at (matlab-block-mid-re))
-	    (setq v (1- v)))
-	;; Return nil, or a number
-	(if (<= v 0) nil v)))))
+	  ;; Count every END in the line, skipping over active blocks
+	  (while (re-search-backward (concat "\\<" (matlab-block-end-re) "\\>")
+				     nil t)
+	    (let ((startmove (match-end 0))
+		  (nomove (point)))
+	      (cond
+	       ((matlab-beginning-of-string-or-comment)
+		;; Above returns non-nil if it was in a string or comment.
+		;; In that case, we need to keep going.
+		nil)
+	       ((not (matlab-valid-end-construct-p))
+		;; Not a valid end, just move past it.
+		(goto-char nomove))
+	       (t
+		;; Lets count these end constructs.
+		(setq v (1+ v))
+		(if (matlab-backward-sexp t t)
+		    (setq v (1- v))
+		  (goto-char nomove)))
+	       )))
+	  ;; If we can't scoot back, do a cheat-test to see if there
+	  ;; is a matching else or elseif.
+	  (goto-char (point-min))
+	  (back-to-indentation)
+	  (if (looking-at (matlab-block-mid-re))
+	      (setq v (1- v)))
+	  ;; Return nil, or a number
+	  (if (<= v 0) nil v))))))
 
 (defun matlab-lattr-local-end ()
   "Return t if this line begins with an end construct."
@@ -2499,7 +2523,8 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
 	 ((eq comment-style 'block-body)
 	  (list 'comment (+ 2 (matlab-line-end-comment-column lvl1))))
 	 ;; HELP COMMENT and COMMENT REGION
-	 ((setq tmp (matlab-scan-comment-help-p lvl1))
+	 ((and (matlab-last-guess-decl-p)
+	       (setq tmp (matlab-scan-comment-help-p lvl1)))
 	  (list 'comment-help tmp))
 	 ;; COMMENT REGION comments
 	 ((matlab-line-comment-ignore-p lvl1)
@@ -2748,12 +2773,13 @@ See `matlab-calculate-indentation'."
 	  (goto-char (point-min))
 	  (back-to-indentation)
 	  (setq lvl1 (matlab-compute-line-context 1))
-	  (let ((cc (or (matlab-lattr-block-close startpnt) 0))
+ 	  (let ((cc (or (matlab-lattr-block-close startpnt) 0))
 		(end (matlab-line-end-p lvl1)) ;(matlab-lattr-local-end))
 		(bc (matlab-lattr-block-cont startpnt))
 		(mc (and (matlab-line-block-middle-p lvl1) 1)) ;(matlab-lattr-middle-block-cont))
 		(ec (and (matlab-line-block-case-p lvl1) 1)) ;(matlab-lattr-endless-block-cont))
-		(hc (and (matlab-indent-function-body-p)
+		(hc (and (matlab-last-guess-decl-p)
+			 (matlab-indent-function-body-p)
 			 (matlab-scan-comment-help-p lvl1))) ;(matlab-ltype-help-comm)))
 		(rc (and (/= 0 matlab-comment-anti-indent)
 			 (matlab-line-regular-comment-p lvl1) ;(matlab-ltype-comm-noblock)
