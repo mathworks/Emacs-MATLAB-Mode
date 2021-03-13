@@ -68,11 +68,12 @@
 ;; as quickly as possible.
 
 
-(defun matlab-compute-line-context (level)
+(defun matlab-compute-line-context (level &rest context)
   "Compute and return the line context for the current line of MATLAB code.
 LEVEL indicates how much information to return.
 LEVEL of 1 is the most primitive / simplest data.
-This function caches compuated context onto the line it is for, and will
+LEVEL of 2 is stuff that is derived from previous lines of code.
+This function caches computed context onto the line it is for, and will
 return the cache if it finds it."
   (cond ((= level 1)
 	 (let ((ctxt (save-excursion
@@ -82,22 +83,29 @@ return the cache if it finds it."
 	     (setq ctxt (matlab-compute-line-context-lvl-1))
 	     (matlab-scan-cache-put ctxt))
 	   ctxt))
+	((= level 2)
+	 (apply 'matlab-compute-line-context-lvl-2 context))
 	(t
 	 nil))
   )
-
+
+;;; LEVEL 1 SCANNER
+;;
+;; This scanner pulls out context available on the current line.
+;; This inludes the nature of the line, and anything sytax-ppss gives is.
 (defconst mlf-ltype 0)
 (defconst mlf-stype 1)
 (defconst mlf-point 2)
-(defconst mlf-entity-start 3)
-(defconst mlf-paren-depth 4)
-(defconst mlf-paren-inner-char 5)
-(defconst mlf-paren-inner-col 6)
-(defconst mlf-paren-outer-char 7)
-(defconst mlf-paren-outer-point 8)
-(defconst mlf-paren-delta 9)
-(defconst mlf-end-comment-type 10)
-(defconst mlf-end-comment-col 11)
+(defconst mlf-indent 3)
+(defconst mlf-entity-start 4)
+(defconst mlf-paren-depth 5)
+(defconst mlf-paren-inner-char 6)
+(defconst mlf-paren-inner-col 7)
+(defconst mlf-paren-outer-char 8)
+(defconst mlf-paren-outer-point 9)
+(defconst mlf-paren-delta 10)
+(defconst mlf-end-comment-type 11)
+(defconst mlf-end-comment-pt 12)
 
 (defun matlab-compute-line-context-lvl-1 ()
   "Compute and return the level1 context for the current line of MATLAB code.
@@ -112,6 +120,7 @@ in a single call using fastest methods."
 	   (ltype 'empty)
 	   (stype nil)
 	   (pt (point))
+	   (indent (current-indentation))
 	   (start (point))
 	   (paren-depth (nth 0 pps))
 	   (paren-inner-char nil)
@@ -215,27 +224,27 @@ in a single call using fastest methods."
 		ec-type (if (= (char-after csc) ?\%) 'comment 'ellipsis))) ;; type
 	)
 
-      (list ltype stype pt start paren-depth
+      (list ltype stype pt indent start paren-depth
 	    paren-inner-char paren-inner-col paren-outer-char paren-outer-point paren-delta
-	    ec-type ec-col cont-from-prev)
+	    ec-type ec-col
+	    ;;cont-from-prev
+	    )
       )))
 
-
-(defun matlab-compute-line-context-lvl-2 (lvl1)
-  "Compute level 2 line contexts for indentation.
-These are more expensive checks queued off of a lvl1 context."
-
-  ;; matlab-ltype-help-comm
-
-  ;; block start
-  ;; block end
-  ;; change in # blocks on this line.
-
-  )
-
-;;; Accessor Utilities
+;;; Accessor Utilities for LEVEL 1
 ;;
 ;; Use these to query a context for a piece of data
+(defmacro matlab-with-context-line (__context &rest forms)
+  "Save excursion, and move point to the line specified by CONTEXT.
+Takes a lvl1 or lvl2 context.
+Returns the value from the last part of forms."
+  (declare (indent 1))
+  `(save-excursion
+     ;; The CAR of a LVL2 is a LVL1.  If __context is LVL1, then
+     ;; the car-safe will return nil
+     (goto-char (nth mlf-point (or (car-safe (car ,__context)) ,__context)))
+     ,@forms))
+
 (defsubst matlab-line-empty-p (lvl1)
   "Return t if the current line is empty based on LVL1 cache."
   (eq (car lvl1) 'empty))
@@ -250,7 +259,7 @@ These are more expensive checks queued off of a lvl1 context."
   (and (eq (car lvl1) 'comment) (eq (nth 1 lvl1) nil)))
 
 (defsubst matlab-line-comment-ignore-p (lvl1)
-  "Return t if the current line is a comment based on LVL1 cache."
+  "Return t if the current line is an indentation ignored comment."
   (and (matlab-line-comment-p lvl1) (eq (nth mlf-stype lvl1) 'indent-ignore)))
 
 (defsubst matlab-line-comment-style (lvl1)
@@ -262,7 +271,7 @@ These are more expensive checks queued off of a lvl1 context."
 All lines that start with a comment end with a comment."
   (when (eq (nth mlf-end-comment-type lvl1) 'comment)
     (save-excursion
-      (goto-char (nth mlf-end-comment-col lvl1))
+      (goto-char (nth mlf-end-comment-pt lvl1))
       (current-column))))
 
 (defsubst matlab-line-ellipsis-p (lvl1)
@@ -305,6 +314,19 @@ These are keywords like `else' or `catch'."
 These are keywords like `else' or `catch'."
   (and (eq (car lvl1) 'block-start) (eq (nth 1 lvl1) 'case)))
 
+(defsubst matlab-line-end-of-code (&optional lvl1)
+  "Go to the end of the code on the current line.
+If there is a comment or ellipsis, go to the beginning of that.
+If the line starts with a comment return nil, otherwise t."
+  (unless lvl1 (setq lvl1 (matlab-compute-line-context 1)))
+  (goto-char (nth mlf-point lvl1))
+  (if (or (matlab-line-empty-p lvl1) (matlab-line-comment-p lvl1))
+      nil
+    ;; Otherwise, look for that code.
+    (if (eq (nth mlf-end-comment-type lvl1) 'comment)
+	(goto-char (nth mlf-end-comment-pt lvl1))
+      (goto-char (point-at-eol)))))
+
 ;; Parenthetical blocks
 (defsubst matlab-line-close-paren-p (lvl1)
   "Non nil If the current line starts with closing paren (any type.)"
@@ -329,7 +351,87 @@ These are keywords like `else' or `catch'."
 (defsubst matlab-line-close-paren-outer-point (lvl1)
   "The poit the outermost parenthetical expression start is at."
   (nth mlf-paren-outer-point lvl1))
+
+;;; LEVEL 2 SCANNER
+;;
+;; This scanner extracts information that affects the NEXT line of ML code.
+;; This inludes things like ellipsis and keyword chains like if/end blocks.
+;;
+;; Level 2 scanning information cascades from line-to-line, several fields will
+;; be blank unless a previous line is also scanned.
+(defconst mlf-level1 0)
+(defconst mlf-previous-level1 1)
+(defconst mlf-comment 2)
+(defconst mlf-comment-col 3)
+(defconst mlf-comment-begin 4)
 
+(defun matlab-compute-line-context-lvl-2 (&optional lvl1 previous2 full)
+  "Compute the level 2 context for the current line of MATLAB code.
+Level 2 context are things that are derived from previous lines of code.
+
+Some of that context is derived from the LVL1 context such as paren depth,
+and some scaning previous lines of code.
+
+LVL1 will be computed if not provided.
+
+This function will generate a mostly empty structure, and will
+fill in context from the PREVIOUS2 input as needed.  Empty stats
+will be computed by accessors on an as needed basis.  If PREVIOUS
+2 is not provided, it will go back 1 line, scan it for lvl1 data
+and use that.
+
+If the 3rd argument FULL is non-nil, it will take the time to search backward
+for all the information it can.
+
+The returned LVL2 structure will fill out to be a chain of all previous
+LVL2 outputs up to a context break.  The chains will be summarized in slots
+in the returned list for quick access."
+  (when (not lvl1) (setq lvl1 (matlab-compute-line-context-lvl-1)))
+  ;; matlab-ltype-help-comm
+  ;; block start
+  ;; block end
+  ;; change in # blocks on this line.
+
+  (save-excursion
+    (let ((prev-lvl1 (if previous2 (car previous2)
+		       ;; Not provided, go back 1 and get lvl1 data.
+		       (save-excursion)
+		       (beginning-of-line)
+		       (when (not (bobp))
+			 (forward-char -1)
+			 (matlab-compute-line-context 1))))
+	  (comment nil)
+	  (comment-col 0)
+	  (comment-begin nil)
+	  (tmp nil)
+	  )
+
+      ;; COMMENT DATA
+      (cond
+       ;; If we are in a block comment, no other needs.
+       ((setq tmp (matlab-line-block-comment-start lvl1))
+	(setq comment 'comment-block
+	      comment-col (save-excursion (goto-char tmp)
+					  (current-column))))
+       ;; If prev line has a comment, fill in.
+       ((setq tmp (matlab-line-end-comment-column prev-lvl1))
+	(setq comment 'comment
+	      comment-col tmp)
+	(when (matlab-line-comment-p prev-lvl1)
+	  (if (and previous2 )
+	      (setq comment-begin (nth mlf-comment-begin previous2))
+	    ;; If not provided, compute.
+	    (matlab-with-context-line prev-lvl1
+	      (forward-comment -100000)
+	      (matlab-compute-line-context 1)))))
+       )
+
+    
+
+
+      (list lvl1 prev-lvl1 comment comment-col comment-begin
+	  
+	    ))))
 
 ;;; Scanning Accessor utilities
 ;;
@@ -451,66 +553,76 @@ Make sure the cache doesn't exceed max size."
   "Describe the indentation context for the current line."
   (interactive)
   (back-to-indentation)
-  (let* ((lvl1 (matlab-compute-line-context 1))
-	 (paren-inner-char (nth mlf-paren-inner-char lvl1))
-	 (open (format "%c" (or paren-inner-char ?\()))
-	 (close (format "%c"
-			(cond ((not paren-inner-char) ?\))
-			      ((= paren-inner-char ?\() ?\))
-			      ((= paren-inner-char ?\[) ?\])
-			      ((= paren-inner-char ?\{) ?\})
-			      (t ??))))
-	 (innerparenstr (format "%s%d%s" open (nth mlf-paren-depth lvl1) close))
-	 (outerp-char (nth mlf-paren-outer-char lvl1))
-	 (outerp-open (if outerp-char (format "%c" outerp-char) ""))
-	 (outerp-close (if (not outerp-char) ""
-			 (format "%c"
-				 (cond ((= outerp-char ?\() ?\))
-				       ((= outerp-char ?\[) ?\])
-				       ((= outerp-char ?\{) ?\})
-				       (t ??)))))
-	 (outerparenopen "")
-	 (outerparenclose "")
-	 (extraopen "")
-	 (extraclose "")
-	 )
-    (cond ((= (nth mlf-paren-depth lvl1) 0)
-	   ;; 0 means no parens - so shade out parens to indicate.
-	   (setq open (propertize open 'face 'shadow)
-		 close (propertize close 'face 'shadow)))
-	  ((<= (nth mlf-paren-depth lvl1) 1)
-	   ;; If 1 or fewer parens, clear out outer chars
-	   (setq outerp-open ""
-		 outerp-close ""))
-	  ((> (nth mlf-paren-depth lvl1) 2)
-	   ;; If more than 2, signal more unknown parens in between
-	   (setq outerp-open (concat outerp-open (string (decode-char 'ucs #x2026)))
-		 outerp-close (concat (string (decode-char 'ucs #x2026)) outerp-close))))
-    (if (< (nth mlf-paren-delta lvl1) 0)
-	(setq extraopen (format "<%d" (abs (nth mlf-paren-delta lvl1))))
-      (when (> (nth mlf-paren-delta lvl1) 0)
-	(setq extraclose (format "%d>" (nth mlf-paren-delta lvl1)))))
+  (let* ((MSG1 "")
+	 (MSG2 "")
+	 (lvl1 (matlab-compute-line-context 1))
+	 (lvl2 (matlab-compute-line-context 2)))
+    (let* ((paren-inner-char (nth mlf-paren-inner-char lvl1))
+	   (open (format "%c" (or paren-inner-char ?\()))
+	   (close (format "%c"
+			  (cond ((not paren-inner-char) ?\))
+				((= paren-inner-char ?\() ?\))
+				((= paren-inner-char ?\[) ?\])
+				((= paren-inner-char ?\{) ?\})
+				(t ??))))
+	   (innerparenstr (format "%s%d%s" open (nth mlf-paren-depth lvl1) close))
+	   (outerp-char (nth mlf-paren-outer-char lvl1))
+	   (outerp-open (if outerp-char (format "%c" outerp-char) ""))
+	   (outerp-close (if (not outerp-char) ""
+			   (format "%c"
+				   (cond ((= outerp-char ?\() ?\))
+					 ((= outerp-char ?\[) ?\])
+					 ((= outerp-char ?\{) ?\})
+					 (t ??)))))
+	   (outerparenopen "")
+	   (outerparenclose "")
+	   (extraopen "")
+	   (extraclose "")
+	   )
+      (cond ((= (nth mlf-paren-depth lvl1) 0)
+	     ;; 0 means no parens - so shade out parens to indicate.
+	     (setq open (propertize open 'face 'shadow)
+		   close (propertize close 'face 'shadow)))
+	    ((<= (nth mlf-paren-depth lvl1) 1)
+	     ;; If 1 or fewer parens, clear out outer chars
+	     (setq outerp-open ""
+		   outerp-close ""))
+	    ((> (nth mlf-paren-depth lvl1) 2)
+	     ;; If more than 2, signal more unknown parens in between
+	     (setq outerp-open (concat outerp-open (string (decode-char 'ucs #x2026)))
+		   outerp-close (concat (string (decode-char 'ucs #x2026)) outerp-close))))
+      (if (< (nth mlf-paren-delta lvl1) 0)
+	  (setq extraopen (format "<%d" (abs (nth mlf-paren-delta lvl1))))
+	(when (> (nth mlf-paren-delta lvl1) 0)
+	  (setq extraclose (format "%d>" (nth mlf-paren-delta lvl1)))))
 
-    
-    (message "%s%s >>%d %s%s%s%s%s %s %s" (nth mlf-ltype lvl1)
-	     (format " %s" (or (nth mlf-stype lvl1) ""))
-	     (nth mlf-point lvl1)
-	     ;; paren system
-	     extraopen
-	     outerp-open
-	     innerparenstr
-	     outerp-close
-	     extraclose
-	     (cond ((eq (nth mlf-end-comment-type lvl1) 'comment) "%")
-		   ((eq (nth mlf-end-comment-type lvl1) 'ellipsis) "...")
-		   (t ""))
-	     (if (matlab-line-end-comment-column lvl1)
-		 (format " %d" (matlab-line-end-comment-column lvl1))
-	       "")
-	     )
 
-    )
-  )
+      (setq MSG1
+	    (format "%s%s >>%d %s%s%s%s%s %s %s" (nth mlf-ltype lvl1)
+		    (format " %s" (or (nth mlf-stype lvl1) ""))
+		    (nth mlf-indent lvl1)
+		    ;; paren system
+		    extraopen
+		    outerp-open
+		    innerparenstr
+		    outerp-close
+		    extraclose
+		    (cond ((eq (nth mlf-end-comment-type lvl1) 'comment) "%")
+			  ((eq (nth mlf-end-comment-type lvl1) 'ellipsis) "...")
+			  (t ""))
+		    (if (matlab-line-end-comment-column lvl1)
+			(format " %d" (matlab-line-end-comment-column lvl1))
+		      "")
+		    ))
+      )
+    (let* ((lvl2 (matlab-compute-line-context-lvl-2 lvl1))
+	   ;;(comment
+	   )
+      
+      )
+
+    (message "%s" (concat MSG1 MSG2))
+    ))
 
 
 (provide 'matlab-scan)
