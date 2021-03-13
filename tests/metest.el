@@ -42,9 +42,9 @@
 
 (defun metest-all-syntax-tests ()
   "Run all the syntax tests in this file."
+  (setq debug-on-error t)
+  
   (metest-log-init)
-
-    (setq debug-on-error t)
 
   (metest-run 'metest-end-detect-test)
   (metest-run 'metest-comment-string-syntax-test)
@@ -65,7 +65,10 @@
     (message ">> Starting %s loop on %S" name files)
     (dolist (F files)
       (princ (format (concat "<< %s %-" (number-to-string strlen) "s ") name F) 'external-debugging-output)
-      (let ((out (metest-timeit test F)))
+      (let ((old debug-on-error)
+	    (out (progn (setq debug-on-error nil)
+			(metest-timeit test F))))
+	(setq debug-on-error old)
 	(when (listp out)
 	  (princ (format "passed: %s  %.2f s\n" (cdr out) (car out)) 'external-debugging-output)
 	  )
@@ -128,8 +131,8 @@
 	  (goto-char (match-end 1))
 	  (let ((md (match-data))
 		(mc (match-string 1))
-		(bc (matlab-block-comment-bounds))
-		(qd (matlab-cursor-comment-string-context)))
+		(bc (metest-condition-case-error-msg (matlab-block-comment-bounds)))
+		(qd (metest-condition-case-error-msg (matlab-cursor-comment-string-context))))
 	    ;; Test 1 - what are we?
 	    (unless (or (and (string= "b" mc) bc)
 			(and (string= "v" mc) (eq 'charvector qd))
@@ -174,7 +177,8 @@
 	    (let* ((num (string-to-number (match-string 1))))
 	      (save-restriction
 		(narrow-to-region (point-at-bol) (point))
-		(matlab-move-simple-sexp-internal (- num))
+		(metest-condition-case-error-msg
+		 (matlab-move-simple-sexp-internal (- num)))
 		(skip-chars-backward " \t;.=%")
 		(if (not (eq (point) (point-min)))
 		    (save-restriction
@@ -209,7 +213,7 @@
 		 (begin nil))
 	    (skip-chars-forward " \n\t;%")
 	    (setq begin (point))
-	    (matlab-forward-sexp)
+	    (metest-condition-case-error-msg (matlab-forward-sexp))
 	    (skip-chars-forward " \n\t;%")
 	    (if (not (looking-at "<<\\([0-9]+\\)"))
 		(metest-error "Failed to find matching test end token for %d"
@@ -315,7 +319,7 @@ Do error checking to provide easier debugging."
 (defun metest-error (&rest args)
   "Produce an err with standardized file/line prefix."
   (declare (indent 1))
-  (let ((pre (format "%s:%d: Error: "
+  (let ((pre (format "\n%s:%d: Error: "
 		     (file-name-nondirectory (buffer-file-name))
 		     (line-number-at-pos)))
 	(post (apply 'format args)))
