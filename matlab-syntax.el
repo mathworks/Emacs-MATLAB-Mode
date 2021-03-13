@@ -118,8 +118,9 @@
 
 (defun matlab--put-char-category (pos category)
   "At character POS, put text CATEGORY."
-  (put-text-property pos (1+ pos) 'category category)
-  (put-text-property pos (1+ pos) 'mcm t)
+  (when (not (eobp))
+    (put-text-property pos (1+ pos) 'category category)
+    (put-text-property pos (1+ pos) 'mcm t))
   )
 
 (defmacro matlab--syntax-symbol (symbol syntax doc)
