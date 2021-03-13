@@ -43,17 +43,34 @@
 (defun metest-all-syntax-tests ()
   "Run all the syntax tests in this file."
   (metest-log-init)
-  
-  (metest-timeit 'metest-end-detect-test)
-  (metest-timeit 'metest-comment-string-syntax-test)
-  (metest-timeit 'metest-sexp-counting-test)
-  (metest-timeit 'metest-sexp-traversal-test)
-  (metest-timeit 'metest-indents-test)
-  (metest-timeit 'metest-parse-test)
 
-  (setq debug-on-error t)
+    (setq debug-on-error t)
+
+  (metest-run 'metest-end-detect-test)
+  (metest-run 'metest-comment-string-syntax-test)
+  (metest-run 'metest-sexp-counting-test)
+  (metest-run 'metest-sexp-traversal-test)
+  (metest-run 'metest-indents-test)
+  (metest-run 'metest-parse-test)
+
   (metest-log-report (metest-log-write))
   )
+
+(defun metest-run (test)
+  "Run and time TEST."
+  (let* ((config (symbol-value test))
+	 (name (if (stringp config) config (car config)))
+	 (files (or (cdr-safe config) '("")))
+	 (strlen (apply 'max (mapcar 'length files))))
+    (message ">> Starting %s loop on %S" name files)
+    (dolist (F files)
+      (princ (format (concat "<< %s %-" (number-to-string strlen) "s ") name F) 'external-debugging-output)
+      (let ((out (metest-timeit test F)))
+	(when (listp out)
+	  (princ (format "passed: %s  %.2f s\n" (cdr out) (car out)) 'external-debugging-output)
+	  )
+	))
+    (message "")))
 
 (defmacro metest-condition-case-error-msg (&rest forms)
   "Run FORMS, capturing any errors and associating with (point)."
@@ -67,44 +84,46 @@
 (defvar met-end-detect-files '("empty.m" "stringtest.m" "mfuncnoend.m" "mfuncnoendblock.m" "mfuncends.m" "mclass.m" )
   "List of files for running end detection tests on.")
 
-(defun metest-end-detect-test ()
+(defvar metest-end-detect-test (cons "END detection" met-end-detect-files))
+(defun metest-end-detect-test (F)
   "Run a test to make sure we correctly detect the state of managing 'end'."
-  (dolist (F met-end-detect-files)
-    (let ((buf (metest-find-file F))
-	  (cnt 0))
-      (with-current-buffer buf
-	(goto-char (point-min))
-	(message ">> Checking END detection in %S" (current-buffer))
-	(if (re-search-forward "%%%\\s-*\\(\\w+\\)\\s-+\\(\\w+\\)$" nil t)
-	    (let ((st-expect (intern (match-string-no-properties 1)))
-		  (end-expect (intern (match-string-no-properties 2)))
-		  (st-actual (matlab-guess-script-type))
-		  (end-actual (matlab-do-functions-have-end-p)))
-	      (unless (eq st-actual st-expect)
-		(metest-error "Script type detection failure: Expected %s but found %s"
-			      st-expect st-actual))
-	      (unless (eq end-actual end-expect)
-		(metest-error "Script end detection failure: Expected %s but found %s"
-			      end-expect end-actual))
+  (let ((buf (metest-find-file F))
+	(ret nil)
+	(cnt 0))
+    (with-current-buffer buf
+      (goto-char (point-min))
+      ;;(message ">> Checking END detection in %S" (current-buffer))
+      (if (re-search-forward "%%%\\s-*\\(\\w+\\)\\s-+\\(\\w+\\)$" nil t)
+	  (let ((st-expect (intern (match-string-no-properties 1)))
+		(end-expect (intern (match-string-no-properties 2)))
+		(st-actual (matlab-guess-script-type))
+		(end-actual (matlab-do-functions-have-end-p)))
+	    (unless (eq st-actual st-expect)
+	      (metest-error "Script type detection failure: Expected %s but found %s"
+			    st-expect st-actual))
+	    (unless (eq end-actual end-expect)
+	      (metest-error "Script end detection failure: Expected %s but found %s"
+			    end-expect end-actual))
 	      
-	      (message "<< Script type and end detection passed: %s, %s" st-actual end-actual)
-	      )
-	  ;; No expected values found in the file.
-	  (metest-error "Test file did not include expected script-type cookie")
-	  ))))
-  (message ""))
+	    (setq ret (list st-actual end-actual))
+	    ;;(message "<< Script type and end detection passed: %s, %s" st-actual end-actual)
+	    )
+	;; No expected values found in the file.
+	(metest-error "Test file did not include expected script-type cookie")
+	))
+    ret))
 
 (defvar met-stringtest-files '("stringtest.m")
   "List of files for running string tests on.")
 
-(defun metest-comment-string-syntax-test ()
+(defvar metest-comment-string-syntax-test (cons "string/comment detection" met-stringtest-files))
+(defun metest-comment-string-syntax-test (F)
   "Run a test to make sure string nd comment highlighting work."
-  (dolist (F met-stringtest-files)
     (let ((buf (metest-find-file F))
 	  (cnt 0))
       (with-current-buffer buf
 	(goto-char (point-min))
-	(message ">> Starting string/comment detect loop in %S" (current-buffer))
+	;;(message ">> Starting string/comment detect loop in %S" (current-buffer))
 	(while (re-search-forward "#\\([csveb]\\)#" nil t)
 	  (goto-char (match-end 1))
 	  (let ((md (match-data))
@@ -134,21 +153,20 @@
 	    (setq cnt (1+ cnt))
 	    ))
 	(kill-buffer buf))
-      (message "<< Comment and string syntax test: %d points passed" cnt)
-      ))
-  (message ""))
+      
+      (list cnt "tests")))
   
 (defvar met-sexptest-files '("expressions.m" "mclass.m" "blocks.m")
   "List of files for running syntactic expression tests.")
 
-(defun metest-sexp-counting-test ()
+(defvar metest-sexp-counting-test (cons "sexp counting" met-sexptest-files))
+(defun metest-sexp-counting-test (F)
   "Run a test to make sure string and comment highlighting work."
-  (dolist (F met-sexptest-files)
     (let ((buf (metest-find-file F))
 	  (cnt 0))
       (with-current-buffer buf
 	(goto-char (point-min))
-	(message ">> Starting sexp counting loop in %S" (current-buffer))
+	;;(message ">> Starting sexp counting loop in %S" (current-buffer))
 	(while (re-search-forward "#\\([0-9]\\)#" nil t)
 	  (save-excursion
 	    (goto-char (match-beginning 0))
@@ -175,18 +193,16 @@
 	  (end-of-line)
 	  (setq cnt (1+ cnt))))
       (kill-buffer buf)
-      (message "<< Sexp counting syntax test: %d points passed" cnt)
-      ))
-  (message ""))
+      (list cnt "tests")))
 
-(defun metest-sexp-traversal-test ()
+(defvar metest-sexp-traversal-test (cons "sexp traversal" met-sexptest-files))
+(defun metest-sexp-traversal-test (F)
   "Run a test to make sure high level block navigation works."
-  (dolist (F met-sexptest-files)
     (let ((buf (metest-find-file F))
 	  (cnt 0))
       (with-current-buffer buf
 	(goto-char (point-min))
-	(message ">> Starting sexp traversal loop in %S" (current-buffer))
+	;;(message ">> Starting sexp traversal loop in %S" (current-buffer))
 	(while (re-search-forward ">>\\([0-9]+\\)" nil t)
 	  (let* ((num (string-to-number (match-string 1)))
 		 (num2 0)
@@ -210,23 +226,21 @@
 	  (end-of-line)
 	  (setq cnt (1+ cnt))))
       (kill-buffer buf)
-      (message "<< Sexp counting syntax test: %d points passed" cnt)
-      ))
-  (message ""))
+      (list cnt "test")))
 
 
 (defvar met-indents-files '("indents.m" "mclass.m" "blocks.m" "mfuncends.m")
   "List of files for running syntactic indentation tests.")
 
-(defun metest-indents-test ()
+(defvar metest-indents-test (cons "indenting" met-indents-files))
+(defun metest-indents-test (F)
   "Run a test to make sure high level block navigation works."
-  (dolist (F met-indents-files)
     (let ((buf (metest-find-file F))
 	  (cnt 0))
       (with-current-buffer buf
 	(goto-char (point-min))
 	;; (indent-region (point-min) (point-max))
-	(message ">> Starting indents loop in %S" (current-buffer))
+	;;(message ">> Starting indents loop in %S" (current-buffer))
 	(while (re-search-forward "!!\\([0-9]+\\)" nil t)
 	  (let* ((num (string-to-number (match-string 1)))
 		 (calc (metest-condition-case-error-msg
@@ -239,17 +253,14 @@
 	  (end-of-line)
 	  (setq cnt (1+ cnt))))
 	(kill-buffer buf)
-	(message "<< Indentation syntax test: %s points passed" cnt)
-	))
-  (message ""))
+	(list cnt "tests")))
 
 (defvar met-parser-files '("mpclass.m")
   "List of files for running semantic parsing tests.")
 
-(defun metest-parse-test ()
+(defvar metest-parse-test (cons "semantic parser" met-parser-files))
+(defun metest-parse-test (F)
   "Run the semantic parsing test to make sure the parse works."
-  
-  (dolist (F met-parser-files)
     (let ((buf (metest-find-file F))
 	  exp act
 	  (cnt 0))
@@ -261,7 +272,7 @@
 
 	;; Do the test
 	(goto-char (point-min))
-	(message ">> Starting semantic parser test in %S" (current-buffer))
+	;;(message ">> Starting semantic parser test in %S" (current-buffer))
 
 	(unless (re-search-forward "^%%\\s-*>>\\s-+SEMANTIC TEST" nil t)
 	  (metest-error "Semantic parser test: Failed to find test cookie."))
@@ -285,8 +296,7 @@
 		 exp act))
 	
 	)
-      
-      (message ">> Semantic parser test: %d tags matched" cnt))))
+      (list cnt "tests")))
 
 
 (defun metest-compare-tags (EXP ACT)
@@ -365,15 +375,18 @@ Do error checking to provide easier debugging."
 	    base (cdr base)))
     ))
 
-(defun metest-timeit (fcn)
+(defun metest-timeit (fcn &optional file)
   "Time running FCN and save result in LOGFILE.
 Use this to track perforamnce improvements during development automatically."
   (let* ((start (current-time))
-	 (out (funcall fcn))
-	 (end (current-time)))
-    (push (cons fcn (float-time (time-subtract end start)))
-	  metest-time-log)
-    ))
+	 (out (funcall fcn file))
+	 (end (current-time))
+	 (diff (float-time (time-subtract end start))))
+    (if (eq fcn (car-safe (car-safe metest-time-log)))
+	;; Same fcn, append our number
+	(setcdr (car metest-time-log) (+ diff (cdr (car metest-time-log))))
+      (push (cons fcn diff) metest-time-log))
+    (cons diff out)))
 
 (provide 'metest)
 
