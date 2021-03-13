@@ -40,6 +40,7 @@
 				      ("events" . mcos)
 				      ("enumeration" . mcos)
 				      ("if" . ctrl)
+				      ("elseif" . mid)
 				      ("else" . mid)
 				      ("ifelse" . mid)
 				      ("for" . ctrl)
@@ -74,10 +75,12 @@ LEVEL of 1 is the most primitive / simplest data.
 This function caches compuated context onto the line it is for, and will
 return the cache if it finds it."
   (cond ((= level 1)
-	 (let ((ctxt (matlab-scan-cache-get 1)))
+	 (let ((ctxt (save-excursion
+		       (back-to-indentation)
+		       (matlab-scan-cache-get))))
 	   (unless ctxt
 	     (setq ctxt (matlab-compute-line-context-lvl-1))
-	     (matlab-scan-cache-put ctxt 1))
+	     (matlab-scan-cache-put ctxt))
 	   ctxt))
 	(t
 	 nil))
@@ -85,7 +88,7 @@ return the cache if it finds it."
 
 (defconst mlf-ltype 0)
 (defconst mlf-stype 1)
-(defconst mlf-indent 2)
+(defconst mlf-point 2)
 (defconst mlf-entity-start 3)
 (defconst mlf-paren-depth 4)
 (defconst mlf-paren-inner-char 5)
@@ -108,7 +111,7 @@ in a single call using fastest methods."
 	   (pps (syntax-ppss (point)))
 	   (ltype 'empty)
 	   (stype nil)
-	   (cc (current-indentation))
+	   (pt (point))
 	   (start (point))
 	   (paren-depth (nth 0 pps))
 	   (paren-inner-char nil)
@@ -212,7 +215,7 @@ in a single call using fastest methods."
 		ec-type (if (= (char-after csc) ?\%) 'comment 'ellipsis))) ;; type
 	)
 
-      (list ltype stype cc start paren-depth
+      (list ltype stype pt start paren-depth
 	    paren-inner-char paren-inner-col paren-outer-char paren-outer-point paren-delta
 	    ec-type ec-col cont-from-prev)
       )))
@@ -275,6 +278,10 @@ All lines that start with a comment end with a comment."
     (nth mlf-entity-start lvl1)))
 
 ;; Code and Declarations
+(defsubst matlab-line-code-p (lvl1)
+  "Return t if the current line is boring old code."
+  (eq (car lvl1) 'code))
+
 (defsubst matlab-line-block-start-keyword-p (lvl1)
   "Return t if the current line starts with block keyword."
   (eq (car lvl1) 'block-start))
@@ -302,6 +309,10 @@ These are keywords like `else' or `catch'."
 (defsubst matlab-line-close-paren-p (lvl1)
   "Non nil If the current line starts with closing paren (any type.)"
   (eq (car lvl1) 'close-paren))
+
+(defsubst matlab-line-paren-depth (lvl1)
+  "The current depth of parens at the start of this line"
+  (nth mlf-paren-depth lvl1))
 
 (defsubst matlab-line-close-paren-inner-char (lvl1)
   "Return the paren character for the parenthetical expression LVL1 is in."
@@ -339,7 +350,7 @@ Optional PT, if non-nil, means return the point instead of column"
 	)))
 
 (defun matlab-scan-previous-line-ellipsis-p ()
-  "Return the point of the previous line's continuation if there is one.
+  "Return the column of the previous line's continuation if there is one.
 This is true iff the previous line has an ellipsis, but not if this line
 is in an array with an implied continuation."
   (save-excursion
@@ -350,8 +361,10 @@ is in an array with an implied continuation."
 	     (csc (nth 8 pps)))
 	;; If the comment active on eol does NOT start with %, then it must be
 	;; and ellipsis.
-	(and (/= (char-after csc) ?\%)
-	     csc)))))
+	(and csc
+	     (/= (char-after csc) ?\%)
+	     (goto-char csc)
+	     (current-column))))))
 
 (defun matlab-scan-beginning-of-command (&optional lvl1)
   "Return point in buffer at the beginning of this command.
@@ -391,16 +404,28 @@ backward over lines that include ellipsis."
   "Cache of recently computed line contexts.
 Used to speed up repeated queries on the same set of lines.")
 (make-variable-buffer-local 'matlab-scan-temporal-cache)
+(defvar matlab-scan-cache-max 10
+  "Largest size of the cache.
+Larger means less computation, but more time scanning.
+Since the list isn't sorted, not optimizations possible.")
 
-(defun matlab-scan-cache-get (level)
-  "Get a cached context at level."
-  ;; TODO
-  nil)
+(defun matlab-scan-cache-get ()
+  "Get a cached context."
+  (let ((pt (point))
+	(cache matlab-scan-temporal-cache))
+    (while (and cache (/= pt (nth mlf-point (car cache))))
+      (setq cache (cdr cache)))
+    ;; If we found a match, return it.
+    (when (and cache (= pt (nth mlf-point (car cache))))
+      (car cache))))
 
-(defun matlab-scan-cache-put (ctxt level)
-  "Get a cached context at level."
-  ;; TODO
-  nil)
+(defun matlab-scan-cache-put (ctxt)
+  "Put a context onto the cache.
+Make sure the cache doesn't exceed max size."
+  (push ctxt matlab-scan-temporal-cache)
+  (setcdr (or (nthcdr matlab-scan-cache-max matlab-scan-temporal-cache)
+	      (cons nil nil))
+	  nil))
 
 
 (defun matlab-scan-after-change-fcn (start end length)
@@ -411,13 +436,14 @@ Used to speed up repeated queries on the same set of lines.")
   "Setup use of the indent cache for the current buffer."
   (interactive)
   (add-hook 'after-change-functions 'matlab-scan-after-change-fcn t)
-  )
+  (setq matlab-scan-temporal-cache nil))
 
 (defun matlab-scan-disable ()
   "Setup use of the indent cache for the current buffer."
   (interactive)
   (remove-hook 'after-change-functions 'matlab-scan-after-change-fcn t)
-  )
+  (setq matlab-scan-temporal-cache nil))
+
 
 ;;; Debugging and Querying
 ;;
@@ -468,7 +494,7 @@ Used to speed up repeated queries on the same set of lines.")
     
     (message "%s%s >>%d %s%s%s%s%s %s %s" (nth mlf-ltype lvl1)
 	     (format " %s" (or (nth mlf-stype lvl1) ""))
-	     (nth mlf-indent lvl1)
+	     (nth mlf-point lvl1)
 	     ;; paren system
 	     extraopen
 	     outerp-open
