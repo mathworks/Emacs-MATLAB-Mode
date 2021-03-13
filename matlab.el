@@ -2096,24 +2096,26 @@ Travels across continuations."
       (matlab-scan-beginning-of-command)
     (beginning-of-line)
     (save-match-data
-      (let ((p nil)
-	    (bc (matlab-block-comment-bounds)))
+      (let* ((lvl1 (matlab-compute-line-context 1))
+	     (p nil)
+	     (bc (matlab-line-block-comment-start lvl1)) ;(matlab-block-comment-bounds)))
+	     )
 	;; block comment - just go to the beginning.
 	(if bc
-	    (goto-char (car bc))
-
+	    (goto-char bc)
+	  
 	  ;; ELSE : Scan across lines that are related.
 	  ;; Step one, skip all comments indented as continutions of a previous.
 	  ;; Using forward-comment is very fast, and just skipps all comments until
 	  ;; we hit a line of code.
 	  ;; NOTE: This may fail with poorly indented code.
-	  (when (or (matlab-ltype-help-comm)
+	  (when (or (matlab-scan-comment-help-p lvl1) ;(matlab-ltype-help-comm)
 		    (matlab-ltype-continued-comm))
 	    (forward-comment -100000))
 
 	  ;; Now walk backward across continued code lines.
-	  (while (and (or (setq p (matlab-lattr-array-cont)) ;; do this first b/c fast
-			  (matlab-prev-line-cont)
+	  (while (and (or (setq p (matlab-line-close-paren-outer-point (matlab-compute-line-context 1))) ;;(matlab-lattr-array-cont)) ;; do this first b/c fast
+			  (matlab-scan-previous-line-ellipsis-p) ;; (matlab-prev-line-cont)
 			  ;; We used to do this, now handled w/ forward-comment above.
 			  ;;(matlab-ltype-continued-comm)
 			  )
@@ -2151,39 +2153,25 @@ Travells a cross continuations"
 
 (defun matlab-ltype-empty ()		; blank line
   "Return t if current line is empty."
-  (save-excursion
-    (beginning-of-line)
-    (looking-at "^[ \t]*$")))
+  (matlab-line-empty-p (matlab-compute-line-context 1)))
 
 (defun matlab-ltype-comm-noblock ()
   "Return t if the current line is a MATLAB single-line comment.
 Returns nil for Cell start %% and block comments %{, %}.
 Used in `matlab-ltype-comm', but specialized for not cell start."
-  (save-excursion
-    (beginning-of-line)
-    (looking-at "[ \t]*%\\([^%{}]\\|$\\)")))
+  (matlab-line-regular-comment-p (matlab-compute-line-context 1)))
 
 (defun matlab-ltype-comm ()		; comment line
   "Return t if current line is a MATLAB comment line.
 Return the symbol 'cellstart if it is a double %%.
 Return the symbol 'blockcomm if we are in a block comment."
-  (save-excursion
-    (beginning-of-line)
-    (cond
-     ((or (matlab-ltype-block-comment-start)
-	  (matlab-block-comment-bounds))
-      'blockcomm)
-     ((matlab-ltype-comm-noblock)
-      t)
-     ((looking-at "[ \t]*%%")
-      'cellstart)
-     (t nil))))
+  ;; Looking through uses, no one uses the extra type of output
+  ;; this provides, so replace with very simple call.
+  (matlab-line-comment-p (matlab-compute-line-context 1)))
 
 (defun matlab-ltype-comm-ignore ()	; comment out a region line
   "Return t if current line is a MATLAB comment region line."
-  (save-excursion
-    (beginning-of-line)
-    (looking-at (concat "[ \t]*" matlab-comment-region-s))))
+  (matlab-line-comment-ignore-p (matlab-compute-line-context 1)))
 
 (defun matlab-ltype-help-comm ()
   "Return position of function decl if the point in a MATLAB help comment."
@@ -2212,19 +2200,14 @@ Return the symbol 'blockcomm if we are in a block comment."
   "Return column of previous line's comment start, or nil."
   (save-excursion
     (beginning-of-line)
-    (let ((commtype (matlab-ltype-comm-noblock)))
-      (if (or (null commtype)
+    (let* ((lvl (matlab-compute-line-context 1)))
+      (if (or (null (matlab-line-regular-comment-p lvl))
 	      (bobp))
 	  nil
 	;; We use forward-line and not matlab-prev-line because
 	;; we want blank lines to terminate this indentation method.
 	(forward-line -1)
-	(let ((col  (matlab-lattr-comm)))
-	  (if col
-	      (progn
-		(goto-char col)
-		(current-column))
-	    nil))))))
+	(matlab-line-end-comment-column (matlab-compute-line-context 1))))))
 
 (defun matlab-ltype-function-definition ()
   "Return t if the current line is a function definition."
@@ -2234,11 +2217,13 @@ Return the symbol 'blockcomm if we are in a block comment."
 
 (defun matlab-ltype-code ()		; line of code
   "Return t if current line is a MATLAB code line."
-  (and (not (matlab-ltype-empty)) (not (matlab-ltype-comm))))
+  (matlab-line-code-p (matlab-compute-line-context 1)))
+  ;(and (not (matlab-ltype-empty)) (not (matlab-ltype-comm))))
 
 (defun matlab-lattr-comm ()		; line has comment
   "Return t if current line contain a comment."
-  (save-excursion (matlab-comment-on-line)))
+  (matlab-line-comment-p (matlab-compute-line-context 1)))
+  ;(save-excursion (matlab-comment-on-line)))
 
 (defun matlab-lattr-implied-continuation ()
   "Return non-nil if this line has implied continuation on the next.
@@ -2291,12 +2276,13 @@ based on what it ends with."
 (defun matlab-lattr-array-cont ()
   "Return non-nil if current line is in an array.
 If the entirety of the array is on this line, return nil."
-  (condition-case nil
-      (save-excursion
-	(beginning-of-line)
-	(matlab-up-list -1)
-	(and (looking-at "[[{]") (point)))
-    (error nil)))
+  (matlab-line-close-paren-outer-point (matlab-compute-line-context 1)))
+;;  (condition-case nil
+;;      (save-excursion
+;;	(beginning-of-line)
+;;	(matlab-up-list -1)
+;;	(and (looking-at "[[{]") (point)))
+;;    (error nil)))
 
 (defun matlab-lattr-array-end ()
   "Return non-nil if the current line closes an array.
@@ -2660,7 +2646,7 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
       (list 'code ci))
      ;; Lines continued from previous statements.
      (t
-      (list (if (matlab-ltype-empty) 'empty
+      (list (if (matlab-line-empty-p lvl1) 'empty
 	      (if (matlab-lattr-array-cont) 'array-cont 'code))
 	    ;; Record beginning of the command
 	    (let ((boc (save-excursion
