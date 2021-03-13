@@ -1548,43 +1548,14 @@ restricted."
 (defun matlab-valid-end-construct-p ()
   "Return non-nil if the end after point terminates a block.
 Return nil if it is being used to dereference an array."
-  (let ((p (point))
-	(err1 t))
-    (if (eq (preceding-char) ?.)
-	;; This is a struct field, not valid.
-	nil
-      (condition-case nil
-	  (save-match-data
-	    (matlab-with-current-command
-	      ;; This used to add some sort of protection, but I don't know what
-	      ;; the condition was, or why the simple case doesn't handle it.
-	      ;;
-	      ;; The above replacement fixes a case where a continuation in an array
-	      ;; befuddles the identifier.
-	      ;;		      (progn ;;(matlab-end-of-command (point))
-	      ;;			(end-of-line)
-	      ;;			(if (> p (point))
-	      ;;			    (progn
-	      ;;			      (setq err1 nil)
-	      ;;			      (error)))
-	      ;;    		(point))))
-	      (save-excursion
-		;; beginning of param list
-		(matlab-up-list -1)
-		;; backup over the parens.  If that fails
-		(condition-case nil
-		    (progn
-		      (forward-sexp 1)
-		      ;; If we get here, the END is inside parens, which is not a
-		      ;; valid location for the END keyword.  As such it is being
-		      ;; used to dereference array parameters
-		      nil)
-		  ;; This error means that we have an unterminated paren
-		  ;; block, so this end is currently invalid.
-		  (error nil)))))
-	;; an error means the list navigation failed, which also means we are
-	;; at the top-level
-	(error err1)))))
+  (if (eq (preceding-char) ?.)
+      ;; This is a struct field, not valid.
+      nil
+    (let ((pps (syntax-ppss (point))))
+      ;; If we are in a set of parenthisis, then not valid b/c it is
+      ;; likely an array reference.  Valid == 0 paren depth.
+      (= (nth 0 pps) 0))))
+
 
 ;;; Regexps for MATLAB language ===============================================
 
