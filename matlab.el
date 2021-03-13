@@ -1488,11 +1488,21 @@ Return t on success, nil if we couldn't navigate backwards."
 
 (defun matlab-find-prev-line (&optional ignorecomments)
   "Recurse backwards until a code line is found."
-  (if (= -1 (forward-line -1)) nil
-    (if (or (matlab-ltype-empty)
-	    (matlab-ltype-comm-ignore)
-	    (and ignorecomments (matlab-ltype-comm)))
-	(matlab-find-prev-line ignorecomments) t)))
+  (if ignorecomments
+      ;; This version is now super easy, as this built-in
+      ;; skips comments and whitespace.  Nil on bobp.
+      (progn
+	(beginning-of-line)
+	(forward-comment -100000)
+	(not (bobp)))
+    ;; Else, scan backward at least 1 step.  nil if bob
+    (if (= -1 (forward-line -1)) nil
+      ;; Now scan backwards iteratively
+      (catch 'moose
+	(while (or (matlab-ltype-empty) (matlab-ltype-comm-ignore))
+	  (when (= -1 (forward-line -1))
+	    (throw 'moose nil)))
+	t))))
 
 (defun matlab-prev-line ()
   "Go to the previous line of code or comment.  Return nil if not found."
@@ -1504,12 +1514,15 @@ Return t on success, nil if we couldn't navigate backwards."
   "Walk forwards until we are on a line of code return t on success.
 If the currnet line is code, return immediately.
 Ignore comments and whitespace."
-  (if (or (matlab-ltype-empty)
-	  (matlab-ltype-comm))
-      (if (= 1 (forward-line 1))
-	  nil ;; end of buffer.
-	(matlab-find-code-line)) ;; try again.
-    t))
+  (forward-comment 100000)
+  (not (eobp)))
+;; Iterative version:
+;;  (catch 'moose
+;;    (while (or (matlab-ltype-empty)
+;;	       (matlab-ltype-comm))
+;;      (when (= 1 (forward-line 1))
+;;	(throw 'moose nil))) ;; end of buffer.
+;;    t))
 
 
 (defvar matlab-in-command-restriction nil
