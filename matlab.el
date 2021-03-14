@@ -2832,75 +2832,80 @@ Assume that the following line does not contribute its own indentation
   o end---negative indentation except when the 'end' matches a function and
     not indenting function bodies.
 See `matlab-calculate-indentation'."
-  (matlab-navigation-syntax
-    (let ((startpnt (point-at-eol))
-	  (lvl1 nil)
-	  ) 
-      (save-excursion
-	(progn ; matlab-with-context-line lvl1
-	  ;;(matlab-beginning-of-command)
-	  ;;(goto-char (point-min))
-	  ;;(matlab-scan-beginning-of-command lvl1)
-	  (matlab-beginning-of-command)
+  (let ((startpnt (point-at-eol))
+	(lvl1 nil)
+	) 
+    (save-excursion
+      (matlab-scan-beginning-of-command lvl1)
+      ;;(let ((plvl2 (matlab-previous-line-lvl2 lvl2)))
+      ;; (matlab-previous-command-begin plvl2))
+      ;;(matlab-beginning-of-command)
 	  
-	  (back-to-indentation)
-	  (setq lvl1 (matlab-compute-line-context 1))
- 	  (let ((cc (or (matlab-lattr-block-close startpnt) 0))
-		(end (matlab-line-end-p lvl1)) ;(matlab-lattr-local-end))
-		(bc (matlab-lattr-block-cont startpnt))
-		(mc (and (matlab-line-block-middle-p lvl1) 1)) ;(matlab-lattr-middle-block-cont))
-		(ec (and (matlab-line-block-case-p lvl1) 1)) ;(matlab-lattr-endless-block-cont))
-		;; TODO: The old impl of HC here - not sure what it did.  point was always on the fcn decl
-		;; so this would always be wrong. Leaving out to see what happens.
-		(hc nil) ;(and (matlab-last-guess-decl-p)
-			 ;(matlab-indent-function-body-p)
-			 ;;;(matlab-ltype-help-comm)
-			 ;(matlab-scan-comment-help-p lvl2)
-			 ;)) 
-		(rc (and (/= 0 matlab-comment-anti-indent)
-			 (matlab-line-regular-comment-p lvl1) ;(matlab-ltype-comm-noblock)
-			 ;;(not (matlab-ltype-help-comm))
-			 (not (matlab-ltype-continued-comm))
-			 ))
-		(ci (current-indentation)))
-	    ;; When the current point is on a line with a function, the value of bc will
-	    ;; reflect the function in a block count iff if matlab-functions-have-end is
-	    ;; true.  However, if matlab-indent-function-body-p is false, there should be
-	    ;; no actual indentation, so bc needs to be decremented by 1.  Similarly, if
-	    ;; on a line with an end that closes a function, bc needs to be decremented
-	    ;; by 1 if matlab-functions-have-end is true and matlab-indent-function-body-p
-	    ;; is false.  However, just to be safe, indentation is not allowed to go
-	    ;; negative.  Thus:
-	    (if matlab-functions-have-end
-		(if (and
-		     (not (matlab-indent-function-body-p))
-		     (or (matlab-line-declaration-p lvl1) ;(matlab-ltype-function-definition)
-			 (and (matlab-line-end-p lvl1) ;(matlab-lattr-local-end)
-			      (save-excursion
-				(matlab-backward-sexp t)
-				(looking-at "function\\b")))))
-		    (if (> bc 0)
-			(setq bc (1- bc))
-		      (if (>= ci matlab-indent-level)
-			  (setq bc -1))))
-	      ;; Else, funtions don't have ends in this file.
-	      (if (and (matlab-indent-function-body-p)
-		       (matlab-line-declaration-p lvl1)) ; (matlab-ltype-function-definition))
-		  (setq bc (1+ bc))))
-	    ;; Remove 1 from the close count if there is an END on the beginning
-	    ;; of this line, since in that case, the unindent has already happened.
-	    (when end (setq cc (1- cc)))
-	    ;; Calculate the suggested indentation.
-	    (+ ci
-	       (* matlab-indent-level bc)
-	       (* matlab-indent-level (or mc 0))
-	       (* matlab-indent-level (- cc))
-	       (* (if (listp matlab-case-level)
-		      (cdr matlab-case-level) matlab-case-level)
-		  (or ec 0))
-	       (if hc matlab-indent-level 0)
-	       (if rc (- 0 matlab-comment-anti-indent) 0)
-	       )))))))
+      (back-to-indentation)
+      (setq lvl1 (matlab-compute-line-context 1))
+      (let ((cc (or (matlab-lattr-block-close startpnt) 0))
+	    (bc (matlab-lattr-block-cont startpnt))
+	    (end (matlab-line-end-p lvl1)) ;(matlab-lattr-local-end))
+	    (mc (and (matlab-line-block-middle-p lvl1) 1)) ;(matlab-lattr-middle-block-cont))
+	    (ec (and (matlab-line-block-case-p lvl1) 1)) ;(matlab-lattr-endless-block-cont))
+	    ;; TODO: The old impl of HC here - not sure what it did.  point was always on the fcn decl
+	    ;; so this would always be wrong. Leaving out to see what happens.
+	    (hc nil)
+	    ;;(and (matlab-last-guess-decl-p)
+	    ;;(matlab-indent-function-body-p)
+	    ;; ;;(matlab-ltype-help-comm)
+	    ;;(matlab-scan-comment-help-p lvl2)
+	    ;;))
+
+	    ;; TODO: Ol impl of RC here - but not sure what this is doing either.  It doesn't
+	    ;; seem to ever be t in my tests.
+	    (rc nil)
+	    ;; (and (/= 0 matlab-comment-anti-indent)
+	    ;; (matlab-line-regular-comment-p lvl1) ;(matlab-ltype-comm-noblock)
+	    ;; ;;(not (matlab-ltype-help-comm))
+	    ;; (not (matlab-ltype-continued-comm))
+	    ;; (message "RC found a thing.")
+	    ;; ))
+
+	    (ci (current-indentation)))
+	;; When the current point is on a line with a function, the value of bc will
+	;; reflect the function in a block count iff if matlab-functions-have-end is
+	;; true.  However, if matlab-indent-function-body-p is false, there should be
+	;; no actual indentation, so bc needs to be decremented by 1.  Similarly, if
+	;; on a line with an end that closes a function, bc needs to be decremented
+	;; by 1 if matlab-functions-have-end is true and matlab-indent-function-body-p
+	;; is false.  However, just to be safe, indentation is not allowed to go
+	;; negative.  Thus:
+	(if matlab-functions-have-end
+	    (if (and
+		 (not (matlab-indent-function-body-p))
+		 (or (matlab-line-declaration-p lvl1) ;(matlab-ltype-function-definition)
+		     (and (matlab-line-end-p lvl1) ;(matlab-lattr-local-end)
+			  (save-excursion
+			    (matlab-backward-sexp t)
+			    (looking-at "function\\b")))))
+		(if (> bc 0)
+		    (setq bc (1- bc))
+		  (if (>= ci matlab-indent-level)
+		      (setq bc -1))))
+	  ;; Else, funtions don't have ends in this file.
+	  (if (and (matlab-indent-function-body-p)
+		   (matlab-line-declaration-p lvl1)) ; (matlab-ltype-function-definition))
+	      (setq bc (1+ bc))))
+	;; Remove 1 from the close count if there is an END on the beginning
+	;; of this line, since in that case, the unindent has already happened.
+	(when end (setq cc (1- cc)))
+	;; Calculate the suggested indentation.
+	(+ ci
+	   (* matlab-indent-level bc)
+	   (* matlab-indent-level (or mc 0))
+	   (* matlab-indent-level (- cc))
+	   (* (if (listp matlab-case-level)
+		  (cdr matlab-case-level) matlab-case-level)
+	      (or ec 0))
+	   (if hc matlab-indent-level 0)
+	   (if rc (- 0 matlab-comment-anti-indent) 0)
+	   )))))
 
 ;;; The return key ============================================================
 
@@ -4214,20 +4219,21 @@ desired.  Optional argument FAST is not used."
 (defun matlab-show-line-info ()
   "Display type and attributes of current line.  Used in debugging."
   (interactive)
-  (let* ((msg "line-info:")
-	 (lvl2 (matlab-compute-line-context 2))
-	 (indent (matlab-calculate-indentation (current-indentation) lvl2))
-	 (nexti (matlab-next-line-indentation (matlab-previous-line-lvl2 lvl2)
-					      (matlab-get-lvl1-from-lvl2 lvl2))))
-    (setq msg (concat msg
-		      " Line type: " (symbol-name (car indent))
-		      " This Line: " (int-to-string (nth 1 indent))
-		      " Next Line: " (int-to-string nexti)))
-    (if (matlab-lattr-cont)
-	(setq msg (concat msg " w/cont")))
-    (if (matlab-lattr-comm)
-	(setq msg (concat msg " w/comm")))
-    (message msg)))
+  (matlab-navigation-syntax
+    (let* ((msg "line-info:")
+	   (lvl2 (matlab-compute-line-context 2))
+	   (indent (matlab-calculate-indentation (current-indentation) lvl2))
+	   (nexti (matlab-next-line-indentation (matlab-previous-line-lvl2 lvl2)
+						(matlab-get-lvl1-from-lvl2 lvl2))))
+      (setq msg (concat msg
+			" Line type: " (symbol-name (car indent))
+			" This Line: " (int-to-string (nth 1 indent))
+			" Next Line: " (int-to-string nexti)))
+      (if (matlab-lattr-cont)
+	  (setq msg (concat msg " w/cont")))
+      (if (matlab-lattr-comm)
+	  (setq msg (concat msg " w/comm")))
+      (message msg))))
 
 
 (provide 'matlab)
