@@ -238,11 +238,13 @@ in a single call using fastest methods."
   "Save excursion, and move point to the line specified by CONTEXT.
 Takes a lvl1 or lvl2 context.
 Returns the value from the last part of forms."
-  (declare (indent 1))
+  (declare (indent 1) (debug (form &rest form)))
   `(save-excursion
      ;; The CAR of a LVL2 is a LVL1.  If __context is LVL1, then
      ;; the car-safe will return nil
-     (goto-char (nth mlf-point (or (car-safe (car ,__context)) ,__context)))
+     (goto-char (nth mlf-point (if (consp (car ,__context))
+				   (car ,__context)
+				 ,__context)))
      ,@forms))
 
 (defsubst matlab-line-point (lvl1)
@@ -370,13 +372,15 @@ If the line starts with a comment return nil, otherwise t."
 ;; Level 2 scanning information cascades from line-to-line, several fields will
 ;; be blank unless a previous line is also scanned.
 (defconst mlf-level1 0)
-(defconst mlf-previous-line 1)
-(defconst mlf-previous-nonempty 2)
-(defconst mlf-previous-code 3)
-(defconst mlf-previous-block 4)
-(defconst mlf-previous-fcn 5)
+(defconst mlf-previous-line1 1)
+(defconst mlf-previous-line2 2)
+(defconst mlf-previous-command-beginning 3)
+(defconst mlf-previous-nonempty 4)
+(defconst mlf-previous-code 5)
+(defconst mlf-previous-block 6)
+(defconst mlf-previous-fcn 7)
 
-(defun matlab-compute-line-context-lvl-2 (&optional lvl1 previous2 full)
+(defun matlab-compute-line-context-lvl-2 (&optional lvl1 previous2)
   "Compute the level 2 context for the current line of MATLAB code.
 Level 2 context are things that are derived from previous lines of code.
 
@@ -394,9 +398,6 @@ and use that.
 Empty stats are filled in as t.  nil means there is no context, or
 a lvl1 stat block for the line with that meaning.
 
-If the 3rd argument FULL is non-nil, it will take the time to search backward
-for all the information it can.
-
 The returned LVL2 structure will fill out to be a chain of all previous
 LVL2 outputs up to a context break.  The chains will be summarized in slots
 in the returned list for quick access."
@@ -408,6 +409,8 @@ in the returned list for quick access."
 
   (save-excursion
     (let ((prev-lvl1 t)
+	  (prev-lvl2 t)
+	  (prev-cmd-begin t)
 	  (prev-nonempty t)
 	  (prev-code1 t)
 	  (prev-block1 t)
@@ -419,6 +422,8 @@ in the returned list for quick access."
       (if previous2
 	  (progn
 	    (setq prev-lvl1 (car previous2)
+		  prev-lvl2 previous2
+		  prev-cmd-begin (nth mlf-previous-command-beginning previous2)
 		  prev-nonempty (nth mlf-previous-nonempty previous2)
 		  prev-code1 (nth mlf-previous-code previous2)
 		  prev-block1 (nth mlf-previous-block previous2)
@@ -426,7 +431,8 @@ in the returned list for quick access."
 		  )
 	    (matlab-scan-stat-inc 'prev2)
 	    )
-	;; Else - this is the one thing we'll compute.
+	;; Else - previous LVL1 is the one thing we'll compute since we need to
+	;; init our trackers.
 	(save-excursion
 	  (beginning-of-line)
 	  (if (bobp)
@@ -438,38 +444,63 @@ in the returned list for quick access."
 
       ;; prev line can be nil if at beginning of buffer.
       (if (not prev-lvl1)
-	  (setq prev-nonempty nil
+	  (setq prev-lvl2 nil
+		prev-cmd-begin nil
+		prev-nonempty nil
 		prev-code1 nil
 		prev-block1 nil
 		prev-fcn1 nil
 		)
 	
 	;; If we do have a previous lvl1, then we can compute from it.
-	;; Override parts of our data based on prev-lvl1 which might
+	;; Override parts of our data based on prev-lvl2 which might
 	;; be one of the things we care about.
-      (when (not (matlab-line-empty-p prev-lvl1))
-	;; Our prev line was non empty, so remember.
-	(setq prev-nonempty prev-lvl1)
+	(when (not (matlab-line-empty-p prev-lvl1))
+	  ;; Our prev line was non empty, so remember.
+	  (setq prev-nonempty prev-lvl1)
 	
-	(if (not (memq (car prev-lvl1) '(empty comment)))
-	    (progn
-	      ;; Our prev line wasn't a comment or empty, so remember.
-	      (setq prev-code1 prev-lvl1)
+	  (if (not (memq (car prev-lvl1) '(empty comment)))
+	      (progn
+		;; Our prev line wasn't a comment or empty, so remember.
+		(setq prev-code1 prev-lvl1)
 
-	      (when (eq (car prev-lvl1) 'block-start)
-		;; We have a block start, so remember
-		(setq prev-block1 prev-lvl1)
+		(when (and (= (matlab-line-paren-depth prev-lvl1) 0)
+			   (not (matlab-line-ellipsis-p prev-lvl1)))
+		  ;; Our previous line some code, but was not in an
+		  ;; array, nor an ellipse.  Thus, reset beginning of cmd
+		  ;; to this line we are on.
+		  (setq prev-cmd-begin lvl1)
+		  )
+		
+		(when (eq (car prev-lvl1) 'block-start)
+		  ;; We have a block start, so remember
+		  (setq prev-block1 prev-lvl1)
 
-		(when (eq (nth mlf-stype prev-lvl1) 'decl)
-		  (setq prev-fcn1 prev-lvl1))
-		))
+		  (when (eq (nth mlf-stype prev-lvl1) 'decl)
+		    (setq prev-fcn1 prev-lvl1))
+		  ))
 
-	  ;; Do something with comment here ??
-	)))
+	    ;; Do something with comment here ??
+	    )))
 
-      (list lvl1 prev-lvl1 prev-nonempty prev-code1 prev-block1 prev-fcn1
+      (list lvl1 prev-lvl1 prev-lvl2 prev-cmd-begin prev-nonempty prev-code1 prev-block1 prev-fcn1
 	  
 	    ))))
+
+;;; Refresh this lvl2
+;;
+(defun matlab-refresh-line-context-lvl2 (lvl2 &optional lvl1)
+  "Refresh the content of this lvl2 context.
+Assume ONLY the line this lvl2 context belongs to has changed
+and we don't have any caches in later lines."
+  (matlab-with-context-line lvl2
+    (when (not lvl1) (setq lvl1 (matlab-compute-line-context 1)))
+    ;; cmd begin can be same as self.  Check and replace
+    (when (eq (car lvl2) (nth mlf-previous-command-beginning lvl2))
+      (setcdr (nthcdr mlf-previous-command-beginning lvl2) lvl1))
+    ;; Replace self.
+    (setcar lvl2 lvl1)
+    ))
 
 ;;; Simple Accessors
 ;;
@@ -485,7 +516,20 @@ If LVL2 is nil, compute it."
 (defun matlab-previous-line (lvl2)
   "Return the previous line from lvl2 context."
   (matlab-scan-stat-inc 'prevline)
-  (nth mlf-previous-line lvl2))
+  (nth mlf-previous-line1 lvl2))
+
+(defun matlab-previous-line-lvl2 (lvl2)
+  "Return the previous line from lvl2 context."
+  (let ((prev (nth mlf-previous-line2 lvl2)))
+    (if (eq prev t)
+	(save-excursion
+	  (matlab-scan-stat-inc 'prevline2miss)
+	  (matlab-with-context-line (matlab-previous-line lvl2)
+	    (setq prev (matlab-compute-line-context 2)))
+	  (setcar (nthcdr mlf-previous-line1 lvl2) prev))
+      ;; Else, return
+      (matlab-scan-stat-inc 'prevline2)
+      prev)))
 
 (defun matlab-previous-nonempty-line (lvl2)
   "Return lvl1 ctxt for previous non-empty line."
@@ -514,11 +558,32 @@ If LVL2 is nil, compute it."
 	(save-excursion
 	  (matlab-scan-stat-inc 'codemiss)
 	  (beginning-of-line)
-	  (forward-comment -100000) ;; Skip over all whitespace and comments.
-	  (setq prev (matlab-compute-line-context 1))
-	  (setcar (nthcdr mlf-previous-code lvl2) prev))
+	  (when (not (bobp))
+	    (forward-comment -100000) ;; Skip over all whitespace and comments.
+	    (setq prev (matlab-compute-line-context 1))
+	    (setcar (nthcdr mlf-previous-code lvl2) prev)))
       ;; else record a cache hit
       (matlab-scan-stat-inc 'code)
+      )
+    prev))
+
+(defun matlab-previous-command-begin (lvl2)
+  "Return lvl1 ctxt for previous non-empty line."
+  (let ((prev (nth mlf-previous-command-beginning lvl2))
+	)    
+    (if (eq prev t)
+	;; Compute it and stash it.
+	(save-excursion
+	  (matlab-scan-stat-inc 'cmdbeginmiss)
+	  (beginning-of-line)
+	  (when (not (bobp))
+	    (forward-comment -100000) ;; Skip over all whitespace and comments.
+	    (matlab-scan-beginning-of-command)
+	     ;; TODO!! 
+	    (setq prev (matlab-compute-line-context 1))
+	    (setcar (nthcdr mlf-previous-command-beginning lvl2) prev)))
+      ;; else record a cache hit
+      (matlab-scan-stat-inc 'cmdbegin)
       )
     prev))
 

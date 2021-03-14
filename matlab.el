@@ -2481,7 +2481,10 @@ parsing state and re-uses that state along the way."
 Input LVL2 is a pre-scanned context from `matlab-compute-line-context' lvl2.
 Used internally by `matlab-indent-line', and `matlab-indent-region'."
   (let* ((i (matlab--calc-indent lvl2)))
-    (funcall matlab--change-indentation-override i)
+    (when (funcall matlab--change-indentation-override i)
+      ;; If the indent changed something, refresh this
+      ;; context obj.
+      (matlab-refresh-line-context-lvl2 lvl2))
     ))
 
 (defun matlab--change-indentation (new-indentation)
@@ -2497,13 +2500,13 @@ This function exists so the test harness can override it."
 	     nil)
 	    ((< diff 0) ;; Too short - Add stuff
 	     (indent-to i))
-	    ((< diff ci) ;; Too much, delete some.
+	    ((<= diff ci) ;; Too much, delete some.
 	     (delete-region (- (point) diff) (point)))
 	    (t ;; some sort of bug that wants to delete too much. Ignore.
 	     nil)
 	    ))
     (if (<= cc ci) (move-to-column (max 0 i)))
-    ))
+    (/= 0 diff)))
 
 (defun matlab--calc-indent (&optional lvl2)
   "Return the appropriate indentation for this line as an integer."
@@ -2511,19 +2514,26 @@ This function exists so the test harness can override it."
   (unless lvl2 (setq lvl2 (matlab-compute-line-context 2)))
   ;; The first step is to find the current indentation.
   ;; This is defined to be zero if all previous lines are empty.
-  (let* ((ci (if (matlab-line-in-array lvl2)
-		 ;; If we are inside an array continuation, then we shouldn't
-		 ;; need to do anything complicated here b/c we'll just ignore
-		 ;; the returned value in the next step.  Return current indentation
-		 ;; of the previous non-empty line.
-		 (matlab-line-indentation (matlab-previous-nonempty-line lvl2))
+  (let* ((ci (cond
+	      ((save-excursion (beginning-of-line) (bobp))
+	       ;; Beginning of buffer - do no work, just return 0.
+	       0)
+	      ((matlab-line-in-array lvl2)
+	       ;; If we are inside an array continuation, then we shouldn't
+	       ;; need to do anything complicated here b/c we'll just ignore
+	       ;; the returned value in the next step.  Return current indentation
+	       ;; of the previous non-empty line.
+	       (matlab-line-indentation (matlab-previous-nonempty-line lvl2)))
 
-	       ;; Else, the next line might recommend an indentation based
-	       ;; on it's own context.
-	       (save-excursion (if (not (matlab-prev-line))
-                                 0
-				 (matlab-next-line-indentation lvl2)))))
-
+	      (t
+	       ;; Else, the previous line might recommend an indentation based
+	       ;; on it's own context, like being a block open or continuation.
+	       (let ((prevcmd (or (matlab-previous-code-line lvl2)
+				  (matlab-previous-line lvl2))))
+		 (matlab-with-context-line prevcmd
+		   (matlab-next-line-indentation lvl2 prevcmd)))))
+	     )
+	 
 	 ;; Compute this line's indentation based on recommendation of previous
 	 ;; line.
          (sem (matlab-calculate-indentation ci lvl2)))
@@ -2814,7 +2824,7 @@ LVL2 is a level 2 scan context with info from previous lines."
 			 cc)))))))))
      )))
 
-(defun matlab-next-line-indentation (lvl2)
+(defun matlab-next-line-indentation (lvl2 prevlvl1)
   "Calculate the indentation for lines following this command line.
 Assume that the following line does not contribute its own indentation
 \(as it does in the case of nested functions in the following situations):
@@ -2823,13 +2833,16 @@ Assume that the following line does not contribute its own indentation
     not indenting function bodies.
 See `matlab-calculate-indentation'."
   (matlab-navigation-syntax
-    (let ((lvl1 (matlab-get-lvl1-from-lvl2 lvl2))
-	  (startpnt (point-at-eol))
+    (let ((startpnt (point-at-eol))
+	  (lvl1 nil)
 	  ) 
       (save-excursion
-	(matlab-with-current-command
+	(progn ; matlab-with-context-line lvl1
 	  ;;(matlab-beginning-of-command)
-	  (goto-char (point-min))
+	  ;;(goto-char (point-min))
+	  ;;(matlab-scan-beginning-of-command lvl1)
+	  (matlab-beginning-of-command)
+	  
 	  (back-to-indentation)
 	  (setq lvl1 (matlab-compute-line-context 1))
  	  (let ((cc (or (matlab-lattr-block-close startpnt) 0))
@@ -2837,9 +2850,13 @@ See `matlab-calculate-indentation'."
 		(bc (matlab-lattr-block-cont startpnt))
 		(mc (and (matlab-line-block-middle-p lvl1) 1)) ;(matlab-lattr-middle-block-cont))
 		(ec (and (matlab-line-block-case-p lvl1) 1)) ;(matlab-lattr-endless-block-cont))
-		(hc (and (matlab-last-guess-decl-p)
-			 (matlab-indent-function-body-p)
-			 (matlab-scan-comment-help-p lvl2))) ;(matlab-ltype-help-comm)))
+		;; TODO: The old impl of HC here - not sure what it did.  point was always on the fcn decl
+		;; so this would always be wrong. Leaving out to see what happens.
+		(hc nil) ;(and (matlab-last-guess-decl-p)
+			 ;(matlab-indent-function-body-p)
+			 ;;;(matlab-ltype-help-comm)
+			 ;(matlab-scan-comment-help-p lvl2)
+			 ;)) 
 		(rc (and (/= 0 matlab-comment-anti-indent)
 			 (matlab-line-regular-comment-p lvl1) ;(matlab-ltype-comm-noblock)
 			 ;;(not (matlab-ltype-help-comm))
@@ -4200,7 +4217,8 @@ desired.  Optional argument FAST is not used."
   (let* ((msg "line-info:")
 	 (lvl2 (matlab-compute-line-context 2))
 	 (indent (matlab-calculate-indentation (current-indentation) lvl2))
-	 (nexti (matlab-next-line-indentation lvl2)))
+	 (nexti (matlab-next-line-indentation (matlab-previous-line-lvl2 lvl2)
+					      (matlab-get-lvl1-from-lvl2 lvl2))))
     (setq msg (concat msg
 		      " Line type: " (symbol-name (car indent))
 		      " This Line: " (int-to-string (nth 1 indent))
