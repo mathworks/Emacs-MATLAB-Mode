@@ -13,14 +13,15 @@ function indents(a,b,stuff)
         stuff {mustBeMember(stuff, { 'this' 'that' 'other' })}  % !!8
     end % !!4
     
+
     locala = a; %#ok
     localb = b; %#ok
     localstuff = stuff; %#ok
     
-    ends_in_comments_and_strings(); % has end in name
+    ends_in_comments_and_strings(); % !!4 has end in name
     
     % !!4
-
+    
     block_starts_in_comments_and_strings();
     array_constant_decls();
     
@@ -28,11 +29,11 @@ function indents(a,b,stuff)
     
     continuations_and_block_comments();
     
-% $$$ !!0
+% $$$ !!0  
 % $$$ special ignore comments
-    
-    has_nested_fcn();
-    
+
+    has_nested_fcn(); % !!4
+
     % !!4  - after ignore comments
     
 end % Comment with end in it
@@ -52,7 +53,7 @@ function B = ends_in_comments_and_strings()
     symbol_with_end_in_it;
     
     B = A(1:end); %#ok
-
+    
     %% cell start comment !!4
     if foo %!!4
         C = "this is the end of the line";
@@ -64,14 +65,14 @@ function B = ends_in_comments_and_strings()
     % !!4
     
     E = [ D C];
-
+    
     if bar
         
         A = E;
         
     end; B = A(1:end);
     % !!4
-
+    
     E = B;
 
     if baz
@@ -80,16 +81,16 @@ function B = ends_in_comments_and_strings()
         
     end; B = [ 1 2 ...  % is this the end?
                3 4 ];   % !!15
-    
+
     % !!4
-    
+
     if foo
         
         A = E;
         
     end ... the other end
     % !! 4
-    
+
     code1(), ...
         code2(); %!!8
     
@@ -118,7 +119,7 @@ function B = ends_in_comments_and_strings()
     
     % !!4
     B = A;
-
+    
 end
 
 function out = array_constant_decls()
@@ -153,6 +154,12 @@ function out = array_constant_decls()
                                      'str'  %!!37
                                      'str'  %!!37
                                    });   %!!35
+    
+    thing.thing.long.long.longname('str', ... %!!4
+                                   'str', ... %!!35
+                                   'str', ... %!!35
+                                   'str' ...  %!!35
+                                  );   %!!34
     
     % Line starting with end inside parens
     disp(Csep(1:  ...  %!!4
@@ -254,6 +261,14 @@ function B = continuations_and_block_comments
     
     % !!4 -blank between this & continuation comment
     % !!4 - more comments
+
+    if condition1 || ...  % !!4
+            fcn_call(arg1, ... % !!12
+                     arg2)  % !!21
+        line_in_if();
+    end  % !!4
+    
+    
     
 end
 

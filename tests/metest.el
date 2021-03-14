@@ -51,6 +51,11 @@
   (metest-run 'metest-comment-string-syntax-test)
   (metest-run 'metest-sexp-counting-test)
   (metest-run 'metest-sexp-traversal-test)
+
+  ;; Randomize indentation first before indenting
+  ;; to force the indenter to make changes and give
+  ;; the cahce and performance a harder problem.
+  (metest-indents-randomize-files)
   (metest-run 'metest-indents-test)
   (metest-run 'metest-parse-test)
 
@@ -84,7 +89,7 @@
   (declare (indent 0) (debug t))
   `(condition-case err
        ,@forms
-     (error (cond ((metest-error (error (car (cdr err)))))
+     (error (cond (metest-test-error (error (car (cdr err))))
 		  (t (metest-error "Lisp: %s" (error-message-string err))))
 	    0)
      ))
@@ -238,8 +243,24 @@
       (list cnt "test")))
 
 
-(defvar met-indents-files '("indents.m" "mclass.m" "blocks.m" "mfuncends.m")
+(defvar met-indents-files '("indents.m" "mclass.m" "blocks.m" "mfuncends.m" "mfuncnoendblock.m")
   "List of files for running syntactic indentation tests.")
+
+(defun metest-indents-randomize-files ()
+  "Randomize the indentation in the inents test files."
+  (interactive)
+  (message "<< Flattening indentation ...")
+  (let ((matlab-scan-temporal-cache nil)) ;; disable cache for file load
+    (dolist (F met-indents-files)
+      (with-current-buffer (metest-find-file F)
+	(goto-char (point-min))
+	(while (not (eobp))
+	  (beginning-of-line)
+	  (matlab--change-indentation 3) ;;(random 12)
+	  (forward-line 1)
+	  )
+	;; And don't delete - leave it to find for the next test.
+	))))
 
 (defvar metest-indents-test (cons "indenting" met-indents-files))
 (defvar metest-indent-counts 0)
@@ -327,13 +348,29 @@ Do error checking to provide easier debugging."
       (error "Test file %s does not exist in %s" file met-testfile-path))
     (find-file-noselect F)))
 
+(defvar metest-error-context-lines 4)
 (defun metest-error (&rest args)
   "Produce an err with standardized file/line prefix."
   (declare (indent 1))
-  (let ((pre (format "\n%s:%d: Error: "
-		     (file-name-nondirectory (buffer-file-name))
-		     (line-number-at-pos)))
-	(post (apply 'format args)))
+  (let* ((lineno (line-number-at-pos))
+	 (fname (file-name-nondirectory (buffer-file-name)))
+	 (pre (format "\n%s:%d: Error: " fname lineno))
+	 (post (apply 'format args))
+	 (prelines (min lineno metest-error-context-lines)))
+    (message "\n--vv buffer snip: %s vv--" fname)
+    (save-excursion
+      (forward-line (- prelines))
+      (while (> prelines 0)
+	(message "|%s" (buffer-substring-no-properties (point-at-bol) (point-at-eol)))
+	(forward-line 1)
+	(setq prelines (1- prelines)))
+      (message ">%s" (buffer-substring-no-properties (point-at-bol) (point-at-eol)))
+      (forward-line 1)
+      (while (and (> metest-error-context-lines prelines) (not (eobp)))
+	(message "|%s" (buffer-substring-no-properties (point-at-bol) (point-at-eol)))
+	(forward-line 1)
+	(setq prelines (1+ prelines))))
+    (message "---^^ buffer snip ^^---")
     (setq metest-test-error t)
     (error (concat pre post))))
 

@@ -1,10 +1,10 @@
 function mfuncends( )  
-% Test function that has ends for each function.
-% 
-% Used with test harness to validate indentation and end detection.
-%
+% Test function that has ends for each function. !!0
+%  !!0
+% Used with test harness to validate indentation and end detection.  !!0
+%   !!0
 % %%%function function
- 
+    
     fcn_call(); %!!4
     
     if condition %!!4
@@ -14,7 +14,7 @@ function mfuncends( )
     end  %!!4
     
 end%!!0   - also no space after end
-    
+
 function a=fcn_call(inp) %!!0
     
     while inp > 0 %!!4
