@@ -55,7 +55,7 @@
   "List of keywords that are part of code blocks.")
 
 (defconst matlab-keyword-table
-  (let ((ans (obarray-make 23)))
+  (let ((ans (matlab-obarray-make 23)))
     (mapc (lambda (elt) (set (intern (car elt) ans) (cdr elt)))
 	  matlab-block-keyword-list)
     ans)
@@ -688,7 +688,7 @@ Make sure the cache doesn't exceed max size."
       (progn (setq matlab-scan-cache-stats nil)
 	     (message "Disable matlab scanner stats gathering."))
     (message "Emable matlab scanner stats gathering.")
-    (setq matlab-scan-cache-stats (obarray-make 13))))
+    (setq matlab-scan-cache-stats (matlab-obarray-make 13))))
 
 (defun matlab-scan-stat-inc (thing)
   "Increment the stat associated with thing."
@@ -703,7 +703,7 @@ Make sure the cache doesn't exceed max size."
   "Display stats for scanner hits."
   (interactive "P")
   (let ((res nil))
-    (obarray-map (lambda (sym)
+    (mapatoms (lambda (sym)
 		   (push (cons (symbol-name sym) (symbol-value sym)) res))
 		 matlab-scan-cache-stats)
     (setq res (sort res (lambda (a b) (string< (car a) (car b)))))
