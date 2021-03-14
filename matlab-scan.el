@@ -279,6 +279,8 @@ Returns the value from the last part of forms."
 All lines that start with a comment end with a comment."
   (when (eq (nth mlf-end-comment-type lvl1) 'comment)
     (save-excursion
+      ;; NOTE: if line is in a block comment, this end pt is
+      ;;       really the beginning of the block comment.
       (goto-char (nth mlf-end-comment-pt lvl1))
       (current-column))))
 
@@ -415,20 +417,24 @@ in the returned list for quick access."
 
       ;; copy data from previous2.
       (if previous2
-	  (setq prev-lvl1 (car previous2)
-		prev-nonempty (nth mlf-previous-nonempty previous2)
-		prev-code1 (nth mlf-previous-code previous2)
-		prev-block1 (nth mlf-previous-block previous2)
-		prev-fcn1 (nth mlf-previous-fcn previous2)
-		)
+	  (progn
+	    (setq prev-lvl1 (car previous2)
+		  prev-nonempty (nth mlf-previous-nonempty previous2)
+		  prev-code1 (nth mlf-previous-code previous2)
+		  prev-block1 (nth mlf-previous-block previous2)
+		  prev-fcn1 (nth mlf-previous-fcn previous2)
+		  )
+	    (matlab-scan-stat-inc 'prev2)
+	    )
 	;; Else - this is the one thing we'll compute.
 	(save-excursion
 	  (beginning-of-line)
 	  (if (bobp)
 	      (setq prev-lvl1 nil)
 	    (forward-char -1)
-	    (setq prev-lvl1 (matlab-compute-line-context 1)))
-	  ))
+	    (setq prev-lvl1 (matlab-compute-line-context 1))
+	    (matlab-scan-stat-inc 'prev2miss)
+	  )))
 
       ;; prev line can be nil if at beginning of buffer.
       (if (not prev-lvl1)
@@ -491,12 +497,49 @@ If LVL2 is nil, compute it."
 	  (matlab-scan-stat-inc 'nonemptymiss)
 	  (beginning-of-line)
 	  (skip-syntax-backward " >") ;; skip spaces, and newlines w/ comment end on it.
+	  ;; TODO - this stops on ignore comments.
 	  (setq prev (matlab-compute-line-context 1))
 	  (setcar (nthcdr mlf-previous-nonempty lvl2) prev))
       ;; else record a cache hit
       (matlab-scan-stat-inc 'nonempty)
       )
     prev))
+
+(defun matlab-previous-code-line (lvl2)
+  "Return lvl1 ctxt for previous non-empty line."
+  (let ((prev (nth mlf-previous-code lvl2))
+	)    
+    (if (eq prev t)
+	;; Compute it and stash it.
+	(save-excursion
+	  (matlab-scan-stat-inc 'codemiss)
+	  (beginning-of-line)
+	  (forward-comment -100000) ;; Skip over all whitespace and comments.
+	  (setq prev (matlab-compute-line-context 1))
+	  (setcar (nthcdr mlf-previous-code lvl2) prev))
+      ;; else record a cache hit
+      (matlab-scan-stat-inc 'code)
+      )
+    prev))
+
+;;(defun matlab-previous-fcn-line (lvl2)
+;;  "Return lvl1 ctxt for previous non-empty line."
+;;  (let ((prev (nth mlf-previous-fcn lvl2))
+;;	)    
+;;    (if (eq prev t)
+;;	;; Compute it and stash it.
+;;	(save-excursion
+;;	  (matlab-scan-stat-inc 'fcnmiss)
+;;	  (beginning-of-line)
+;;	  ;; TODO
+;;	  (setq prev (matlab-compute-line-context 1))
+;;	  (setcar (nthcdr mlf-previous-fcn lvl2) prev))
+;;      ;; else record a cache hit
+;;      (matlab-scan-stat-inc 'fcn)
+;;      )
+;;    prev))
+
+
 
 ;;; MATLAB focused queries (more specific names than for first set)
 ;;
@@ -508,19 +551,31 @@ If LVL2 is nil, compute it."
 ;;
 ;; Some utilities require some level of buffer scanning to get the answer.
 ;; Keep those separate so they can depend on the earlier decls.
-(defun matlab-scan-comment-help-p (lvl1 &optional pt)
+(defun matlab-scan-comment-help-p (ctxt &optional pt)
   "Return declaration column if the current line is part of a help comment.
+Use the context CTXT as a lvl1 or lvl2 context to compute.
 Declarations are things like functions and classdefs.
 Indentation a help comment depends on the column of the declaration.
 Optional PT, if non-nil, means return the point instead of column"
-  (and (matlab-line-comment-p lvl1)
-       (save-excursion
-	(beginning-of-line)
-	(forward-comment -100000)
-	(let ((c-lvl1 (matlab-compute-line-context 1)))
-	  (when (matlab-line-declaration-p c-lvl1)
-	    (if pt (point) (current-indentation))))
-	)))
+  (let ((lvl2 nil) (lvl1 nil))
+    (if (symbolp (car ctxt))
+	(setq lvl1 ctxt)
+      (setq lvl1 (matlab-get-lvl1-from-lvl2 ctxt)
+	    lvl2 ctxt))
+    
+    (when (matlab-line-comment-p lvl1)
+      ;; Try to get from lvl2 context
+      (let ((c-lvl1 (when lvl2 (matlab-previous-code-line lvl2))))
+	(unless c-lvl1
+	  ;; If not, compute it ourselves.
+	  (save-excursion
+	    (beginning-of-line)
+	    (forward-comment -100000)
+	    (setq c-lvl1 (matlab-compute-line-context 1))))
+	;; On previous code line - was it a declaration?
+	(when (matlab-line-declaration-p c-lvl1)
+	  (matlab-with-context-line c-lvl1
+	    (if pt (point) (current-indentation))))))))
 
 (defun matlab-scan-previous-line-ellipsis-p ()
   "Return the column of the previous line's continuation if there is one.
