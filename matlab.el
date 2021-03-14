@@ -2497,8 +2497,11 @@ This function exists so the test harness can override it."
 	     nil)
 	    ((< diff 0) ;; Too short - Add stuff
 	     (indent-to i))
-	    (t ;; Too much, delete some.
-	     (delete-region (- (point) diff) (point)))))
+	    ((< diff ci) ;; Too much, delete some.
+	     (delete-region (- (point) diff) (point)))
+	    (t ;; some sort of bug that wants to delete too much. Ignore.
+	     nil)
+	    ))
     (if (<= cc ci) (move-to-column (max 0 i)))
     ))
 
