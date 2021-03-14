@@ -1344,6 +1344,8 @@ All Key Bindings:
   (setq indent-tabs-mode nil)
   (make-local-variable 'indent-line-function)
   (setq indent-line-function 'matlab-indent-line)
+  (make-local-variable 'indent-region-function)
+  (setq indent-region-function 'matlab-indent-region)
   (make-local-variable 'comment-column)
   (setq comment-column matlab-comment-column)
   (make-local-variable 'comment-indent-function)
@@ -2266,10 +2268,10 @@ based on what it ends with."
   (save-excursion (and (if (= -1 (forward-line -1)) nil t)
 		       (matlab-lattr-cont))))
 
-(defun matlab-lattr-array-cont ()
+(defun matlab-lattr-array-cont (&optional lvl2)
   "Return non-nil if current line is in an array.
 If the entirety of the array is on this line, return nil."
-  (matlab-line-close-paren-outer-point (matlab-compute-line-context 1)))
+  (matlab-line-close-paren-outer-point (matlab-get-lvl1-from-lvl2 lvl2)))
 ;;  (condition-case nil
 ;;      (save-excursion
 ;;	(beginning-of-line)
@@ -2437,40 +2439,80 @@ If there isn't one, then return nil, point otherwise."
 
 ;;; Indent functions ==========================================================
 
+(defun matlab-indent-region (start end)
+  "Indent the region between START And END for MATLAB mode.
+Unlike `indent-region-line-by-line', this function captures
+parsing state and re-uses that state along the way."
+  (interactive)
+  (matlab-navigation-syntax
+    (save-excursion
+      (setq end (copy-marker end))
+      (goto-char start)
+      (let ((pr (unless (minibufferp)
+                  (make-progress-reporter "MATLAB Indenting region..." (point) end)))
+	    (lvl2 nil)
+	    (lvl1 nil)
+	    )
+	(while (< (point) end)
+          (unless (and (bolp) (eolp))
+	    ;; This is where we indent each line
+	    (setq lvl1 (matlab-compute-line-context 1)
+		  lvl2 (matlab-compute-line-context 2 lvl1 lvl2))
+	    (matlab--indent-line lvl2)
+	    )
+          (forward-line 1)
+          (and pr (progress-reporter-update pr (point))))
+	(and pr (progress-reporter-done pr))
+	(move-marker end nil)))))
+
+
 (defun matlab-indent-line ()
   "Indent a line in `matlab-mode'."
   (interactive)
-  (let ((i (matlab-calc-indent))
-	(ci (current-indentation))
-	(cc (current-column)))
+  (matlab-navigation-syntax
+    (let ((lvl2 (matlab-compute-line-context 2)))
+      (matlab--indent-line lvl2))))
+
+(defun matlab--indent-line (lvl2)
+  "Indent the current line according to MATLAB mode.
+Input LVL2 is a pre-scanned context from `matlab-compute-line-context' lvl2.
+Used internally by `matlab-indent-line', and `matlab-indent-region'."
+  (let* ((i (matlab--calc-indent lvl2))
+	 (ci (current-indentation))
+	 (diff (- ci i))
+	 (cc (current-column)))
     (save-excursion
       (back-to-indentation)
-      (if (= i (current-column))
-	  nil
-	(beginning-of-line)
-	(delete-horizontal-space)
-	(indent-to i)))
-    (if (<= cc ci) (move-to-column (max 0 i)))
-    ))
+      (cond ((= diff 0) ;; Already a match - do nothing.
+	     nil)
+	    ((< diff 0) ;; Too short - Add stuff
+	     (indent-to i))
+	    (t          ;; Too much, delete some.
+	     (delete-region (- (point) diff) (point)))))
+    (if (<= cc ci) (move-to-column (max 0 i))) ))
 
-(defun matlab-calc-indent ()
+(defun matlab--calc-indent (&optional lvl2)
   "Return the appropriate indentation for this line as an integer."
-  (interactive)
+  ;; In case it wasn't provided.
+  (unless lvl2 (setq lvl2 (matlab-compute-line-context 2)))
   ;; The first step is to find the current indentation.
   ;; This is defined to be zero if all previous lines are empty.
-  (let* ((ci (if (matlab-lattr-array-cont)
+  (let* ((ci (if (matlab-line-in-array lvl2)
 		 ;; If we are inside an array continuation, then we shouldn't
 		 ;; need to do anything complicated here b/c we'll just ignore
-		 ;; the returned value in the next step.  Return current indentation.
-		 (save-excursion
-		   (matlab-prev-line)
-		   (current-indentation))
+		 ;; the returned value in the next step.  Return current indentation
+		 ;; of the previous non-empty line.
+		 (matlab-line-indentation (matlab-previous-nonempty-line lvl2))
+
 	       ;; Else, the next line might recommend an indentation based
 	       ;; on it's own context.
 	       (save-excursion (if (not (matlab-prev-line))
                                  0
-                               (matlab-next-line-indentation)))))
-         (sem (matlab-calculate-indentation ci)))
+				 (matlab-next-line-indentation lvl2)))))
+
+	 ;; Compute this line's indentation based on recommendation of previous
+	 ;; line.
+         (sem (matlab-calculate-indentation ci lvl2)))
     ;; simplistic
     (nth 1 sem)))
 
@@ -2478,7 +2520,7 @@ If there isn't one, then return nil, point otherwise."
   "This end closes a function definition.\nDo you want functions to have ends? "
   "Prompt the user about whether to change `matlab-functions-have-end'.")
 
-(defun matlab-calculate-indentation (current-indentation)
+(defun matlab-calculate-indentation (current-indentation &optional lvl2)
   "Calculate out the indentation of the current line.
 Return a list of descriptions for this line.  Return format is:
  '(TYPE DEPTHNUMBER)
@@ -2488,7 +2530,10 @@ this line.
   Argument CURRENT-INDENTATION is what the previous line thinks
 this line's indentation should be.  See `matlab-next-line-indentation'."
   (matlab-navigation-syntax
-    (matlab-calculate-indentation-1 current-indentation)))
+    ;; TODO - make this compute obsolete.
+    (unless lvl2 (setq lvl2 (matlab-compute-line-context 2)))
+    ;; Do the compute
+    (matlab-calculate-indentation-1 current-indentation lvl2)))
 
 (defun matlab--maybe-yes-or-no-p (prompt noninteractive-default)
   "When in non-interactive mode run (yes-or-no-p prompt),
@@ -2498,11 +2543,12 @@ otherwise return NONINTERACTIVE-DEFAULT"
     (yes-or-no-p prompt)))
 
 
-(defun matlab-calculate-indentation-1 (current-indentation)
+(defun matlab-calculate-indentation-1 (current-indentation lvl2)
   "Do the indentation work of `matlab-calculate-indentation'.
-Argument CURRENT-INDENTATION is what the previous line recommends for indentation."
+Argument CURRENT-INDENTATION is what the previous line recommends for indentation.
+LVL2 is a level 2 scan context with info from previous lines."
   (let ((ci current-indentation)
-	(lvl1 (matlab-compute-line-context 1))
+	(lvl1 (matlab-get-lvl1-from-lvl2 lvl2))
 	(blockcomm nil)
 	(tmp nil))
     (cond
@@ -2755,7 +2801,7 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
 			 cc)))))))))
      )))
 
-(defun matlab-next-line-indentation ()
+(defun matlab-next-line-indentation (lvl2)
   "Calculate the indentation for lines following this command line.
 Assume that the following line does not contribute its own indentation
 \(as it does in the case of nested functions in the following situations):
@@ -2764,8 +2810,8 @@ Assume that the following line does not contribute its own indentation
     not indenting function bodies.
 See `matlab-calculate-indentation'."
   (matlab-navigation-syntax
-    (let ((startpnt (point-at-eol))
-	  (lvl1 nil)
+    (let ((lvl1 (matlab-get-lvl1-from-lvl2 lvl2))
+	  (startpnt (point-at-eol))
 	  ) 
       (save-excursion
 	(matlab-with-current-command
@@ -3043,7 +3089,7 @@ Optional argument SOFT indicates that the newline is soft, and not hard."
 
 (defun matlab-comment-indent ()
   "Indent a comment line in `matlab-mode'."
-  (matlab-calc-indent))
+  (matlab--calc-indent))
 
 (defun matlab-comment-region (beg-region end-region arg)
   "Comments every line in the region.
@@ -4138,9 +4184,10 @@ desired.  Optional argument FAST is not used."
 (defun matlab-show-line-info ()
   "Display type and attributes of current line.  Used in debugging."
   (interactive)
-  (let ((msg "line-info:")
-	(indent (matlab-calculate-indentation (current-indentation)))
-	(nexti (matlab-next-line-indentation)))
+  (let* ((msg "line-info:")
+	 (lvl2 (matlab-compute-line-context 2))
+	 (indent (matlab-calculate-indentation (current-indentation) lvl2))
+	 (nexti (matlab-next-line-indentation lvl2)))
     (setq msg (concat msg
 		      " Line type: " (symbol-name (car indent))
 		      " This Line: " (int-to-string (nth 1 indent))

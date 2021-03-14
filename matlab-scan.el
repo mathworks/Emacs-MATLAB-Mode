@@ -245,6 +245,14 @@ Returns the value from the last part of forms."
      (goto-char (nth mlf-point (or (car-safe (car ,__context)) ,__context)))
      ,@forms))
 
+(defsubst matlab-line-point (lvl1)
+  "Return the point at beginning of indentation for line specified by lvl1."
+  (nth mlf-point lvl1))
+
+(defsubst matlab-line-indentation (lvl1)
+  "Return the indentation of the line specified by LVL1."
+  (nth mlf-indent lvl1))
+
 (defsubst matlab-line-empty-p (lvl1)
   "Return t if the current line is empty based on LVL1 cache."
   (eq (car lvl1) 'empty))
@@ -360,10 +368,11 @@ If the line starts with a comment return nil, otherwise t."
 ;; Level 2 scanning information cascades from line-to-line, several fields will
 ;; be blank unless a previous line is also scanned.
 (defconst mlf-level1 0)
-(defconst mlf-previous-level1 1)
-(defconst mlf-comment 2)
-(defconst mlf-comment-col 3)
-(defconst mlf-comment-begin 4)
+(defconst mlf-previous-line 1)
+(defconst mlf-previous-nonempty 2)
+(defconst mlf-previous-code 3)
+(defconst mlf-previous-block 4)
+(defconst mlf-previous-fcn 5)
 
 (defun matlab-compute-line-context-lvl-2 (&optional lvl1 previous2 full)
   "Compute the level 2 context for the current line of MATLAB code.
@@ -380,6 +389,9 @@ will be computed by accessors on an as needed basis.  If PREVIOUS
 2 is not provided, it will go back 1 line, scan it for lvl1 data
 and use that.
 
+Empty stats are filled in as t.  nil means there is no context, or
+a lvl1 stat block for the line with that meaning.
+
 If the 3rd argument FULL is non-nil, it will take the time to search backward
 for all the information it can.
 
@@ -393,45 +405,104 @@ in the returned list for quick access."
   ;; change in # blocks on this line.
 
   (save-excursion
-    (let ((prev-lvl1 (if previous2 (car previous2)
-		       ;; Not provided, go back 1 and get lvl1 data.
-		       (save-excursion)
-		       (beginning-of-line)
-		       (when (not (bobp))
-			 (forward-char -1)
-			 (matlab-compute-line-context 1))))
-	  (comment nil)
-	  (comment-col 0)
-	  (comment-begin nil)
+    (let ((prev-lvl1 t)
+	  (prev-nonempty t)
+	  (prev-code1 t)
+	  (prev-block1 t)
+	  (prev-fcn1 t)
 	  (tmp nil)
 	  )
 
-      ;; COMMENT DATA
-      (cond
-       ;; If we are in a block comment, no other needs.
-       ((setq tmp (matlab-line-block-comment-start lvl1))
-	(setq comment 'comment-block
-	      comment-col (save-excursion (goto-char tmp)
-					  (current-column))))
-       ;; If prev line has a comment, fill in.
-       ((setq tmp (matlab-line-end-comment-column prev-lvl1))
-	(setq comment 'comment
-	      comment-col tmp)
-	(when (matlab-line-comment-p prev-lvl1)
-	  (if (and previous2 )
-	      (setq comment-begin (nth mlf-comment-begin previous2))
-	    ;; If not provided, compute.
-	    (matlab-with-context-line prev-lvl1
-	      (forward-comment -100000)
-	      (matlab-compute-line-context 1)))))
-       )
+      ;; copy data from previous2.
+      (if previous2
+	  (setq prev-lvl1 (car previous2)
+		prev-nonempty (nth mlf-previous-nonempty previous2)
+		prev-code1 (nth mlf-previous-code previous2)
+		prev-block1 (nth mlf-previous-block previous2)
+		prev-fcn1 (nth mlf-previous-fcn previous2)
+		)
+	;; Else - this is the one thing we'll compute.
+	(save-excursion
+	  (beginning-of-line)
+	  (if (bobp)
+	      (setq prev-lvl1 nil)
+	    (forward-char -1)
+	    (setq prev-lvl1 (matlab-compute-line-context 1)))
+	  ))
 
-    
+      ;; prev line can be nil if at beginning of buffer.
+      (if (not prev-lvl1)
+	  (setq prev-nonempty nil
+		prev-code1 nil
+		prev-block1 nil
+		prev-fcn1 nil
+		)
+	
+	;; If we do have a previous lvl1, then we can compute from it.
+	;; Override parts of our data based on prev-lvl1 which might
+	;; be one of the things we care about.
+      (when (not (matlab-line-empty-p prev-lvl1))
+	;; Our prev line was non empty, so remember.
+	(setq prev-nonempty prev-lvl1)
+	
+	(if (not (memq (car prev-lvl1) '(empty comment)))
+	    (progn
+	      ;; Our prev line wasn't a comment or empty, so remember.
+	      (setq prev-code1 prev-lvl1)
 
+	      (when (eq (car prev-lvl1) 'block-start)
+		;; We have a block start, so remember
+		(setq prev-block1 prev-lvl1)
 
-      (list lvl1 prev-lvl1 comment comment-col comment-begin
+		(when (eq (nth mlf-stype prev-lvl1) 'decl)
+		  (setq prev-fcn1 prev-lvl1))
+		))
+
+	  ;; Do something with comment here ??
+	)))
+
+      (list lvl1 prev-lvl1 prev-nonempty prev-code1 prev-block1 prev-fcn1
 	  
 	    ))))
+
+;;; Simple Accessors
+;;
+(defun matlab-get-lvl1-from-lvl2 (lvl2)
+  "Return a LVL1 context.
+If input LVL2 is a level 2 context, return the lvl1 from it.
+If the input is a lvl1, then return that.
+If LVL2 is nil, compute it."
+  (if lvl2
+      (if (consp (car lvl2)) (car lvl2) lvl2)
+    (matlab-compute-line-context 1)))
+
+(defun matlab-previous-line (lvl2)
+  "Return the previous line from lvl2 context."
+  (matlab-scan-stat-inc 'prevline)
+  (nth mlf-previous-line lvl2))
+
+(defun matlab-previous-nonempty-line (lvl2)
+  "Return lvl1 ctxt for previous non-empty line."
+  (let ((prev (nth mlf-previous-nonempty lvl2))
+	)    
+    (if (eq prev t)
+	;; Compute it and stash it.
+	(save-excursion
+	  (matlab-scan-stat-inc 'nonemptymiss)
+	  (beginning-of-line)
+	  (skip-syntax-backward " >") ;; skip spaces, and newlines w/ comment end on it.
+	  (setq prev (matlab-compute-line-context 1))
+	  (setcar (nthcdr mlf-previous-nonempty lvl2) prev))
+      ;; else record a cache hit
+      (matlab-scan-stat-inc 'nonempty)
+      )
+    prev))
+
+;;; MATLAB focused queries (more specific names than for first set)
+;;
+(defun matlab-line-in-array (lvl2)
+  "Return the location of an opening paren if in array parens."
+  (matlab-line-close-paren-outer-point (matlab-get-lvl1-from-lvl2 lvl2)))
 
 ;;; Scanning Accessor utilities
 ;;
@@ -518,8 +589,12 @@ Since the list isn't sorted, not optimizations possible.")
     (while (and cache (/= pt (nth mlf-point (car cache))))
       (setq cache (cdr cache)))
     ;; If we found a match, return it.
-    (when (and cache (= pt (nth mlf-point (car cache))))
-      (car cache))))
+    (if (and cache (= pt (nth mlf-point (car cache))))
+	(progn
+	  (matlab-scan-stat-inc 'lvl1)
+	  (car cache))
+      (matlab-scan-stat-inc 'lvl1-miss)
+      nil)))
 
 (defun matlab-scan-cache-put (ctxt)
   "Put a context onto the cache.
@@ -549,6 +624,56 @@ Make sure the cache doesn't exceed max size."
 
 ;;; Debugging and Querying
 ;;
+(defvar matlab-scan-cache-stats nil
+  "Cache stats for tracking effectiveness of the cache.")
+(defun matlab-scan-stat-reset (&optional arg)
+  "Reset the stats cache."
+  (interactive "P")
+  (if arg
+      (progn (setq matlab-scan-cache-stats nil)
+	     (message "Disable matlab scanner stats gathering."))
+    (message "Emable matlab scanner stats gathering.")
+    (setq matlab-scan-cache-stats (obarray-make 13))))
+
+(defun matlab-scan-stat-inc (thing)
+  "Increment the stat associated with thing."
+  (when matlab-scan-cache-stats
+    (let ((sym (intern-soft (symbol-name thing) matlab-scan-cache-stats)))
+      (when (not sym)
+	(set (setq sym (intern (symbol-name thing) matlab-scan-cache-stats)) 0))
+      (set sym (1+ (symbol-value sym))))
+    (matlab-scan-stats-print 'summary)))
+
+(defun matlab-scan-stats-print (&optional summary)
+  "Display stats for scanner hits."
+  (interactive "P")
+  (let ((res nil))
+    (obarray-map (lambda (sym)
+		   (push (cons (symbol-name sym) (symbol-value sym)) res))
+		 matlab-scan-cache-stats)
+    (setq res (sort res (lambda (a b) (string< (car a) (car b)))))
+    (if summary
+	(when (not noninteractive)
+	  ;; show a short form.
+	  (message (mapconcat (lambda (pair)
+				(concat (car pair) ":" (format "%d" (cdr pair))))
+			      res " ")))
+      ;; Else, show a long form.
+      (let ((printfcn (lambda (pair)
+			(princ (concat (format "%-8s" (concat (car pair) ":")) "\t"
+				       (format "%d" (cdr pair)) "\n")))))
+	(if noninteractive
+	    (progn
+	      ;; Print to stdout when in batch mode.
+	      (princ "\nCache Key\tHits\n")
+	      (mapc printfcn res)
+	      (princ "---\n"))
+	  ;; Display in a buffer
+	  (with-output-to-temp-buffer "*MATLAB SCANNER STATS*"
+	    (princ "Cache Key\tHits\n----------\t------\n")
+	    (mapc printfcn res)))
+	))))
+  
 (defun matlab-describe-line-indent-context ()
   "Describe the indentation context for the current line."
   (interactive)
