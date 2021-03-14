@@ -2733,9 +2733,11 @@ LVL2 is a level 2 scan context with info from previous lines."
       (list (if (matlab-line-empty-p lvl1) 'empty
 	      (if (matlab-lattr-array-cont) 'array-cont 'code))
 	    ;; Record beginning of the command
-	    (let ((boc (save-excursion
-			 (matlab-beginning-of-command)
-			 (point))))
+	    (let* ((ci-local ci) ;; we prob want to change this due to continuation.
+		   (boc (save-excursion
+			  (matlab-beginning-of-command)
+			  (setq ci-local (current-indentation))
+			  (point))))
 	      (condition-case nil
 		  (save-excursion
 		    (beginning-of-line)
@@ -2800,10 +2802,15 @@ LVL2 is a level 2 scan context with info from previous lines."
 				   ;; previous line.
 				   (let ((cci (current-indentation)))
 				     (+ cci matlab-cont-level))
+				 ;; TODO - this disables indentation MAXs
+				 ;;        if we really want to be rid of this
+				 ;;        we can dump a bunch of logic above too.
 				 ;; apply the maximum limits.
-				 (if (and ind (> (- (current-column) ci) max))
-				     (+ ci ind)
-				   (current-column))))))))
+				 ;;(if (and ind (> (- (current-column) ci-local) max))
+				 ;;    (+ ci-local ind)
+				 ;;  (current-column))
+				 (current-column)
+				 ))))))
 		(error
 		 ;; Line up to an equals sign.
 		 (save-excursion

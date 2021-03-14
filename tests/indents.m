@@ -150,9 +150,9 @@ function out = array_constant_decls()
     % I don't know why the below indents this way.
     % It should either do all max indent, or all lined up with parens.
     thing.thing.long.long.longname({ 'str' %!!4
-                        'str' %!!24
-                                     'str'  %!!37
-                                     'str'  %!!37
+                                     'str' %!!37
+                                     'str' %!!37
+                                     'str' %!!37
                                    });   %!!35
     
     thing.thing.long.long.longname('str', ... %!!4
