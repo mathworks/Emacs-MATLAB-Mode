@@ -2439,7 +2439,7 @@ If there isn't one, then return nil, point otherwise."
 
 ;;; Indent functions ==========================================================
 
-(defun matlab-indent-region (start end)
+(defun matlab-indent-region (start end &optional column noprogress)
   "Indent the region between START And END for MATLAB mode.
 Unlike `indent-region-line-by-line', this function captures
 parsing state and re-uses that state along the way."
@@ -2448,7 +2448,7 @@ parsing state and re-uses that state along the way."
     (save-excursion
       (setq end (copy-marker end))
       (goto-char start)
-      (let ((pr (unless (minibufferp)
+      (let ((pr (when (and (not (minibufferp)) (not noprogress))
                   (make-progress-reporter "MATLAB Indenting region..." (point) end)))
 	    (lvl2 nil)
 	    (lvl1 nil)
@@ -2473,23 +2473,34 @@ parsing state and re-uses that state along the way."
     (let ((lvl2 (matlab-compute-line-context 2)))
       (matlab--indent-line lvl2))))
 
+(defvar matlab--change-indentation-override #'matlab--change-indentation
+  "Tests to override this to validate indent-region.")
+
 (defun matlab--indent-line (lvl2)
   "Indent the current line according to MATLAB mode.
 Input LVL2 is a pre-scanned context from `matlab-compute-line-context' lvl2.
 Used internally by `matlab-indent-line', and `matlab-indent-region'."
-  (let* ((i (matlab--calc-indent lvl2))
+  (let* ((i (matlab--calc-indent lvl2)))
+    (funcall matlab--change-indentation-override i)
+    ))
+
+(defun matlab--change-indentation (new-indentation)
+  "Change the indentation on line to NEW-INDENTATION.
+This function exists so the test harness can override it."
+  (let* ((i new-indentation)
 	 (ci (current-indentation))
-	 (diff (- ci i))
-	 (cc (current-column)))
+	 (cc (current-column))
+	 (diff (- ci i)))
     (save-excursion
       (back-to-indentation)
       (cond ((= diff 0) ;; Already a match - do nothing.
 	     nil)
 	    ((< diff 0) ;; Too short - Add stuff
 	     (indent-to i))
-	    (t          ;; Too much, delete some.
+	    (t ;; Too much, delete some.
 	     (delete-region (- (point) diff) (point)))))
-    (if (<= cc ci) (move-to-column (max 0 i))) ))
+    (if (<= cc ci) (move-to-column (max 0 i)))
+    ))
 
 (defun matlab--calc-indent (&optional lvl2)
   "Return the appropriate indentation for this line as an integer."
@@ -2549,7 +2560,6 @@ Argument CURRENT-INDENTATION is what the previous line recommends for indentatio
 LVL2 is a level 2 scan context with info from previous lines."
   (let ((ci current-indentation)
 	(lvl1 (matlab-get-lvl1-from-lvl2 lvl2))
-	(blockcomm nil)
 	(tmp nil))
     (cond
      ;; COMMENTS
@@ -2570,7 +2580,7 @@ LVL2 is a level 2 scan context with info from previous lines."
 	  (list 'comment (+ 2 (matlab-line-end-comment-column lvl1))))
 	 ;; HELP COMMENT and COMMENT REGION
 	 ((and (matlab-last-guess-decl-p)
-	       (setq tmp (matlab-scan-comment-help-p lvl1)))
+	       (setq tmp (matlab-scan-comment-help-p lvl2)))
 	  (list 'comment-help tmp))
 	 ;; COMMENT REGION comments
 	 ((matlab-line-comment-ignore-p lvl1)
@@ -2826,7 +2836,7 @@ See `matlab-calculate-indentation'."
 		(ec (and (matlab-line-block-case-p lvl1) 1)) ;(matlab-lattr-endless-block-cont))
 		(hc (and (matlab-last-guess-decl-p)
 			 (matlab-indent-function-body-p)
-			 (matlab-scan-comment-help-p lvl1))) ;(matlab-ltype-help-comm)))
+			 (matlab-scan-comment-help-p lvl2))) ;(matlab-ltype-help-comm)))
 		(rc (and (/= 0 matlab-comment-anti-indent)
 			 (matlab-line-regular-comment-p lvl1) ;(matlab-ltype-comm-noblock)
 			 ;;(not (matlab-ltype-help-comm))
@@ -4214,7 +4224,7 @@ desired.  Optional argument FAST is not used."
 ;; LocalWords:  symbolp prev lst nlst nreverse Aki Vehtari backquote
 ;; LocalWords:  defmacro oldsyntax edebug cline ctxt eobp bobp sc fc
 ;; LocalWords:  udir funcall sexps skipnav eolp autoend noerror returnme
-;; LocalWords:  Unstarted includeelse autostart lattr zerop cellstart blockcomm
+;; LocalWords:  Unstarted includeelse autostart lattr zerop cellstart
 ;; LocalWords:  linebounds bol commtype startmove nomove charvector sregex
 ;; LocalWords:  insregex laststart bolp calc ci sem DEPTHNUMBER blockstart
 ;; LocalWords:  blockmid blockendless blockend unstarted listp boc parendepth
