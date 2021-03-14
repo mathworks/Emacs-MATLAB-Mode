@@ -643,9 +643,8 @@ Optional PT, if non-nil, means return the point instead of column"
 	    (if pt (point) (current-indentation))))))))
 
 (defun matlab-scan-previous-line-ellipsis-p ()
-  "Return the column of the previous line's continuation if there is one.
-This is true iff the previous line has an ellipsis, but not if this line
-is in an array with an implied continuation."
+  "Return the position of the previous line's continuation if there is one.
+This is true iff the previous line has an ellipsis."
   (save-excursion
     (beginning-of-line)
     (when (not (bobp))
@@ -654,10 +653,8 @@ is in an array with an implied continuation."
 	     (csc (nth 8 pps)))
 	;; If the comment active on eol does NOT start with %, then it must be
 	;; and ellipsis.
-	(and csc
-	     (/= (char-after csc) ?\%)
-	     (goto-char csc)
-	     (current-column))))))
+	(when (and csc (/= (char-after csc) ?\%))
+	  csc)))))
 
 (defun matlab-scan-beginning-of-command (&optional lvl1)
   "Return point in buffer at the beginning of this command.
@@ -687,7 +684,9 @@ backward over lines that include ellipsis."
 	  (if (not prev)
 	      (setq found t)
 	    ;; Move to prev location if not found.
-	    (goto-char prev))))
+	    (goto-char prev)
+	    (setq lvl1 (matlab-compute-line-context 1))
+	    )))
       (back-to-indentation)
       (point))))
 
@@ -725,20 +724,20 @@ Make sure the cache doesn't exceed max size."
 	  nil))
 
 
-(defun matlab-scan-after-change-fcn (start end length)
+(defun matlab-scan-before-change-fcn (start end &optional length)
   "Function run in after change hooks."
   (setq matlab-scan-temporal-cache nil))
 
 (defun matlab-scan-setup ()
   "Setup use of the indent cache for the current buffer."
   (interactive)
-  (add-hook 'after-change-functions 'matlab-scan-after-change-fcn t)
+  (add-hook 'before-change-functions 'matlab-scan-before-change-fcn t)
   (setq matlab-scan-temporal-cache nil))
 
 (defun matlab-scan-disable ()
   "Setup use of the indent cache for the current buffer."
   (interactive)
-  (remove-hook 'after-change-functions 'matlab-scan-after-change-fcn t)
+  (remove-hook 'before-change-functions 'matlab-scan-before-change-fcn t)
   (setq matlab-scan-temporal-cache nil))
 
 

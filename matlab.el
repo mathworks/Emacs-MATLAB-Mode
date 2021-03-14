@@ -2386,6 +2386,11 @@ Argument START is where to start searching from."
 	       ((not (matlab-valid-end-construct-p))
 		;; Not a valid end, just move past it.
 		(goto-char nomove))
+	       ((matlab-line-declaration-p lvl1)
+		;; In endless fuction buffers, a function marks the bounds
+		;; of other functions, but in this case, it is meaningless,
+		;; so do nothing with it.
+		(goto-char nomove))
 	       (t
 		;; Lets count these end constructs.
 		(setq v (1+ v))
@@ -2457,9 +2462,12 @@ parsing state and re-uses that state along the way."
           (unless (and (bolp) (eolp))
 	    ;; This is where we indent each line
 	    (setq lvl1 (matlab-compute-line-context 1)
-		  lvl2 (matlab-compute-line-context 2 lvl1 lvl2))
-	    (matlab--indent-line lvl2)
-	    )
+		  lvl2 (matlab-compute-line-context 2 lvl1));; lvl2))
+	    (when (matlab--indent-line lvl2)
+	      ;; If the indent changed something, refresh this
+	      ;; context obj.
+	      ;;(matlab-refresh-line-context-lvl2 lvl2)
+	      ))
           (forward-line 1)
           (and pr (progress-reporter-update pr (point))))
 	(and pr (progress-reporter-done pr))
@@ -2481,16 +2489,12 @@ parsing state and re-uses that state along the way."
 Input LVL2 is a pre-scanned context from `matlab-compute-line-context' lvl2.
 Used internally by `matlab-indent-line', and `matlab-indent-region'."
   (let* ((i (matlab--calc-indent lvl2)))
-    (when (funcall matlab--change-indentation-override i)
-      ;; If the indent changed something, refresh this
-      ;; context obj.
-      (matlab-refresh-line-context-lvl2 lvl2))
-    ))
+    (funcall matlab--change-indentation-override i)))
 
 (defun matlab--change-indentation (new-indentation)
   "Change the indentation on line to NEW-INDENTATION.
 This function exists so the test harness can override it."
-  (let* ((i new-indentation)
+  (let* ((i (max new-indentation 0))
 	 (ci (current-indentation))
 	 (cc (current-column))
 	 (diff (- ci i)))
@@ -2508,7 +2512,7 @@ This function exists so the test harness can override it."
     (if (<= cc ci) (move-to-column (max 0 i)))
     (/= 0 diff)))
 
-(defun matlab--calc-indent (&optional lvl2)
+(defun matlab--calc-indent (&optional lvl2 debug-sym)
   "Return the appropriate indentation for this line as an integer."
   ;; In case it wasn't provided.
   (unless lvl2 (setq lvl2 (matlab-compute-line-context 2)))
@@ -2537,6 +2541,8 @@ This function exists so the test harness can override it."
 	 ;; Compute this line's indentation based on recommendation of previous
 	 ;; line.
          (sem (matlab-calculate-indentation ci lvl2)))
+    (when debug-sym
+      (set debug-sym sem))
     ;; simplistic
     (nth 1 sem)))
 
@@ -4222,7 +4228,8 @@ desired.  Optional argument FAST is not used."
   (matlab-navigation-syntax
     (let* ((msg "line-info:")
 	   (lvl2 (matlab-compute-line-context 2))
-	   (indent (matlab-calculate-indentation (current-indentation) lvl2))
+	   (indent nil)
+	   (fullindent (matlab--calc-indent lvl2 'indent))
 	   (nexti (matlab-next-line-indentation (matlab-previous-line-lvl2 lvl2)
 						(matlab-get-lvl1-from-lvl2 lvl2))))
       (setq msg (concat msg
