@@ -43,6 +43,7 @@
 (defun metest-all-syntax-tests ()
   "Run all the syntax tests in this file."
   (setq debug-on-error t)
+  (matlab-scan-stat-reset ) ;; Enable scanner statistics logging.
   
   (metest-log-init)
 
@@ -54,6 +55,8 @@
   (metest-run 'metest-parse-test)
 
   (metest-log-report (metest-log-write))
+
+  (matlab-scan-stats-print)
   )
 
 (defun metest-run (test)
@@ -75,12 +78,14 @@
 	))
     (message "")))
 
+(defvar metest-test-error nil)
 (defmacro metest-condition-case-error-msg (&rest forms)
   "Run FORMS, capturing any errors and associating with (point)."
   (declare (indent 0) (debug t))
   `(condition-case err
        ,@forms
-     (error (metest-error "Lisp: %s" (error-message-string err))
+     (error (cond ((metest-error (error (car (cdr err)))))
+		  (t (metest-error "Lisp: %s" (error-message-string err))))
 	    0)
      ))
 
@@ -237,27 +242,33 @@
   "List of files for running syntactic indentation tests.")
 
 (defvar metest-indents-test (cons "indenting" met-indents-files))
+(defvar metest-indent-counts 0)
 (defun metest-indents-test (F)
   "Run a test to make sure high level block navigation works."
-    (let ((buf (metest-find-file F))
-	  (cnt 0))
-      (with-current-buffer buf
-	(goto-char (point-min))
-	;; (indent-region (point-min) (point-max))
-	;;(message ">> Starting indents loop in %S" (current-buffer))
-	(while (re-search-forward "!!\\([0-9]+\\)" nil t)
-	  (let* ((num (string-to-number (match-string 1)))
-		 (calc (metest-condition-case-error-msg
-			 (matlab-calc-indent)))
-		 (begin nil))
-	    (when (not (eq num calc))
-	      (metest-error "Indentation found is %s, expected %s"
-		calc num))
-	    )
-	  (end-of-line)
-	  (setq cnt (1+ cnt))))
-	(kill-buffer buf)
-	(list cnt "tests")))
+  (with-current-buffer (metest-find-file F)
+    (goto-char (point-min))
+    (let ((metest-indent-counts 0)
+	  (matlab--change-indentation-override #'metest-indents-test-hook-fcn))
+      (metest-condition-case-error-msg
+       (matlab-indent-region (point-min) (point-max) nil t))
+      (kill-buffer (current-buffer))
+      (list metest-indent-counts "tests"))))
+
+(defun metest-indents-test-hook-fcn (indent)
+  "Hook fcn used to capture indents from `indent-region'."
+  (save-excursion
+    (beginning-of-line)
+
+    (when (re-search-forward "!!\\([0-9]+\\)" (point-at-eol) t)
+      (let ((num (string-to-number (match-string 1))))
+	(setq metest-indent-counts (1+ metest-indent-counts))
+	(when (not (eq num indent))
+	  (metest-error "Indentation computed is %s, expected %s"
+			indent num))))
+
+    ;; Now do the indent in case a bad indent will trigger a bug later.
+    (matlab--change-indentation indent)
+    ))
 
 (defvar met-parser-files '("mpclass.m")
   "List of files for running semantic parsing tests.")
@@ -323,6 +334,7 @@ Do error checking to provide easier debugging."
 		     (file-name-nondirectory (buffer-file-name))
 		     (line-number-at-pos)))
 	(post (apply 'format args)))
+    (setq metest-test-error t)
     (error (concat pre post))))
 
 ;;; Logging prormance data for the tests
