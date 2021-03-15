@@ -196,7 +196,9 @@ Returns one of 'empty, 'script, 'function, 'class."
 	  (goto-char (point-min))
 	  (if (matlab-find-code-line)
 	      ;; We found some code, what is it?
-	      (if (looking-at matlab-defun-regex)
+	      (if (save-excursion
+		    (beginning-of-line)
+		    (looking-at matlab-defun-regex))
 		  ;; A match - figure out the type of thing.
 		  (let ((str (match-string-no-properties 1)))
 		    (cond ((string= str "function")
@@ -2617,6 +2619,7 @@ LVL2 is a level 2 scan context with info from previous lines."
           (if (and (not (matlab-indent-function-body-p))
                    (save-excursion
                      (beginning-of-line)
+		     ;; TODO - maybe replace this? Not usually used.
                      (matlab-beginning-of-enclosing-defun)))
               (setq ci (+ ci matlab-indent-level))
             ;; If no intrinsic indentation, do not change from ci.
