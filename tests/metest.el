@@ -94,7 +94,7 @@
 	    0)
      ))
 
-(defvar met-end-detect-files '("empty.m" "stringtest.m" "mfuncnoend.m" "mfuncnoendblock.m" "mfuncends.m" "mclass.m" )
+(defvar met-end-detect-files '("empty.m" "stringtest.m" "mfuncnoend.m" "mfuncnoendblock.m" "mfuncends.m" "mclass.m" "mfuncspacey.m" )
   "List of files for running end detection tests on.")
 
 (defvar metest-end-detect-test (cons "END detection" met-end-detect-files))
@@ -260,6 +260,8 @@
 	  (forward-line 1)
 	  )
 	;; And don't delete - leave it to find for the next test.
+	;; but we do want to restart the mode and force a re-guess of the file type.
+	(matlab-mode)
 	))))
 
 (defvar metest-indents-test (cons "indenting" met-indents-files))
