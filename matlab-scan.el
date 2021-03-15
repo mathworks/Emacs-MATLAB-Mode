@@ -60,6 +60,63 @@
 	  matlab-block-keyword-list)
     ans)
   "Keyword table for fast lookups of different keywords and their purpose.")
+(defvar matlab-kwt-all nil)
+(defvar matlab-kwt-decl nil)
+(defvar matlab-kwt-end nil)
+
+(defun matlab-keyword-regex (types)
+  "Find keywords that match TYPES and return optimized regexp.
+Caches some found regexp to retrieve them faster."
+  (cond
+   ((or (eq types nil) (eq types 'all))
+    (or matlab-kwt-all (setq matlab-kwt-all (matlab--keyword-regex nil))))
+   ((equal types '(decl))
+    (or matlab-kwt-decl (setq matlab-kwt-decl (matlab--keyword-regex types))))
+   ((equal types '(end))
+    (or matlab-kwt-end (setq matlab-kwt-end (matlab--keyword-regex types))))
+   (t
+    (setq matlab-kwt-all (matlab--keyword-regex types)))))
+
+(defun matlab--keyword-regex (types)
+  "Find keywords that match TYPES and return an optimized regexp."
+  (let ((lst nil))
+    (mapc (lambda (C) (when (or (null types) (memq (cdr C) types)) (push (car C) lst)))
+	  matlab-block-keyword-list)
+    (regexp-opt lst 'symbols)))
+
+;;; Searching for keywords
+;;
+;; These utilities will simplify searching for code bits by skipping
+;; anything in a comment or string.
+(defun matlab-re-search-keyword-forward (regexp &optional bound noerror)
+  "Like `re-search-forward' but will not match content in strings or comments."
+  (let ((ans nil))
+    (save-excursion
+      (while (and (not ans)
+		  (setq ans (re-search-forward regexp bound noerror)))
+	(cond ((matlab-end-of-string-or-comment)
+	       ;; We landed in a string this time through, so clear
+	       ;; the answer and skip the rest of it.
+	       (setq ans nil))
+	      ((matlab-end-of-outer-list)
+	       (setq ans nil))
+	      )))
+    (when ans (goto-char ans))))
+
+(defun matlab-re-search-keyword-backward (regexp &optional bound noerror)
+  "Like `re-search-backward' but will not match content in strings or comments."
+  (let ((ans nil))
+    (save-excursion
+      (while (and (not ans)
+		  (setq ans (re-search-backward regexp bound noerror)))
+	(cond ((matlab-beginning-of-string-or-comment)
+	       ;; We landed in a string this time through, so clear
+	       ;; the answer and skip the rest of it.
+	       (setq ans nil))
+	      ((matlab-beginning-of-outer-list)
+	       (setq ans nil))
+	      )))
+    (when ans (goto-char ans))))
 
 ;;;  Context Parsing
 ;;
