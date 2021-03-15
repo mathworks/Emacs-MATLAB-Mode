@@ -270,9 +270,7 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
     'font-lock-comment-face)
   )
 
-;;;
-;;; EXPERIMENTAL INTEGRATION:
-;;;
+;;;  SETUP
 ;;
 ;; Connect our special logic into a running MATLAB Mode
 ;; replacing existing mechanics.
@@ -313,23 +311,20 @@ Safe to use in `matlab-mode-hook'."
 ;;; Syntax Testing for Strings and Comments
 ;;
 ;; These functions detect syntactic context based on the syntax table.
-(defun matlab-cursor-in-string-or-comment ()
+(defsubst matlab-cursor-in-string-or-comment ()
   "Return non-nil if the cursor is in a valid MATLAB comment or string."
-  (let* ((pps (syntax-ppss (point))))
-    (nth 8 pps)))
+  (nth 8 (syntax-ppss (point))))
 
-(defun matlab-cursor-in-comment ()
+(defsubst matlab-cursor-in-comment ()
   "Return t if the cursor is in a valid MATLAB comment."
-  (let* ((pps (syntax-ppss (point))))
-    (nth 4 pps)))
+  (nth 4 (syntax-ppss (point))))
 
-(defun matlab-cursor-in-string (&optional incomplete)
+(defsubst matlab-cursor-in-string (&optional incomplete)
   "Return t if the cursor is in a valid MATLAB character vector or string scalar.
 Note: INCOMPLETE is now obsolete
 If the optional argument INCOMPLETE is non-nil, then return t if we
 are in what could be a an incomplete string. (Note: this is also the default)"
-  (let* ((pps (syntax-ppss (point))))
-    (nth 3 pps)))
+  (nth 3 (syntax-ppss (point))))
 
 (defun matlab-cursor-comment-string-context (&optional bounds-sym)
   "Return the comment/string context of cursor for the current line.
@@ -378,13 +373,25 @@ bounds of the string or comment the cursor is in"
     ;; Return the syntax
     syntax))
 
-(defun matlab-beginning-of-string-or-comment ()
+(defsubst matlab-beginning-of-string-or-comment ()
   "If the cursor is in a string or comment, move to the beginning.
 Returns non-nil if the cursor moved."
   (let* ((pps (syntax-ppss (point))))
-    (when (nth 8 pps) (goto-char (nth 8 pps))
-      )))
+    (when (nth 8 pps) (goto-char (nth 8 pps)) )))
 
+(defun matlab-end-of-string-or-comment ()
+  "If the cursor is in a string or comment, move to the end.
+Returns non-nil if the cursor moved."
+  (let* ((pps (syntax-ppss (point))))
+    (when (nth 8 pps)
+      ;; syntax-ppss doesn't have the end, so go to the front
+      ;; and then skip forward.
+      (goto-char (nth 8 pps))
+      (if (nth 3 pps)
+	  (goto-char (scan-sexps (point) 1))
+	(forward-comment 1))
+      )))
+  
 ;;; Block Comment handling
 ;;
 ;; Old version block comments were handled in a special way.
@@ -404,7 +411,7 @@ Block comment indicators must be on a line by themselves.")
     (looking-at matlab-block-comment-start-re)))
 
 (defun matlab-ltype-block-comment-end ()
-  "Return non-nil if the current line is a block comment start."
+  "Return non-nil if the current line is a block comment end."
   (save-excursion
     (beginning-of-line)
     (looking-at matlab-block-comment-end-re)))
@@ -458,6 +465,24 @@ comment and string crossing."
       ;; Else - travel forward
       (up-list count nil t)) ;; will this correctly ignore comments, etc?
     ))
+
+
+(defsubst matlab-beginning-of-outer-list ()
+  "If the cursor is in a list, move to the beginning of outermost list.
+Returns non-nil if the cursor moved."
+  (let* ((pps (syntax-ppss (point))))
+    (when (nth 9 pps) (goto-char (car (nth 9 pps))) )))
+
+(defun matlab-end-of-outer-list ()
+  "If the cursor is in a, move to the end of the outermost list..
+Returns non-nil if the cursor moved."
+  (let* ((pps (syntax-ppss (point))))
+    (when (nth 9 pps)
+      ;; syntax-ppss doesn't have the end, so go to the front
+      ;; and then skip forward.
+      (goto-char (car (nth 9 pps)))
+      (goto-char (scan-sexps (point) 1))
+      )))
 
 ;;; Syntax Compat functions
 ;;
