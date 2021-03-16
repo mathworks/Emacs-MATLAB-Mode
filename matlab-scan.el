@@ -60,6 +60,17 @@
 	  matlab-block-keyword-list)
     ans)
   "Keyword table for fast lookups of different keywords and their purpose.")
+
+(defun matlab-keyword-p (word)
+  "Non nil if WORD is a keyword.
+If word is a number, it is a match-string index for the current buffer."
+   (let* ((local-word (if (numberp word)
+			  (match-string-no-properties word)
+			word))
+	  (sym (intern-soft local-word matlab-keyword-table)))
+     (and sym (symbol-value sym))))
+
+
 (defvar matlab-kwt-all nil)
 (defvar matlab-kwt-decl nil)
 (defvar matlab-kwt-end nil)
@@ -97,6 +108,7 @@ Caches some found regexp to retrieve them faster."
 	(cond ((matlab-end-of-string-or-comment)
 	       ;; We landed in a string this time through, so clear
 	       ;; the answer and skip the rest of it.
+	       ;; TODO: can it skip over all adjacent comments too?
 	       (setq ans nil))
 	      ((matlab-end-of-outer-list)
 	       (setq ans nil))
@@ -240,17 +252,15 @@ in a single call using fastest methods."
 	  
 	  ;; If not in parens, this might be a keyword.
 	  ;; Look up our various keywords.
-	  (let* ((word (match-string-no-properties 0))
-		 (sym (intern-soft word matlab-keyword-table))
-		 )
-	    (if sym
-		(if (eq (symbol-value sym) 'end)
+	  (let* ((symval (matlab-keyword-p 0)))
+	    (if symval
+		(if (eq symval 'end)
 		    ;; Special end keyword is in a class all it's own
 		    (setq ltype 'end)
 		  ;; If we found this in our keyword table, then it is a start
 		  ;; of a block with a subtype.
 		  (setq ltype 'block-start
-			stype (symbol-value sym)))
+			stype symval))
 	      ;; Else - not a sym - just some random code.
 	      (setq ltype 'code)
 	      ))))

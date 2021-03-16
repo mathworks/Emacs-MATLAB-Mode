@@ -1,3 +1,4 @@
+% -*- matlab-show-mlint-warnings: nil -*-
 %% Tests for char vector and string handling.
 %
 %  #c#
@@ -164,3 +165,13 @@ not_commented();
 %{ just a regular comment #c# %} should_be_comment #c#
 
 % Normal comment #c#
+
+
+%% Command line dual #c#
+% Note: stuff after a symbol<space> treated as string
+
+funcall  _this is string input to function #d#_
+fun_call _this is also string input to a function #d#_
+    
+
+%% END

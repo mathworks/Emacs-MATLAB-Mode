@@ -131,6 +131,10 @@
 	  (put ',symbol 'syntax-table ,symbol)
 	  ))
 
+(matlab--syntax-symbol matlab--command-dual-syntax '(15 . nil) ;; Generic string
+  "Syntax placed on end-of-line for unterminated strings.")
+(put 'matlab--command-dual-syntax 'command-dual t) ;; Font-lock cookie
+
 (matlab--syntax-symbol matlab--unterminated-string-syntax '(15 . nil) ;; Generic string end
   "Syntax placed on end-of-line for unterminated strings.")
 (put 'matlab--unterminated-string-syntax 'unterminated t) ;; Font-lock cookie
@@ -159,6 +163,15 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
       ;; Apply properties
       (while (and (not (>= (point) (or end (point-max)))) (not (eobp)))
 
+	;; Commandl line dual comes first to prevent wasting time
+	;; in later checks.
+	(beginning-of-line)
+	(when (matlab--scan-line-for-command-dual)
+	  (matlab--put-char-category (point) 'matlab--command-dual-syntax)
+	  (end-of-line)
+	  (matlab--put-char-category (point) 'matlab--command-dual-syntax)
+	  )
+	
 	;; Multiple ellipsis can be on a line.  Find them all
 	(beginning-of-line)
 	(while (matlab--scan-line-for-ellipsis)
@@ -187,6 +200,17 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
 	(beginning-of-line)
 	(forward-line 1))
       )))
+
+(declare-function matlab-keyword-p "matlab-scan")
+
+(defun matlab--scan-line-for-command-dual (&optional debug)
+  "Scan this line for command line duality strings."
+  ;; Note - add \s$ b/c we'll add that syntax to the first letter, and it
+  ;; might still be there during an edit!
+  (when (looking-at "^\\s-*\\([a-zA-Z_]\\(?:\\w\\|\\s_\\)*\\)\\s-+\\(\\s$\\|\\w\\|\\s_\\)")
+    ;; This is likely command line dual for a function.
+    (when (not (matlab-keyword-p 1))
+      (goto-char (match-beginning 2)))))
 
 (matlab--syntax-symbol matlab--transpose-syntax '(3 . nil) ;; 3 = symbol
   "Treat ' as non-string when used as transpose.")
@@ -264,11 +288,21 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
   (if (nth 3 pps)
       ;; This is a string.  Check the start char to see if it was
       ;; marked as an unterminate string.
-      (if (get-text-property (nth 8 pps) 'unterminated)
-	  'matlab-unterminated-string-face
-	'font-lock-string-face)
-    'font-lock-comment-face)
-  )
+      (cond ((get-text-property (nth 8 pps) 'unterminated)
+	     'matlab-unterminated-string-face)
+	    ((get-text-property (nth 8 pps) 'command-dual)
+	     'matlab-commanddual-string-face)
+	    (t
+	     'font-lock-string-face))
+
+    ;; Not a string, must be a comment.  Check to see if it is a
+    ;; cellbreak comment.
+    (cond ((and (< (nth 8 pps) (point-max))
+		(= (char-after (1+ (nth 8 pps))) ?\%))
+	   'matlab-cellbreak-face)
+	  (t
+	   'font-lock-comment-face))
+    ))
 
 ;;;  SETUP
 ;;
@@ -347,9 +381,12 @@ bounds of the string or comment the cursor is in"
 	  (goto-char start) ;; Prep for extra checks.
 	  (setq syntax
 		(cond ((eq (nth 3 pps) t)
-		       (if (= (following-char) ?')
-			   'charvector
-			 'string))
+		       (cond ((= (following-char) ?')
+			      'charvector)
+			     ((= (following-char) ?\")
+			      'string)
+			     (t
+			      'commanddual)))
 		      ((eq (nth 3 pps) ?')
 		       'charvector)
 		      ((eq (nth 3 pps) ?\")

@@ -137,7 +137,7 @@
       (with-current-buffer buf
 	(goto-char (point-min))
 	;;(message ">> Starting string/comment detect loop in %S" (current-buffer))
-	(while (re-search-forward "#\\([csveb]\\)#" nil t)
+	(while (re-search-forward "#\\([csvebd]\\)#" nil t)
 	  (goto-char (match-end 1))
 	  (let ((md (match-data))
 		(mc (match-string 1))
@@ -149,6 +149,7 @@
 			(and (string= "s" mc) (eq 'string qd))
 			(and (string= "c" mc) (eq 'comment qd))
 			(and (string= "e" mc) (eq 'ellipsis qd))
+			(and (string= "d" mc) (eq 'commanddual qd))
 			)
 	      (metest-error "Syntax Test Failure @ char %d: Expected %s but found %S"
 		(point)
@@ -157,6 +158,7 @@
 		      ((string= mc "s") "string")
 		      ((string= mc "c") "comment")
 		      ((string= mc "e") "ellipsis")
+		      ((string= mc "d") "commanddual")
 		      (t "unknown test token"))
 		qd))
 	    ;; Test 2 - is match-data unchanged?

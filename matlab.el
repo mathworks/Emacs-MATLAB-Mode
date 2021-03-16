@@ -418,15 +418,15 @@ This will only work if `matlab-highlight-block-match-flag' is non-nil."
   "*If non-nil, show mlint warnings."
   :group 'matlab
   :type 'boolean)
-
 (make-variable-buffer-local 'matlab-show-mlint-warnings)
+(put 'matlab-show-mlint-warnings 'safe-local-variable #'booleanp)
 
 (defcustom matlab-highlight-cross-function-variables nil
   "*If non-nil, highlight cross-function variables."
   :group 'matlab
   :type 'boolean)
-
 (make-variable-buffer-local 'matlab-highlight-cross-function-variables)
+(put 'matlab-highlight-cross-function-variables 'safe-local-variable #'booleanp)
 
 (defcustom matlab-return-add-semicolon nil
   "*If non nil, check to see a semicolon is needed when RET is pressed."
@@ -464,6 +464,9 @@ This will only work if `matlab-highlight-block-match-flag' is non-nil."
 (defvar matlab-unterminated-string-face 'matlab-unterminated-string-face
   "Self reference for unterminated string face.")
 
+(defvar matlab-commanddual-string-face 'matlab-commanddual-string-face
+  "Self reference for command dual string face.")
+
 (defvar matlab-simulink-keyword-face 'matlab-simulink-keyword-face
   "Self reference for simulink keywords.")
 
@@ -476,95 +479,40 @@ This will only work if `matlab-highlight-block-match-flag' is non-nil."
 (defvar matlab-cellbreak-face 'matlab-cellbreak-face
   "Self reference for cellbreaks.")
 
-(defun matlab-font-lock-adjustments ()
-  "Make adjustments for font lock.
-If font lock is not loaded, lay in wait."
-  (if (and (featurep 'custom) (fboundp 'custom-declare-variable))
+(defface matlab-unterminated-string-face
+  '((t :inherit font-lock-string-face
+       :underline t))
+  "*Face used to highlight unterminated strings."
+  :group 'matlab)
 
-      (progn
-	(defface matlab-unterminated-string-face
-	  (list
-	   (list t
-		 (list :background (face-background font-lock-string-face)
-		       :foreground (face-foreground font-lock-string-face)
-		       :underline t)))
-	  "*Face used to highlight unterminated strings."
-	  :group 'matlab)
-	(defface matlab-simulink-keyword-face
-	  (list
-	   (list t
-		 (list :background (face-background font-lock-type-face)
-		       :foreground (face-foreground font-lock-type-face)
-		       :underline t)))
-	  "*Face used to highlight simulink specific functions."
-	  :group 'matlab)
-        (defface matlab-nested-function-keyword-face
-	  (list
-	   (list t
-		 (list :slant  'italic)))
-          "*Face to use for cross-function variables.")
-        (defface matlab-cross-function-variable-face
-	  (list
-	   (list t
-		 (list :weight 'bold
-                       :slant  'italic)))
-          "*Face to use for cross-function variables."
-	  :group 'matlab)
-	(defface matlab-cellbreak-face
-	  (list
-	   (list t
-		 (list :background (face-background font-lock-comment-face)
-		       :foreground (face-foreground font-lock-comment-face)
-		       :overline t
-		       :bold t)))
-	  "*Face to use for cellbreak %% lines.")
-	)
+(defface matlab-commanddual-string-face
+  '((t :inherit font-lock-string-face
+       :slant italic))
+  "*Face used to highlight command dual string equivalent."
+  :group 'matlab)
 
-    ;; Now, lets make the unterminated string face
-    (cond ((facep 'font-lock-string-face)
-	   (copy-face 'font-lock-string-face
-		      'matlab-unterminated-string-face))
-	  (t
-	   (make-face 'matlab-unterminated-string-face)))
-    (matlab-set-face-underline 'matlab-unterminated-string-face t)
+(defface matlab-simulink-keyword-face
+  '((t :inherit font-lock-type-face
+       :underline t))
+  "*Face used to highlight simulink specific functions."
+  :group 'matlab)
 
-    ;; Now make some simulink faces
-    (cond ((facep 'font-lock-type-face)
-	   (copy-face 'font-lock-type-face 'matlab-simulink-keyword-face))
-	  (t
-	   (make-face 'matlab-simulink-keyword-face)))
-    (matlab-set-face-underline 'matlab-simulink-keyword-face t)
+(defface matlab-nested-function-keyword-face
+  '((t :inherit font-lock-keyword-face
+       :slant  italic))
+  "*Face to use for cross-function variables.")
 
-    ;; Now make some nested function/end keyword faces
-    (cond ((facep 'font-lock-type-face)
-	   (copy-face 'font-lock-type-face 'matlab-nested-function-keyword-face))
-	  (t
-	   (make-face 'matlab-nested-function-keyword-face)))
+(defface matlab-cross-function-variable-face
+  '((t :weight bold
+       :slant  italic))
+  "*Face to use for cross-function variables."
+  :group 'matlab)
 
-    ;; Now make some cross-function variable faces
-    (cond ((facep 'font-lock-type-face)
-	   (copy-face 'font-lock-type-face 'matlab-cross-function-variable-face))
-	  (t
-	   (make-face 'matlab-cross-function-variable-face)))
-    (matlab-set-face-bold 'matlab-cross-function-variable-face t)
-
-    ;; Now make some cellbreak variable faces
-    (cond ((facep 'font-comment-face)
-	   (copy-face 'font-lock-comment-face 'matlab-cellbreak-face))
-	  (t
-	   (make-face 'matlab-cellbreak-face)))
-    (matlab-set-face-bold 'matlab-cellbreak-face t)
-    (condition-case nil
-	(set-face-attribute 'matlab-cellbreak-face nil :overline t)
-      (error nil))
-    )
-  (remove-hook 'font-lock-mode-hook 'matlab-font-lock-adjustments))
-
-;; Make the adjustments for font lock after it's loaded.
-;; I found that eval-after-load was unreliable.
-(if (featurep 'font-lock)
-    (matlab-font-lock-adjustments)
-  (add-hook 'font-lock-mode-hook 'matlab-font-lock-adjustments))
+(defface matlab-cellbreak-face
+  '((t :inherit font-lock-comment-face
+       :overline t
+       :bold t))
+  "*Face to use for cellbreak %% lines.")
 
 
 ;;; MATLAB mode variables =====================================================
@@ -1052,8 +1000,6 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
       (3 'underline prepend)		;else part (if applicable)
       (4 font-lock-comment-face prepend) ;commented out part.
       )
-    ;; Cell mode breaks get special treatment
-    '("^\\s-*\\(%%[^\n]*\n\\)" (1 matlab-cellbreak-face append))
     ;; Highlight cross function variables
     '(matlab-font-lock-cross-function-variables-match
       (1 matlab-cross-function-variable-face prepend))
