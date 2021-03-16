@@ -2202,8 +2202,9 @@ based on what it ends with."
 	 (csc (nth 8 pps)))
     (or
      ;; When the line ends with a comment, it might be an ellipsis.
-     ;; Can only be tail comment w/ no % start if it is an ellipsis.
-     (and csc (/= (char-after csc) ?\%))
+     ;; Ellipsis start has a syntax of 11 (comment-start).
+     ;; Other comments have high-bit flags, so don't == 11.
+     (and csc (= (car (syntax-after csc)) 11))
     
      ;; If the line doesn't end in ..., but we have optional ..., then
      ;; use this annoying heuristic.

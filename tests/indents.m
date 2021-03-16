@@ -1,4 +1,4 @@
-function indents(a,b,stuff)
+function indents(a,b,stuff,cmddual1fake,cmddual2fake)
 % Help text
 % !!0
 % of many lines
@@ -11,18 +11,27 @@ function indents(a,b,stuff)
         a (1,1) {mustBeNumeric}                                 % !!8
         b (:,:) double                                          % !!8
         stuff {mustBeMember(stuff, { 'this' 'that' 'other' })}  % !!8
+        cmddual1fake double  % !!8
+        cmddual2fake int     % !!8
     end % !!4
+    
+    persistent var1 % !!4
+    global     var2 % !!4
+    persistent var3 % !!4
     
 
     locala = a; %#ok
     localb = b; %#ok
     localstuff = stuff; %#ok
     
-    ends_in_comments_and_strings(); % !!4 has end in name
+    if isempty(var1) var1=1; end %#ok !!4
+    if isempty(var3) var3=2; end %#ok !!4
+    
+    ends_in_comments_and_strings(var1, var2, var3); % !!4 has end in name
     
     % !!4
     
-    block_starts_in_comments_and_strings();
+    block_starts_in_comments_and_strings(cmddual1fake,cmddual2fake);
     array_constant_decls();
     
     % !!4
@@ -98,7 +107,7 @@ function B = ends_in_comments_and_strings()
     code1() ...
         
     B = [ B A ]; % !!4
-
+    
     str = 'This is a char array with ... in it';
     foo(str); % !!4
     
@@ -175,25 +184,31 @@ function out = array_constant_decls()
 
 end
 
-function C = block_starts_in_comments_and_strings()
+function C = block_starts_in_comments_and_strings(varargin)
 % !!0
     
     C = 0;
     
-    if true % if true
+    if varargin{1} % if true
         
         % !!8
     else % !!4
-        
-        % !!8
+
+         % !!8
     end % if true
     
     
     % see previous function
     % !!4
     for x=1:length(C) % !!4
+        if varargin{2}  % !!8
+            continue    % !!12
+        end   % !!8
         
-        % !!8
+        break % !!8
+              % !!14
+        
+        %!!8
     end
 
     switch foo()  %!!4
@@ -276,10 +291,12 @@ function has_nested_fcn
 
     plot(1:10); %!!4
     
-    function am_nested_fcn %!!4
+    A = 1;
+    
+    function am_nested_fcn() %!!4
     % help
     % !!4
-        code();
+        code(A);
         %!!8
     end
     

@@ -46,11 +46,17 @@
 				      ("for" . ctrl)
 				      ("parfor" . ctrl)
 				      ("while" . ctrl)
+				      ("spmd" . ctrl)
 				      ("switch" . ctrl)
 				      ("case" . case)
 				      ("otherwise" . case)
 				      ("try" . ctrl)
 				      ("catch" . mid)
+				      ("break" . keyword)
+				      ("continue" . keyword)
+				      ("return" . keyword)
+				      ("global" . vardecl)
+				      ("persistent" . vardecl)
 				      )
   "List of keywords that are part of code blocks.")
 
@@ -254,16 +260,25 @@ in a single call using fastest methods."
 	  ;; Look up our various keywords.
 	  (let* ((symval (matlab-keyword-p 0)))
 	    (if symval
-		(if (eq symval 'end)
-		    ;; Special end keyword is in a class all it's own
-		    (setq ltype 'end)
-		  ;; If we found this in our keyword table, then it is a start
-		  ;; of a block with a subtype.
+		(cond
+		 ;; Special end keyword is in a class all it's own
+		 ((eq symval 'end)
+		  (setq ltype 'end))
+		 ;; If we found this in our keyword table, then it is a start
+		 ;; of a block with a subtype.
+		 ((memq symval '(decl args mcos ctrl mid case))
 		  (setq ltype 'block-start
 			stype symval))
-	      ;; Else - not a sym - just some random code.
-	      (setq ltype 'code)
-	      ))))
+		 ;; Some keywords aren't related to blocks with indentation
+		 ;; controls.  Those are treated as code, with a type.
+		 ((memq symval '(keyword vardecl))
+		  (setq ltype 'code
+			stype symval))
+		 ;; Else - not a sym - just some random code.
+		 (t
+		  (setq ltype 'code)))
+	      (setq ltype 'code))
+	      )))
 
        ;; Looking at a close paren.
        ((and (< 0 paren-depth) (looking-at "\\s)"))
@@ -288,8 +303,10 @@ in a single call using fastest methods."
 	;; If we have something, record what it is.
 	(when csc
 	  (setq ec-col csc
-		ec-type (if (= (char-after csc) ?\%) 'comment 'ellipsis))) ;; type
-	)
+		ec-type (cond ((= (char-after csc) ?\%) 'comment)
+			      ((= (char-after csc) ?\.) 'ellipsis)
+			      (t 'commanddual)))
+	  ))
 
       (list ltype stype pt indent start paren-depth
 	    paren-inner-char paren-inner-col paren-outer-char paren-outer-point paren-delta
@@ -354,9 +371,12 @@ All lines that start with a comment end with a comment."
       (current-column))))
 
 (defsubst matlab-line-ellipsis-p (lvl1)
-  "Return if this line ends with a comment.
-All lines that start with a comment end with a comment."
+  "Return if this line ends with a comment."
   (eq (nth mlf-end-comment-type lvl1) 'ellipsis))
+
+(defsubst matlab-line-commanddual-p (lvl1)
+  "Return if this line ends with command duality string."
+  (eq (nth mlf-end-comment-type lvl1) 'commanddual))
 
 (defsubst matlab-line-block-comment-start (lvl1)
   "Return the start of the block comment we are in, or nil."
@@ -718,9 +738,9 @@ This is true iff the previous line has an ellipsis."
       (forward-char -1)
       (let* ((pps (syntax-ppss (point)))
 	     (csc (nth 8 pps)))
-	;; If the comment active on eol does NOT start with %, then it must be
-	;; and ellipsis.
-	(when (and csc (/= (char-after csc) ?\%))
+	;; Ellipsis start has a syntax of 11 (comment-start).
+	;; Other comments have high-bit flags, so don't == 11.
+	(when (and csc (= (car (syntax-after csc)) 11))
 	  csc)))))
 
 (defun matlab-scan-beginning-of-command (&optional lvl1)
@@ -920,6 +940,7 @@ Make sure the cache doesn't exceed max size."
 		    extraclose
 		    (cond ((eq (nth mlf-end-comment-type lvl1) 'comment) "%")
 			  ((eq (nth mlf-end-comment-type lvl1) 'ellipsis) "...")
+			  ((eq (nth mlf-end-comment-type lvl1) 'commanddual) "-command dual")
 			  (t ""))
 		    (if (matlab-line-end-comment-column lvl1)
 			(format " %d" (matlab-line-end-comment-column lvl1))
