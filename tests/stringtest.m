@@ -172,6 +172,12 @@ not_commented();
 
 funcall  _this is string input to function #d#_
 fun_call _this is also string input to a function #d#_
-    
+
+%{
+%  Local Variables:
+%  matlab-syntax-support-command-dual: t
+%  End:
+%}
+
 
 %% END

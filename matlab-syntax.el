@@ -30,6 +30,12 @@
 (require 'matlab-compat)
 
 ;;; Code:
+(defvar matlab-syntax-support-command-dual nil
+  "Non-nil means to support command dual for indenting and syntax highlight.
+Does not work well in classes with properties with datatypes.")
+(make-variable-buffer-local 'matlab-syntax-support-command-dual)
+(put 'matlab-syntax-support-command-dual 'safe-local-variable #'booleanp)
+
 
 (defvar matlab-syntax-table
   (let ((st (make-syntax-table (standard-syntax-table))))
@@ -163,14 +169,15 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
       ;; Apply properties
       (while (and (not (>= (point) (or end (point-max)))) (not (eobp)))
 
-	;; Commandl line dual comes first to prevent wasting time
-	;; in later checks.
-	(beginning-of-line)
-	(when (matlab--scan-line-for-command-dual)
-	  (matlab--put-char-category (point) 'matlab--command-dual-syntax)
-	  (end-of-line)
-	  (matlab--put-char-category (point) 'matlab--command-dual-syntax)
-	  )
+	(when matlab-syntax-support-command-dual
+	  ;; Commandl line dual comes first to prevent wasting time
+	  ;; in later checks.
+	  (beginning-of-line)
+	  (when (matlab--scan-line-for-command-dual)
+	    (matlab--put-char-category (point) 'matlab--command-dual-syntax)
+	    (end-of-line)
+	    (matlab--put-char-category (point) 'matlab--command-dual-syntax)
+	    ))
 	
 	;; Multiple ellipsis can be on a line.  Find them all
 	(beginning-of-line)
