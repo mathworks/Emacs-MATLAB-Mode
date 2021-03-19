@@ -100,12 +100,6 @@ function B = ends_in_comments_and_strings()
     end ... the other end
     % !! 4
 
-    code1(), ...
-        code2(); %!!8
-    
-    % NOTE: Blank space below should cancel the indent effect of ellipsis.
-    code1() ...
-        
     B = [ B A ]; % !!4
     
     str = 'This is a char array with ... in it';

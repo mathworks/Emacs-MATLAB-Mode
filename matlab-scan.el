@@ -150,18 +150,19 @@ LEVEL of 1 is the most primitive / simplest data.
 LEVEL of 2 is stuff that is derived from previous lines of code.
 This function caches computed context onto the line it is for, and will
 return the cache if it finds it."
-  (cond ((= level 1)
-	 (let ((ctxt (save-excursion
-		       (back-to-indentation)
-		       (matlab-scan-cache-get))))
-	   (unless ctxt
-	     (setq ctxt (matlab-compute-line-context-lvl-1))
-	     (matlab-scan-cache-put ctxt))
-	   ctxt))
-	((= level 2)
-	 (apply 'matlab-compute-line-context-lvl-2 context))
-	(t
-	 nil))
+  (save-match-data
+    (cond ((= level 1)
+	   (let ((ctxt (save-excursion
+			 (back-to-indentation)
+			 (matlab-scan-cache-get))))
+	     (unless ctxt
+	       (setq ctxt (matlab-compute-line-context-lvl-1))
+	       (matlab-scan-cache-put ctxt))
+	     ctxt))
+	  ((= level 2)
+	   (apply 'matlab-compute-line-context-lvl-2 context))
+	  (t
+	   nil)))
   )
 
 ;;; LEVEL 1 SCANNER
@@ -448,7 +449,7 @@ If the line starts with a comment return nil, otherwise t."
   (nth mlf-paren-outer-char lvl1))
 
 (defsubst matlab-line-close-paren-outer-point (lvl1)
-  "The poit the outermost parenthetical expression start is at."
+  "The point the outermost parenthetical expression start is at."
   (nth mlf-paren-outer-point lvl1))
 
 ;;; LEVEL 2 SCANNER
@@ -776,6 +777,49 @@ backward over lines that include ellipsis."
 	    )))
       (back-to-indentation)
       (point))))
+
+(defun matlab-scan-end-of-command (&optional lvl1)
+  "Return point in buffer at the end of this command.
+This function walks down past continuations and open arrays."
+  (unless lvl1 (setq lvl1 (matlab-compute-line-context 1)))
+  ;; If we are in a block comment, just jump to the end, and
+  ;; that's it.
+  (let ((bcs (matlab-line-block-comment-start lvl1)))
+    (if bcs
+	(progn
+	  (goto-char bcs)
+	  (forward-comment 1)
+	  (setq lvl1 (matlab-compute-line-context 1)))
+
+      (let ((done nil)
+	    (lvlwalk lvl1))
+	(while (not done)
+	  (end-of-line)
+	  (cond ((matlab-end-of-outer-list)
+		 ;; If we are in a list, this moves to the end and
+		 ;; returns non-nil.  We are now where we want to be
+		 ;; so nothing to do.
+		 nil)
+
+		 ((matlab-line-ellipsis-p lvlwalk)
+		  ;; This is a continuation, keep going.
+		  (forward-line 1))
+		 
+		(t
+		 ;; None of these conditions were true, so
+		 ;; we must be done!
+		 (setq done t))
+		)
+
+	  ;; Protect against travelling too far.
+	  (when (eobp) (setq done t))
+	  ;; Scan the next line.
+	  (when (not done) (setq lvlwalk (matlab-compute-line-context 1)))
+	  ))
+
+      ;; Return where we ended up
+      (end-of-line)
+      (point-at-eol))))
 
 ;;; Caching
 ;;

@@ -1440,7 +1440,8 @@ that command.
 Return t on success, nil if we couldn't navigate backwards."
   (let ((ans (matlab-find-prev-line 'ignore-comments)))
     (when ans
-      (matlab-beginning-of-command)
+      (matlab-scan-beginning-of-command)
+      ;(matlab-beginning-of-command)
       ans)))
 
 (defun matlab-find-prev-line (&optional ignorecomments)
@@ -1493,11 +1494,8 @@ restricted."
   (declare (indent 0) (debug t))
   `(save-restriction
      (when (not matlab-in-command-restriction)
-       (narrow-to-region (save-excursion
-			   (matlab-beginning-of-command)
-			   (beginning-of-line)
-			   (point))
-			 (1+ (matlab-point-at-eol))))
+       (narrow-to-region (matlab-scan-beginning-of-command)
+			 (matlab-scan-end-of-command)))
      (let ((matlab-in-command-restriction t))
        ,@forms
        )))
@@ -1820,44 +1818,46 @@ Use this if you know what context you're in."
   (save-match-data
     (save-restriction
       (widen)
-      (cond
-       ((not (looking-at (matlab-block-beg-re)))
-	;; Not looking at a valid block
-	nil)
-       ((eq (preceding-char) ?.)
-	;; Any block preceeded by a '.' is a field in a struct, and not valid.
-	nil)
-       ;; Else, are we on a block that has special syntax?
-       ((not (looking-at matlab-innerblock-syntax-re))
-	;; Not an innerblock syntax that only work withing special blocks
-	;; thus automatically true.
-	t)
+      (let ((foundblock (and (looking-at (matlab-block-beg-re))
+			     (match-string-no-properties 1))))
+	(cond
+	 ((not foundblock)
+	  ;; Not looking at a valid block
+	  nil)
+	 ((eq (preceding-char) ?.)
+	  ;; Any block preceeded by a '.' is a field in a struct, and not valid.
+	  nil)
+	 ;; Else, are we on a block that has special syntax?
+	 ((not (looking-at matlab-innerblock-syntax-re))
+	  ;; Not an innerblock syntax that only work withing special blocks
+	  ;; thus automatically true.
+	  t)
    
-       ;; Else, a special block keyword.  We need to check the context of this
-       ;; block to know if this innerblock is valid.
+	 ;; Else, a special block keyword.  We need to check the context of this
+	 ;; block to know if this innerblock is valid.
 
-       ;; Cheap check - if functions don't have end, then always invalid
-       ;; since these context blocks can't exist.
-       ((not matlab-functions-have-end)
-	nil)
+	 ;; Cheap check - if functions don't have end, then always invalid
+	 ;; since these context blocks can't exist.
+	 ((not matlab-functions-have-end)
+	  nil)
 
-       ;; Cheap check - is this block keyword not the first word for this command?
-       ((save-excursion (skip-syntax-backward " ") (not (bolp)))
-	;; Not first on line, not valid block.
-	;; Technically it COULD be valid, but we need some cheap ways
-	;; to skip over some types of syntaxes that look dumb.
-	nil)
-
-       ;; Cheap check - is this at the beginning of a command line (ignore ... )
-       ((not (eq (point) (save-excursion (matlab-beginning-of-command) (point))))
-	;; If this statement is not also the first word on this command
-	;; then it can't be one of these features.
-	nil)
+	 ;; Cheap check - is this block keyword not the first word for this command?
+	 ((save-excursion (skip-syntax-backward " ") (not (bolp)))
+	  ;; Not first on line, not valid block.
+	  ;; Technically it COULD be valid, but we need some cheap ways
+	  ;; to skip over some types of syntaxes that look dumb.
+	  nil)
 	
-       ;; Expensive check - is this block in the right context?
-       ((or matlab-valid-block-start-slow-and-careful known-parent-block)
+	 ;; Cheap check - is this at the beginning of a command line (ignore ... )
+	 ((not (eq (save-excursion (back-to-indentation) (point))
+		   (save-excursion (matlab-scan-beginning-of-command) (point))))
+	  ;; If this statement is not also the first word on this command
+	  ;; then it can't be one of these features.
+	  nil)
+
+	 ;; Expensive check - is this block in the right context?
+	 ((or matlab-valid-block-start-slow-and-careful known-parent-block)
 	
-	(let ((foundblock (match-string-no-properties 1)))
 	  (cond
 	   ((string= foundblock "arguments")
 	    ;; Argument is only valid if it is the FIRST thing in a funtion.
@@ -1915,19 +1915,19 @@ Use this if you know what context you're in."
 	   ;; All else fails - so not valid.
 	   (t nil)
 	   
-	   ))) ;; End slow-and-careful
+	   )) ;; End slow-and-careful
 
-       ;; A cheap version of the expensive check
-       ((and (not matlab-valid-block-start-slow-and-careful)
-	     (looking-at matlab-innerblock-syntax-re))
-	;; If we are not slow and careful, we just need to return t if we see
-	;; one of these keywords since other cases where these weren't 1st on the line
-	;; or not in a classdef file are already filtered out.
-	t)
+	 ;; A cheap version of the expensive check
+	 ((and (not matlab-valid-block-start-slow-and-careful)
+	       (looking-at matlab-innerblock-syntax-re))
+	  ;; If we are not slow and careful, we just need to return t if we see
+	  ;; one of these keywords since other cases where these weren't 1st on the line
+	  ;; or not in a classdef file are already filtered out.
+	  t)
 
-       ;; If none of the valid cases, must be invalid
-       (t nil)
-       ))))
+	 ;; If none of the valid cases, must be invalid
+	 (t nil)
+	 )))))
 
 (defun matlab-previous-line-belongs-to-classdef-p ()
   "Return the nature of the line of code before this one.
@@ -2033,8 +2033,10 @@ If `matlab-functions-have-end', skip over functions with end."
   "Go to the beginning of an M command.
 Travels across continuations."
   (interactive "P")
-  (if arg
+  (if t
       (matlab-scan-beginning-of-command)
+
+    ;;; TODO - delete this old impl
     (beginning-of-line)
     (save-match-data
       (let* ((lvl1 (matlab-compute-line-context 1))
@@ -2298,31 +2300,25 @@ special items."
       nil)))
 
 (defun matlab-lattr-block-close (&optional start)
-  "Return the number of closing block constructs.
+  "Return the number of closing block constructs on this line.
 Argument START is where to start searching from."
-  (let ((v 0)
-	(lvl1 (matlab-compute-line-context 1)))
-    (save-excursion
-      (when start (goto-char start))
+  (save-excursion
+    (when start (goto-char start))
+    (let ((v 0)
+	  (lvl1 (matlab-compute-line-context 1)))
       (if (matlab-line-comment-p lvl1)
 	  ;; If this is even vagely a comment line, then there is no
 	  ;; need to do any scanning.
 	  0
 	;; Else, lets scan.
 	(matlab-with-current-command
-	  ;; We used to do this, but now...
-	  ;;(goto-char (point-at-eol))
 	  ;; lets only scan from the beginning of the comment
+	  (goto-char start)
 	  (matlab-line-end-of-code lvl1)
 
-	  ;; If in a comment, move out of it first.
-	  (when (matlab-beginning-of-string-or-comment)
-	    ;; in case of no space between comment and end, need to move back
-	    ;; over the comment char for next search to work.
-	    ;;(forward-char 1)
-	    )
-
-	  ;; Count every END in the line, skipping over active blocks
+	  ;; Count every END from our starting point till the beginning of the
+	  ;; command.  That count indicates unindent from the beginning of the
+	  ;; command which anchors the starting indent.
 	  (while (re-search-backward (concat "\\<" (matlab-block-end-re) "\\>")
 				     nil t)
 	    (let ((startmove (match-end 0))

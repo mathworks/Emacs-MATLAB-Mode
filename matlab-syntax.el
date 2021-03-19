@@ -518,7 +518,7 @@ Returns non-nil if the cursor moved."
     (when (nth 9 pps) (goto-char (car (nth 9 pps))) )))
 
 (defun matlab-end-of-outer-list ()
-  "If the cursor is in a, move to the end of the outermost list..
+  "If the cursor is in a list, move to the end of the outermost list..
 Returns non-nil if the cursor moved."
   (let* ((pps (syntax-ppss (point))))
     (when (nth 9 pps)
