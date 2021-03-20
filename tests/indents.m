@@ -108,7 +108,7 @@ function B = ends_in_comments_and_strings()
     fcncall(arg1, '...', arg3); % !!4
     1; % !!4
 
-    % Multi-ends
+    % Multi- end s
     % >>8
     if foo %#ok
         if bar %#ok
@@ -167,13 +167,20 @@ function out = array_constant_decls()
     % Line starting with end inside parens
     disp(Csep(1:  ...  %!!4
               end));   %!!14
-    
+
+    % This array has bad syntactic expression parsing due to the
+    % apostrophy
+    Closures = [ ...
+        755009 ; ... % 21-Feb-2067 Washington's Birthday (Mon)
+        755010 ; ... % Another row.
+               ];
     
     % !!4
     out = { A     %!!4
             Blong %!!12
             Csep  %!!12
             multinest%!!12
+            Closures%!!12
           };      %!!10
 
 end
@@ -188,7 +195,7 @@ function C = block_starts_in_comments_and_strings(varargin)
         % !!8
     else % !!4
 
-         % !!8
+        % !!8
     end % if true
     
     

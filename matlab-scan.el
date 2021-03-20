@@ -808,14 +808,6 @@ This function walks down past continuations and open arrays."
 ;;
 ;; Focused scanning across block structures, like if / else / end.
 
-(defvar matlab--buffer-block-tree nil
-  "A Tree data structure representing what we know about this buffer.
-The block tree is a cache of known block structures, like function, if,
-else, and ends.  Scanning forward through a buffer is faster than
-backward, so this tree tracks what we know 'so far' in a buffer to speed
-up some types of keyword navigation and lookup.")
-(make-variable-buffer-local 'matlab--buffer-block-tree)
-
 (defsubst matlab--mk-keyword-node ()
   "Like `matlab-on-keyword-p', but returns a node for block scanning.
 The elements of the return node are:
@@ -928,7 +920,12 @@ Use STATE to stop/start block scanning partway through."
 
     (while (and blockstate (not stop))
       (if (not (setq thiskeyword (matlab-re-search-keyword-forward regex bounds t)))
-	  (setq stop t)
+	  (progn
+	    (setq stop t)
+	    (when (and (not matlab-functions-have-end)
+		       (eq (car (car blockstate)) 'decl))
+	      (goto-char (point-max))
+	      (pop blockstate)))
 	(cond ((eq (car thiskeyword) 'end)
 	       ;; On end, pop last start we pushed
 	       (pop blockstate))
@@ -942,6 +939,15 @@ Use STATE to stop/start block scanning partway through."
 		   (push thiskeyword blockstate)
 		 ;; else, just skip it, not a keyword
 		 ))
+	      ((and (not matlab-functions-have-end)
+		    (eq (car thiskeyword) 'decl)
+		    (eq (car (car blockstate)) 'decl)
+		    )
+	       ;; No ends on functions - in this case we need treat a function as an end.
+	       ;; b/c you can't have nested functions, but only if the thing we try to match
+	       ;; it to is another fcn.
+	       ;; This POP should result in empty state.
+	       (pop blockstate))
 	      (t
 	       (push thiskeyword blockstate)))
 	))
@@ -1012,6 +1018,7 @@ Instead, travel to end as if on keyword."
   (let ((ans nil) (case-fold-search nil))
     (save-excursion
       (while (and (not ans)
+		  (or (not bound) (< (point) bound))
 		  (setq ans (re-search-forward regexp bound noerror)))
 	;; Check for simple cases that are invalid for keywords
 	;; for strings, comments, and lists, skip to the end of them
@@ -1030,6 +1037,7 @@ Instead, travel to end as if on keyword."
   (let ((ans nil) (case-fold-search nil))
     (save-excursion
       (while (and (not ans)
+		  (or (not bound) (> (point) bound))
 		  (setq ans (re-search-backward regexp bound noerror)))
 	;; Check for simple cases that are invalid for keywords
 	;; for strings, comments, and lists, skip to the end of them
@@ -1080,7 +1088,25 @@ Make sure the cache doesn't exceed max size."
 
 (defun matlab-scan-before-change-fcn (start end &optional length)
   "Function run in after change hooks."
-  (setq matlab-scan-temporal-cache nil))
+  ;;(setq matlab-scan-temporal-cache nil))
+  (let ((pt (point))
+	(cache matlab-scan-temporal-cache)
+	(newcache nil))
+    ;; Flush whole lines.
+    (save-excursion
+      (goto-char start)
+      (setq start (point-at-bol)))
+    ;; Only drop items AFTER the start of our region.
+    (while cache
+      (if (<= start (matlab-line-point (car cache)))
+	  (matlab-scan-stat-inc 'flushskip)
+	(push (car cache) newcache)
+	(matlab-scan-stat-inc 'flush))
+      (setq cache (cdr cache)))
+    ;;(setq newcache nil)
+    ;;(when (and newcache (symbolp (car newcache))) (debug))
+    (setq matlab-scan-temporal-cache newcache)
+    ))
 
 (defun matlab-scan-setup ()
   "Setup use of the indent cache for the current buffer."

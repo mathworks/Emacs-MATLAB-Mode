@@ -1483,22 +1483,22 @@ Ignore comments and whitespace."
 ;;    t))
 
 
-(defvar matlab-in-command-restriction nil
-  "Non-nil if currently in a `matlab-with-current-command' form.")
-
-(defmacro matlab-with-current-command (&rest forms)
-  "Restrict region to the current command and run FORMS.
-Restore restriction after FORMS run.
-This command will not add a restriction if we are already
-restricted."
-  (declare (indent 0) (debug t))
-  `(save-restriction
-     (when (not matlab-in-command-restriction)
-       (narrow-to-region (matlab-scan-beginning-of-command)
-			 (matlab-scan-end-of-command)))
-     (let ((matlab-in-command-restriction t))
-       ,@forms
-       )))
+;;(defvar matlab-in-command-restriction nil
+;;  "Non-nil if currently in a `matlab-with-current-command' form.")
+;;
+;;(defmacro omatlab-with-current-command (&rest forms)
+;;  "Restrict region to the current command and run FORMS.
+;;Restore restriction after FORMS run.
+;;This command will not add a restriction if we are already
+;;restricted."
+;;  (declare (indent 0) (debug t))
+;;  `(save-restriction
+;;     (when (not matlab-in-command-restriction)
+;;       (narrow-to-region (matlab-scan-beginning-of-command)
+;;			 (matlab-scan-end-of-command)))
+;;     (let ((matlab-in-command-restriction t))
+;;       ,@forms
+;;       )))
 
 (defun matlab-valid-end-construct-p ()
   "Return non-nil if the end after point terminates a block.
@@ -1669,69 +1669,53 @@ If optional AUTOEND, then pretend we are at an end.
 If optional NOERROR, then we return t on success, and nil on failure.
 This assumes that expressions do not cross \"function\" at the left margin."
   (interactive "P")
-  (matlab-navigation-syntax
-    (skip-chars-backward " \t\n")
-    (cond
-     ;; Not auto-end, and on the end of a block comment
-     ((and (not autoend)
-	   (matlab-cursor-in-comment)
-	   (let ((bcend (save-excursion
-			  (beginning-of-line)
-			  (re-search-forward "%" (point-at-eol))
-			  (goto-char (match-beginning 0))
-			  (when (looking-at "%}")
-			    (point)))))
-	     (if bcend (goto-char bcend))))
+  (let ((p (point))
+	(returnme t)
+	keyword)
+    (save-excursion
+      (skip-chars-backward " \t\n")
+      (cond
+       ;; Auto end - Just go!
+       (autoend
+	(when (matlab--scan-block-backward-up nil)
+	  (if noerror
+	      (setq returnme nil)
+	    (error "Unstarted END")))
+	)
 
-      (let ((bc (matlab-block-comment-bounds)))
-	(goto-char (car bc)))
-      )
-     ;; Not auto-end, and not looking @ and end type keyword
-     ((and (not autoend)
-	   (save-excursion (backward-word 1)
-			   (or (not
-				(and (looking-at
-				      (matlab-block-end-no-function-re))
-				     (matlab-valid-end-construct-p)))
-			       (matlab-cursor-in-string-or-comment))))
-      ;; Go backwards one simple expression
-      (matlab-move-simple-sexp-internal -1))
+       ;; No auto-end ....
+       
+       ;; End of a block comment
+       ((matlab-ltype-block-comment-end)
+	(beginning-of-line)
+	(matlab-beginning-of-string-or-comment))
 
-     ;; otherwise go backwards recursively across balanced expressions
-     ;; backup over our end
-     (t
-      (if (not autoend) (forward-word -1))
-      (let ((done nil) (start (point)) (returnme t) (bound nil))
-        (when (search-backward "\nfunction" nil t)
-          (if (progn (forward-char 9) (looking-at "\\b"))
-              (setq bound (- (point) 8)))
-          (goto-char start))
-	(while (and (not done)
-		    (or (not matlab-scan-on-screen-only)
-			(pos-visible-in-window-p)))
-	  (if (re-search-backward (matlab-block-scan-re) bound t)
-	      (progn
-		(goto-char (match-beginning 2))
-		(if (looking-at (matlab-block-end-no-function-re))
-		    (if (or (matlab-cursor-in-string-or-comment)
-			    (not (matlab-valid-end-construct-p)))
-			nil
-		      ;; we must skip the expression and keep searching
-		      (forward-word 1)
-		      (unless (matlab-backward-sexp nil noerror)
-			(setq done t
-			      returnme nil)))
-		  ;; Make sure we are at a valid block construct and not
-		  ;; comments or other weird spot.
-		  (if (and (not (matlab-cursor-in-string-or-comment))
-			   (matlab-cursor-on-valid-block-start))
-		      (setq done t))))
-	    (goto-char start)
-	    (if noerror
-		(setq done t
-		      returnme nil)
-	      (error "Unstarted END construct"))))
-	returnme)))))
+       ((or (not (setq keyword (matlab-on-keyword-p)))
+	    (memq keyword '(decl ctrl mcos arg vardecl keyword)))
+	;; Just walk over block starts and other random stuff.
+	(matlab-move-simple-sexp-internal -1))
+
+       ((memq keyword '(mid case))
+	;; If we're on a middle, then assume we're in the middle
+	;; of something and keep going.
+	(when (matlab--scan-block-backward-up nil)
+	  (if noerror
+	      (setq returnme nil)
+	    (error "Unstarted END")))
+	)
+
+       (t
+	(when (matlab--scan-block-backward nil)
+	  (if noerror
+	      (setq returnme nil)
+	    (error "Unstarted END")))
+	)
+       )
+
+      (when returnme
+	(setq p (point))))
+    (goto-char p)
+    returnme))
 
 (defun matlab-forward-sexp (&optional includeelse autostart parentblock)
   "Go forward one balanced set of MATLAB expressions.
@@ -1741,68 +1725,43 @@ forward until we exit that block.
 PARENTBLOCK is used when recursing to validate block starts as being in
 a valid context."
   (interactive "P")
-  (let (p) ;; go to here if no error.
-    (save-excursion ;; don't go anywhere if there is an error
-      (matlab-navigation-syntax
-        ;; skip over preceding whitespace
-        (skip-chars-forward " \t\n;")
-        (cond
-	 ;; no autostart, and looking at a block comment.
-	 ((and (not autostart)
-	       (matlab-ltype-block-comment-start))
-	  (goto-char (match-end 0))
-	  (let ((bc (matlab-block-comment-bounds)))
-	    (when bc (goto-char (cdr bc))))
-	  )
-	 ;; No autostart, and looking at a block keyword.
-	 ((and (not autostart)
-	       (or (not (looking-at (matlab-block-start-scan-re)))
-		   ;;    ^^ (concat "\\(" (matlab-block-beg-pre) "\\|" (matlab-block-mid-re) "\\)\\>")
-		   (matlab-cursor-in-string-or-comment)))
-          ;; Go forwards one simple expression
-	  (matlab-move-simple-sexp-internal 1))
+  (let (p keyword)  ;; go to here if no error.
+    (save-excursion ;; Don't move if there is an error
+      ;; skip over preceding whitespace
+      (skip-chars-forward " \t\n;")
+      (cond
+       ;; Auto start - just go!
+       (autostart
+	(when (matlab--scan-block-forward-up nil)
+	  (error "Unterminated Block")
+	  ))
 
-	 ;; Yes autostart, but already looking @ the END!
-	 ((and autostart (looking-at (matlab-block-end-re)))
-	  (goto-char (match-end 0)))
+	;; No Autostart ....
 
-	 ;; Default behavior.
-	 (t
-          ;; Not autostart, skip next word, and also track what it is
-	  ;; for nesting purposes.
-	  (unless autostart
-	    (setq parentblock (buffer-substring-no-properties
-			       (point) (progn (forward-word 1) (point)))))
-          (let ((done nil) (s nil)
-                (expr-scan (if includeelse
-                               (matlab-block-re)
-                             (matlab-block-scan-re)))
-                (expr-look (matlab-block-beg-pre)))
-            (while (and (not done)
-                        (setq s (re-search-forward expr-scan nil t))
-                        (or (not matlab-scan-on-screen-only)
-                            (pos-visible-in-window-p)))
-              (goto-char (match-beginning 2))
-              (if (looking-at expr-look)
-                  (if (or (matlab-cursor-in-string-or-comment)
-			  ;; We'd like to do this:
-			  ;;(not (matlab-cursor-on-valid-block-start))
-			  ;; but it travels backwards.  Instead, we need to track the
-			  ;; last block we are diving down from and just use that
-			  ;; instead of looking it up along the way.
-			  (not (matlab-cursor-on-valid-block-start parentblock))
-			  )
-                      (forward-word 1)
-                    ;; we must skip the expression and keep searching
-                    ;; NEVER EVER call with value of INCLUDEELSE
-                    (matlab-forward-sexp nil nil (match-string-no-properties 1)))
-                (forward-word 1)
-                (if (and (not (matlab-cursor-in-string-or-comment))
-                         (matlab-valid-end-construct-p))
-                    (setq done t))))
-            (if (not s)
-                (error "Unterminated block")))))
-        (setq p (point)))) ;; really go here
+	;; Looking at a block comment.
+	((and (not autostart)
+	      (looking-at "%"))
+	 (goto-char (match-end 0))
+	 (matlab-end-of-string-or-comment))
+
+	((or (not (setq keyword (matlab-on-keyword-p)))
+	     (memq keyword '(end vardecl keyword)))
+	 ;; Just walk over ends and other random stuff.
+	 (matlab-move-simple-sexp-internal 1))
+
+	((memq keyword '(mid case))
+	 ;; If we're on a middle, then assume we're in the middle
+	 ;; of something and keep going.
+	 (when (matlab--scan-block-forward-up nil)
+	   (error "Unterminated Block"))
+	 )
+	 
+	(t
+	 (when (matlab--scan-block-forward nil nil)
+	   (error "Unterminated Block"))
+	 )
+	)
+      (setq p (point)))
     (goto-char p)))
 
 (defvar matlab-valid-block-start-slow-and-careful t
@@ -2241,53 +2200,50 @@ by close, the first character is the end of an array."
   "Return a number representing the number of unterminated block constructs.
 This is any block, such as if or for, that doesn't have an END on this line.
 Optional EOL indicates a virtual end of line."
-  (let ((v 0)
-	(lvl (matlab-compute-line-context 1)))
-    (if (or (matlab-line-comment-p lvl)
-	    (matlab-line-empty-p lvl))
-	;; If this line is comments or empty, no code to scan
-	0
-      (save-excursion
-	(beginning-of-line)
-	(save-restriction
-	  (narrow-to-region (point) (or eol (save-excursion (matlab-line-end-of-code lvl)
-							    (point))))
-	  (matlab-navigation-syntax
-	    (while (re-search-forward (concat "\\<" (matlab-block-beg-re) "\\>")
-				      nil t)
-	      (if (or (matlab-cursor-in-string-or-comment)
-		      (not (save-excursion (forward-word -1)
-					   (matlab-cursor-on-valid-block-start))))
-		  ;; Do nothing if in comment, or if the thing we skipped over was
-		  ;; an invalid block construct (based on local context)
-		  nil
-		;; Increment counter, move to end.
-		(setq v (1+ v))
-		(let ((p (point)))
-		  (forward-word -1)
-		  (condition-case nil
-		      (progn
-			(matlab-forward-sexp)
-			(setq v (1- v)))
-		    (error (goto-char p))))))
-	    v))))))
-
-(defun matlab-lattr-middle-block-cont ()
-  "Return the number of middle block continuations.
-This should be 1 or nil, and only true if the line starts with one of these
-special items."
   (save-excursion
-    (back-to-indentation)
-    (if (looking-at (concat (matlab-block-mid-re) "\\>"))
-	(if (and (re-search-forward (matlab-block-end-pre)
-				    (matlab-point-at-eol)
-				    t)
-		 (matlab-valid-end-construct-p))
-	    ;; If there is an END, we still need to return non-nil,
-	    ;; but the number value is a net of 0.
-	    0
-	  1)
-      nil)))
+    (let* ((v 0)
+	   (lvl (matlab-compute-line-context 1))
+	   (bound (or eol (save-excursion (matlab-line-end-of-code lvl))))
+	   (keyword nil))
+      
+      (if (or (matlab-line-comment-p lvl)
+	      (matlab-line-empty-p lvl))
+	  ;; If this line is comments or empty, no code to scan
+	  0
+	(back-to-indentation)
+	(while (setq keyword
+		     (matlab-re-search-keyword-forward (matlab-keyword-regex 'indent) bound t))
+	  (if (or (and (eq (car keyword) 'mcos)
+		       (not (matlab--valid-mcos-keyword-point nil)))
+		  (and (eq (car keyword) 'args)
+		       (not (matlab--valid-arguments-keyword-point nil))))
+	      ;; Not valid, skip it.
+	      nil
+	    ;; Increment counter, move to end.
+	    (setq v (1+ v))
+	    (let ((p (point)))
+	      (forward-word -1)
+	      (if (matlab--scan-block-forward bound) ;;(matlab-forward-sexp)
+		  (goto-char p)
+		(setq v (1- v))))))
+	v))))
+
+;;(defun matlab-lattr-middle-block-cont ()
+;;  "Return the number of middle block continuations.
+;;This should be 1 or nil, and only true if the line starts with one of these
+;;special items."
+;;  (save-excursion
+;;    (back-to-indentation)
+;;    (if (looking-at (concat (matlab-block-mid-re) "\\>"))
+;;	(if (and (re-search-forward (matlab-block-end-pre)
+;;				    (matlab-point-at-eol)
+;;				    t)
+;;		 (matlab-valid-end-construct-p))
+;;	    ;; If there is an END, we still need to return non-nil,
+;;	    ;; but the number value is a net of 0.
+;;	    0
+;;	  1)
+;;      nil)))
 
 (defun matlab-lattr-endless-block-cont ()
   "Return the number of middle block continuations.
@@ -2298,66 +2254,52 @@ special items."
     (if (looking-at (concat (matlab-endless-blocks-re) "\\>"))
 	1
       nil)))
-
+	
 (defun matlab-lattr-block-close (&optional start)
   "Return the number of closing block constructs on this line.
 Argument START is where to start searching from."
   (save-excursion
     (when start (goto-char start))
     (let ((v 0)
-	  (lvl1 (matlab-compute-line-context 1)))
+	  (lvl1 (matlab-compute-line-context 1))
+	  (bound (save-excursion (matlab-scan-beginning-of-command))))
+      
       (if (matlab-line-comment-p lvl1)
 	  ;; If this is even vagely a comment line, then there is no
 	  ;; need to do any scanning.
 	  0
 	;; Else, lets scan.
-	(matlab-with-current-command
-	  ;; lets only scan from the beginning of the comment
-	  (goto-char start)
-	  (matlab-line-end-of-code lvl1)
+	;; lets only scan from the beginning of the comment
+	(goto-char start)
+	(matlab-line-end-of-code lvl1)
 
-	  ;; Count every END from our starting point till the beginning of the
-	  ;; command.  That count indicates unindent from the beginning of the
-	  ;; command which anchors the starting indent.
-	  (while (re-search-backward (concat "\\<" (matlab-block-end-re) "\\>")
-				     nil t)
-	    (let ((startmove (match-end 0))
-		  (nomove (point)))
-	      (cond
-	       ((matlab-beginning-of-string-or-comment)
-		;; Above returns non-nil if it was in a string or comment.
-		;; In that case, we need to keep going.
-		nil)
-	       ((not (matlab-valid-end-construct-p))
-		;; Not a valid end, just move past it.
-		(goto-char nomove))
-	       ((matlab-line-declaration-p lvl1)
-		;; In endless fuction buffers, a function marks the bounds
-		;; of other functions, but in this case, it is meaningless,
-		;; so do nothing with it.
-		(goto-char nomove))
-	       (t
-		;; Lets count these end constructs.
-		(setq v (1+ v))
-		(if (matlab-backward-sexp t t)
-		    (setq v (1- v))
-		  (goto-char nomove)))
-	       )))
-	  ;; If we can't scoot back, do a cheat-test to see if there
-	  ;; is a matching else or elseif.
-	  (goto-char (point-min))
-	  (back-to-indentation)
-	  (if (looking-at (matlab-block-mid-re))
+	;; Count every END from our starting point till the beginning of the
+	;; command.  That count indicates unindent from the beginning of the
+	;; command which anchors the starting indent.
+	(while (matlab-re-search-keyword-backward (matlab-keyword-regex 'end) bound t)
+	  (let ((startmove (match-end 0))
+		(nomove (point)))
+	    ;; Lets count these end constructs.
+	    (setq v (1+ v))
+	    (if (matlab--scan-block-backward bound) ;;(matlab-backward-sexp t t)
+		(goto-char nomove)
 	      (setq v (1- v)))
-	  ;; Return nil, or a number
-	  (if (<= v 0) nil v))))))
+	    ))
+	;; If we can't scoot back, do a cheat-test to see if there
+	;; is a matching else or elseif.
+	(goto-char bound)
+	(back-to-indentation)
+	(if (looking-at (matlab-block-mid-re))
+	    (setq v (1- v)))
+	;; Return nil, or a number
+	(if (<= v 0) nil v)))))
 
-(defun matlab-lattr-local-end ()
-  "Return t if this line begins with an end construct."
-  (save-excursion
-    (back-to-indentation)
-    (and (looking-at (concat "\\<" (matlab-block-end-re) "\\>"))
-         (matlab-valid-end-construct-p))))
+;;(defun matlab-lattr-local-end ()
+;;  "Return t if this line begins with an end construct."
+;;  (save-excursion
+;;    (back-to-indentation)
+;;    (and (looking-at (concat "\\<" (matlab-block-end-re) "\\>"))
+;;         (matlab-valid-end-construct-p))))
 
 (defun matlab-function-called-at-point ()
   "Return a string representing the function called nearby point."

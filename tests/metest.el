@@ -211,7 +211,7 @@
       (kill-buffer buf)
       (list cnt "tests")))
 
-(defvar metest-sexp-traversal-test (cons "sexp traversal" met-sexptest-files))
+(defvar metest-sexp-traversal-test (cons "sexp block traversal" met-sexptest-files))
 (defun metest-sexp-traversal-test (F)
   "Run a test to make sure high level block navigation works."
     (let ((buf (metest-find-file F))
@@ -225,19 +225,20 @@
 		 (begin nil))
 	    (skip-chars-forward " \n\t;%")
 	    (setq begin (point))
-	    (metest-condition-case-error-msg (matlab-forward-sexp))
-	    (skip-chars-forward " \n\t;%")
-	    (if (not (looking-at "<<\\([0-9]+\\)"))
-		(metest-error "Failed to find matching test end token for %d"
-		  num)
-	      (setq num2 (string-to-number (match-string 1)))
-	      (when (/= num num2)
-		(metest-error "Failed to match correct test token. Start is %d, end is %d"
-		  num num2)))
-	    (matlab-backward-sexp)
+	    (metest-condition-case-error-msg (matlab--scan-block-forward))
+	    (save-excursion
+	      (skip-chars-forward " \n\t;%")
+	      (if (not (looking-at "<<\\([0-9]+\\)"))
+		  (metest-error "Failed to find matching test end token for %d"
+				num)
+		(setq num2 (string-to-number (match-string 1)))
+		(when (/= num num2)
+		  (metest-error "Failed to match correct test token. Start is %d, end is %d"
+				num num2))))
+	    (metest-condition-case-error-msg (matlab--scan-block-backward))
 	    (when (/= (point) begin)
 	      (metest-error "Failed to reverse navigate sexp for %d"
-		num))
+			    num))
 	    )
 	  (end-of-line)
 	  (setq cnt (1+ cnt))))

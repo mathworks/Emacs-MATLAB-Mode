@@ -53,8 +53,17 @@ function continuations(a,b) %!!0
     end ... %!!4
         
     code1(); %!!4   -  this after those continued ends
+
     
+    ... % !!4  A continuation with a ctrl block after it
+    % TODO - Remove this line and get things to pass
+    for g=1:10   % !!4 b/c continuation
+        localfcn(a,g)  % !!8 b/c not continued, and +4 from comment continuation
+    end            % !!4 to match
     
+    % !!4 to undo continuation.
+    
+
     
     ...   % Continuation by itself just before an end.
 end  %!!0

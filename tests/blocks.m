@@ -25,7 +25,7 @@ classdef blocks < handle
         %properties
         %events
         %methods
-        arguments %!!8
+        arguments  %#ok  %!!8
         misc %!!8
         
     end % <<13
@@ -78,7 +78,7 @@ classdef blocks < handle
         %>>20
         function events=arguments(arguments)%!!8
             arguments, arguments(:,:) {mustBeNumeric}, end %!!12
-            
+        
             enumeration ... %!!12
                 = arguments;
             
@@ -99,9 +99,9 @@ classdef blocks < handle
         % Try using the methods of this object
             obj.properties();%!!12
             obj.methods();%!!12
-            obj.events();%!!12
-            obj.arguments();%!!12
-            obj.enumeration();%!!12
+            obj. events();%!!12
+            obj. arguments();%!!12
+            obj. enumeration();%!!12
             normal();%!!12
         end %<<22
         
@@ -126,7 +126,7 @@ classdef blocks < handle
             
             s = enumeration;%!!12
         end %<<23
-        
+
         %>>24
         function s = simple(~,arguments)%!!8
         % Simple function
@@ -161,10 +161,10 @@ classdef blocks < handle
                 end%!!16
             end%!!12
         end%!!8
-        
+
         %!!8
     end %<<14
-    
+
     %!!4
 end % <<1
 

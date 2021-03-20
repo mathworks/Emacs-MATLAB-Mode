@@ -15,6 +15,7 @@ function fcn_call(idx) %!!0
 
 if idx > 0 %!!0
     fcn_call(ix-1) %!!4
+    goo(3);
 end  %!!0
 
 function c=goo(p3) %!!0
