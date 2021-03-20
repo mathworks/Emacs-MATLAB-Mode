@@ -1673,7 +1673,7 @@ This assumes that expressions do not cross \"function\" at the left margin."
 	(returnme t)
 	keyword)
     (save-excursion
-      (skip-chars-backward " \t\n")
+      (skip-syntax-backward " .><")
       (cond
        ;; Auto end - Just go!
        (autoend
@@ -1728,7 +1728,7 @@ a valid context."
   (let (p keyword)  ;; go to here if no error.
     (save-excursion ;; Don't move if there is an error
       ;; skip over preceding whitespace
-      (skip-chars-forward " \t\n;")
+      (skip-syntax-forward " .><")
       (cond
        ;; Auto start - just go!
        (autostart

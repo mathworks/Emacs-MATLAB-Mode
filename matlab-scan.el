@@ -947,7 +947,8 @@ Use STATE to stop/start block scanning partway through."
 	       ;; b/c you can't have nested functions, but only if the thing we try to match
 	       ;; it to is another fcn.
 	       ;; This POP should result in empty state.
-	       (pop blockstate))
+	       (pop blockstate)
+	       (goto-char (match-beginning 1)))
 	      (t
 	       (push thiskeyword blockstate)))
 	))
@@ -989,14 +990,12 @@ Use STATE to stop/start block scanning partway through."
 	       ;; On end, push this keyword
 	       (push thiskeyword blockstate))
 	      ((eq (car thiskeyword) 'mcos)
-	       (if (matlab--valid-mcos-keyword-point nil)
-		   (pop blockstate)
-		 ;; else, just skip it
+	       (when (matlab--valid-mcos-keyword-point nil)
+		 (pop blockstate)
 		 ))
 	      ((eq (car thiskeyword) 'args)
-	       (if (matlab--valid-arguments-keyword-point nil)
-		   (pop blockstate)
-		 ;; else, just skip it, not a keyword
+	       (when (matlab--valid-arguments-keyword-point nil)
+		 (pop blockstate)
 		 ))
 	      (t
 	       (pop blockstate)))
