@@ -29,8 +29,11 @@
 
 ;;; Code:
 
+
 ;;; Keyword and REGEX constants
 ;;
+;; List of our keywords, and tools to look up keywords and find out
+;; what they are.
 (defconst matlab-block-keyword-list '(("end" . end) 
 				      ("function" . decl)
 				      ("classdef" . decl)
@@ -76,23 +79,43 @@ If word is a number, it is a match-string index for the current buffer."
 	  (sym (intern-soft local-word matlab-keyword-table)))
      (and sym (symbol-value sym))))
 
+(defsubst matlab-on-keyword-p ()
+  "Return the type of keyword under point, or nil."
+  (when (matlab-valid-keyword-syntax)
+    ;; Not in invalid context, look it up.
+    (matlab-keyword-p (buffer-substring-no-properties
+		       (save-excursion (skip-syntax-backward "w_") (point))
+		       (save-excursion (skip-syntax-forward "w_") (point))))))
 
 (defvar matlab-kwt-all nil)
 (defvar matlab-kwt-decl nil)
+(defvar matlab-kwt-indent nil)
 (defvar matlab-kwt-end nil)
+(defvar matlab-kwt-blocks nil)
 
 (defun matlab-keyword-regex (types)
   "Find keywords that match TYPES and return optimized regexp.
+TYPES can also be a single symbol that represents a common list of
+keyword types.  These include:
+   all    - any kind of keyword
+   decl   - declarations, like class or function
+   indent - any keyword that causes an indent
+   end    - the end keyword (that causes dedent)
+   blocks - indent and end keywords
 Caches some found regexp to retrieve them faster."
   (cond
    ((or (eq types nil) (eq types 'all))
     (or matlab-kwt-all (setq matlab-kwt-all (matlab--keyword-regex nil))))
-   ((equal types '(decl))
-    (or matlab-kwt-decl (setq matlab-kwt-decl (matlab--keyword-regex types))))
-   ((equal types '(end))
-    (or matlab-kwt-end (setq matlab-kwt-end (matlab--keyword-regex types))))
+   ((eq types 'decl)
+    (or matlab-kwt-decl (setq matlab-kwt-decl (matlab--keyword-regex '(decl)))))
+   ((eq types 'indent)
+    (or matlab-kwt-indent (setq matlab-kwt-indent (matlab--keyword-regex '(decl ctrl args mcos)))))
+   ((eq types 'end)
+    (or matlab-kwt-end (setq matlab-kwt-end (matlab--keyword-regex '(end)))))
+   ((eq types 'blocks)
+    (or matlab-kwt-blocks (setq matlab-kwt-blocks (matlab--keyword-regex '(end decl ctrl args mcos)))))
    (t
-    (setq matlab-kwt-all (matlab--keyword-regex types)))))
+    (matlab--keyword-regex types))))
 
 (defun matlab--keyword-regex (types)
   "Find keywords that match TYPES and return an optimized regexp."
@@ -101,47 +124,12 @@ Caches some found regexp to retrieve them faster."
 	  matlab-block-keyword-list)
     (regexp-opt lst 'symbols)))
 
-;;; Searching for keywords
-;;
-;; These utilities will simplify searching for code bits by skipping
-;; anything in a comment or string.
-(defun matlab-re-search-keyword-forward (regexp &optional bound noerror)
-  "Like `re-search-forward' but will not match content in strings or comments."
-  (let ((ans nil))
-    (save-excursion
-      (while (and (not ans)
-		  (setq ans (re-search-forward regexp bound noerror)))
-	(cond ((matlab-end-of-string-or-comment)
-	       ;; We landed in a string this time through, so clear
-	       ;; the answer and skip the rest of it.
-	       ;; TODO: can it skip over all adjacent comments too?
-	       (setq ans nil))
-	      ((matlab-end-of-outer-list)
-	       (setq ans nil))
-	      )))
-    (when ans (goto-char ans))))
-
-(defun matlab-re-search-keyword-backward (regexp &optional bound noerror)
-  "Like `re-search-backward' but will not match content in strings or comments."
-  (let ((ans nil))
-    (save-excursion
-      (while (and (not ans)
-		  (setq ans (re-search-backward regexp bound noerror)))
-	(cond ((matlab-beginning-of-string-or-comment)
-	       ;; We landed in a string this time through, so clear
-	       ;; the answer and skip the rest of it.
-	       (setq ans nil))
-	      ((matlab-beginning-of-outer-list)
-	       (setq ans nil))
-	      )))
-    (when ans (goto-char ans))))
-
+
 ;;;  Context Parsing
 ;;
 ;; Find some fast ways to identify the context for a given line.
 ;; Use tricks to derive multiple pieces of information and do lookups
 ;; as quickly as possible.
-
 
 (defun matlab-compute-line-context (level &rest context)
   "Compute and return the line context for the current line of MATLAB code.
@@ -207,6 +195,7 @@ in a single call using fastest methods."
 	   (ec-type nil)
 	   (ec-col nil)
 	   (cont-from-prev nil)
+	   (symval nil)
 	  )
 
       ;; This means we are somewhere inside a cell, array, or arg list.
@@ -253,34 +242,25 @@ in a single call using fastest methods."
 
        ;; Looking at word constituent.  If so, identify if it is one of our
        ;; special identifiers.
-       ((looking-at "\\w+\\>")
-	(if (/= paren-depth 0)
-	    (setq ltype 'code)
-	  
-	  ;; If not in parens, this might be a keyword.
-	  ;; Look up our various keywords.
-	  (let* ((symval (matlab-keyword-p 0)))
-	    (if symval
-		(cond
-		 ;; Special end keyword is in a class all it's own
-		 ((eq symval 'end)
-		  (setq ltype 'end))
-		 ;; If we found this in our keyword table, then it is a start
-		 ;; of a block with a subtype.
-		 ((memq symval '(decl args mcos ctrl mid case))
-		  (setq ltype 'block-start
-			stype symval))
-		 ;; Some keywords aren't related to blocks with indentation
-		 ;; controls.  Those are treated as code, with a type.
-		 ((memq symval '(keyword vardecl))
-		  (setq ltype 'code
-			stype symval))
-		 ;; Else - not a sym - just some random code.
-		 (t
-		  (setq ltype 'code)))
-	      (setq ltype 'code))
-	      )))
+       ((and (= paren-depth 0)
+	     (setq symval (matlab-on-keyword-p)))
 
+	(cond
+	 ;; Special end keyword is in a class all it's own
+	 ((eq symval 'end)
+	  (setq ltype 'end))
+	 ;; If we found this in our keyword table, then it is a start
+	 ;; of a block with a subtype.
+	 ((memq symval '(decl args mcos ctrl mid case))
+	  (setq ltype 'block-start
+		stype symval))
+	 ;; Some keywords aren't related to blocks with indentation
+	 ;; controls.  Those are treated as code, with a type.
+	 (t
+	  (setq ltype 'code
+		stype symval))
+	 ))
+       
        ;; Looking at a close paren.
        ((and (< 0 paren-depth) (looking-at "\\s)"))
 	(setq ltype 'close-paren))
@@ -451,6 +431,7 @@ If the line starts with a comment return nil, otherwise t."
 (defsubst matlab-line-close-paren-outer-point (lvl1)
   "The point the outermost parenthetical expression start is at."
   (nth mlf-paren-outer-point lvl1))
+
 
 ;;; LEVEL 2 SCANNER
 ;;
@@ -700,6 +681,7 @@ If LVL2 is nil, compute it."
   "Return the location of an opening paren if in array parens."
   (matlab-line-close-paren-outer-point (matlab-get-lvl1-from-lvl2 lvl2)))
 
+
 ;;; Scanning Accessor utilities
 ;;
 ;; Some utilities require some level of buffer scanning to get the answer.
@@ -821,6 +803,247 @@ This function walks down past continuations and open arrays."
       (end-of-line)
       (point-at-eol))))
 
+
+;;; BLOCK SCANNING and SEARCHING
+;;
+;; Focused scanning across block structures, like if / else / end.
+
+(defvar matlab--buffer-block-tree nil
+  "A Tree data structure representing what we know about this buffer.
+The block tree is a cache of known block structures, like function, if,
+else, and ends.  Scanning forward through a buffer is faster than
+backward, so this tree tracks what we know 'so far' in a buffer to speed
+up some types of keyword navigation and lookup.")
+(make-variable-buffer-local 'matlab--buffer-block-tree)
+
+(defsubst matlab--mk-keyword-node ()
+  "Like `matlab-on-keyword-p', but returns a node for block scanning.
+The elements of the return node are:
+  0 - type of keyword, like ctrl or decl
+  1 - text of the keyword
+  2 - buffer pos for start of keyword"
+  ;; Don't check the context - assume our callers have vetted this
+  ;; point.  This is b/c the search fcns already skip comments and
+  ;; strings for efficiency.
+  (let* ((start (save-excursion (skip-syntax-backward "w_") (point))) 
+	 (txt (buffer-substring-no-properties
+	       start
+	       (save-excursion (skip-syntax-forward "w_") (point))))
+	 (type (matlab-keyword-p txt)))
+    (when type (list type txt start) )))
+
+;;; Valid keyword locations
+;;
+(defsubst matlab--valid-keyword-point ()
+  "Return non-nil if point is valid for keyword.
+Returns nil for failing `matlab-valid-keyword-syntax'.
+Returns nil if preceeding non-whitespace char is `.'"
+  (and (matlab-valid-keyword-syntax)
+       (not (matlab-syntax-keyword-as-variable-p))))
+
+(defsubst matlab--known-parent-block(parent)
+  "Return PARENT if it is a known parent block."
+  (if (or (not parent) (eq (car parent) 'unknown))
+      nil
+    parent))
+
+(defun matlab--valid-mcos-keyword-point (&optional parentblock)
+  "Return non-nil if at a location that is valid for MCOS keywords.
+This means that the parent block is a classdef.
+Optional input PARENTBLOCK is a precomputed keyword node
+representing the current block context point is in.
+Assume basic keyword checks have already been done."
+  ;; If a parent was provided, use that.
+  (if (matlab--known-parent-block parentblock)
+      (string= (nth 1 parentblock) "classdef")
+
+    (and (eq matlab-functions-have-end 'class) ;; not a class, no mcos allowed.
+	 (save-excursion (skip-syntax-backward "w")
+			 (skip-syntax-backward " ")
+			 (bolp)) ;; Must be first on line.
+
+	 ;; Otherwise, roll back a single command.  in MUST be
+	 ;; an END indent 4 or CLASSDEF
+	 (save-excursion
+	   (skip-syntax-backward "w")
+	   (forward-comment -100000)
+	   (back-to-indentation) ;; TODO -> this should be beginning-of-command
+	   (let ((prev (matlab--mk-keyword-node)))
+	     (or (string= (nth 1 prev) "classdef")
+		 (and (string= (nth 1 prev) "end")
+		      (= (current-indentation) matlab-indent-level))))))))
+
+(defun matlab--valid-arguments-keyword-point (&optional parentblock)
+  "Return non-nil if at a location that is valid for ARGUMENTS keyword.
+This means that the parent block is a function, and this is first cmd in
+the function.
+Optional input PARENTBLOCK is a precomputed keyword node
+representing the current block context point is in.
+Assume basic keyword checks have already been done."
+  (let ((parent
+	 (or (matlab--known-parent-block parentblock) ;; technically this can lie, but it's fast.
+	     (save-excursion (skip-syntax-backward "w")
+			     (forward-comment -100000)
+			     (matlab-scan-beginning-of-command)
+			     (and (matlab--valid-keyword-point)
+				  (matlab--mk-keyword-node))))))
+    (string= (nth 1 parent) "function")))
+
+(defun matlab--scan-derive-block-state (providedstate filter)
+  "Return a block state for current point.
+If PROVIDEDSTATE is non nil, use that.
+Return nil if no valid block under pt."
+  (or providedstate
+      (let ((thiskeyword (matlab--mk-keyword-node)))
+	(if (or (not thiskeyword)
+		(not (matlab--valid-keyword-point))
+		(not (memq (car thiskeyword) filter))
+		)
+	    nil
+	  (push thiskeyword providedstate)))))
+
+;;; Block Scanning
+;;
+(defun matlab--scan-block-forward (&optional bounds state)
+  "Scan forward over 1 MATLAB block construct.
+Return current state on exit.
+  nil     - success
+  non-nil - indicates incomplete scanning
+Also skips over all nexted block constructs along the way.
+Assumes cursor is in a valid starting state, otherwise ERROR.
+If cursor is on a middle-block construct like else, case, ERROR.
+
+Optional BOUNDS is a point in the buffer past which we won't scan. 
+Optional STATE is the current parsing state to start from.
+Use STATE to stop/start block scanning partway through."
+  (let ((blockstate (matlab--scan-derive-block-state state '(decl args mcos ctrl)))
+	(thiskeyword nil)
+	(stop nil)
+	(regex (matlab-keyword-regex 'blocks))
+	)
+
+    (when (not blockstate) (error "Not on valid block start."))
+
+    (when (not state) (skip-syntax-forward "w")) ;; skip keyword
+
+    (while (and blockstate (not stop))
+      (if (not (setq thiskeyword (matlab-re-search-keyword-forward regex bounds t)))
+	  (setq stop t)
+	(cond ((eq (car thiskeyword) 'end)
+	       ;; On end, pop last start we pushed
+	       (pop blockstate))
+	      ((eq (car thiskeyword) 'mcos)
+	       (if (matlab--valid-mcos-keyword-point (car blockstate))
+		   (push thiskeyword blockstate)
+		 ;; else, just skip it
+		 ))
+	      ((eq (car thiskeyword) 'args)
+	       (if (matlab--valid-arguments-keyword-point (car blockstate))
+		   (push thiskeyword blockstate)
+		 ;; else, just skip it, not a keyword
+		 ))
+	      (t
+	       (push thiskeyword blockstate)))
+	))
+    blockstate))
+
+(defun matlab--scan-block-forward-up (&optional bounds)
+  "Like `matlab--scan-block-forward', but cursor is not on a keyword.
+Instead, travel to end as if on keyword."
+  (let ((currentstate '((unknown "" 0))))
+    (matlab--scan-block-forward bounds currentstate)))
+
+
+(defun matlab--scan-block-backward (&optional bounds state)
+  "Scan forward over 1 MATLAB block construct.
+Return current state on exit.
+  nil     - success
+  non-nil - indicates incomplete scanning
+Also skips over all nexted block constructs along the way.
+Assumes cursor is in a valid starting state, otherwise ERROR.
+If cursor is on a middle-block construct like else, case, ERROR.
+
+Optional BOUNDS is a point in the buffer past which we won't scan. 
+Optional STATE is the current parsing state to start from.
+Use STATE to stop/start block scanning partway through."
+  (let ((blockstate (matlab--scan-derive-block-state state '(end)))
+	(thiskeyword nil)
+	(stop nil)
+	(regex (matlab-keyword-regex 'blocks))
+	)
+
+    (when (not blockstate) (error "Not on valid block end."))
+
+    (when (not state) (skip-syntax-backward "w")) ;; skip keyword
+
+    (while (and blockstate (not stop))
+      (if (not (setq thiskeyword (matlab-re-search-keyword-backward regex bounds t)))
+	  (setq stop t)
+	(cond ((eq (car thiskeyword) 'end)
+	       ;; On end, push this keyword
+	       (push thiskeyword blockstate))
+	      ((eq (car thiskeyword) 'mcos)
+	       (if (matlab--valid-mcos-keyword-point nil)
+		   (pop blockstate)
+		 ;; else, just skip it
+		 ))
+	      ((eq (car thiskeyword) 'args)
+	       (if (matlab--valid-arguments-keyword-point nil)
+		   (pop blockstate)
+		 ;; else, just skip it, not a keyword
+		 ))
+	      (t
+	       (pop blockstate)))
+	))
+    blockstate))
+
+(defun matlab--scan-block-backward-up (&optional bounds)
+  "Like `matlab--scan-block-forward', but cursor is not on a keyword.
+Instead, travel to end as if on keyword."
+  (let ((currentstate '((end "end" 0))))
+    (matlab--scan-block-backward bounds currentstate)))
+
+;;; Searching for keywords
+;;
+;; These utilities will simplify searching for code bits by skipping
+;; anything in a comment or string.
+(defun matlab-re-search-keyword-forward (regexp &optional bound noerror)
+  "Like `re-search-forward' but will not match content in strings or comments."
+  (let ((ans nil) (case-fold-search nil))
+    (save-excursion
+      (while (and (not ans)
+		  (setq ans (re-search-forward regexp bound noerror)))
+	;; Check for simple cases that are invalid for keywords
+	;; for strings, comments, and lists, skip to the end of them
+	;; to not waste time searching for keywords inside.
+	(cond ((matlab-end-of-string-or-comment t)
+	       (setq ans nil))
+	      ((matlab-end-of-outer-list)
+	       (setq ans nil))
+	      ((matlab-syntax-keyword-as-variable-p)
+	       (setq ans nil))
+	      )))
+    (when ans (goto-char ans) (matlab--mk-keyword-node))))
+
+(defun matlab-re-search-keyword-backward (regexp &optional bound noerror)
+  "Like `re-search-backward' but will not match content in strings or comments."
+  (let ((ans nil) (case-fold-search nil))
+    (save-excursion
+      (while (and (not ans)
+		  (setq ans (re-search-backward regexp bound noerror)))
+	;; Check for simple cases that are invalid for keywords
+	;; for strings, comments, and lists, skip to the end of them
+	;; to not waste time searching for keywords inside.
+	(cond ((matlab-beginning-of-string-or-comment t)
+	       (setq ans nil))
+	      ((matlab-beginning-of-outer-list)
+	       (setq ans nil))
+	      ((matlab-syntax-keyword-as-variable-p)
+	       (setq ans nil))
+	      )))
+    (when ans (goto-char ans) (matlab--mk-keyword-node))))
+
+
 ;;; Caching
 ;;
 (defvar matlab-scan-temporal-cache nil
@@ -871,13 +1094,15 @@ Make sure the cache doesn't exceed max size."
   (remove-hook 'before-change-functions 'matlab-scan-before-change-fcn t)
   (setq matlab-scan-temporal-cache nil))
 
-
+
 ;;; Debugging and Querying
 ;;
 (defvar matlab-scan-cache-stats nil
   "Cache stats for tracking effectiveness of the cache.")
 (defun matlab-scan-stat-reset (&optional arg)
-  "Reset the stats cache."
+  "Reset the stats cache.
+With no arg, disable gathering stats.
+With arg, enable gathering stats, and flush old stats."
   (interactive "P")
   (if arg
       (progn (setq matlab-scan-cache-stats nil)

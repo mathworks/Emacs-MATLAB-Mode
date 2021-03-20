@@ -417,14 +417,19 @@ bounds of the string or comment the cursor is in"
     ;; Return the syntax
     syntax))
 
-(defsubst matlab-beginning-of-string-or-comment ()
+(defsubst matlab-beginning-of-string-or-comment (&optional all-comments)
   "If the cursor is in a string or comment, move to the beginning.
 Returns non-nil if the cursor moved."
   (let* ((pps (syntax-ppss (point))))
-    (when (nth 8 pps) (goto-char (nth 8 pps)) )))
+    (when (nth 8 pps)
+      (goto-char (nth 8 pps))
+      (when all-comments (forward-comment -100000))
+      t)))
 
-(defun matlab-end-of-string-or-comment ()
+(defsubst matlab-end-of-string-or-comment (&optional all-comments)
   "If the cursor is in a string or comment, move to the end.
+If optional ALL-COMMENTS is non-nil, then also move over all
+adjacent comments.
 Returns non-nil if the cursor moved."
   (let* ((pps (syntax-ppss (point))))
     (when (nth 8 pps)
@@ -433,8 +438,8 @@ Returns non-nil if the cursor moved."
       (goto-char (nth 8 pps))
       (if (nth 3 pps)
 	  (goto-char (scan-sexps (point) 1))
-	(forward-comment 1))
-      )))
+	(forward-comment (if all-comments 100000 1)))
+      t)))
   
 ;;; Block Comment handling
 ;;
@@ -527,6 +532,26 @@ Returns non-nil if the cursor moved."
       (goto-char (car (nth 9 pps)))
       (goto-char (scan-sexps (point) 1))
       )))
+
+;;; Useful checks for state around point.
+;;
+(defsubst matlab-syntax-keyword-as-variable-p ()
+  "Return non-nil if the current word is treated like a variable.
+This could mean it is:
+  * Field of a structure
+  * Assigned from or into with =" 
+  (or (save-excursion (skip-syntax-backward "w")
+		      (skip-syntax-backward " ")
+		      (or (= (preceding-char) ?\.)
+			  (= (preceding-char) ?=)))
+      (save-excursion (skip-syntax-forward "w")
+		      (skip-syntax-forward " ")
+		      (= (following-char) ?=))))
+
+(defsubst matlab-valid-keyword-syntax ()
+  "Return non-nil if cursor is not in a string, comment, or parens."
+  (let ((pps (syntax-ppss (point))))
+    (not (or (nth 8 pps) (nth 9 pps))))) ;; 8 == string/comment, 9 == parens
 
 ;;; Syntax Compat functions
 ;;
