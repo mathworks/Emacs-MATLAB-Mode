@@ -2102,49 +2102,51 @@ Return the symbol 'blockcomm if we are in a block comment."
   (matlab-line-comment-p (matlab-compute-line-context 1)))
   ;(save-excursion (matlab-comment-on-line)))
 
-(defun matlab-lattr-implied-continuation ()
-  "Return non-nil if this line has implied continuation on the next.
-This is only useful for new versions of MATLAB where ... is optional."
-  (when (not (matlab-lattr-comm))
-    (let ((imp nil))
-      (save-excursion
-	(end-of-line)
-	(skip-chars-backward " \t")
-	;; Test for operator incompleteness.
-	(setq imp
-	      (/= (point)
-		  ;; Careful, - means range in this expression.
-		  (progn (skip-chars-backward "-+=/*.^&~<>")
-			 (point))))
-	(if (not imp)
-	    ;; Test for argument list incompleteness
-	    (condition-case nil
-		(progn
-		  (end-of-line)
-		  (matlab-up-list -1)
-		  (setq imp (looking-at "(")))
-	      (error nil)))
-	)
-      imp)))
+;;(defun matlab-lattr-implied-continuation ()
+;;  "Return non-nil if this line has implied continuation on the next.
+;;This is only useful for new versions of MATLAB where ... is optional."
+;;  (when (not (matlab-lattr-comm))
+;;    (let ((imp nil))
+;;      (save-excursion
+;;	(end-of-line)
+;;	(skip-chars-backward " \t")
+;;	;; Test for operator incompleteness.
+;;	(setq imp
+;;	      (/= (point)
+;;		  ;; Careful, - means range in this expression.
+;;		  (progn (skip-chars-backward "-+=/*.^&~<>")
+;;			 (point))))
+;;	(if (not imp)
+;;	    ;; Test for argument list incompleteness
+;;	    (condition-case nil
+;;		(progn
+;;		  (end-of-line)
+;;		  (matlab-up-list -1)
+;;		  (setq imp (looking-at "(")))
+;;	      (error nil)))
+;;	)
+;;      imp)))
 
 (defun matlab-lattr-cont ()		; line has continuation
   "Return non-nil if current line ends in ... and optional comment.
 If `matlab-cont-requires-ellipsis' is nil, then we need to apply
 a heuristic to determine if this line would use continuation
 based on what it ends with."
-  (let* ((pps (syntax-ppss (point-at-eol)))
-	 (csc (nth 8 pps)))
-    (or
-     ;; When the line ends with a comment, it might be an ellipsis.
-     ;; Ellipsis start has a syntax of 11 (comment-start).
-     ;; Other comments have high-bit flags, so don't == 11.
-     (and csc (= (car (syntax-after csc)) 11))
-    
-     ;; If the line doesn't end in ..., but we have optional ..., then
-     ;; use this annoying heuristic.
-     (and (null matlab-cont-requires-ellipsis)
-	  (matlab-lattr-implied-continuation))
-     )))
+  (matlab-line-ellipsis-p (matlab-compute-line-context 1)))
+
+;;  (let* ((pps (syntax-ppss (point-at-eol)))
+;;	 (csc (nth 8 pps)))
+;;    (or
+;;     ;; When the line ends with a comment, it might be an ellipsis.
+;;     ;; Ellipsis start has a syntax of 11 (comment-start).
+;;     ;; Other comments have high-bit flags, so don't == 11.
+;;     (and csc (= (car (syntax-after csc)) 11))
+;;    
+;;     ;; If the line doesn't end in ..., but we have optional ..., then
+;;     ;; use this annoying heuristic.
+;;     (and (null matlab-cont-requires-ellipsis)
+;;	  (matlab-lattr-implied-continuation))
+;;     )))
 
 (defun matlab-prev-line-cont ()
   "Return t if the previous line is a continuation line."
@@ -3053,114 +3055,116 @@ unless we decide we can fudge the numbers.  Return nil if this line should
 not be broken.  This function will ONLY work on code."
   ;; First of all, if this is a continuation, then the user is
   ;; requesting that we don't mess with his stuff.
-  (if (matlab-lattr-cont)
-      nil
-    (save-restriction
-      (narrow-to-region (matlab-point-at-bol) (matlab-point-at-eol))
-      ;; get ourselves onto the fill-column.
-      (move-to-column fill-column)
-      (let ((pos nil)
-	    (orig (point)))
-	(or
-	 ;; Next, if we have a trailing comment, use that.
-	 (progn (setq pos (or (matlab-lattr-comm) (matlab-point-at-bol)))
-		(goto-char pos)
-		(if (and (> (current-column) (- fill-column matlab-fill-fudge))
-			 (< (current-column) (+ fill-column matlab-fill-fudge)))
-		    t
-		  (goto-char orig)
-		  nil))
-	 ;; Now, lets find the nearest space (after or before fill column)
-	 (let* ((after (save-excursion
-			 (re-search-forward "[ \t]" nil t)))
-		(before (save-excursion
-			  (re-search-backward "[ \t]" nil t)))
-		(afterd (- (or after (matlab-point-at-eol)) (point)))
-		(befored (- (point) (or before (matlab-point-at-bol)))))
-	   ;; Here, if "before" is actually the beginning of our
-	   ;; indentation, then this is most obviously a bad place to
-	   ;; break our lines.
-	   (if before
-	       (save-excursion
-		 (goto-char before)
-		 (if (<= (point) (save-excursion
+  (let ((lvl1 (matlab-compute-line-context 1)))
+    (if (matlab-line-ellipsis-p lvl1) ;;(matlab-lattr-cont)
+	nil
+      (save-restriction
+	(narrow-to-region (matlab-point-at-bol) (matlab-point-at-eol))
+	;; get ourselves onto the fill-column.
+	(move-to-column fill-column)
+	(let ((pos nil)
+	      (orig (point)))
+	  (or
+	   ;; Next, if we have a trailing comment, use that.
+	   (progn (setq pos (or (matlab-line-comment-p lvl1) ;;(matlab-lattr-comm)
+				(matlab-point-at-bol)))
+		  (goto-char pos)
+		  (if (and (> (current-column) (- fill-column matlab-fill-fudge))
+			   (< (current-column) (+ fill-column matlab-fill-fudge)))
+		      t
+		    (goto-char orig)
+		    nil))
+	   ;; Now, lets find the nearest space (after or before fill column)
+	   (let* ((after (save-excursion
+			   (re-search-forward "[ \t]" nil t)))
+		  (before (save-excursion
+			    (re-search-backward "[ \t]" nil t)))
+		  (afterd (- (or after (matlab-point-at-eol)) (point)))
+		  (befored (- (point) (or before (matlab-point-at-bol)))))
+	     ;; Here, if "before" is actually the beginning of our
+	     ;; indentation, then this is most obviously a bad place to
+	     ;; break our lines.
+	     (if before
+		 (save-excursion
+		   (goto-char before)
+		   (if (<= (point) (save-excursion
+				     (back-to-indentation)
+				     (point)))
+		       (setq before nil))))
+	     (cond ((and after
+			 (< afterd matlab-fill-fudge)
+			 (< afterd befored))
+		    (goto-char after)
+		    t)
+		   ((and before
+			 (< befored matlab-fill-fudge)
+			 (< befored afterd))
+		    (goto-char before)
+		    t)
+		   (t (goto-char orig)
+		      nil)))
+	   ;; Now, lets find the nearest backwards
+	   (progn
+	     (re-search-backward "\\(\\s-\\|\\s.\\)+" nil t)
+	     (while (and (looking-at "\\^\\|\\.\\|'")
+			 (re-search-backward "\\(\\s-\\|\\s.\\)+" nil t)))
+	     (if (or (not (looking-at "\\(\\s-\\|\\s.\\)+"))
+		     (<= (point) (save-excursion
 				   (back-to-indentation)
-				   (point)))
-		     (setq before nil))))
-	   (cond ((and after
-		       (< afterd matlab-fill-fudge)
-		       (< afterd befored))
-		  (goto-char after)
-		  t)
-		 ((and before
-		       (< befored matlab-fill-fudge)
-		       (< befored afterd))
-		  (goto-char before)
-		  t)
-		 (t (goto-char orig)
-		    nil)))
-	 ;; Now, lets find the nearest backwards
-	 (progn
-	   (re-search-backward "\\(\\s-\\|\\s.\\)+" nil t)
-	   (while (and (looking-at "\\^\\|\\.\\|'")
-		       (re-search-backward "\\(\\s-\\|\\s.\\)+" nil t)))
-	   (if (or (not (looking-at "\\(\\s-\\|\\s.\\)+"))
-		   (<= (point) (save-excursion
-				 (back-to-indentation)
-				 (point))))
-	       (progn
-		 ;; We failed in our mission to find anything, or fell
-		 ;; of the edge of the earth.  If we are out of
-		 ;; bounds, lets try again.
-		 (goto-char orig)
-		 (if (re-search-backward "\\s.+" nil t)
-		     t
-		   nil))
-	     ;; Ok, we have a good location to break.  Check for column
-	     ;; and ref against nearest list ending to predict a possibly
-	     ;; better break point.
-	     (forward-char 1)
-	     (let ((okpos (current-column))
-		   (startlst (save-excursion
+				   (point))))
+		 (progn
+		   ;; We failed in our mission to find anything, or fell
+		   ;; of the edge of the earth.  If we are out of
+		   ;; bounds, lets try again.
+		   (goto-char orig)
+		   (if (re-search-backward "\\s.+" nil t)
+		       t
+		     nil))
+	       ;; Ok, we have a good location to break.  Check for column
+	       ;; and ref against nearest list ending to predict a possibly
+	       ;; better break point.
+	       (forward-char 1)
+	       (let ((okpos (current-column))
+		     (startlst (save-excursion
+				 (condition-case nil
+				     (matlab-up-list -1)
+				   (error nil))
+				 (if (save-excursion
+				       (forward-char -1)
+				       (looking-at "\\w"))
+				     (forward-word -1))
+				 (current-column)))
+		     (endlst (save-excursion
 			       (condition-case nil
-				   (matlab-up-list -1)
+				   (matlab-up-list 1)
 				 (error nil))
-			       (if (save-excursion
-				     (forward-char -1)
-				     (looking-at "\\w"))
-				   (forward-word -1))
-			       (current-column)))
-		   (endlst (save-excursion
-			     (condition-case nil
-				 (matlab-up-list 1)
-			       (error nil))
-			     (current-column))))
-	       ;; When evaluating list fudge factors, breaking on the
-	       ;; edge of a list, or at the beginning of a function
-	       ;; call can be more valuable than breaking on a symbol
-	       ;; of a mid-sized list.  As such, allow double-fudge
-	       ;; for lists.
-	       (cond
-		;; First, pick the end of a list.
-		((and (< endlst matlab-fill-fudge-hard-maximum)
-		      (<= endlst (+ fill-column matlab-fill-fudge))
-		      (or (<= (* matlab-fill-fudge 2) (- endlst okpos))
-			  (<= endlst fill-column))
-		      (save-excursion
-			(move-to-column endlst)
-			(not (looking-at "\\^"))))
-		 (move-to-column endlst)
-		 t)
-		;; Else, back up over this list and poke around
-		((>= (* 2 matlab-fill-fudge) (- okpos startlst))
-		 (move-to-column startlst)
-		 t)
-		;; Oh well, just do this symbol.
-		(t (move-to-column okpos)
-		   t)))))
-	 ;; Well, this just sucks
-	 (progn (goto-char orig)
-		nil))))))
+			       (current-column))))
+		 ;; When evaluating list fudge factors, breaking on the
+		 ;; edge of a list, or at the beginning of a function
+		 ;; call can be more valuable than breaking on a symbol
+		 ;; of a mid-sized list.  As such, allow double-fudge
+		 ;; for lists.
+		 (cond
+		  ;; First, pick the end of a list.
+		  ((and (< endlst matlab-fill-fudge-hard-maximum)
+			(<= endlst (+ fill-column matlab-fill-fudge))
+			(or (<= (* matlab-fill-fudge 2) (- endlst okpos))
+			    (<= endlst fill-column))
+			(save-excursion
+			  (move-to-column endlst)
+			  (not (looking-at "\\^"))))
+		   (move-to-column endlst)
+		   t)
+		  ;; Else, back up over this list and poke around
+		  ((>= (* 2 matlab-fill-fudge) (- okpos startlst))
+		   (move-to-column startlst)
+		   t)
+		  ;; Oh well, just do this symbol.
+		  (t (move-to-column okpos)
+		     t)))))
+	   ;; Well, this just sucks
+	   (progn (goto-char orig)
+		  nil)))))))
 
 (defun matlab-auto-fill ()
   "Do auto filling.
@@ -3174,22 +3178,23 @@ filling which will automatically insert `...' and the end of a line."
 			      (move-to-column fill-column)
 			      (if (not (bobp))
 				  (forward-char -1))
-			      (if (matlab-cursor-in-string 'incomplete)
+			      (if (matlab-cursor-in-string)
 				  4 3))
-			  0))))
+			  0)))
+	(lvl1 (matlab-compute-line-context 1)))
     (if (> (current-column) fill-column)
 	(cond
-	 ((matlab-ltype-comm-ignore)
+	 ((matlab-line-comment-ignore-p lvl1) ;;(matlab-ltype-comm-ignore)
 	  nil)
-	 ((or (matlab-ltype-comm)
+	 ((or (matlab-line-comment-p lvl1) ;;(matlab-ltype-comm)
 	      (and (save-excursion (move-to-column fill-column)
 				   (matlab-cursor-in-comment))
-		   (matlab-lattr-comm)))
+		   (matlab-line-comment-p lvl1))) ;; (matlab-lattr-comm)))
 	  ;; If the whole line is a comment, do this.
 	  (matlab-set-comm-fill-prefix) (do-auto-fill)
 	  (matlab-reset-fill-prefix))
-	 ((and (matlab-ltype-code)
-	       (not (matlab-lattr-cont))
+	 ((and (not (or (matlab-line-comment-p lvl1) (matlab-line-empty-p lvl1))) ;;(matlab-ltype-code)
+	       (not (matlab-line-ellipsis-p lvl1)) ;;(matlab-lattr-cont))
 	       matlab-fill-code)
 	  ;; If we are on a code line, we ellipsify before we fill.
 	  (let ((m (make-marker)))
@@ -3199,7 +3204,7 @@ filling which will automatically insert `...' and the end of a line."
 		nil
 	      (if (not (save-excursion
 			 (forward-char -1)
-			 (matlab-cursor-in-string 'incomplete)))
+			 (matlab-cursor-in-string)))
 		  (progn
 		    (delete-horizontal-space)
 		    (insert " " matlab-elipsis-string "\n")
