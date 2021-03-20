@@ -2287,10 +2287,10 @@ Argument START is where to start searching from."
 	    ))
 	;; If we can't scoot back, do a cheat-test to see if there
 	;; is a matching else or elseif.
-	(goto-char bound)
-	(back-to-indentation)
-	(if (looking-at (matlab-block-mid-re))
-	    (setq v (1- v)))
+	;;(goto-char bound)
+	;;(back-to-indentation)
+	;;(if (looking-at (matlab-block-mid-re))
+	;;    (setq v (1- v)))
 	;; Return nil, or a number
 	(if (<= v 0) 0 v)))))
 
@@ -2472,11 +2472,6 @@ LVL2 is a level 2 scan context with info from previous lines."
      ((matlab-line-comment-p lvl1)
       (let ((comment-style (matlab-line-comment-style lvl1)))
 	(cond
-	 ;; BLOCK START is like regular comment
-	 ((eq comment-style 'block-start)
-	  ;; indent like code, but some users like anti-indent
-	  (list 'comment (+ ci matlab-comment-anti-indent))
-	  )
 	 ;; BLOCK END undoes body indent
 	 ((or (eq comment-style 'block-end)
 	      (eq comment-style 'block-body-prefix)) ; body prefix has same lineup rule
@@ -2488,6 +2483,11 @@ LVL2 is a level 2 scan context with info from previous lines."
 	 ((and (matlab-last-guess-decl-p)
 	       (setq tmp (matlab-scan-comment-help-p lvl2)))
 	  (list 'comment-help tmp))
+	 ;; BLOCK START is like regular comment
+	 ((eq comment-style 'block-start)
+	  ;; indent like code, but some users like anti-indent
+	  (list 'comment (+ ci matlab-comment-anti-indent))
+	  )
 	 ;; COMMENT REGION comments
 	 ((matlab-line-comment-ignore-p lvl1)
 	  (list 'comment-ignore 0))

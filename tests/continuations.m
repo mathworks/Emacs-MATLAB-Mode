@@ -58,19 +58,54 @@ function continuations(a,b) %!!0
     ... % !!4  A continuation with a ctrl block after it
         for g=1:10   % !!8 b/c continuation
         localfcn(a,g)  % !!8 b/c not continued, and +4 from comment continuation
-        end            % !!4 to match
+    end            % !!4 to match
     
     % !!4 to undo continuation.
     
     ...   % Continuation by itself just before an end.
 end  %!!0
 
+function a=odd_if_location(n) %!!0
+    
+    i=1; while i<10, if xfcn(i,n)==0, i=i+1;  %!!4
+                     else, i=20; end; end  %!!21
+                 
+                 %% FIXME - this should go back to col 4
+                 if i<20   %!!17
+                     a=1;  %!!21
+                 else      %!!17
+                     a=0;  %!!21
+                 end       %!!17
+end %!!0
+
+function a=foo
+%{
+  for !!2
+  for !!2
+%}
+    if true %!!4
+        if true  %!!8
+            a = 1;  %!!12
+        end end  %!!8
+end %!!0
+
 
 function val = localfcn(c,d)   %!!0
 % !!0 Help Comment
     
-    
+    try fclose( fid );  catch, end %!!4
     
     val = c+d; % !!4
     
 end  %!!0
+
+function [z,o,n]=odd_end_location_from_dspfwiz_load(opts)  %!!0
+    if opts.zeros, z = 'On';        %!!4
+    else,          z = 'Off'; end   %!!4
+
+    if opts.ones, o = 'On';        %!!4
+    else,         o = 'Off'; end   %!!4
+    
+    if opts.neg_ones, n = 'On';        %!!4
+    else,             n = 'Off'; end   %!!4
+end    %!!0

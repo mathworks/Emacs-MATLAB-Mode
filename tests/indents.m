@@ -236,10 +236,12 @@ function B = continuations_and_block_comments
 % !!0
 % !!0
     
-    %{
-      !!6
-      !!6
-    %}
+%{
+  !!2
+  !!2
+%}
+    
+    arg1=1;
     
     %{
     %  !!4
@@ -247,8 +249,8 @@ function B = continuations_and_block_comments
     % !!4
     %}
     
-% Block comment indicators MUST be on a line by themselves.
-%{ Not a block comment }
+    % Block comment indicators MUST be on a line by themselves.
+    %{ Not a block comment }
     
     foo(1); % !!4   - don't indent this special
     
