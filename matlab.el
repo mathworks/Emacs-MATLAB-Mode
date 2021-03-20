@@ -7,7 +7,7 @@
 ;; Keywords: MATLAB(R)
 ;; Version:
 
-(defconst matlab-mode-version "4.0"
+(defconst matlab-mode-version "5.0"
   "Current version of MATLAB(R) mode.")
 
 ;;
@@ -87,7 +87,7 @@ nil (never) means that new *.m files will not enter
   :group 'matlab
   :type 'integer)
 
-(defcustom matlab-cont-level 4
+(defcustom matlab-continuation-indent-level 4
   "*Basic indentation after continuation if no other methods are found."
   :group 'matlab
   :type 'integer)
@@ -99,7 +99,7 @@ determining if there is to be continuation is used instead."
   :group 'matlab
   :type 'integer)
 
-(defcustom matlab-case-level '(2 . 2)
+(defcustom matlab-case-indent-level '(2 . 2)
   "*How far to indent case/otherwise statements in a switch.
 This can be an integer, which is the distance to indent the CASE and
 OTHERWISE commands, and how far to indent commands appearing in CASE
@@ -120,7 +120,7 @@ should be ok."
   "*Whether continuation lines should be aligned to the opening parenthesis.
 When non-nil, continuation lines are aligned to the opening parenthesis if the
 opening is not followed by only spaces and ellipses.  When nil, continued lines
-are simply indented by `matlab-cont-level'."
+are simply indented by `matlab-continuation-indent-level'."
   :group 'matlab
   :type 'boolean
   )
@@ -163,7 +163,7 @@ If the value is 'guess, then we guess if a file has end when
   "Toggle functions-have-end minor mode, indicating function/end pairing."
   nil
   (:eval (cond ((eq matlab-functions-have-end 'guess)
-		" function...?")
+		" function... ?")
 	       ((eq matlab-functions-have-end 'class)
 		" classdef...end")
 	       (matlab-functions-have-end
@@ -1250,9 +1250,8 @@ with correctly quoted chars.
 
 Variables:
   `matlab-indent-level'		Level to indent blocks.
-  `matlab-cont-level'		Level to indent continuation lines.
-  `matlab-cont-requires-ellipsis' Does your MATLAB support implied elipsis.
-  `matlab-case-level'		Level to unindent case statements.
+  `matlab-continuation-indent-level' Level to indent after ... continuation
+  `matlab-case-indent-level'		Level to unindent case statements.
   `matlab-indent-past-arg1-functions'
                                 Regexp of functions to indent past the first
                                   argument on continuation lines.
@@ -1441,7 +1440,6 @@ Return t on success, nil if we couldn't navigate backwards."
   (let ((ans (matlab-find-prev-line 'ignore-comments)))
     (when ans
       (matlab-scan-beginning-of-command)
-      ;(matlab-beginning-of-command)
       ans)))
 
 (defun matlab-find-prev-line (&optional ignorecomments)
@@ -1474,31 +1472,6 @@ If the currnet line is code, return immediately.
 Ignore comments and whitespace."
   (forward-comment 100000)
   (not (eobp)))
-;; Iterative version:
-;;  (catch 'moose
-;;    (while (or (matlab-ltype-empty)
-;;	       (matlab-ltype-comm))
-;;      (when (= 1 (forward-line 1))
-;;	(throw 'moose nil))) ;; end of buffer.
-;;    t))
-
-
-;;(defvar matlab-in-command-restriction nil
-;;  "Non-nil if currently in a `matlab-with-current-command' form.")
-;;
-;;(defmacro omatlab-with-current-command (&rest forms)
-;;  "Restrict region to the current command and run FORMS.
-;;Restore restriction after FORMS run.
-;;This command will not add a restriction if we are already
-;;restricted."
-;;  (declare (indent 0) (debug t))
-;;  `(save-restriction
-;;     (when (not matlab-in-command-restriction)
-;;       (narrow-to-region (matlab-scan-beginning-of-command)
-;;			 (matlab-scan-end-of-command)))
-;;     (let ((matlab-in-command-restriction t))
-;;       ,@forms
-;;       )))
 
 (defun matlab-valid-end-construct-p ()
   "Return non-nil if the end after point terminates a block.
@@ -2580,9 +2553,9 @@ LVL2 is a level 2 scan context with info from previous lines."
 		  (matlab-backward-sexp t)
 		  (if (not (looking-at "switch\\>")) (error ""))
 		  (+ (current-column)
-		     (if (listp matlab-case-level)
-			 (car matlab-case-level)
-		       matlab-case-level)))
+		     (if (listp matlab-case-indent-level)
+			 (car matlab-case-indent-level)
+		       matlab-case-indent-level)))
 	      (error (error "Unmatched case/otherwise part")))))
      ;; End of a MATRIX
      ((matlab-line-close-paren-p lvl1)
@@ -2691,7 +2664,7 @@ LVL2 is a level 2 scan context with info from previous lines."
 				   ;; indentation based on the
 				   ;; previous line.
 				   (let ((cci (current-indentation)))
-				     (+ cci matlab-cont-level))
+				     (+ cci matlab-continuation-indent-level))
 				 ;; TODO - this disables indentation MAXs
 				 ;;        if we really want to be rid of this
 				 ;;        we can dump a bunch of logic above too.
@@ -2708,7 +2681,7 @@ LVL2 is a level 2 scan context with info from previous lines."
 		   (while (and (re-search-forward "=" (matlab-point-at-eol) t)
 			       (matlab-cursor-in-string-or-comment)))
 		   (if (/= (preceding-char) ?=)
-		       (+ ci matlab-cont-level)
+		       (+ ci matlab-continuation-indent-level)
 		     (skip-chars-forward " \t")
 		     (let ((cc (current-column))
 			   (mi (assoc ?= matlab-maximum-indents)))
@@ -2789,8 +2762,8 @@ See `matlab-calculate-indentation' for how the output of this fcn is used."
 	     (* matlab-indent-level bc)
 	     (* matlab-indent-level (or mc 0))
 	     (* matlab-indent-level (- cc))
-	     (* (if (listp matlab-case-level)
-		    (cdr matlab-case-level) matlab-case-level)
+	     (* (if (listp matlab-case-indent-level)
+		    (cdr matlab-case-indent-level) matlab-case-indent-level)
 		(or ec 0))
 	     ))))))
 
