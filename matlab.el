@@ -725,54 +725,6 @@ when attempting to understand the current context.")
       ;; We made a change
       t)))
 
-
-(defun matlab-find-unreachable-code (limit)
-  "Find code that is if'd out with if(0) or if(false), and mark it as a comment.
-The if(0) and else/end construct should be highlighted differently.
-Argument LIMIT is the maximum distance to search."
-  (if (and (< (point) limit)
-	   (re-search-forward
-	    "\\<\\(if\\>\\s-*(?\\s-*\\(0\\|false\\)\\s-*)?$\\)"
-	    limit t))
-      (let ((b1 (match-beginning 1))
-	    (e1 (match-end 1))
-	    (b2 nil) (e2 nil)
-	    (b3 nil) (e3 nil))
-	(goto-char b1)
-	(condition-case nil
-	    (progn
-	      ;; Go forward over the matlab sexp.  Include scanning
-	      ;; for ELSE since parts of the ELSE block are not
-	      ;; `commented out'.
-	      (matlab-forward-sexp t)
-	      (forward-word -1)
-	      ;; Is there an ELSE in this block?
-	      (if (looking-at (matlab-block-mid-re))
-		  (progn
-		    (setq b3 (match-beginning 0)
-			  e3 (match-end 0))
-		    ;; Now find the REAL end.
-		    (matlab-forward-sexp)
-		    (forward-word -1)))
-	      ;; End of block stuff
-	      (if (looking-at (matlab-block-end-re))
-		  (progn
-		    (setq b2 (match-beginning 0)
-			  e2 (match-end 0))
-		    ;; make sure something exists...
-		    (if (not b3) (setq b3 b2 e3 e2)))
-		(error "Eh?"))
-	      ;; Ok, build up some match data.
-	      (set-match-data
-	       (list b1 e2		;the real deal.
-		     b1 e1		;if (0)
-		     b2 e2		;end
-		     b3 e3		;else (if applicable.)
-		     b1 e3))		;body commented out.
-	      t)
-	  (error nil)))))
-
-
 ;;; Font Lock MLINT data highlighting
 
 (defun matlab-font-lock-nested-function-keyword-match (limit)
@@ -941,14 +893,6 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
 		  (matlab-font-lock-regexp-opt matlab-keyword-first-on-line-list)
 		  "\\)\\s-*[(,;%\n]")
 	  '(1 font-lock-keyword-face))
-    ;; How about unreachable code?  MUST BE AFTER KEYWORDS in order to
-    ;; get double-highlighting.
-    '(matlab-find-unreachable-code
-      (1 'underline prepend)		;if part
-      (2 'underline prepend)		;end part
-      (3 'underline prepend)		;else part (if applicable)
-      (4 font-lock-comment-face prepend) ;commented out part.
-      )
     ;; Highlight cross function variables
     '(matlab-font-lock-cross-function-variables-match
       (1 matlab-cross-function-variable-face prepend))
@@ -1034,7 +978,7 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
    '("^\\s-*\\(properties\\|events\\|arguments\\)\\s-*[(,;%\n]"
      ("^\\s-*\\(\\sw+\\)\\>" ;; This part matches the variable
       ;; extend region to match in
-      (save-excursion (matlab-forward-sexp nil t) (beginning-of-line) (point))
+      (save-excursion (matlab-forward-sexp t) (beginning-of-line) (point))
       nil
       (1 font-lock-variable-name-face t))
      )
@@ -1631,9 +1575,8 @@ This assumes that expressions do not cross \"function\" at the left margin."
     (goto-char p)
     returnme))
 
-(defun matlab-forward-sexp (&optional includeelse autostart parentblock)
+(defun matlab-forward-sexp (&optional autostart parentblock)
   "Go forward one balanced set of MATLAB expressions.
-Optional argument INCLUDEELSE will stop on ELSE if it matches the starting IF.
 If AUTOSTART is non-nil, assume we are already inside a block, and navigate
 forward until we exit that block.
 PARENTBLOCK is used when recursing to validate block starts as being in
@@ -1859,39 +1802,26 @@ blocks that change the syntax of their contents, such as:
   (interactive)
   (indent-region (point) (save-excursion (matlab-forward-sexp) (point)) nil))
 
-(defun matlab-beginning-of-enclosing-defun ()
-  "Move cursor to beginning of enclosing function.
-If `matlab-functions-have-end', skip over functions with end."
-  (catch 'done
-    (let ((start (point))
-          (beg nil))
-      (while (re-search-backward matlab-defun-regex nil t)
-        (setq beg (point))
-        (condition-case nil
-            (progn
-              (matlab-forward-sexp)
-              (if (> (point) start) (throw 'done beg)))
-          (error (throw 'done beg)))
-        (goto-char beg)))
-    nil))
-
 (defun matlab-beginning-of-defun ()
   "Go to the beginning of the current function."
   (interactive)
-  (if matlab-functions-have-end
-      (goto-char (or (matlab-beginning-of-enclosing-defun) (point-min)))
-    (or (re-search-backward matlab-defun-regex nil t)
-        (goto-char (point-min)))))
+  (if (eq (matlab-on-keyword-p) 'end)
+      (progn
+	;; If we are ON an end an it matches a decl,
+	;; that is probably what was indented.
+	(matlab--scan-block-backward)
+	(if (eq (matlab-on-keyword-p) 'decl)
+	    nil ; done
+	  (matlab--scan-block-backward-up-until 'decl)))
+    ;; else, just do a scan.
+    (matlab--scan-block-backward-up-until 'decl)))
 
 (defun matlab-end-of-defun ()
   "Go to the end of the current function."
   (interactive)
-  (or (progn
-	(if (looking-at matlab-defun-regex) (goto-char (match-end 0)))
-	(if (re-search-forward matlab-defun-regex nil t)
-	    (progn (forward-line -1)
-		   t)))
-      (goto-char (point-max))))
+  (when (not (eq (matlab-on-keyword-p) 'decl))
+    (matlab--scan-block-backward-up-until 'decl))
+  (matlab--scan-block-forward))
 
 (defun matlab-current-defun ()
   "Return the name of the current function."
@@ -2017,7 +1947,7 @@ Optional EOL indicates a virtual end of line."
 	    (setq v (1+ v))
 	    (let ((p (point)))
 	      (forward-word -1)
-	      (if (matlab--scan-block-forward bound) ;;(matlab-forward-sexp)
+	      (if (matlab--scan-block-forward bound)
 		  (goto-char p)
 		(setq v (1- v))))))
 	v))))
@@ -2250,7 +2180,7 @@ LVL2 is a level 2 scan context with info from previous lines."
                    (save-excursion
                      (beginning-of-line)
 		     ;; TODO - maybe replace this? Not usually used.
-                     (matlab-beginning-of-enclosing-defun)))
+                     (matlab--scan-block-backward-up-until 'decl)))
               (setq ci (+ ci matlab-indent-level))
             ;; If no intrinsic indentation, do not change from ci.
             )
@@ -3304,36 +3234,6 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 	  (if noreturn
 	      nil
 	    (list here-beg here-end there-beg there-end mismatch) ))))))
-
-
-;;; M Block Folding with hideshow =============================================
-
-(defun matlab-hideshow-forward-sexp-func (arg)
-  "Move forward one sexp for hideshow.
-Argument ARG specifies the number of blocks to move forward."
-  (beginning-of-line)
-  (matlab-forward-sexp arg)
-  )
-
-(defun matlab-hideshow-adjust-beg-func (arg)
-  "Adjust the beginning of a hideshow block.
-Argument ARG to make it happy."
-  (end-of-line)
-  (point)
-  )
-
-;; Use this to enable hideshow in MATLAB.
-;; It has not been tested by me enough.
-
-;; REMOVE PUSHNEW FROM THIS LINE
-;;(pushnew (list 'matlab-mode
-;;	       (matlab-block-beg-pre)
-;;	       (matlab-block-end-pre)
-;;	       "%"
-;;	       'matlab-hideshow-forward-sexp-func
-;;	       'matlab-hideshow-adjust-beg-func
-;;	       )
-;;	 hs-special-modes-alist :test 'equal)
 
 
 ;;; M Code verification & Auto-fix ============================================

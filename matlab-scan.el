@@ -1058,6 +1058,22 @@ Instead, travel to end as if on keyword."
   (let ((currentstate '((end "end" 0))))
     (matlab--scan-block-backward bounds currentstate)))
 
+(defun matlab--scan-block-backward-up-until (types &optional bounds)
+  "Call `matlab--scan-block-backward-up' until we find a keyword of TYPES.
+Return a keyword node when a matching node is found.
+Limit search to within BOUNDS.  If keyword not found, return nil."
+  (when (symbolp types) (setq types (list types)))
+  (let ((node nil) (done nil) (start (point)))
+    (while (and (not done)
+		(or (not node) (not (memq (car node) types))))
+      (if (matlab--scan-block-backward-up bounds)
+	  (setq done t)
+	(setq node (matlab--mk-keyword-node))))
+    (if (not done)
+	node
+      (goto-char start)
+      nil)))
+
 ;;; Searching for keywords
 ;;
 ;; These utilities will simplify searching for code bits by skipping
