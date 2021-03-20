@@ -808,6 +808,9 @@ This function walks down past continuations and open arrays."
 ;;
 ;; Focused scanning across block structures, like if / else / end.
 
+(defvar matlab-functions-have-end)
+(defvar matlab-indent-level)
+
 (defsubst matlab--mk-keyword-node ()
   "Like `matlab-on-keyword-p', but returns a node for block scanning.
 The elements of the return node are:
