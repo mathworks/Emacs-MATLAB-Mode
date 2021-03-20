@@ -2175,16 +2175,16 @@ LVL2 is a level 2 scan context with info from previous lines."
      ;; CASE/OTHERWISE keywords
      ((matlab-line-block-case-p lvl1)
       (list 'blockendless
-	    (condition-case nil
-		(save-excursion
-		  (beginning-of-line)
-		  (matlab-backward-sexp t)
-		  (if (not (looking-at "switch\\>")) (error ""))
+	    (save-excursion
+	      (back-to-indentation)
+	      (if (matlab--scan-block-backward-up)
+		  (error "Missing switch")
+		(if (not (eq (matlab-on-keyword-p) 'ctrl))
+		    (error "Wrong type of start block")
 		  (+ (current-column)
 		     (if (listp matlab-case-indent-level)
 			 (car matlab-case-indent-level)
-		       matlab-case-indent-level)))
-	      (error (error "Unmatched case/otherwise part")))))
+		       matlab-case-indent-level)))))))
      ;; End of a MATRIX
      ((matlab-line-close-paren-p lvl1)
       (list 'array-end (let* ((fc (matlab-line-close-paren-inner-char lvl1))
@@ -2203,104 +2203,93 @@ LVL2 is a level 2 scan context with info from previous lines."
      ;; Code lines
      ((and (not (matlab-line-close-paren-outer-point lvl1))
 	   (not (matlab-scan-previous-line-ellipsis-p)))
-
-      ;; Old check for base code line was using
-      ;; 'matlab-beginning-of-command' which does a lot of work, like
-      ;; checking for block comments and such.  We already stripped
-      ;; out most options in that cmd and know we are on a code line,
-      ;; so only check if the previous line is a continuation line.
-      ;; Old code:
-      ;;(save-excursion
-      ;;  (beginning-of-line)
-      ;;  (back-to-indentation)
-      ;;  (= (point) (progn (matlab-beginning-of-command) (point))))
-
-      ;; This means we are at the beginning of a command structure.
-      ;; Always match up against the previous line.
+      ;; Code always matches up against the previous line.
       (list 'code ci))
+     
      ;; Lines continued from previous statements.
      (t
-      (list (if (matlab-line-empty-p lvl1) 'empty
-	      (if (matlab-line-close-paren-outer-point lvl1) 'array-cont 'code))
-	    ;; Record beginning of the command
-	    (let* ((ci-local ci) ;; we prob want to change this due to continuation.
-		   (boc (save-excursion
-			  (matlab-beginning-of-command)
-			  (setq ci-local (current-indentation))
-			  (point))))
+      (let* (;; TODO = Why does this code need to navigate
+	     ;;        through this stuff?  next-line version
+	     ;;        should do this.
+	     (boc-lvl1 (save-excursion
+			 (matlab-scan-beginning-of-command)
+			 (matlab-compute-line-context 1)))
+	     (ci-boc (matlab-line-indentation boc-lvl1))
+	     (boc (matlab-line-point boc-lvl1))
+
+	     ;; Scratch vars for paren stuff
+	     (parencol (matlab-line-close-paren-inner-col lvl1))
+	     (parenchar (matlab-line-close-paren-inner-char lvl1))
+	     (parenpt (matlab-line-close-paren-inner-point lvl1))
+
+	     ;; What shall we use to describe this for debugging?
+	     (indent-type (cond ((matlab-line-empty-p lvl1) 'empty)
+				((and parenchar (= parenchar ?\()) 'function-call-cont)
+				((matlab-line-close-paren-outer-point lvl1) 'array-cont)
+				(t 'code-cont)))
+	     
+	     (found-column nil)
+	     )
+	
+	(list indent-type
 	      (condition-case nil
 		  (save-excursion
-		    (beginning-of-line)
-		    (matlab-up-list -1)
-		    (if (> boc (point)) (error nil))
-		    ;; Ok, it MIGHT be that we are in a program
-		    ;; statement, and this particular command is an HG
-		    ;; statement that would look better if the
-		    ;; following lines lined up AFTER the first
-		    ;; argument.  Lets look.
-		    (let ((parendepth (current-column)))
-		      (cond ((and (= (following-char) ?\( )
-				  (save-excursion
-				    (matlab-navigation-syntax
-				      (forward-word -1)
-				      (looking-at
-				       matlab-indent-past-arg1-functions)))
-				  (let ((start-paren (point)))
-				    (while
-					(and
-					 (re-search-forward
-					  "," (matlab-point-at-eol) t)
-					 (save-excursion
-					   (matlab-up-list -1)
-					   (> (point) start-paren))))
-				    (if (and
-					 (= (preceding-char) ?,)
-					 ;; Don't bother if we hit the EOL.
-					 (not (looking-at
+		    (goto-char parenpt) ;; this errs and goes to = alignment.  TODO - make w/o errors
 
-					       "\\s-*\\(\\.\\.\\.\\|$\\|)\\)")))
-					t
-				      (move-to-column parendepth)
-				      nil)))
-			     (skip-chars-forward " \t")
-			     (if (> (- (current-column) parendepth)
-				    matlab-arg1-max-indent-length)
-				 (+ parendepth matlab-arg1-max-indent-length)
-			       (current-column)))
-			    (t
-			     (let* ((fc (following-char))
-				    (mi (assoc fc matlab-maximum-indents))
-				    (max (if mi
-					     (if (listp (cdr mi))
-						 (car (cdr mi)) (cdr mi))
-					   nil))
-				    (ind (if mi
-					     (if (listp (cdr mi))
-						 (cdr (cdr mi)) (cdr mi))
-					   nil)))
-			       (forward-char 1)
-			       (skip-chars-forward " \t")
-			       ;; If we are at the end of a line and
-			       ;; this open paren is there, then we
-			       ;; DON'T want to indent to it.  Use the
-			       ;; standard indent.
-			       (if (or (not matlab-align-to-paren)
-			               (looking-at "\\.\\.\\.\\|$"))
-				   ;; This could happen in another set
-				   ;; of matrices.  Find a current
-				   ;; indentation based on the
-				   ;; previous line.
-				   (let ((cci (current-indentation)))
-				     (+ cci matlab-continuation-indent-level))
-				 ;; TODO - this disables indentation MAXs
-				 ;;        if we really want to be rid of this
-				 ;;        we can dump a bunch of logic above too.
-				 ;; apply the maximum limits.
-				 ;;(if (and ind (> (- (current-column) ci-local) max))
-				 ;;    (+ ci-local ind)
-				 ;;  (current-column))
-				 (current-column)
-				 ))))))
+		    (progn
+		      (cond
+		       ((and
+			 ;; Special case for FUNCTIONs that indent past arg1
+			 (eq indent-type 'function-call-cont)
+			 ;; This checks for our special set of functions.
+			 (save-excursion
+			   (goto-char parenpt)
+			   (forward-symbol -1)
+			   (looking-at
+			    matlab-indent-past-arg1-functions))
+			 ;; We are in a fcn call, AND the fcn wants to
+			 ;; indent past the first argument.  Only do so
+			 ;; if first arg is a SIMPLE EXPR.
+			 (matlab-navigation-syntax
+			   (looking-at "(\\s-*\\w+\\s-*,")
+			   (setq found-column (match-end 0)))
+			 (save-excursion
+			   (goto-char found-column) ; move to comma
+			   ;; Don't bother if we hit the EOL.
+			   (not (looking-at "\\s-*\\(\\.\\.\\.\\|$\\|)\\)"))))
+			;; We are in the right kind of place.  Lets
+			;; start indenting
+			(goto-char found-column)
+			(skip-chars-forward " \t")
+			(if (> (- (current-column) parencol)
+			       matlab-arg1-max-indent-length)
+			    (+ parencol matlab-arg1-max-indent-length)
+			  (current-column)))
+
+		       ;; any other case LINE UP WITH THE PAREN FOUND
+		       (t
+			(let* ((mi (assoc parenchar matlab-maximum-indents))
+			       (max (if mi (if (listp (cdr mi)) (car (cdr mi)) (cdr mi)) nil))
+			       (ind (if mi (if (listp (cdr mi)) (cdr (cdr mi)) (cdr mi)) nil)))
+			  (goto-char parenpt)
+			  (forward-char 1)
+			  (skip-chars-forward " \t")
+			  ;; If we are at the end of a line and this
+			  ;; open paren is there, then we DON'T want
+			  ;; to indent to it.  Use the standard
+			  ;; indent.
+			  (if (or (not matlab-align-to-paren)
+			          (looking-at "\\.\\.\\.\\|$"))
+			      (+ ci-boc matlab-continuation-indent-level)
+			    (current-column)
+			    ;; TODO - this disables indentation MAXs
+			    ;;        if we really want to be rid of this
+			    ;;        we can dump a bunch of logic above too.
+			    ;; apply the maximum limits.
+			    ;;(if (and ind (> (- (current-column) ci-boc) max))
+			    ;;    (+ ci-boc ind)
+			    ;;  (current-column))
+			    ))))))
 		(error
 		 ;; Line up to an equals sign.
 		 (save-excursion
@@ -3540,6 +3529,7 @@ desired.  Optional argument FAST is not used."
 			"Line Syntax: " lvl1msg
 			"  | Preferred Indents: This: " (int-to-string (nth 1 indent))
 			"  Next: " (int-to-string nexti)
+			"  Indent Style: " (symbol-name (car indent))
 			))
       
       (if (matlab-line-ellipsis-p lvl1)
@@ -3567,7 +3557,7 @@ desired.  Optional argument FAST is not used."
 ;; LocalWords:  Unstarted includeelse autostart lattr zerop cellstart
 ;; LocalWords:  linebounds bol commtype startmove nomove charvector sregex
 ;; LocalWords:  insregex laststart bolp calc ci sem DEPTHNUMBER blockstart
-;; LocalWords:  blockmid blockendless blockend unstarted listp boc parendepth
+;; LocalWords:  blockmid blockendless blockend unstarted listp boc parencol
 ;; LocalWords:  cci startpnt hc rc nosemi emacsen afterd befored okpos startlst
 ;; LocalWords:  endlst ellipsify noreturn hs tc matchers hideshow func PUSHNEW
 ;; LocalWords:  pushnew bn nondirectory un msgpos nexti

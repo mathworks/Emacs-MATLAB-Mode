@@ -62,6 +62,33 @@ function continuations(a,b) %!!0
     
     % !!4 to undo continuation.
     
+    % Indent past 1st arg for special functions
+    set(myhandle, 'Prop1', value, ... %!!4
+                  'Prop2', value, ... %!!18
+                  'Prop3', value);    %!!18
+    
+    % Indent past = sign for assignments.
+    A = 1 + ... % !!4
+        2;      % !!8
+    
+    medvar = 1 + ... % !!4
+             2;      % !!13
+    
+    alongvariablename = 1 +...  % !!4
+        2;   % !!8
+    
+    
+    fancyfunctionname(arg1, ...  %!!4
+                      innerfcn(arg2, ... %!!22
+                               arg3), ... %!!31
+                      { cell1; %!!22
+                        cell2; %!!24
+                        [ 1 2 ;  %!!24
+                          3 4 ] ; %!!26
+                        cell 4 },... %!!24
+                      arg5);  %!!22
+    
+    
     ...   % Continuation by itself just before an end.
 end  %!!0
 

@@ -165,11 +165,12 @@ return the cache if it finds it."
 (defconst mlf-paren-depth 5)
 (defconst mlf-paren-inner-char 6)
 (defconst mlf-paren-inner-col 7)
-(defconst mlf-paren-outer-char 8)
-(defconst mlf-paren-outer-point 9)
-(defconst mlf-paren-delta 10)
-(defconst mlf-end-comment-type 11)
-(defconst mlf-end-comment-pt 12)
+(defconst mlf-paren-inner-point 8)
+(defconst mlf-paren-outer-char 9)
+(defconst mlf-paren-outer-point 10)
+(defconst mlf-paren-delta 11)
+(defconst mlf-end-comment-type 12)
+(defconst mlf-end-comment-pt 13)
 
 (defun matlab-compute-line-context-lvl-1 ()
   "Compute and return the level1 context for the current line of MATLAB code.
@@ -189,6 +190,7 @@ in a single call using fastest methods."
 	   (paren-depth (nth 0 pps))
 	   (paren-inner-char nil)
 	   (paren-inner-col nil)
+	   (paren-inner-point nil)
 	   (paren-outer-char nil)
 	   (paren-outer-point nil)
 	   (paren-delta (- (car pps) (car ppsend)))
@@ -207,6 +209,7 @@ in a single call using fastest methods."
 	  (goto-char (car (last (nth 9 pps))))
 	  (setq paren-inner-char (char-after (point))
 		paren-inner-col  (current-column)
+		paren-inner-point (point)
 		paren-outer-point (car (nth 9 pps))
 		paren-outer-char (char-after paren-outer-point) )))
 
@@ -290,7 +293,8 @@ in a single call using fastest methods."
 	  ))
 
       (list ltype stype pt indent start paren-depth
-	    paren-inner-char paren-inner-col paren-outer-char paren-outer-point paren-delta
+	    paren-inner-char paren-inner-col paren-inner-point
+	    paren-outer-char paren-outer-point paren-delta
 	    ec-type ec-col
 	    ;;cont-from-prev
 	    )
@@ -451,6 +455,10 @@ Return nil for empty and comment only lines."
 (defsubst matlab-line-close-paren-inner-col (lvl1)
   "Return the paren column for the prenthetical expression LVL1 is in."
   (nth mlf-paren-inner-col lvl1))
+
+(defsubst matlab-line-close-paren-inner-point (lvl1)
+  "Return the paren column for the prenthetical expression LVL1 is in."
+  (nth mlf-paren-inner-point lvl1))
 
 (defsubst matlab-line-close-paren-outer-char (lvl1)
   "The paren character for the outermost prenthetical expression LVL1 is in."
