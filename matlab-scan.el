@@ -351,6 +351,12 @@ All lines that start with a comment end with a comment."
       (goto-char (nth mlf-end-comment-pt lvl1))
       (current-column))))
 
+(defsubst matlab-line-end-comment-point (lvl1)
+  "Return star of comment on line, or nil if no comment.
+All lines that start with a comment end with a comment."
+  (when (eq (nth mlf-end-comment-type lvl1) 'comment)
+    (nth mlf-end-comment-pt lvl1)))
+
 (defsubst matlab-line-ellipsis-p (lvl1)
   "Return if this line ends with a comment."
   (eq (nth mlf-end-comment-type lvl1) 'ellipsis))
@@ -368,8 +374,12 @@ All lines that start with a comment end with a comment."
 
 ;; Code and Declarations
 (defsubst matlab-line-code-p (lvl1)
-  "Return t if the current line is boring old code."
+  "Return t if the current line is code."
   (eq (car lvl1) 'code))
+
+(defsubst matlab-line-boring-code-p (lvl1)
+  "Return t if the current line is boring old code."
+  (and (eq (car lvl1) 'code) (not (nth 1 lvl1))))
 
 (defsubst matlab-line-block-start-keyword-p (lvl1)
   "Return t if the current line starts with block keyword."
@@ -394,7 +404,7 @@ These are keywords like `else' or `catch'."
 These are keywords like `else' or `catch'."
   (and (eq (car lvl1) 'block-start) (eq (nth 1 lvl1) 'case)))
 
-(defsubst matlab-line-end-of-code (&optional lvl1)
+(defun matlab-line-end-of-code (&optional lvl1)
   "Go to the end of the code on the current line.
 If there is a comment or ellipsis, go to the beginning of that.
 If the line starts with a comment return nil, otherwise t."
@@ -406,6 +416,24 @@ If the line starts with a comment return nil, otherwise t."
     (if (eq (nth mlf-end-comment-type lvl1) 'comment)
 	(goto-char (nth mlf-end-comment-pt lvl1))
       (goto-char (point-at-eol)))))
+
+(defun matlab-line-end-of-code-needs-semicolon-p (&optional lvl1)
+  "Return non-nil of this line of code needs a semicolon.
+Move cursor to where the ; should be inserted.
+Return nil for empty and comment only lines."
+  (unless lvl1 (setq lvl1 (matlab-compute-line-context 1)))
+  (let ((endpt nil))
+    (save-excursion
+      (when (and (not (matlab-beginning-of-outer-list))
+		 (matlab-line-boring-code-p lvl1)
+		 (matlab-line-end-of-code lvl1))
+	(skip-syntax-backward " ")
+	(when (and (not (matlab-cursor-in-string-or-comment))
+		   (not (= (preceding-char) ?\;)))
+	  (setq endpt (point)))
+	))
+    (when endpt
+      (goto-char endpt))))
 
 ;; Parenthetical blocks
 (defsubst matlab-line-close-paren-p (lvl1)

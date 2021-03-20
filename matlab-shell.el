@@ -1597,16 +1597,9 @@ Snatched and hacked from dired-x.el"
 	    (search-forward-regexp comint-prompt-regexp)
 	    (buffer-substring (point) (matlab-point-at-eol)))))
     (save-excursion
-      ;; In matlab buffer, find all the text for a command.
-      ;; so back over until there is no more continuation.
-      (while (save-excursion (forward-line -1) (matlab-lattr-cont))
-	(forward-line -1))
-      ;; Go forward till there is no continuation
-      (beginning-of-line)
-      (let ((start (point)))
-	(while (matlab-lattr-cont) (forward-line 1))
-	(end-of-line)
-	(buffer-substring start (point))))))
+      (buffer-substring-no-properties
+       (matlab-scan-beginning-of-command)
+       (matlab-scan-end-of-command)))))
 
 (defun matlab-non-empty-lines-in-string (str)
   "Return number of non-empty lines in STR."
@@ -2202,7 +2195,7 @@ Similar to  `comint-send-input'."
 				   (error "You are not in a cell.  Try `matlab-shell-save-and-go' instead"))
 			       (when (matlab-ltype-comm)
 				 ;; Skip over starting comment from the current cell.
-				 (matlab-end-of-command 1)
+				 (matlab-end-of-command)
 				 (end-of-line)
 				 (forward-char 1))
 			       (point)))
