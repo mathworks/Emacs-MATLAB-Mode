@@ -69,13 +69,13 @@ function a=odd_if_location(n) %!!0
     
     i=1; while i<10, if xfcn(i,n)==0, i=i+1;  %!!4
                      else, i=20; end; end  %!!21
-                 
-                 %% FIXME - this should go back to col 4
-                 if i<20   %!!17
-                     a=1;  %!!21
-                 else      %!!17
-                     a=0;  %!!21
-                 end       %!!17
+    
+    if i<20   %!!4
+        a=1;  %!!8
+    else      %!!4
+        a=0;  %!!8
+    end       %!!4
+    
 end %!!0
 
 function a=foo
@@ -102,7 +102,7 @@ end  %!!0
 function [z,o,n]=odd_end_location_from_dspfwiz_load(opts)  %!!0
     if opts.zeros, z = 'On';        %!!4
     else,          z = 'Off'; end   %!!4
-
+    
     if opts.ones, o = 'On';        %!!4
     else,         o = 'Off'; end   %!!4
     

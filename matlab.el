@@ -2743,42 +2743,56 @@ See `matlab-calculate-indentation' for how the output of this fcn is used."
 	    (mc (and (matlab-line-block-middle-p lvl1) 1))
 	    (ec (and (matlab-line-block-case-p lvl1) 1))
 	    (ci (current-indentation)))
-	;; When the current point is on a line with a function, the value of bc will
-	;; reflect the function in a block count iff if matlab-functions-have-end is
-	;; true.  However, if matlab-indent-function-body-p is false, there should be
-	;; no actual indentation, so bc needs to be decremented by 1.  Similarly, if
-	;; on a line with an end that closes a function, bc needs to be decremented
-	;; by 1 if matlab-functions-have-end is true and matlab-indent-function-body-p
-	;; is false.  However, just to be safe, indentation is not allowed to go
-	;; negative.  Thus:
-	(if matlab-functions-have-end
-	    (if (and
-		 (not (matlab-indent-function-body-p))
-		 (or (matlab-line-declaration-p lvl1)
-		     (and (matlab-line-end-p lvl1)
-			  (save-excursion
-			    (matlab-backward-sexp t)
-			    (looking-at "function\\b")))))
-		(if (> bc 0)
-		    (setq bc (1- bc))
-		  (if (>= ci matlab-indent-level)
-		      (setq bc -1))))
-	  ;; Else, funtions don't have ends in this file.
-	  (if (and (matlab-indent-function-body-p)
-		   (matlab-line-declaration-p lvl1))
-	      (setq bc (1+ bc))))
-	;; Remove 1 from the close count if there is an END on the beginning
-	;; of this line, since in that case, the unindent has already happened.
-	(when end (setq cc (1- cc)))
-	;; Calculate the suggested indentation.
-	(+ ci
-	   (* matlab-indent-level bc)
-	   (* matlab-indent-level (or mc 0))
-	   (* matlab-indent-level (- cc))
-	   (* (if (listp matlab-case-level)
-		  (cdr matlab-case-level) matlab-case-level)
-	      (or ec 0))
-	   )))))
+
+	;; When CC is positive, and END is false, or CC > 1, then the NEXT
+	;; line should have an indent that matches the context at the beginning
+	;; of the block of the last end.
+	(if (or (> cc 1) (and (= cc 1) end))
+	    (let* ((CTXT (matlab-with-context-line lvl1
+			   (matlab-line-end-of-code lvl1)
+			   (matlab-re-search-keyword-backward
+			    (matlab-keyword-regex 'end) (point-at-bol) t)
+			   (matlab-scan-block-start-context))))
+	      (matlab-line-indentation (nth 3 CTXT)))
+
+	  ;; Old technique.
+	
+	  ;; When the current point is on a line with a function, the value of bc will
+	  ;; reflect the function in a block count iff if matlab-functions-have-end is
+	  ;; true.  However, if matlab-indent-function-body-p is false, there should be
+	  ;; no actual indentation, so bc needs to be decremented by 1.  Similarly, if
+	  ;; on a line with an end that closes a function, bc needs to be decremented
+	  ;; by 1 if matlab-functions-have-end is true and matlab-indent-function-body-p
+	  ;; is false.  However, just to be safe, indentation is not allowed to go
+	  ;; negative.  Thus:
+	  (if matlab-functions-have-end
+	      (if (and
+		   (not (matlab-indent-function-body-p))
+		   (or (matlab-line-declaration-p lvl1)
+		       (and (matlab-line-end-p lvl1)
+			    (save-excursion
+			      (matlab-backward-sexp t)
+			      (looking-at "function\\b")))))
+		  (if (> bc 0)
+		      (setq bc (1- bc))
+		    (if (>= ci matlab-indent-level)
+			(setq bc -1))))
+	    ;; Else, funtions don't have ends in this file.
+	    (if (and (matlab-indent-function-body-p)
+		     (matlab-line-declaration-p lvl1))
+		(setq bc (1+ bc))))
+	  ;; Remove 1 from the close count if there is an END on the beginning
+	  ;; of this line, since in that case, the unindent has already happened.
+	  (when end (setq cc (1- cc)))
+	  ;; Calculate the suggested indentation.
+	  (+ ci
+	     (* matlab-indent-level bc)
+	     (* matlab-indent-level (or mc 0))
+	     (* matlab-indent-level (- cc))
+	     (* (if (listp matlab-case-level)
+		    (cdr matlab-case-level) matlab-case-level)
+		(or ec 0))
+	     ))))))
 
 ;;; The return key ============================================================
 
