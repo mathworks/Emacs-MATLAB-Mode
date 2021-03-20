@@ -1051,6 +1051,27 @@ Instead, travel to end as if on keyword."
 	      )))
     (when ans (goto-char ans) (matlab--mk-keyword-node))))
 
+;;; Quick Queries
+;;
+(defun matlab-scan-block-start-context ()
+  "Return a context for the block start matching block point is in.
+assumes pt is NOT on an end.  List contains:
+  0 - type of keyword the end matched.
+  1 - column the keyword is on.
+  2 - lvl1 context of line the keyword is on
+  3 - lvl1 context of line at beginning of cmnd found keyword is in.
+
+Items 2 and 3 are likely the same but could be different."
+  (save-excursion
+    (matlab--scan-block-backward-up)
+    (let* ((keyword (matlab-on-keyword-p))
+	   (column (current-column))
+	   (lvl1-match (matlab-compute-line-context 1))
+	   (lvl1-bgn (save-excursion (matlab-scan-beginning-of-command lvl1-match)
+				     (matlab-compute-line-context 1))))
+      (list keyword column lvl1-match lvl1-bgn))))
+    
+
 
 ;;; Caching
 ;;

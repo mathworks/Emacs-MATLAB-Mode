@@ -2196,7 +2196,7 @@ by close, the first character is the end of an array."
     (back-to-indentation)
     (and (looking-at "[]}]") (matlab-lattr-array-cont))))
 
-(defun matlab-lattr-block-cont (&optional eol)
+(defun matlab-lattr-block-open (&optional eol)
   "Return a number representing the number of unterminated block constructs.
 This is any block, such as if or for, that doesn't have an END on this line.
 Optional EOL indicates a virtual end of line."
@@ -2292,7 +2292,7 @@ Argument START is where to start searching from."
 	(if (looking-at (matlab-block-mid-re))
 	    (setq v (1- v)))
 	;; Return nil, or a number
-	(if (<= v 0) nil v)))))
+	(if (<= v 0) 0 v)))))
 
 ;;(defun matlab-lattr-local-end ()
 ;;  "Return t if this line begins with an end construct."
@@ -2422,7 +2422,7 @@ This function exists so the test harness can override it."
 	       (let ((prevcmd (or (matlab-previous-code-line lvl2)
 				  (matlab-previous-line lvl2))))
 		 (matlab-with-context-line prevcmd
-		   (matlab-next-line-indentation lvl2 prevcmd)))))
+		   (matlab-next-line-indentation prevcmd)))))
 	     )
 	 
 	 ;; Compute this line's indentation based on recommendation of previous
@@ -2515,46 +2515,48 @@ LVL2 is a level 2 scan context with info from previous lines."
      ;; END keyword
      ((matlab-line-end-p lvl1)
       ;;(matlab-lattr-local-end)
-      (let ((end-of-function
-             (let ((matlab-functions-have-end t))
-               (save-excursion
-                 (beginning-of-line)
-                 (matlab-backward-sexp t t)
-                 (matlab-ltype-function-definition)))))
-        (if end-of-function
+      (let* ((CTXT (matlab-with-context-line lvl1
+		     (matlab-scan-block-start-context))))
+
+        (if (eq (car CTXT) 'decl) ;; declarations (ie - function) is treated special.
             (if (or matlab-functions-have-end
                     (if (matlab--maybe-yes-or-no-p matlab-functions-have-end-should-be-true t)
                         (matlab-functions-have-end-minor-mode 1)
                       (error "Unmatched end")))
                 (if (matlab-indent-function-body-p)
-                    (setq ci (- ci matlab-indent-level))))
+                    ;;(setq ci (- ci matlab-indent-level))
+		    ;; match indentation of the function regardless of any other
+		    ;; state that might have gotten messed up.
+		    (setq ci (matlab-line-indentation (nth 3 CTXT)))
+		  ))
           ;; Next, see if this line starts with an end, and whether the
           ;; end is matched, and whether the line is blank up to the match.
           ;; If so, return the indentation of the match.
-          (catch 'indent
-            (save-excursion
-              (when (progn (beginning-of-line)
-                           (and (looking-at "[ \t]*end\\b")
-                                (matlab-backward-sexp t t)))
-                (let ((match (point)))
-                  (beginning-of-line)
-                  (looking-at "[ \t]*")
-                  (when (= match (match-end 0))
-                    (let ((match-col-end
-                           (save-excursion
-                             (goto-char match)
-                             (current-column)))
-                          (match-col-beginning
-                           (save-excursion
-                             (goto-char (match-beginning 0))
-                             (current-column)))
-                          )
-                      (setq ci (- match-col-end match-col-beginning)))
-                    (throw 'indent nil)))))
-            ;; End of special case for end and match after "^[ \t]*".
-            (setq ci (+ ci
-                        (* (1- (matlab-lattr-block-cont (point)))
-                           matlab-indent-level))))))
+	  (setq ci (matlab-line-indentation (nth 3 CTXT)))))
+          ;;(catch 'indent
+          ;;  (save-excursion
+          ;;    (when (progn (beginning-of-line)
+          ;;                 (and (looking-at "[ \t]*end\\b")
+          ;;                      (matlab-backward-sexp t t)))
+          ;;      (let ((match (point)))
+          ;;        (beginning-of-line)
+          ;;        (looking-at "[ \t]*")
+          ;;        (when (= match (match-end 0))
+          ;;          (let ((match-col-end
+          ;;                 (save-excursion
+          ;;                   (goto-char match)
+          ;;                   (current-column)))
+          ;;                (match-col-beginning
+          ;;                 (save-excursion
+          ;;                   (goto-char (match-beginning 0))
+          ;;                   (current-column)))
+          ;;                )
+          ;;            (setq ci (- match-col-end match-col-beginning)))
+          ;;          (throw 'indent nil)))))
+          ;;  ;; End of special case for end and match after "^[ \t]*".
+          ;;  (setq ci (+ ci
+          ;;              (* (1- (matlab-lattr-block-open (point)))
+          ;;                 matlab-indent-level))))))
       (list 'blockend ci))
      ;; ELSE/CATCH keywords
      ((matlab-line-block-middle-p lvl1)
@@ -2725,49 +2727,21 @@ LVL2 is a level 2 scan context with info from previous lines."
 			 cc)))))))))
      )))
 
-(defun matlab-next-line-indentation (lvl2 prevlvl1)
+(defun matlab-next-line-indentation (lvl1)
   "Calculate the indentation for lines following this command line.
-Assume that the following line does not contribute its own indentation
-\(as it does in the case of nested functions in the following situations):
-  o function---positive indentation when not indenting function bodies.
-  o end---negative indentation except when the 'end' matches a function and
-    not indenting function bodies.
-See `matlab-calculate-indentation'."
+See `matlab-calculate-indentation' for how the output of this fcn is used."
   (let ((startpnt (point-at-eol))
-	(lvl1 nil)
 	) 
     (save-excursion
       (matlab-scan-beginning-of-command lvl1)
-      ;;(let ((plvl2 (matlab-previous-line-lvl2 lvl2)))
-      ;; (matlab-previous-command-begin plvl2))
-      ;;(matlab-beginning-of-command)
 	  
       (back-to-indentation)
       (setq lvl1 (matlab-compute-line-context 1))
-      (let ((cc (or (matlab-lattr-block-close startpnt) 0))
-	    (bc (matlab-lattr-block-cont startpnt))
-	    (end (matlab-line-end-p lvl1)) ;(matlab-lattr-local-end))
-	    (mc (and (matlab-line-block-middle-p lvl1) 1)) ;(matlab-lattr-middle-block-cont))
-	    (ec (and (matlab-line-block-case-p lvl1) 1)) ;(matlab-lattr-endless-block-cont))
-	    ;; TODO: The old impl of HC here - not sure what it did.  point was always on the fcn decl
-	    ;; so this would always be wrong. Leaving out to see what happens.
-	    (hc nil)
-	    ;;(and (matlab-last-guess-decl-p)
-	    ;;(matlab-indent-function-body-p)
-	    ;; ;;(matlab-ltype-help-comm)
-	    ;;(matlab-scan-comment-help-p lvl2)
-	    ;;))
-
-	    ;; TODO: Ol impl of RC here - but not sure what this is doing either.  It doesn't
-	    ;; seem to ever be t in my tests.
-	    (rc nil)
-	    ;; (and (/= 0 matlab-comment-anti-indent)
-	    ;; (matlab-line-regular-comment-p lvl1) ;(matlab-ltype-comm-noblock)
-	    ;; ;;(not (matlab-ltype-help-comm))
-	    ;; (not (matlab-ltype-continued-comm))
-	    ;; (message "RC found a thing.")
-	    ;; ))
-
+      (let ((cc (matlab-lattr-block-close startpnt))
+	    (bc (matlab-lattr-block-open startpnt))
+	    (end (matlab-line-end-p lvl1))
+	    (mc (and (matlab-line-block-middle-p lvl1) 1))
+	    (ec (and (matlab-line-block-case-p lvl1) 1))
 	    (ci (current-indentation)))
 	;; When the current point is on a line with a function, the value of bc will
 	;; reflect the function in a block count iff if matlab-functions-have-end is
@@ -2780,8 +2754,8 @@ See `matlab-calculate-indentation'."
 	(if matlab-functions-have-end
 	    (if (and
 		 (not (matlab-indent-function-body-p))
-		 (or (matlab-line-declaration-p lvl1) ;(matlab-ltype-function-definition)
-		     (and (matlab-line-end-p lvl1) ;(matlab-lattr-local-end)
+		 (or (matlab-line-declaration-p lvl1)
+		     (and (matlab-line-end-p lvl1)
 			  (save-excursion
 			    (matlab-backward-sexp t)
 			    (looking-at "function\\b")))))
@@ -2791,7 +2765,7 @@ See `matlab-calculate-indentation'."
 		      (setq bc -1))))
 	  ;; Else, funtions don't have ends in this file.
 	  (if (and (matlab-indent-function-body-p)
-		   (matlab-line-declaration-p lvl1)) ; (matlab-ltype-function-definition))
+		   (matlab-line-declaration-p lvl1))
 	      (setq bc (1+ bc))))
 	;; Remove 1 from the close count if there is an END on the beginning
 	;; of this line, since in that case, the unindent has already happened.
@@ -2804,8 +2778,6 @@ See `matlab-calculate-indentation'."
 	   (* (if (listp matlab-case-level)
 		  (cdr matlab-case-level) matlab-case-level)
 	      (or ec 0))
-	   (if hc matlab-indent-level 0)
-	   (if rc (- 0 matlab-comment-anti-indent) 0)
 	   )))))
 
 ;;; The return key ============================================================
@@ -4125,8 +4097,7 @@ desired.  Optional argument FAST is not used."
 	   (lvl2 (matlab-compute-line-context 2))
 	   (indent nil)
 	   (fullindent (matlab--calc-indent lvl2 'indent))
-	   (nexti (matlab-next-line-indentation (matlab-previous-line-lvl2 lvl2)
-						(matlab-get-lvl1-from-lvl2 lvl2))))
+	   (nexti (matlab-next-line-indentation (matlab-previous-line lvl2))))
       (setq msg (concat msg
 			" Line type: " (symbol-name (car indent))
 			" This Line: " (int-to-string (nth 1 indent))
