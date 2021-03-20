@@ -816,16 +816,16 @@ This function walks down past continuations and open arrays."
 The elements of the return node are:
   0 - type of keyword, like ctrl or decl
   1 - text of the keyword
-  2 - buffer pos for start of keyword"
+  2 - buffer pos for start of keyword
+  3 - buffer pos for end of keyword"
   ;; Don't check the context - assume our callers have vetted this
   ;; point.  This is b/c the search fcns already skip comments and
   ;; strings for efficiency.
   (let* ((start (save-excursion (skip-syntax-backward "w_") (point))) 
-	 (txt (buffer-substring-no-properties
-	       start
-	       (save-excursion (skip-syntax-forward "w_") (point))))
+	 (end (save-excursion (skip-syntax-forward "w_") (point)))
+	 (txt (buffer-substring-no-properties start end))
 	 (type (matlab-keyword-p txt)))
-    (when type (list type txt start) )))
+    (when type (list type txt start end) )))
 
 ;;; Valid keyword locations
 ;;
@@ -841,6 +841,19 @@ Returns nil if preceeding non-whitespace char is `.'"
   (if (or (not parent) (eq (car parent) 'unknown))
       nil
     parent))
+
+(defun matlab--valid-keyword-node (node &optional parentblock)
+  "Return non-nil if NODE is in a valid location.
+Optional parentblock specifies containing parent block if it is known."
+  (when node
+    (save-excursion
+      (goto-char (nth 2 node))
+      (and (matlab--valid-keyword-point)
+	   (cond ((eq (car node) 'mcos)
+		  (matlab--valid-mcos-keyword-point parentblock))
+		 ((eq (car node) 'arg)
+		  (matlab--valid-arguments-keyword-point parentblock))
+		 (t t))))))
 
 (defun matlab--valid-mcos-keyword-point (&optional parentblock)
   "Return non-nil if at a location that is valid for MCOS keywords.

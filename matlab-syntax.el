@@ -568,11 +568,11 @@ This could mean it is:
 ;;; Syntax Compat functions
 ;;
 ;; Left over old APIs.  Delete these someday.
-(defun matlab-move-simple-sexp-backward-internal (count)
+(defsubst matlab-move-simple-sexp-backward-internal (count)
   "Move backward COUNT number of MATLAB sexps."
   (forward-sexp (- count)))
 
-(defun matlab-move-simple-sexp-internal(count)
+(defsubst matlab-move-simple-sexp-internal(count)
   "Move over one MATLAB sexp COUNT times.
 If COUNT is negative, travel backward."
   (forward-sexp count))

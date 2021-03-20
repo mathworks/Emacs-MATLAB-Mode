@@ -3432,8 +3432,8 @@ INTERACTIVE is ignored."
   "Function to assign to `show-paren-data-function'.
 Highlights parens and if/end type blocks.
 Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
-  (unless (or (matlab-cursor-in-string-or-comment) ; Only do this if not in a string.
-	      (matlab-block-comment-bounds))
+  (unless (matlab-cursor-in-string-or-comment) ; Only do this if not in a string.
+
     (save-match-data
       (save-excursion
 	(let ((here-beg nil)
@@ -3497,86 +3497,75 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 		 ;; word character move back one symbol. This will let
 		 ;; us use the block begin / end matchers to figure
 		 ;; out where we are.
-		 (when (and (not (eobp)) (not (bobp)) (= (syntax-class here-prev-syntax) 2))
-		   (forward-symbol -1))
+		 (let ((startsym (matlab--mk-keyword-node))
+		       (endsym nil)
+		       )
+		   (when (matlab--valid-keyword-node startsym)
+		     (goto-char (nth 2 startsym))
 
-		 (matlab-navigation-syntax
+		     (condition-case err
+			 (cond
+			  ((eq (car startsym) 'decl)
+			   ;; We are looking at a 'function' start.
+			   ;; Since functions may not have an end, we need
+			   ;; to handle this case special.
+			   (setq here-beg (nth 2 startsym)
+				 here-end (nth 3 startsym))
+			   (if (matlab--scan-block-forward)
+			       ;; if context is returned, failed to find something
+			       ;; this is a missmatch if fcns don't have end.
+			       (setq mismatch t)
+			     ;; Otherwise, we found something good
+			     (setq endsym (matlab--mk-keyword-node))
+			     (if (not endsym)
+				 ;; End of buffer on function w/ no end?
+				 (if matlab-functions-have-end
+				     (setq mismatch t)
+				   (setq mismatch nil))
+			       ;; Found a symbol
+			       (setq there-beg (nth 2 endsym)
+				     there-end (nth 3 endsym)
+				     mismatch nil)
+			       ) ))
 
-		   (condition-case err
-		       (cond
-			((looking-at "function\\>")
-			 ;; We are looking at a 'function' start.  Since functions may not have an end, we need
-			 ;; to handle this case special.
-			 (setq here-beg (match-beginning 0)
-			       here-end (match-end 0))
-			 (matlab-forward-sexp)
-			 (backward-word 1)
-			 (looking-at (concat (matlab-block-end-pre) "\\>"))
-			 (setq there-beg (match-beginning 0)
-			       there-end (match-end 0)
-			       mismatch nil)
-			 )
-			((matlab-cursor-on-valid-block-start)
-			 ;; Above is similar to vvv but with special checks.
-			 ;; Still need to do vvv b/c we need the match-data.
-			 (looking-at (concat (matlab-block-beg-re) "\\>"))
-			 
-			 ;; We are at the beginning of a block.  Navigate forward to the end
-			 ;; statement.
-			 (setq here-beg (match-beginning 0)
-			       here-end (match-end 0))
-			 (matlab-forward-sexp)
-			 (backward-word 1)
-			 (looking-at (concat (matlab-block-end-pre) "\\>"))
-			 (setq there-beg (match-beginning 0)
-			       there-end (match-end 0)
-			       mismatch nil)
-			 )
-			((and (looking-at (concat "\\(" (matlab-block-end-pre) "\\)\\>"))
-			      (matlab-valid-end-construct-p))
-			 ;; We are at the end of a block.  Navigate to the beginning
-			 (setq here-beg (match-beginning 0)
-			       here-end (match-end 0))
-			 (when (matlab-backward-sexp t t)
-			   (looking-at (concat (matlab-block-beg-re) "\\>"))
-			   (setq there-beg (match-beginning 0)
-				 there-end (match-end 0)
-				 mismatch nil)
-			   ))
-			((looking-at (concat (matlab-block-mid-re) "\\>"))
-			 ;; We are at a middle-block expression, like "else" or "catch'
-			 ;; Ideally we'd show the beginning and the end, but lets just show
-			 ;; the beginning.
-			 (setq here-beg (match-beginning 0)
-			       here-end (match-end 0))
-			 (matlab-backward-sexp t)
-			 (looking-at (concat (matlab-block-beg-re) "\\>"))
-			 (setq there-beg (match-beginning 0)
-			       there-end (match-end 0)
-			       mismatch nil)
-			 )
+			  ;; Misc block starts
+			  ((memq (car startsym) '(ctrl args mcos))
+			   ;; We are at the beginning of a block.  Navigate forward to the end
+			   ;; statement.
+			   (setq here-beg (nth 2 startsym)
+				 here-end (nth 3 startsym))
+			   (if (matlab--scan-block-forward)
+			       (setq mismatch t)
+			     (setq endsym (matlab--mk-keyword-node))
+			     (if (not endsym)
+				 (setq mismatch t)
+			       ;; Found a symbol
+			       (setq there-beg (nth 2 endsym)
+				     there-end (nth 3 endsym)
+				     mismatch nil))))
 
-			((looking-at (concat (matlab-endless-blocks-re) "\\>"))
-			 ;; We are at a middle-sub-block expression, like "case"
-			 ;; Ideally we'd show the beginning and the end, but lets just show
-			 ;; the beginning.
-			 (setq here-beg (match-beginning 0)
-			       here-end (match-end 0))
-			 (matlab-backward-sexp t)
-			 (looking-at (concat (matlab-block-beg-re) "\\>"))
-			 (setq there-beg (match-beginning 0)
-			       there-end (match-end 0)
-			       mismatch nil)
-			 )
+			  ;; Misc block middles an ends
+			  ((memq (car startsym) '(end mid case))
+			   ;; We are at the end of a block or on a middle keyword
+			   ;; like else, catch, or case.  In all these go to beginning.
+			   (setq here-beg (nth 2 startsym)
+				 here-end (nth 3 startsym))
+			   (goto-char here-beg)
+			   (if (matlab--scan-block-backward-up)
+			       (setq mismatch t)
+			     (setq endsym (matlab--mk-keyword-node))
+			     (if (not endsym)
+				 (setq mismatch t)
+			       ;; Found a symbol
+			       (setq there-beg (nth 2 endsym)
+				     there-end (nth 3 endsym)
+				     mismatch nil))))
 
-
-			;; No block matches, just return nothing.
-			(t (setq noreturn t))
-			)
-		     ;; An error occurred.  Assume 'here-*' is set, and setup mismatch.
-		     (error (setq mismatch t)))
-
-
+			  ;; No block matches, just return nothing.
+			  (t (setq noreturn t))
+			  )
+		       ;; An error occurred.  Assume 'here-*' is set, and setup mismatch.
+		       (error (setq mismatch t))))
 		   )))
 
 	  (if noreturn
