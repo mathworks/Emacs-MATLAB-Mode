@@ -1340,9 +1340,12 @@ Return t on success, nil if we couldn't navigate backwards."
     (if (= -1 (forward-line -1)) nil
       ;; Now scan backwards iteratively
       (catch 'moose
-	(while (or (matlab-ltype-empty) (matlab-ltype-comm-ignore))
-	  (when (= -1 (forward-line -1))
-	    (throw 'moose nil)))
+	(let ((lvl1 (matlab-compute-line-context 1)))
+	  (while (or (matlab-line-empty-p lvl1)
+		     (matlab-line-comment-ignore-p lvl1)
+		     )
+	    (when (= -1 (forward-line -1))
+	      (throw 'moose nil))))
 	t))))
 
 (defun matlab-prev-line ()
@@ -1845,52 +1848,17 @@ Travells a cross continuations"
   (matlab-scan-end-of-command))
 
 
-;;; Line types, attributes, and string/comment context =================================================
+;;; Line types, attributes, and string/comment context ====================================
 
 (defun matlab-ltype-empty ()		; blank line
   "Return t if current line is empty."
   (matlab-line-empty-p (matlab-compute-line-context 1)))
 
-(defun matlab-ltype-comm-noblock ()
-  "Return t if the current line is a MATLAB single-line comment.
-Returns nil for Cell start %% and block comments %{, %}.
-Used in `matlab-ltype-comm', but specialized for not cell start."
-  (matlab-line-regular-comment-p (matlab-compute-line-context 1)))
-
 (defun matlab-ltype-comm ()		; comment line
-  "Return t if current line is a MATLAB comment line.
-Return the symbol 'cellstart if it is a double %%.
-Return the symbol 'blockcomm if we are in a block comment."
+  "Return t if current line is a MATLAB comment line."
   ;; Looking through uses, no one uses the extra type of output
   ;; this provides, so replace with very simple call.
   (matlab-line-comment-p (matlab-compute-line-context 1)))
-
-(defun matlab-ltype-comm-ignore ()	; comment out a region line
-  "Return t if current line is a MATLAB comment region line."
-  (matlab-line-comment-ignore-p (matlab-compute-line-context 1)))
-
-(defun matlab-ltype-help-comm ()
-  "Return position of function decl if the point in a MATLAB help comment."
-  (save-excursion
-    (if (not (matlab-ltype-comm-noblock))
-	nil
-      (save-restriction
-	(widen)
-	(while (and (matlab-ltype-comm-noblock) (not (bobp))
-		    (matlab-prev-line))
-	  (beginning-of-line))
-	(when (matlab-ltype-function-definition)
-	  (point))))))
-
-;; (global-set-key [f6] 'matlab-debug-block-comm)
-(defun matlab-debug-block-comm ()
-  "Test block comment detector since font-lock won't let us debug."
-  (interactive)
-  (let ((pos (matlab-block-comment-bounds t)))
-    (if pos
-	(pulse-momentary-highlight-region (car pos) (cdr pos))
-      (message "No block comment."))))
-
 
 (defun matlab-ltype-continued-comm ()
   "Return column of previous line's comment start, or nil."
@@ -1904,21 +1872,6 @@ Return the symbol 'blockcomm if we are in a block comment."
 	;; we want blank lines to terminate this indentation method.
 	(forward-line -1)
 	(matlab-line-end-comment-column (matlab-compute-line-context 1))))))
-
-(defun matlab-ltype-function-definition ()
-  "Return t if the current line is a function definition."
-  (save-excursion
-    (beginning-of-line)
-    (looking-at matlab-defun-regex)))
-
-(defun matlab-ltype-code ()		; line of code
-  "Return t if current line is a MATLAB code line."
-  (let ((lvl  (matlab-compute-line-context 1)))
-    (not (or (matlab-line-comment-p lvl) (matlab-line-empty-p lvl)))))
-
-(defun matlab-lattr-comm ()		; line has comment
-  "Return t if current line contain a comment."
-  (matlab-line-comment-p (matlab-compute-line-context 1)))
 
 (defun matlab-lattr-block-open (&optional eol)
   "Return a number representing the number of unterminated block constructs.
@@ -2005,6 +1958,7 @@ If there isn't one, then return nil, point otherwise."
 		   (point)))))
 
 ;;; Indent functions ==========================================================
+;;
 
 (defun matlab-indent-region (start end &optional column noprogress)
   "Indent the region between START And END for MATLAB mode.
@@ -2210,15 +2164,14 @@ LVL2 is a level 2 scan context with info from previous lines."
       (list 'blockend ci))
      ;; ELSE/CATCH keywords
      ((matlab-line-block-middle-p lvl1)
-      (let ((m (match-string 1)))
-	(list 'blockmid
-	      (condition-case nil
-		  (save-excursion
-		    (beginning-of-line)
-		    (matlab-backward-sexp t)
-		    (if (matlab-ltype-function-definition) (error ""))
-		    (current-column))
-		(error (error "Unmatched %s" m))))))
+      (list 'blockmid
+	    (save-excursion
+	      (back-to-indentation)
+	      (if (matlab--scan-block-backward-up)
+		  (error "Missing start block")
+		(if (not (eq (matlab-on-keyword-p) 'ctrl))
+		    (error "Does not match opening block type"))
+		(current-column)))))
      ;; CASE/OTHERWISE keywords
      ((matlab-line-block-case-p lvl1)
       (list 'blockendless
@@ -2518,7 +2471,7 @@ Has effect of `matlab-return' with (not matlab-indent-before-return)."
    ((matlab-ltype-comm)
     (matlab-set-comm-fill-prefix) (newline) (insert fill-prefix)
     (matlab-reset-fill-prefix) (matlab-indent-line))
-   ((matlab-lattr-comm)
+   ((matlab-ltype-comm)
     (newline) (indent-to comment-column)
     (insert matlab-comment-on-line-s))
    (t
@@ -2603,14 +2556,14 @@ Argument ARG specifies how many %s to insert."
 	 (call-interactively #'comment-or-uncomment-region))
 	((matlab-ltype-empty)		; empty line
 	 (matlab-comm-from-prev)
-	 (if (matlab-lattr-comm)
+	 (if (matlab-ltype-comm)
 	     (skip-chars-forward " \t%")
 	   (insert matlab-comment-line-s)
 	   (matlab-indent-line)))
 	((matlab-ltype-comm)		; comment line
 	 (matlab-comm-from-prev)
 	 (skip-chars-forward " \t%"))
-	((matlab-lattr-comm)		; code line w/ comment
+	((matlab-ltype-comm)		; code line w/ comment
 	 (beginning-of-line)
 	 (re-search-forward "[^%]\\(%\\)[ \t]")
 	 (goto-char (match-beginning 1))
@@ -2685,7 +2638,7 @@ Argument BEG and END indicate the region to uncomment."
 (defun matlab-set-comm-fill-prefix ()
   "Set the `fill-prefix' for the current (comment) line."
   (interactive)
-  (if (matlab-lattr-comm)
+  (if (matlab-ltype-comm)
       (setq fill-prefix
 	    (save-excursion
 	      (beginning-of-line)
@@ -2726,7 +2679,7 @@ not be broken.  This function will ONLY work on code."
 	      (orig (point)))
 	  (or
 	   ;; Next, if we have a trailing comment, use that.
-	   (progn (setq pos (or (matlab-line-comment-p lvl1) ;;(matlab-lattr-comm)
+	   (progn (setq pos (or (matlab-line-comment-p lvl1) ;;(matlab-ltype-comm)
 				(matlab-point-at-bol)))
 		  (goto-char pos)
 		  (if (and (> (current-column) (- fill-column matlab-fill-fudge))
@@ -3020,7 +2973,8 @@ ARG is passed to `fill-paragraph' and will justify the text."
 	     ;; a buffer.
 	     (narrow-to-region start (min (point-max) (+ end 1)))
 	     (fill-paragraph arg))))
-	((matlab-ltype-code)
+	((let ((lvl  (matlab-compute-line-context 1)))
+	   (not (or (matlab-line-comment-p lvl) (matlab-line-empty-p lvl))))
 	 ;; Ok, lets get the outer bounds of this command, then
 	 ;; completely refill it using the smart line breaking code.
 	 (save-restriction
@@ -3590,7 +3544,7 @@ desired.  Optional argument FAST is not used."
       
       (if (matlab-line-ellipsis-p lvl1)
 	  (setq msg (concat msg " w/cont")))
-      (if (matlab-lattr-comm)
+      (if (matlab-ltype-comm)
 	  (setq msg (concat msg " w/comm")))
       (message "%s" msg))))
 

@@ -499,10 +499,6 @@ The returned LVL2 structure will fill out to be a chain of all previous
 LVL2 outputs up to a context break.  The chains will be summarized in slots
 in the returned list for quick access."
   (when (not lvl1) (setq lvl1 (matlab-compute-line-context-lvl-1)))
-  ;; matlab-ltype-help-comm
-  ;; block start
-  ;; block end
-  ;; change in # blocks on this line.
 
   (save-excursion
     (let ((prev-lvl1 t)
