@@ -46,17 +46,17 @@ function continuations(a,b) %!!0
         a,b);     %!!8
 
     
-    if true, if true, if true %!!4
-                localfcn(a,b) ... %!!16
+    if true, if true, if true  %#ok  %!!4
+                localfcn(a,b); ... %!!16
     end; ... %!!4
     end; ... %!!4
     end ... %!!4
         
-    code1(); %!!4   -  this after those continued ends
+    odd_if_location(); %!!4   -  this after those continued ends
     
     
     ... % !!4  A continuation with a ctrl block after it
-        for g=1:10   % !!8 b/c continuation
+        for g=1:10    %#ok  % !!8 b/c continuation
         localfcn(a,g)  % !!8 b/c not continued, and +4 from comment continuation
     end            % !!4 to match
     
@@ -76,19 +76,8 @@ function a=odd_if_location(n) %!!0
         a=0;  %!!8
     end       %!!4
     
+    foo();
 end %!!0
-
-function a=foo
-%{
-  for !!2
-  for !!2
-%}
-    if true %!!4
-        if true  %!!8
-            a = 1;  %!!12
-        end end  %!!8
-end %!!0
-
 
 function val = localfcn(c,d)   %!!0
 % !!0 Help Comment
@@ -96,6 +85,8 @@ function val = localfcn(c,d)   %!!0
     try fclose( fid );  catch, end %!!4
     
     val = c+d; % !!4
+    
+    odd_end_location_from_dspfwiz_load(1);
     
 end  %!!0
 
@@ -109,3 +100,16 @@ function [z,o,n]=odd_end_location_from_dspfwiz_load(opts)  %!!0
     if opts.neg_ones, n = 'On';        %!!4
     else,             n = 'Off'; end   %!!4
 end    %!!0
+
+function a=foo
+%{
+  for !!2
+  for !!2
+%}
+    if true  %#ok  %!!4
+        if true  %!!8
+            a = 1;  %!!12
+        end end   %#ok  %!!8
+end %!!0
+
+
