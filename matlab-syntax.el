@@ -237,7 +237,9 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
 		(start-char (match-beginning 0)))
 	    (forward-char -1)
 	    (if (looking-at "\\s<")
-		(forward-comment 1)
+		(progn
+		  (matlab--scan-line-comment-disable-strings)
+		  (forward-comment 1))
 	      ;; Else, check for valid string
 	      (if (or (bolp)
 		      (string= start-str "\"")
@@ -266,6 +268,16 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
 	  nil)
       (error
        t))))
+
+(defun matlab--scan-line-comment-disable-strings ()
+  "Disable bad string chars syntax from point to eol.
+Called when comments found in `matlab--scan-line-for-unterminated-string'."
+  (save-excursion
+    (while (re-search-forward "\\s\"" nil t)
+      (save-excursion
+	(forward-char -1)
+	(matlab--put-char-category (point) 'matlab--transpose-syntax))
+      )))
 
 (defun matlab--scan-line-bad-blockcomment ()
   "Scan this line for invalid block comment starts."

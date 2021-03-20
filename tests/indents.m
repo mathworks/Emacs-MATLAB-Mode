@@ -170,10 +170,15 @@ function out = array_constant_decls()
 
     % This array has bad syntactic expression parsing due to the
     % apostrophy
-    Closures = [ ...
+    Closures = [ 
         755009 ; ... % 21-Feb-2067 Washington's Birthday (Mon)
-        755010 ; ... % Another row.
+        755010 ;     % !!8
                ];
+    
+    dep = [
+        root(info.function, factory, workspace, []), ...    % likewise this isn't a keyword
+        fcn3.finalize                                       % the single quote used to break [] scanning
+          ];
     
     % !!4
     out = { A     %!!4
@@ -181,6 +186,7 @@ function out = array_constant_decls()
             Csep  %!!12
             multinest%!!12
             Closures%!!12
+            dep %!!12
           };      %!!10
 
 end
