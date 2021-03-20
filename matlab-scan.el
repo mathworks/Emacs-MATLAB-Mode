@@ -1217,14 +1217,16 @@ With arg, enable gathering stats, and flush old stats."
 	    (mapc printfcn res)))
 	))))
   
-(defun matlab-describe-line-indent-context ()
-  "Describe the indentation context for the current line."
+(defun matlab-describe-line-indent-context (&optional lvl1 nodisp)
+  "Describe the indentation context for the current line.
+If optional LVL1 is specified, describe that instead of computing.
+If optional NODISP, then don't display, just return the msg."
   (interactive)
   (back-to-indentation)
   (let* ((MSG1 "")
-	 (MSG2 "")
-	 (lvl1 (matlab-compute-line-context 1))
-	 (lvl2 (matlab-compute-line-context 2)))
+	 (lvl1 (or lvl1 (matlab-compute-line-context 1)))
+	 ;(lvl2 (matlab-compute-line-context 2))
+	 )
     (let* ((paren-inner-char (nth mlf-paren-inner-char lvl1))
 	   (open (format "%c" (or paren-inner-char ?\()))
 	   (close (format "%c"
@@ -1284,13 +1286,13 @@ With arg, enable gathering stats, and flush old stats."
 		      "")
 		    ))
       )
-    (let* ((lvl2 (matlab-compute-line-context-lvl-2 lvl1))
-	   ;;(comment
-	   )
+;;    (let* ((lvl2 (matlab-compute-line-context-lvl-2 lvl1))
+;;	   ;;(comment
+;;	   )
       
-      )
-
-    (message "%s" (concat MSG1 MSG2))
+    (if nodisp
+	MSG1
+      (message "%s" MSG1))
     ))
 
 

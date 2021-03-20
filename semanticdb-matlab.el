@@ -337,8 +337,7 @@ Return a list of tags."
     (let ((files (semanticdb-matlab-find-name regex 'regex)))
       (delq nil
 	    (mapcar #'(lambda (x)
-		       (let ((matlab-vers-on-startup nil))
-			 (car (semanticdb-file-stream x))))
+			(car (semanticdb-file-stream x)))
 		    files)))))
 
 (cl-defmethod semanticdb-find-tags-for-completion-method
@@ -378,8 +377,7 @@ Returns a table of all matching tags."
       ;; generate tags
       (delq nil
 	    (mapcar #'(lambda (x)
-			(let ((matlab-vers-on-startup nil))
-			  (car (semanticdb-file-stream x))))
+			(car (semanticdb-file-stream x)))
 		    compdb)))))
 
 (provide 'semanticdb-matlab)

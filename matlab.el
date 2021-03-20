@@ -389,30 +389,10 @@ point, but it will be restored for them."
   :group 'matlab
   :type 'integer)
 
-;; It is time to disable this.
-(defcustom matlab-vers-on-startup nil
-  "*If non-nil, show the version number on startup."
-  :group 'matlab
-  :type 'boolean)
-
-(defcustom matlab-highlight-block-match-flag t
-  "*Non-nil means to highlight the matching if/end/whatever.
-The highlighting only occurs when the cursor is on a block start or end
-keyword."
-  :group 'matlab
-  :type 'boolean)
-
-(defcustom matlab-show-periodic-code-details-flag nil
-  "*Non-nil means to show code details in the minibuffer.
-This will only work if `matlab-highlight-block-match-flag' is non-nil."
-  :group 'matlab
-  :type 'boolean)
-
 (defcustom matlab-mode-hook nil
   "*List of functions to call on entry to MATLAB mode."
   :group 'matlab
   :type 'hook)
-
 
 (defcustom matlab-show-mlint-warnings nil
   "*If non-nil, show mlint warnings."
@@ -697,10 +677,6 @@ This will only work if `matlab-highlight-block-match-flag' is non-nil."
 ;;      ["Stringify Region" matlab-stringify-region t]
 ;;      )
      ("Customize"
-;      ["Auto Fill Counts Elipsis"
-;       (lambda () (setq matlab-fill-count-ellipsis-flag
-;			(not matlab-fill-count-ellipsis-flag)))
-;       :style toggle :selected 'matlab-fill-count-ellipsis-flag]
       ["Indent Function Body"
        (setq matlab-indent-function-body (not (matlab-indent-function-body-p)))
        :style toggle :selected matlab-indent-function-body]
@@ -713,14 +689,6 @@ This will only work if `matlab-highlight-block-match-flag' is non-nil."
       ["Auto Fill does Code"
        (setq matlab-fill-code (not matlab-fill-code))
        :style toggle :selected matlab-fill-code ]
-      ["Periodic Code Details"
-       (setq matlab-show-periodic-code-details-flag
-	     (not matlab-show-periodic-code-details-flag))
-       :style toggle :selected matlab-show-periodic-code-details-flag ]
-      ;; ["Highlight Matching Blocks"
-      ;;  (matlab-enable-block-highlighting)
-      ;;  :style toggle :selected (member 'matlab-start-block-highlight-timer
-      ;; 				       post-command-hook) ]
       ["Highlight Cross-Function Variables"
        matlab-toggle-highlight-cross-function-variables
        :active (locate-library "mlint")
@@ -1264,8 +1232,6 @@ Variables:
   `matlab-fill-code'            Non-nil, auto-fill code in auto-fill-mode.
   `matlab-fill-strings'         Non-nil, auto-fill strings in auto-fill-mode.
   `matlab-verify-on-save-flag'  Non-nil, enable code checks on save.
-  `matlab-highlight-block-match-flag'
-                                Enable matching block begin/end keywords.
   `matlab-vers-on-startup'	If t, show version on start-up.
   `matlab-handle-simulink'      If t, enable simulink keyword highlighting.
 
@@ -1338,14 +1304,8 @@ All Key Bindings:
   (add-to-list 'font-lock-extend-region-functions #'matlab-font-lock-extend-region t)
 
   ;; Parens mode support
-  (if (and (featurep 'paren) (symbolp 'show-paren-data-function) (symbolp show-paren-data-function))
-      (progn
-	;; show-paren-mode is nicer than our old thing.
-	(make-local-variable 'show-paren-data-function)
-	(setq show-paren-data-function #'matlab-show-paren-or-block)
-	)
-    ;; Enable our own block highlighting if paren mode not around.
-    (matlab-enable-block-highlighting 1))
+  (make-local-variable 'show-paren-data-function)
+  (setq show-paren-data-function #'matlab-show-paren-or-block)
 
   (if window-system (matlab-frame-init))
 
@@ -1402,7 +1362,7 @@ All Key Bindings:
   ;; When leaving matlab-mode, turn off mlint
   (add-hook 'change-major-mode-hook #'matlab-mode-leave)
 
-  (if matlab-vers-on-startup (matlab-show-version)))
+  )
 
 (defun matlab-mode-init-mlint-if-needed ()
   "Check if we should start `mlint-minor-mode' for this buffer."
@@ -3578,119 +3538,6 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 	    (list here-beg here-end there-beg there-end mismatch) ))))))
 
 
-;;; Block highlighting ========================================================
-
-(defvar matlab-block-highlighter-timer nil
-  "The timer representing the block highlighter.")
-
-(defun matlab-enable-block-highlighting (&optional arg)
-  "Start or stop the block highlighter.
-Optional ARG is 1 to force enable, and -1 to disable.
-If ARG is nil, then highlighting is toggled."
-  (interactive "P")
-  (if (not (fboundp 'matlab-run-with-idle-timer))
-      (setq matlab-highlight-block-match-flag nil))
-  ;; Only do it if it's enabled.
-  (if (not matlab-highlight-block-match-flag)
-      nil
-    ;; Use post command idle hook as a local hook to dissuade too much
-    ;; cpu time while doing other things.
-    ;;(make-local-hook 'post-command-hook)
-    (if (not arg)
-	(setq arg
-	      (if (member 'matlab-start-block-highlight-timer
-			  post-command-hook)
-		  -1 1)))
-    (if (> arg 0)
-	(add-hook 'post-command-hook 'matlab-start-block-highlight-timer nil :local)
-      (remove-hook 'post-command-hook 'matlab-start-block-highlight-timer :local))))
-
-(defvar matlab-block-highlight-overlay nil
-  "The last highlighted overlay.")
-(make-variable-buffer-local 'matlab-block-highlight-overlay)
-
-(defvar matlab-block-highlight-timer nil
-  "Last started timer.")
-(make-variable-buffer-local 'matlab-block-highlight-timer)
-
-(defun matlab-start-block-highlight-timer ()
-  "Set up a one-shot timer if we are in MATLAB mode."
-  (if (eq major-mode 'matlab-mode)
-      (progn
-	(if matlab-block-highlight-overlay
-	    (unwind-protect
-		(matlab-delete-overlay matlab-block-highlight-overlay)
-	      (setq matlab-block-highlight-overlay nil)))
-	(if matlab-block-highlight-timer
-	    (unwind-protect
-		(matlab-cancel-timer matlab-block-highlight-timer)
-	      (setq matlab-block-highlight-timer nil)))
-	(setq matlab-block-highlight-timer
-	      (matlab-run-with-idle-timer
-	       1 nil 'matlab-highlight-block-match
-	       (current-buffer))))))
-
-(defun matlab-highlight-block-match (&optional buff-when-launched)
-  "Highlight a matching block if available.
-BUFF-WHEN-LAUNCHED is the buffer that was active when the timer was set."
-  (setq matlab-block-highlight-timer nil)
-  (if (null buff-when-launched)
-      ;; We were passed a null.  This indicates an old version of XEmacs
-      ;; so just turn the feature off
-      (setq matlab-highlight-block-match-flag nil)
-  ;; Only do neat stuff in the same buffer as the one we were
-  ;; initialized from.
-  (when (and buff-when-launched
-	     (eq buff-when-launched (current-buffer)))
-    (let ((inhibit-quit nil)		;turn on G-g
-	  (matlab-scan-on-screen-only t))
-      (if matlab-show-periodic-code-details-flag
-	  (matlab-show-line-info))
-      (if (not (matlab-cursor-in-string-or-comment))
-	  (save-excursion
-	    (if (or (bolp)
-		    (looking-at "\\s-")
-		    (save-excursion (forward-char -1) (looking-at "\\s-")))
-		nil
-	      (forward-word -1))
-	    (if (and (looking-at (concat (matlab-block-beg-re) "\\>"))
-		     (not (looking-at "function")))
-		(progn
-		  ;; We scan forward...
-		  (matlab-forward-sexp)
-		  (backward-word 1)
-		  (if (not (looking-at matlab-block-end-pre-if))
-		      nil ;(message "Unterminated block, or end off screen.")
-		    (setq matlab-block-highlight-overlay
-			  (matlab-make-overlay (point)
-					       (progn (forward-word 1)
-						      (point))
-					       (current-buffer)))
-		    (matlab-overlay-put matlab-block-highlight-overlay
-					'face 'matlab-region-face)))
-	      (if (and (looking-at (concat (matlab-block-end-pre) "\\>"))
-		       (not (looking-at "function"))
-		       (matlab-valid-end-construct-p))
-		  (progn
-		    ;; We scan backward
-		    (forward-word 1)
-		    (condition-case nil
-			(progn
-			  (matlab-backward-sexp)
-			  (if (not (looking-at (matlab-block-beg-re)))
-			      nil ;(message "Unstarted block at cursor.")
-			    (setq matlab-block-highlight-overlay
-				  (matlab-make-overlay (point)
-						       (progn (forward-word 1)
-							      (point))
-						       (current-buffer)))
-			    (matlab-overlay-put matlab-block-highlight-overlay
-						'face 'matlab-region-face)))
-		      (error (message "Unstarted block at cursor."))))
-		;; do nothing
-		))))))))
-
-
 ;;; M Block Folding with hideshow =============================================
 
 (defun matlab-hideshow-forward-sexp-func (arg)
@@ -4074,20 +3921,24 @@ desired.  Optional argument FAST is not used."
   "Display type and attributes of current line.  Used in debugging."
   (interactive)
   (matlab-navigation-syntax
-    (let* ((msg "line-info:")
+    (let* ((msg "")
 	   (lvl2 (matlab-compute-line-context 2))
+	   (lvl1 (matlab-get-lvl1-from-lvl2 lvl2))
+	   (lvl1msg (matlab-describe-line-indent-context lvl1 t))
 	   (indent nil)
 	   (fullindent (matlab--calc-indent lvl2 'indent))
 	   (nexti (matlab-next-line-indentation (matlab-previous-line lvl2))))
       (setq msg (concat msg
-			" Line type: " (symbol-name (car indent))
-			" This Line: " (int-to-string (nth 1 indent))
-			" Next Line: " (int-to-string nexti)))
+			"Line Syntax: " lvl1msg
+			"  | Preferred Indents: This: " (int-to-string (nth 1 indent))
+			"  Next: " (int-to-string nexti)
+			))
+      
       (if (matlab-lattr-cont)
 	  (setq msg (concat msg " w/cont")))
       (if (matlab-lattr-comm)
 	  (setq msg (concat msg " w/comm")))
-      (message msg))))
+      (message "%s" msg))))
 
 
 (provide 'matlab)
