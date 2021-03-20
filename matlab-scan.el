@@ -848,25 +848,26 @@ This means that the parent block is a classdef.
 Optional input PARENTBLOCK is a precomputed keyword node
 representing the current block context point is in.
 Assume basic keyword checks have already been done."
-  ;; If a parent was provided, use that.
-  (if (matlab--known-parent-block parentblock)
-      (string= (nth 1 parentblock) "classdef")
+  (and
+   ;; Must be first thing on line - before checking other stuff.
+   (save-excursion (skip-syntax-backward "w") (skip-syntax-backward " ") (bolp))
+  
+   ;; If a parent was provided, use that.
+   (if (matlab--known-parent-block parentblock)
+       (string= (nth 1 parentblock) "classdef")
 
-    (and (eq matlab-functions-have-end 'class) ;; not a class, no mcos allowed.
-	 (save-excursion (skip-syntax-backward "w")
-			 (skip-syntax-backward " ")
-			 (bolp)) ;; Must be first on line.
-
-	 ;; Otherwise, roll back a single command.  in MUST be
-	 ;; an END indent 4 or CLASSDEF
-	 (save-excursion
-	   (skip-syntax-backward "w")
-	   (forward-comment -100000)
-	   (back-to-indentation) ;; TODO -> this should be beginning-of-command
-	   (let ((prev (matlab--mk-keyword-node)))
-	     (or (string= (nth 1 prev) "classdef")
-		 (and (string= (nth 1 prev) "end")
-		      (= (current-indentation) matlab-indent-level))))))))
+     ;; else more expensive check
+     (and (eq matlab-functions-have-end 'class) ;; not a class, no mcos allowed.
+	  ;; Otherwise, roll back a single command.  in MUST be
+	  ;; an END indent 4 or CLASSDEF
+	  (save-excursion
+	    (skip-syntax-backward "w")
+	    (forward-comment -100000)
+	    (back-to-indentation) ;; TODO -> this should be beginning-of-command
+	    (let ((prev (matlab--mk-keyword-node)))
+	      (or (string= (nth 1 prev) "classdef")
+		  (and (string= (nth 1 prev) "end")
+		       (= (current-indentation) matlab-indent-level)))))))))
 
 (defun matlab--valid-arguments-keyword-point (&optional parentblock)
   "Return non-nil if at a location that is valid for ARGUMENTS keyword.
@@ -875,14 +876,19 @@ the function.
 Optional input PARENTBLOCK is a precomputed keyword node
 representing the current block context point is in.
 Assume basic keyword checks have already been done."
-  (let ((parent
-	 (or (matlab--known-parent-block parentblock) ;; technically this can lie, but it's fast.
-	     (save-excursion (skip-syntax-backward "w")
-			     (forward-comment -100000)
-			     (matlab-scan-beginning-of-command)
-			     (and (matlab--valid-keyword-point)
-				  (matlab--mk-keyword-node))))))
-    (string= (nth 1 parent) "function")))
+  (save-excursion
+    (skip-syntax-backward "w")
+    (and
+     ;; Must be first thing on line - before checking other stuff.
+     (save-excursion (skip-syntax-backward "w") (skip-syntax-backward " ") (bolp))
+     ;; More expensive checks
+     (let ((parent
+	    (or (matlab--known-parent-block parentblock) ;; technically this can lie, but it's fast.
+		(save-excursion (forward-comment -100000)
+				(matlab-scan-beginning-of-command)
+				(and (matlab--valid-keyword-point)
+				     (matlab--mk-keyword-node))))))
+       (string= (nth 1 parent) "function")))))
 
 (defun matlab--scan-derive-block-state (providedstate filter)
   "Return a block state for current point.

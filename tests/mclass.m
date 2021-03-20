@@ -110,6 +110,33 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
         
     end %!!4
     
+    methods %!!4
+        function properties(~)   %!!8
+        end  %!!8
+
+        function methods(~)  %!!8
+        end   %!!8
+
+        function events(~)  %!!8
+        end  %!!8
+
+        function arguments(~)  %!!8
+        end  %!!8
+
+        function enumeration(~)  %!!8
+        end  %!!8
+        
+        function usestuff(obj)  %!!8
+        % Try using the methods of this object
+            obj.properties();  %!!12
+            obj.methods();  %!!12
+            obj.events();  %!!12
+            obj.arguments();  %!!12
+            obj.enumeration();  %!!12
+        end  %!!8
+    
+    end %!!4
+    
 end % <<1
 
 % End
