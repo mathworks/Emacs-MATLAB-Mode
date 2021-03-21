@@ -57,8 +57,11 @@
   ;; the cahce and performance a harder problem.
   (metest-indents-randomize-files)
   (metest-run 'metest-indents-test)
+
   (metest-run 'metest-parse-test)
 
+
+  
   (metest-log-report (metest-log-write))
 
   (matlab-scan-stats-print)
@@ -133,37 +136,92 @@
 (defun metest-comment-string-syntax-test (F)
   "Run a test to make sure string nd comment highlighting work."
     (let ((buf (metest-find-file F))
-	  (cnt 0))
+	  (cnt 0)
+	  (noninteractive nil) ;; fake out font lock
+	  )
       (with-current-buffer buf
 	(goto-char (point-min))
+
+	(let ((md (match-data)))
+	  ;; Force font lock to throw catchable errors.
+	  (font-lock-mode 1)
+	  (font-lock-flush (point-min) (point-max))
+	  (font-lock-ensure (point-min) (point-max))
+	  (font-lock-fontify-region (point-min) (point-max))
+
+	  ;; FL test 1: make sure font lock is on and match data didn't change.
+	  (unless font-lock-mode
+	    (metest-error "Font Lock failed to turn on."))
+	  ;(unless (equal md (match-data))
+	  ;  (metest-error "Font Locking transmuted the match data"))
+	  (when (not (get-text-property 2 'fontified))
+	    (metest-error "Font Lock Failure: can't run test because font lock failed to fontify region."))
+	  )
+	    
+	
 	;;(message ">> Starting string/comment detect loop in %S" (current-buffer))
-	(while (re-search-forward "#\\([csvebd]\\)#" nil t)
-	  (goto-char (match-end 1))
-	  (let ((md (match-data))
-		(mc (match-string 1))
-		(bc (metest-condition-case-error-msg (matlab-block-comment-bounds)))
-		(qd (metest-condition-case-error-msg (matlab-cursor-comment-string-context))))
+	(while (re-search-forward "#\\([cCsSvVebd]\\)#" nil t)
+	  (let* ((md  (match-data))
+		 (pt  (match-end 1))
+		 (mc  (match-string-no-properties 1))
+		 (fnt (get-text-property pt 'face))
+		 (bc  (metest-condition-case-error-msg (matlab-block-comment-bounds)))
+		 (qd  (metest-condition-case-error-msg (matlab-cursor-comment-string-context)))
+		 )
+	    (goto-char pt)
+	    
 	    ;; Test 1 - what are we?
 	    (unless (or (and (string= "b" mc) bc)
 			(and (string= "v" mc) (eq 'charvector qd))
+			(and (string= "V" mc) (eq 'charvector qd))
 			(and (string= "s" mc) (eq 'string qd))
+			(and (string= "S" mc) (eq 'string qd))
 			(and (string= "c" mc) (eq 'comment qd))
+			(and (string= "C" mc) (eq 'comment qd))
 			(and (string= "e" mc) (eq 'ellipsis qd))
 			(and (string= "d" mc) (eq 'commanddual qd))
 			)
 	      (metest-error "Syntax Test Failure @ char %d: Expected %s but found %S"
-		(point)
-		(cond ((string= mc "b") "block comment")
-		      ((string= mc "v") "charvector")
-		      ((string= mc "s") "string")
-		      ((string= mc "c") "comment")
-		      ((string= mc "e") "ellipsis")
-		      ((string= mc "d") "commanddual")
-		      (t "unknown test token"))
-		qd))
+			    pt
+			    (cond ((string= mc "b") "block comment")
+				  ((string= mc "v") "charvector")
+				  ((string= mc "V") "charvector")
+				  ((string= mc "s") "string")
+				  ((string= mc "S") "string")
+				  ((string= mc "c") "comment")
+				  ((string= mc "C") "comment")
+				  ((string= mc "e") "ellipsis")
+				  ((string= mc "d") "commanddual")
+				  (t "unknown test token"))
+			    qd))
 	    ;; Test 2 - is match-data unchanged?
 	    (unless (equal md (match-data))
 	      (metest-error "Syntax checking transmuted the match data"))
+
+	    ;; FL test 2 - Is the matched location fontified correctly?
+	    (when (consp fnt) (setq fnt (car fnt)))
+	    (unless (or (and (string= "b" mc) (eq fnt 'font-lock-comment-face))
+			(and (string= "v" mc) (eq fnt 'font-lock-string-face))
+			(and (string= "V" mc) (eq fnt 'matlab-unterminated-string-face))
+			(and (string= "s" mc) (eq fnt 'font-lock-string-face))
+			(and (string= "S" mc) (eq fnt 'matlab-unterminated-string-face))
+			(and (string= "c" mc) (eq fnt 'font-lock-comment-face))
+			(and (string= "C" mc) (eq fnt 'matlab-cellbreak-face))
+			(and (string= "e" mc) (eq fnt 'font-lock-comment-face))
+			(and (string= "d" mc) (eq fnt 'matlab-commanddual-string-face))
+			)
+	      (metest-error "Font Lock Failure @ char %d: Expected %s but found %S"
+			    pt
+			    (cond ((string= mc "b") "comment face")
+				  ((string= mc "v") "string face")
+				  ((string= mc "V") "unterminated string face")
+				  ((string= mc "s") "string face")
+				  ((string= mc "S") "unterminated string face")
+				  ((string= mc "c") "comment face")
+				  ((string= mc "e") "comment face")
+				  ((string= mc "d") "commanddual string face")
+				  (t "unknown test token"))
+			    (get-text-property pt 'face)))
 	    ;; Track
 	    (setq cnt (1+ cnt))
 	    ))
@@ -344,6 +402,26 @@
   "Return non-nil if EXP tag is similiar to ACT"
   (semantic-tag-similar-p EXP ACT :documentation)
   )
+
+
+(defvar met-fontlock-files '()
+  "List of files for running font lock tests.")
+
+(defvar metest-fontlock-test (cons "font lock" met-parser-files))
+(defun metest-fontlock-test (F)
+  "Run the semantic parsing test to make sure the parse works."
+    (let ((buf (metest-find-file F))
+	  exp act
+	  (cnt 0))
+      (with-current-buffer buf
+
+	;; TODO - lets add some tests.  See comment-string test
+	
+
+	)))
+
+;;; UTILS
+;;
 
 (defun metest-find-file (file)
   "Read FILE into a buffer and return it.

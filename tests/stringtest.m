@@ -16,8 +16,8 @@ stringscalar = "string scalar #s#";
 % Comment with 'character vector #c#' in it.
 % Comment with "string scalar #c#" in it.
 
-charvi = 'char vector incomplete #v#
-stringi = "string scalar incomplete #s#
+charvi = 'char vector incomplete #V#
+stringi = "string scalar incomplete #S#
 
 % Comment with 'char vector incomplete #c#
 % Comment with "string scalar incomplete #c#
@@ -30,16 +30,16 @@ stringcv = "string scalar with 'char vec #s#' in it";
 chard = 'char vector with '' in it #v#';
 stringd = "string scalar with "" in it #s#";
 
-chardi = 'incomplete char vector with '' in it #v#
-stringdi = "incomplete string scalar with "" in it #s#
+chardi = 'incomplete char vector with '' in it #V#
+stringdi = "incomplete string scalar with "" in it #S#
 
 %% Strings with Comments
 
 charvc = 'char vector with % comment char #v#';
 stringc = "string scalar with % comment char #s#";
 
-charvci = 'incomplete char vector with % comment char #v#
-stringci = "incomplete string scalar with % comment char #s#
+charvci = 'incomplete char vector with % comment char #V#
+stringci = "incomplete string scalar with % comment char #S#
 
 charvbc = 'char vector with %{ comment char #v# %} ';
 stringbc = "string scalar with %{ comment char #s# %} ";
@@ -149,7 +149,7 @@ else
     Cs = "not unreachable #s#";
 end
 
-%% Block Comments #c#
+%% Block Comments #C#
 
 %{
   
@@ -167,7 +167,7 @@ not_commented();
 % Normal comment #c#
 
 
-%% Command line dual #c#
+%% Command line dual #C#
 % Note: stuff after a symbol<space> treated as string
 
 funcall  _this is string input to function #d#_

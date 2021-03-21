@@ -3055,6 +3055,7 @@ by `matlab-mode-vf-add-ends'"
 	;; and if ends are optional in the first place.
 	(filetype (matlab-guess-script-type))
 	)
+    
     ;; Before checking syntax, lets re-look at the file if we were in
     ;; guess mode and re-assert what we should do.
     (cond
@@ -3068,6 +3069,15 @@ by `matlab-mode-vf-add-ends'"
       (matlab-functions-have-end-minor-mode 1)
       )
 
+     ;; If there is just bad syntax somewhere, skip it with a notice.
+     ((save-excursion (goto-char (point-max)) (matlab-in-list-p))
+      (setq fast t)
+      ;; Let user fix it later
+      (setq matlab-functions-have-end 'guess)
+      (matlab-functions-have-end-minor-mode 1)
+      (message "Unterminated list - skipping block check"))
+
+     
      ;; If we are in guess mode, but user added content, we can
      ;; not have a fresh new guess.
      ((eq matlab-functions-have-end 'guess)
