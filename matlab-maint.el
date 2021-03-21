@@ -89,6 +89,7 @@
 (defun matlab-maint-symref-this ()
   "Open a symref buffer on symbol under cursor."
   (interactive)
+  (save-buffer)
   (semantic-fetch-tags)
   (let ((ct (semantic-current-tag)))
     ;; Must have a tag...
