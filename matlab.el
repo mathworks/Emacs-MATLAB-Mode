@@ -1389,37 +1389,15 @@ asside from that which they declare their content.")
 (defconst matlab-mcos-regexp (concat "\\|classdef\\|" matlab-mcos-innerblock-regexp)
   "Keywords which mark the beginning of mcos blocks.")
 
-(defcustom matlab-block-indent-tic-toc-flag nil
-  "*Non-nil means that tic,toc should indent like a if,end block.
-This variable should be set before loading matlab.el"
-  :group 'matlab
-  :type 'boolean)
-
-(defconst matlab-block-syntax-re
-  (concat "\\(function" matlab-mcos-regexp "\\)\\>")
-  "Keywords that represent blocks that have custom internal syntax.
-Used by `matlab-cursor-on-valid-block-start'.") 
-
-(defconst matlab-innerblock-syntax-re
-  (concat "\\(" matlab-mcos-innerblock-regexp "\\)\\>")
-  "Keywords that represent blocks that have custom internal syntax.
-Used by `matlab-cursor-on-valid-block-start'.") 
-
 (defconst matlab-block-beg-pre-if
-  (if matlab-block-indent-tic-toc-flag
-      (concat "function\\|parfor\\|spmd\\|for\\|while\\|if\\|switch\\|try\\|tic"
-	      matlab-mcos-regexp)
-    (concat "function\\|parfor\\|spmd\\|for\\|while\\|if\\|switch\\|try"
-	    matlab-mcos-regexp))
+  (concat "function\\|parfor\\|spmd\\|for\\|while\\|if\\|switch\\|try"
+	  matlab-mcos-regexp)
   "Keywords which mark the beginning of an indented block.
 Includes function.")
 
 (defconst matlab-block-beg-pre-no-if
-  (if matlab-block-indent-tic-toc-flag
-      (concat "parfor\\|for\\|spmd\\|while\\|if\\|switch\\|try\\|tic"
-	      matlab-mcos-regexp)
-    (concat "parfor\\|for\\|spmd\\|while\\|if\\|switch\\|try"
-	    matlab-mcos-regexp))
+  (concat "parfor\\|for\\|spmd\\|while\\|if\\|switch\\|try"
+	  matlab-mcos-regexp)
   "Keywords which mark the beginning of an indented block.
 Excludes function.")
 
@@ -1428,76 +1406,6 @@ Excludes function.")
   (if matlab-functions-have-end
       matlab-block-beg-pre-if
     matlab-block-beg-pre-no-if))
-
-(defconst matlab-block-mid-pre
-  "elseif\\|else\\|catch"
-  "Partial regular expression to recognize MATLAB mid-block keywords.")
-
-(defconst matlab-block-end-pre-if
-  (if matlab-block-indent-tic-toc-flag
-      "end\\|function\\|\\(\\sw+\\s-*\\((.*)\\)?\\s-*=\\s-*\\)?toc"
-    "end\\|function")
-  "Partial regular expression to recognize MATLAB block-end keywords.")
-
-(defconst matlab-block-end-pre-no-if
-  (if matlab-block-indent-tic-toc-flag
-      "end\\|\\(\\sw+\\s-*\\((.*)\\)?\\s-*=\\s-*\\)?toc"
-    "end")
-  "Partial regular expression to recognize MATLAB block-end keywords.")
-
-(defun matlab-block-end-pre ()
-  "Partial regular expression to recognize MATLAB block-end keywords."
-  (if matlab-functions-have-end
-      matlab-block-end-pre-no-if
-    matlab-block-end-pre-if))
-
-(defconst matlab-endless-blocks
-  "case\\|otherwise"
-  "Keywords which initialize new blocks, but don't have explicit ends.
-Thus, they are endless.  A new case or otherwise will end a previous
-endless block, and end will end this block, plus any outside normal
-blocks.")
-
-(defun matlab-block-re ()
-  "Regular expression for keywords which begin MATLAB blocks."
-  (concat "\\(^\\|[;,]\\)\\s-*\\("
- 	  (matlab-block-beg-pre) "\\|"
-  	  matlab-block-mid-pre "\\|"
- 	  (matlab-block-end-pre) "\\|"
- 	  matlab-endless-blocks "\\)\\b"))
-
-(defun matlab-block-start-scan-re ()
-  "Expression used to scan over matching pairs of begin/ends.
-Assume cursor is on the beginning of the upcoming word."
-  (concat "\\("
- 	  (matlab-block-beg-pre) "\\|"
- 	  matlab-block-mid-pre "\\)\\b"))
-
-(defun matlab-block-scan-re ()
-  "Expression used to scan over matching pairs of begin/ends."
-  (concat "\\(^\\|[;,]\\)\\s-*\\("
- 	  (matlab-block-beg-pre) "\\|"
- 	  (matlab-block-end-pre) "\\)\\b"))
-
-(defun matlab-block-beg-re ()
-  "Expression used to find the beginning of a block."
-  (concat "\\(" (matlab-block-beg-pre) "\\)"))
-
-(defun matlab-block-mid-re ()
-  "Expression used to find block center parts (like else)."
-  (concat "\\(" matlab-block-mid-pre "\\)"))
-
-(defun matlab-block-end-re ()
-  "Expression used to end a block.  Usually just `end'."
-  (concat "\\(" (matlab-block-end-pre) "\\)"))
-
-(defun matlab-block-end-no-function-re ()
-  "Expression representing and end if functions are excluded."
-  (concat "\\<\\(" matlab-block-end-pre-no-if "\\)\\>"))
-
-(defun matlab-endless-blocks-re ()
-  "Expression of block starters that do not have associated ends."
-  (concat "\\(" matlab-endless-blocks "\\)"))
 
 (defun matlab-match-function-re ()
   "Expression to match a function start line.
@@ -1513,10 +1421,6 @@ Know that `match-end' of 0 is the end of the function name."
 The class name is match 2."
   "\\(^\\s-*classdef\\b[ \t\n]*\\)\\(\\sw+\\)\\(\\s-*<\\)?")
 
-(defconst matlab-cline-start-skip "[ \t]*%[ \t]*"
-  "*The regular expression for skipping comment start.")
-
-
 ;;; Navigation ===============================================================
 
 (defvar matlab-scan-on-screen-only nil
@@ -1623,182 +1527,6 @@ a valid context."
 	)
       (setq p (point)))
     (goto-char p)))
-
-(defvar matlab-valid-block-start-slow-and-careful t
-  "Be very careful with determining of a block is valid when t.
-Set to nil if fast-and-loose is ok.")
-
-(defun matlab-cursor-on-valid-block-start (&optional known-parent-block)
-  "Return t if cursor is on a valid block start.
-Valid block starts are those that represent a syntax context, like function,
-classdef, properties, etc.
-KNOWN-PARENT-BLOCK is a string that represents the context cursor is in.
-Use this if you know what context you're in."
-  (save-match-data
-    (save-restriction
-      (widen)
-      (let ((foundblock (and (looking-at (matlab-block-beg-re))
-			     (match-string-no-properties 1))))
-	(cond
-	 ((not foundblock)
-	  ;; Not looking at a valid block
-	  nil)
-	 ((eq (preceding-char) ?.)
-	  ;; Any block preceeded by a '.' is a field in a struct, and not valid.
-	  nil)
-	 ;; Else, are we on a block that has special syntax?
-	 ((not (looking-at matlab-innerblock-syntax-re))
-	  ;; Not an innerblock syntax that only work withing special blocks
-	  ;; thus automatically true.
-	  t)
-   
-	 ;; Else, a special block keyword.  We need to check the context of this
-	 ;; block to know if this innerblock is valid.
-
-	 ;; Cheap check - if functions don't have end, then always invalid
-	 ;; since these context blocks can't exist.
-	 ((not matlab-functions-have-end)
-	  nil)
-
-	 ;; Cheap check - is this block keyword not the first word for this command?
-	 ((save-excursion (skip-syntax-backward " ") (not (bolp)))
-	  ;; Not first on line, not valid block.
-	  ;; Technically it COULD be valid, but we need some cheap ways
-	  ;; to skip over some types of syntaxes that look dumb.
-	  nil)
-	
-	 ;; Cheap check - is this at the beginning of a command line (ignore ... )
-	 ((not (eq (save-excursion (back-to-indentation) (point))
-		   (save-excursion (matlab-scan-beginning-of-command) (point))))
-	  ;; If this statement is not also the first word on this command
-	  ;; then it can't be one of these features.
-	  nil)
-
-	 ;; Expensive check - is this block in the right context?
-	 ((or matlab-valid-block-start-slow-and-careful known-parent-block)
-	
-	  (cond
-	   ((string= foundblock "arguments")
-	    ;; Argument is only valid if it is the FIRST thing in a funtion.
-	    (save-excursion
-	      (if (and (matlab-find-prev-code-line) (looking-at "\\s-*function\\>"))
-		  ;; If the previous code line (ignoring whitespace and comments)
-		  ;; is 'arguments', then that is a valid block.
-		  t
-		;; Otherewise, all other argument cases are bad.
-		nil)))
-
-	   ;; Other special blocks are in a class.  If not in a class file, fail.
-	   ((not (eq matlab-functions-have-end 'class))
-	    nil)
-
-	   ;; If a known parent block was passed in, then this will be a very
-	   ;; fast check, so do that next.  If it is the right thing, then
-	   ;; true!
-	   (known-parent-block
-	    (if (string= known-parent-block "classdef")
-		t
-	      ;; otherwise not correct.
-	      nil))
-
-	   ;; This test goes back one command.  If it is an end, and it is indented just
-	   ;; one level, then we are good b/c we already check we're in a classdef file.
-	   ((save-excursion
-	      (if (not (matlab-find-prev-code-line))
-		  nil ;; no code, so not in a class.
-		(back-to-indentation)
-		(or
-		 ;; Looking at correctly indented end
-		 (and (looking-at "\\<end\\>")
-		      (eq (current-indentation) matlab-indent-level))
-		 ;; Looking at the classdef itself
-		 (looking-at "\\<classdef\\>") )))
-	    t)
-	   
-	   ;; This is a medium speed test for classdef stuff.  It only navigates backward
-	   ;; one step.  If the previous thing also belongs to a class, then we must
-	   ;; be in a class.
-	   ;;((matlab-previous-line-belongs-to-classdef-p) t)
-
-	   ;; This is a slow operation - navigating backward to find the current syntactic
-	   ;; block is pretty expensive, but it also always gets it right.
-	   ;;
-	   ;; Since We are in a class, identify if this is in a class context.
-	   ;; ((let ((myblock (if known-parent-block
-	   ;; 		       (cons known-parent-block nil) ;; shortcut if known
-	   ;; 		     (matlab-current-syntactic-block))))
-	   ;;    (string= (car myblock) "classdef"))
-	   ;;    ;; We found correct usage of methods, events, etc.
-	   ;;  t)
-
-	   ;; All else fails - so not valid.
-	   (t nil)
-	   
-	   )) ;; End slow-and-careful
-
-	 ;; A cheap version of the expensive check
-	 ((and (not matlab-valid-block-start-slow-and-careful)
-	       (looking-at matlab-innerblock-syntax-re))
-	  ;; If we are not slow and careful, we just need to return t if we see
-	  ;; one of these keywords since other cases where these weren't 1st on the line
-	  ;; or not in a classdef file are already filtered out.
-	  t)
-
-	 ;; If none of the valid cases, must be invalid
-	 (t nil)
-	 )))))
-
-(defun matlab-previous-line-belongs-to-classdef-p ()
-  "Return the nature of the line of code before this one.
-Ignores comments, etc.
-Returns non-nil if that previous thing is unique to a classdef."
-  (save-excursion
-    (save-match-data
-      ;; Move to the syntax in question.
-      (if (not (matlab-find-prev-code-line))
-	  nil ;; No code
-	;; Lets see what it is.
-	(back-to-indentation)
-	;; Is it an end?  Nav backward
-	(if (looking-at "\\<end\\>")
-	    (if (not (matlab-backward-sexp t t))
-		nil ;; failed to nav - just skip it.
-	      ;; If no errors so far, compute the kind of block.
-	      (if (looking-at matlab-innerblock-syntax-re)
-		  t ;; found something that belongs to a classdef.
-		nil))
-	  ;; Not on an end.  Is that because we are now on a classdef?
-	  ;; If so, then this is our context, so that's ok.
-	  (if (looking-at "\\<classdef\\>")
-	      t ;; Yep, that's a class
-	    nil))))))
-
-(defun matlab-current-syntactic-block ()
-  "Return information about the current syntactic block the cursor is in.
-Value returned is of the form ( BLOCK-TYPE . PT ) where BLOCK-TYPE is a
-string, such as 'function' or 'properties', and PT is the location that
-the block starts at.
-
-This function skips over blocks such as 'switch' and 'if', and only returns
-blocks that change the syntax of their contents, such as:
-  function, classdef, properties, events, methods, arguments
-"
-  (let ((block-type nil)
-	(block-beg nil))
-
-    (save-excursion
-      ;; By specifying NOERROR, returns nil if we can't move
-      ;; backward, which means we should stop.
-
-      ;; backward sexp also knows to skip invlaid block starts, so we'll
-      ;; only land on safe blocks.
-      (when (and (matlab-backward-sexp t t)
-		 (looking-at matlab-block-syntax-re))
-	(setq block-type (match-string-no-properties 1)
-	      block-beg (point)))
-      )
-
-    (cons block-type block-beg)))
 
 (defun matlab-indent-sexp ()
   "Indent the syntactic block starting at point."
@@ -2896,6 +2624,9 @@ Non-nil JUSTIFY-FLAG means justify comment lines as well."
       (forward-line 1)
       (beginning-of-line))))
 
+(defconst matlab-cline-start-skip "[ \t]*%[ \t]*"
+  "*The regular expression for skipping comment start.")
+
 (defun matlab-fill-comment-line (&optional justify)
   "Fill the current comment line.
 With optional argument, JUSTIFY the comment as well."
@@ -3372,13 +3103,13 @@ by `matlab-mode-vf-add-ends'"
 	  (condition-case nil
 	      (if (and (not (matlab-cursor-in-string-or-comment))
 		       (not (matlab-block-comment-bounds))
-		       (or matlab-functions-have-end (not (looking-at "function"))))
+		       (or matlab-functions-have-end (not (eq (matlab-on-keyword-p) 'decl))))
 		  (progn
 		    (matlab-forward-sexp)
 		    (forward-word -1)
-		    (if (not (looking-at
-			      (concat matlab-block-end-pre-no-if "\\>")))
-			(setq go nil)))
+		    (when (not (eq (matlab-on-keyword-p) 'end))
+		      ;; TODO - is this possible ?
+		      (setq go nil)))
 		(forward-word 1))
 	    (error (setq go nil)))
 
@@ -3445,10 +3176,9 @@ by `matlab-mode-vf-add-ends'"
   "Verify/fix unstarted (or dangling end) blocks.
 Optional argument FAST causes this check to be skipped."
   (goto-char (point-max))
-  (let ((go t) (expr (concat "\\<\\(" (matlab-block-end-no-function-re)
-			     "\\)\\>")))
+  (let ((go t) (expr (matlab-keyword-regex 'end)))
     (matlab-navigation-syntax
-      (while (and (not fast) go (re-search-backward expr nil t))
+      (while (and (not fast) go (matlab-re-search-keyword-backward expr nil t))
 	(forward-word 1)
 	(let ((s (point)))
 	  (condition-case nil
