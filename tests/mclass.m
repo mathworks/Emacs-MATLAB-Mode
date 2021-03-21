@@ -1,24 +1,30 @@
 % >>1
 classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
+%^  ^kw     ^ty       ^fn     ^cn   ^ty  ^cn                          ^co
 % !!0
 % %%% class class
     
 % >>11
     properties (Access='public') % #2#
-        
+% $$$^ ^kw       ^ty     ^st       ^co
+
         % !!8
         AP = []; % #2#
+% $$$^  ^vn  ^df   ^co
         AB = 'charvec with space'; % #2#
         AC = "string with space and ( ";  % #2#
         AD = fun_call(1,2); % #3#
         AE (1,:) double {mustBePositive} = 1; % #5#
+% $$$^  ^vn      ^ty      ^df                   ^co
     end % <<11
     
     % >> 111
     properties (AbortSet=true, NonCopyable=true) % #2#
+% $$$^  ^kw       ^ty     ^cn   ^ty         ^cn    ^co
 
         % !!8
         AF (1,1) char {mustBeMember(AF, {'High','Medium','Low'})} = 'Low'; % #5#
+% $$$^  ^vn   ^ty       ^df               ^st                   ^df  ^st     ^co
         AG (1,1) matlab.lang.OnOffSwitchState = 'on'; % #6#
     end % <<111
 
@@ -26,6 +32,7 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
     events
         % !!8
         Event1
+        %^ ^vn
         Event2
     end % <<112
     
@@ -35,6 +42,7 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
         
         % >>16
         function obj = mclass()
+        %^ ^kw   ^vn    ^fn   ^df
         % !!8
             
             obj.AB = obj.AP(1:end);
@@ -46,6 +54,10 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
             
             notify(obj,'Event1',...
                        'indent test');
+            
+            notify(obj, 'Event1', 'indent test');
+            %^ ^df   ^vn   ^st      ^st         ^df
+
             
             % >>17
             while obj.AB % #3#

@@ -60,7 +60,7 @@
 
   (metest-run 'metest-parse-test)
 
-
+  (metest-run 'metest-fontlock-test)
   
   (metest-log-report (metest-log-write))
 
@@ -152,8 +152,8 @@
 	  ;; FL test 1: make sure font lock is on and match data didn't change.
 	  (unless font-lock-mode
 	    (metest-error "Font Lock failed to turn on."))
-	  ;(unless (equal md (match-data))
-	  ;  (metest-error "Font Locking transmuted the match data"))
+	  ;;(unless (equal md (match-data))
+	  ;;  (metest-error "Font Locking transmuted the match data"))
 	  (when (not (get-text-property 2 'fontified))
 	    (metest-error "Font Lock Failure: can't run test because font lock failed to fontify region."))
 	  )
@@ -403,22 +403,75 @@
   (semantic-tag-similar-p EXP ACT :documentation)
   )
 
+(defconst met-kw-font-alist '(( "kw" . font-lock-keyword-face )
+			      ( "ty" . font-lock-type-face )
+			      ( "fn" . font-lock-function-name-face )
+			      ( "vn" . font-lock-variable-name-face )
+			      ( "cn" . font-lock-constant-face )
+			      ( "co" . font-lock-comment-face )
+			      ( "cb" . matlab-cellbreak-face )
+			      ( "cd" . matlab-commanddual-string-face )
+			      ( "st" . font-lock-string-face )
+			      ( "us" . matlab-unterminated-string-face )
+			      ( "df" . nil )
+			      )
+  "List of testing keywords and associated faces.")
+			    
 
-(defvar met-fontlock-files '()
+(defvar met-fontlock-files '("mclass.m")
   "List of files for running font lock tests.")
 
-(defvar metest-fontlock-test (cons "font lock" met-parser-files))
+(defvar metest-fontlock-test (cons "font lock" met-fontlock-files))
 (defun metest-fontlock-test (F)
   "Run the semantic parsing test to make sure the parse works."
     (let ((buf (metest-find-file F))
-	  exp act
-	  (cnt 0))
+	  (noninteractive nil) ;; fake out font lock
+	  (cnt 0) (fntcnt 0))
       (with-current-buffer buf
 
-	;; TODO - lets add some tests.  See comment-string test
-	
+	(goto-char (point-min))
 
-	)))
+	(let ((md (match-data)))
+	  ;; Force font lock to throw catchable errors.
+	  (font-lock-mode 1)
+	  (font-lock-flush (point-min) (point-max))
+	  (font-lock-ensure (point-min) (point-max))
+	  (font-lock-fontify-region (point-min) (point-max))
+
+	  ;; FL test 1: make sure font lock is on and match data didn't change.
+	  (unless font-lock-mode
+	    (metest-error "Font Lock failed to turn on."))
+	  ;;(unless (equal md (match-data))
+	  ;;  (metest-error "Font Locking transmuted the match data"))
+	  (when (not (get-text-property 2 'fontified))
+	    (metest-error "Font Lock Failure: can't run test because font lock failed to fontify region."))
+	  )
+
+	;; Lines that start with %^ comments are FL keyword test features.
+	;; Find the line, then look for every ^ and find it's column and match
+	;; to previous line's column.
+	(while (re-search-forward "^\\s-*%\\(?: \\$\\$\\$\\)?\\^" nil t)
+	  (let ((next (point-at-eol))
+		(prevstart (save-excursion (forward-line -1) (point-at-bol)))
+		)
+	    (while (re-search-forward "\\^\\(\\w\\w\\)\\>" (point-at-eol) t)
+	      (let* ((col (- (match-beginning 0) (point-at-bol)))
+		     (fk  (match-string-no-properties 1))
+		     (pt (+ prevstart col))
+		     (fnt (get-text-property pt 'face))
+		     (exp (cdr (assoc fk met-kw-font-alist))))
+
+		(when (consp fnt) (setq fnt (car fnt)))
+		(when (not (eq exp fnt))
+		  (metest-error "Bad font found @ char %d: Expected %S but found %S"
+		    pt exp fnt))
+
+		(setq fntcnt (1+ fntcnt))
+		))
+	    (goto-char next)
+	    (setq cnt (1+ cnt))))
+
+	(list cnt "lines with " fntcnt "fonts tested"))))
 
 ;;; UTILS
 ;;
