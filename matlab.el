@@ -928,7 +928,10 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
 		 "\\(\\(\\[[^]]*\\]\\|\\sw+\\)[ \t\n.]*=[ \t\n.]*\\)?"
 		 "\\(?:[sg]et\\.\\)?\\sw+\\s-*(")
 	 '("\\s-*\\(\\sw+\\)\\s-*[,)]"
-	   (save-excursion (matlab-scan-end-of-command))
+	   (save-excursion
+	     (condition-case nil
+		 (matlab-scan-end-of-command)
+	       (error (point-at-eol))))
 	   nil
 	   (1 font-lock-variable-name-face)))
    ;; I like variables for FOR loops
