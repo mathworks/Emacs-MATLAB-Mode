@@ -527,17 +527,21 @@ comment and string crossing."
       (up-list count nil t)) ;; will this correctly ignore comments, etc?
     ))
 
+(defsubst matlab-in-list-p ()
+  "If the cursor is in a list, return positions of the beginnings of the lists.
+Returns nil if not in a list."
+  (nth 9 (syntax-ppss (point))))
 
 (defsubst matlab-beginning-of-outer-list ()
   "If the cursor is in a list, move to the beginning of outermost list.
 Returns non-nil if the cursor moved."
-  (let* ((pps (syntax-ppss (point))))
+  (let ((pps (syntax-ppss (point))))
     (when (nth 9 pps) (goto-char (car (nth 9 pps))) )))
 
 (defun matlab-end-of-outer-list ()
   "If the cursor is in a list, move to the end of the outermost list..
 Returns non-nil if the cursor moved."
-  (let* ((pps (syntax-ppss (point))))
+  (let ((pps (syntax-ppss (point))))
     (when (nth 9 pps)
       ;; syntax-ppss doesn't have the end, so go to the front
       ;; and then skip forward.

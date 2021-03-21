@@ -1084,9 +1084,9 @@ Limit search to within BOUNDS.  If keyword not found, return nil."
 ;; anything in a comment or string.
 (defun matlab-re-search-keyword-forward (regexp &optional bound noerror)
   "Like `re-search-forward' but will not match content in strings or comments."
-  (let ((ans nil) (case-fold-search nil))
+  (let ((ans nil) (case-fold-search nil) (err nil))
     (save-excursion
-      (while (and (not ans)
+      (while (and (not ans) (not err)
 		  (or (not bound) (< (point) bound))
 		  (setq ans (re-search-forward regexp bound noerror)))
 	;; Check for simple cases that are invalid for keywords
@@ -1094,7 +1094,12 @@ Limit search to within BOUNDS.  If keyword not found, return nil."
 	;; to not waste time searching for keywords inside.
 	(cond ((matlab-end-of-string-or-comment t)
 	       (setq ans nil))
-	      ((matlab-end-of-outer-list)
+	      ((matlab-in-list-p)
+	       (condition-case nil
+		   ;; Protect against unterminated lists.
+		   (matlab-end-of-outer-list)
+		 ;; if no longer in a list, say we're done
+		 (error (setq err t)))
 	       (setq ans nil))
 	      ((matlab-syntax-keyword-as-variable-p)
 	       (setq ans nil))
