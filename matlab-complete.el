@@ -30,8 +30,21 @@
 ;; and this can be loaded optionally.
 
 ;;; Code:
+(require 'cl-macs)
 (require 'matlab)
 (require 'matlab-shell)
+
+(defun matlab-uniquify-list (lst)
+  "Return a list that is a subset of LST where all elements are unique."
+  (if (fboundp 'cl-remove-duplicates)
+      (cl-remove-duplicates lst :test 'string= :from-end t)
+    ;; Else, do it by hand.
+    (let ((nlst nil))
+      (while lst
+	(if (and (car lst) (not (member (car lst) nlst)))
+	    (setq nlst (cons (car lst) nlst)))
+	(setq lst (cdr lst)))
+      (nreverse nlst))))
 
 ;;; Customizations ===========================================================
 ;;
@@ -209,15 +222,6 @@ line."
 
 ;;; Completion Framework ===================================================
 ;;
-(defun matlab-uniquify-list (lst)
-  "Return a list that is a subset of LST where all elements are unique."
-  (let ((nlst nil))
-    (while lst
-      (if (and (car lst) (not (member (car lst) nlst)))
-	  (setq nlst (cons (car lst) nlst)))
-      (setq lst (cdr lst)))
-    (nreverse nlst)))
-
 (defun matlab-find-recent-variable-list (prefix)
   "Return a list of most recent variables starting with PREFIX as a string.
 Reverse searches for the following are done first:
