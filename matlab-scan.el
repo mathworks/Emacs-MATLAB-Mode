@@ -1238,7 +1238,9 @@ With arg, enable gathering stats, and flush old stats."
       (when (not sym)
 	(set (setq sym (intern (symbol-name thing) matlab-scan-cache-stats)) 0))
       (set sym (1+ (symbol-value sym))))
-    (matlab-scan-stats-print 'summary)))
+    ;;(matlab-scan-stats-print 'summary)
+    )
+  )
 
 (defun matlab-scan-stats-print (&optional summary)
   "Display stats for scanner hits."
