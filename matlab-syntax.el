@@ -252,8 +252,7 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
 		    ;; If we just finished and we have a double of ourselves,
 		    ;; convert those doubles into punctuation.
 		    (when (looking-at start-str)
-		      (forward-char -1)
-		      (matlab--put-char-category (point) 'matlab--quoted-string-syntax)
+		      (matlab--put-char-category (1- (point)) 'matlab--quoted-string-syntax)
 		      ;; and try again.
 		      (goto-char start-char)
 		      ))
@@ -275,9 +274,8 @@ Called when comments found in `matlab--scan-line-for-unterminated-string'."
   (save-excursion
     (while (re-search-forward "\\s\"" nil t)
       (save-excursion
-	(forward-char -1)
-	(matlab--put-char-category (point) 'matlab--transpose-syntax))
-      )))
+	(matlab--put-char-category (1- (point)) 'matlab--transpose-syntax)
+      ))))
 
 (defun matlab--scan-line-bad-blockcomment ()
   "Scan this line for invalid block comment starts."
@@ -541,12 +539,18 @@ Returns non-nil if the cursor moved."
 (defun matlab-end-of-outer-list ()
   "If the cursor is in a list, move to the end of the outermost list..
 Returns non-nil if the cursor moved."
-  (let ((pps (syntax-ppss (point))))
+  (let ((pps (syntax-ppss (point)))
+	(start (point)))
     (when (nth 9 pps)
       ;; syntax-ppss doesn't have the end, so go to the front
       ;; and then skip forward.
       (goto-char (car (nth 9 pps)))
       (goto-char (scan-sexps (point) 1))
+      ;; This checks for malformed buffer content
+      ;; that can cause this to go backwards.
+      (when (> start (point))
+	(goto-char start)
+	(error "Malformed List"))
       )))
 
 ;;; Useful checks for state around point.

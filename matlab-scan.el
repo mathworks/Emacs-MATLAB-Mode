@@ -1098,8 +1098,10 @@ Limit search to within BOUNDS.  If keyword not found, return nil."
 	       (condition-case nil
 		   ;; Protect against unterminated lists.
 		   (matlab-end-of-outer-list)
-		 ;; if no longer in a list, say we're done
-		 (error (setq err t)))
+		 ;; if no longer in a list, say we're done, move to end
+		 ;; of the buffer.
+		 (error (goto-char (point-max))
+			(setq err t)))
 	       (setq ans nil))
 	      ((matlab-syntax-keyword-as-variable-p)
 	       (setq ans nil))
