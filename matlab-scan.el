@@ -908,7 +908,7 @@ Assume basic keyword checks have already been done."
 	  (save-excursion
 	    (skip-syntax-backward "w")
 	    (forward-comment -100000)
-	    (back-to-indentation) ;; TODO -> this should be beginning-of-command
+	    (matlab-scan-beginning-of-command)
 	    (let ((prev (matlab--mk-keyword-node)))
 	      (or (string= (nth 1 prev) "classdef")
 		  (and (string= (nth 1 prev) "end")

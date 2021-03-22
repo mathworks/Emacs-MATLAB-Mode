@@ -304,7 +304,7 @@
       (list cnt "test")))
 
 
-(defvar met-indents-files '("indents.m" "continuations.m" "mclass.m" "blocks.m" "mfuncends.m" "mfuncnoendblock.m")
+(defvar met-indents-files '("indents.m" "continuations.m" "mclass.m" "blocks.m" "mfuncends.m" "mfuncnoendblock.m" "mclass_cont.m")
   "List of files for running syntactic indentation tests.")
 
 (defun metest-indents-randomize-files ()
