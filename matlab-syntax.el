@@ -441,7 +441,8 @@ Returns non-nil if the cursor moved."
 If optional ALL-COMMENTS is non-nil, then also move over all
 adjacent comments.
 Returns non-nil if the cursor moved."
-  (let* ((pps (syntax-ppss (point))))
+  (let* ((pps (syntax-ppss (point)))
+	 (start (point)))
     (when (nth 8 pps)
       ;; syntax-ppss doesn't have the end, so go to the front
       ;; and then skip forward.
@@ -449,6 +450,11 @@ Returns non-nil if the cursor moved."
       (if (nth 3 pps)
 	  (goto-char (scan-sexps (point) 1))
 	(forward-comment (if all-comments 100000 1)))
+      ;; If the buffer is malformed, we might end up before starting pt.
+      ;; so error.
+      (when (< (point) start)
+	(goto-char start)
+	(error "Error navitaging syntax."))
       t)))
   
 ;;; Block Comment handling
@@ -480,6 +486,7 @@ Block comment indicators must be on a line by themselves.")
 Optional LINEBOUNDS specifies if returned limits are line based instead
 of character based."
   (let* ((pps (syntax-ppss (point)))
+	 (origin (point))
 	 (start (nth 8 pps))
 	 (end 0))
     ;; 4 is comment flag.  7 is '2' if block comment
@@ -488,6 +495,9 @@ of character based."
 	(goto-char start)
 	(forward-comment 1)
 	(setq end (point)))
+      (when (< end origin)
+	(goto-char origin)
+	(error "Error navitaging block comment syntax."))
       (if linebounds
 	  ;; Bounds expanded to beginning/end of the line
 	  (cons (save-excursion
