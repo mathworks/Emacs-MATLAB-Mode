@@ -1752,7 +1752,8 @@ This function exists so the test harness can override it."
 	    ((< diff 0) ;; Too short - Add stuff
 	     (indent-to i))
 	    ((<= diff ci) ;; Too much, delete some.
-	     (delete-region (- (point) diff) (point)))
+	     (delete-region (save-excursion (move-to-column i t) (point)) (point))
+	     )
 	    (t ;; some sort of bug that wants to delete too much. Ignore.
 	     nil)
 	    ))
