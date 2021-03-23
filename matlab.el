@@ -427,64 +427,6 @@ point, but it will be restored for them."
 
 (make-variable-buffer-local 'matlab-change-current-directory)
 
-(defface matlab-region-face
-  '((t :inherit region))
-  "*Face used to highlight a matlab region."
-  :group 'matlab)
-
-(defvar matlab-unterminated-string-face 'matlab-unterminated-string-face
-  "Self reference for unterminated string face.")
-
-(defvar matlab-commanddual-string-face 'matlab-commanddual-string-face
-  "Self reference for command dual string face.")
-
-(defvar matlab-simulink-keyword-face 'matlab-simulink-keyword-face
-  "Self reference for simulink keywords.")
-
-(defvar matlab-nested-function-keyword-face 'matlab-nested-function-keyword-face
-  "Self reference for nested function/end keywords.")
-
-(defvar matlab-cross-function-variable-face 'matlab-cross-function-variable-face
-  "Self reference for cross-function variables.")
-
-(defvar matlab-cellbreak-face 'matlab-cellbreak-face
-  "Self reference for cellbreaks.")
-
-(defface matlab-unterminated-string-face
-  '((t :inherit font-lock-string-face
-       :underline t))
-  "*Face used to highlight unterminated strings."
-  :group 'matlab)
-
-(defface matlab-commanddual-string-face
-  '((t :inherit font-lock-string-face
-       :slant italic))
-  "*Face used to highlight command dual string equivalent."
-  :group 'matlab)
-
-(defface matlab-simulink-keyword-face
-  '((t :inherit font-lock-type-face
-       :underline t))
-  "*Face used to highlight simulink specific functions."
-  :group 'matlab)
-
-(defface matlab-nested-function-keyword-face
-  '((t :inherit font-lock-keyword-face
-       :slant  italic))
-  "*Face to use for cross-function variables.")
-
-(defface matlab-cross-function-variable-face
-  '((t :weight bold
-       :slant  italic))
-  "*Face to use for cross-function variables."
-  :group 'matlab)
-
-(defface matlab-cellbreak-face
-  '((t :inherit font-lock-comment-face
-       :overline t
-       :bold t))
-  "*Face to use for cellbreak %% lines.")
-
 (defvar matlab-mode-abbrev-table nil
   "The abbrev table used in `matlab-mode' buffers.")
 (define-abbrev-table 'matlab-mode-abbrev-table ())
@@ -701,6 +643,63 @@ point, but it will be restored for them."
 ;;
 ;; Combine these, but do all the matching internally instead of using regexp
 ;; because it's just too complex for a regular expression.
+(defface matlab-region-face
+  '((t :inherit region))
+  "*Face used to highlight a matlab region."
+  :group 'matlab)
+
+(defvar matlab-unterminated-string-face 'matlab-unterminated-string-face
+  "Self reference for unterminated string face.")
+
+(defvar matlab-commanddual-string-face 'matlab-commanddual-string-face
+  "Self reference for command dual string face.")
+
+(defvar matlab-simulink-keyword-face 'matlab-simulink-keyword-face
+  "Self reference for simulink keywords.")
+
+(defvar matlab-nested-function-keyword-face 'matlab-nested-function-keyword-face
+  "Self reference for nested function/end keywords.")
+
+(defvar matlab-cross-function-variable-face 'matlab-cross-function-variable-face
+  "Self reference for cross-function variables.")
+
+(defvar matlab-cellbreak-face 'matlab-cellbreak-face
+  "Self reference for cellbreaks.")
+
+(defface matlab-unterminated-string-face
+  '((t :inherit font-lock-string-face
+       :underline t))
+  "*Face used to highlight unterminated strings."
+  :group 'matlab)
+
+(defface matlab-commanddual-string-face
+  '((t :inherit font-lock-string-face
+       :slant italic))
+  "*Face used to highlight command dual string equivalent."
+  :group 'matlab)
+
+(defface matlab-simulink-keyword-face
+  '((t :inherit font-lock-type-face
+       :underline t))
+  "*Face used to highlight simulink specific functions."
+  :group 'matlab)
+
+(defface matlab-nested-function-keyword-face
+  '((t :inherit font-lock-keyword-face
+       :slant  italic))
+  "*Face to use for cross-function variables.")
+
+(defface matlab-cross-function-variable-face
+  '((t :weight bold
+       :slant  italic))
+  "*Face to use for cross-function variables."
+  :group 'matlab)
+
+(defface matlab-cellbreak-face
+  '((t :inherit font-lock-comment-face
+       :overline t
+       :bold t))
+  "*Face to use for cellbreak %% lines.")
 
 (defvar matlab-string-start-regexp "\\(^\\|[^]})a-zA-Z0-9_.'\"]\\)"
   "Regexp used to represent the character before the char vector or string scalars.
