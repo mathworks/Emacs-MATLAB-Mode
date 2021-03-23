@@ -701,33 +701,10 @@ point, but it will be restored for them."
        :bold t))
   "*Face to use for cellbreak %% lines.")
 
-(defvar matlab-string-start-regexp "\\(^\\|[^]})a-zA-Z0-9_.'\"]\\)"
-  "Regexp used to represent the character before the char vector or string scalars.
-The ' character has restrictions on what starts a string which is needed
-when attempting to understand the current context.")
-
-;;; Font Lock Comment and Unreachable Code Matchers
-;;
-(defvar font-lock-beg) (defvar font-lock-end) ; quiet compiler.
-
-(defun matlab-font-lock-extend-region ()
-  "Called by font-lock to extend the region if we are in a multi-line block."
-  ;; Only deal with block comments for now.
-
-  (let* ((pos (matlab-block-comment-bounds t))
-	 (flb font-lock-beg)
-	 (fle font-lock-end))
-    (when pos
-      (setq font-lock-beg (min font-lock-beg (car pos))
-	    font-lock-end (max font-lock-end (cdr pos))))
-
-    (if (and (eq font-lock-beg flb)
-	     (eq font-lock-end fle))
-	;; We didn't change anything.
-	nil
-
-      ;; We made a change
-      t)))
+(defface matlab-pragma-face
+  '((t :inherit font-lock-comment-face
+       :bold t))
+  "*Face to use for cellbreak %% lines.")
 
 ;;; Font Lock MLINT data highlighting
 
@@ -860,15 +837,12 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
 
 (defconst matlab-basic-font-lock-keywords
   (list
-   ;; Various pragmas should be in different colors.
-   ;; I think pragmas are always lower case?
-   '("%#\\([a-z]+\\)" (1 'bold prepend))
    ;; General keywords
    (list (matlab-font-lock-regexp-opt matlab-keyword-list)
 	 '(0 font-lock-keyword-face))
    ;; The end keyword is only a keyword when not used as an array
    ;; dereferencing part.
-   '("\\(^\\|[;,]\\)[ \t]*\\(end\\)\\b"
+   '("\\(^\\|[;,]\\)\\s-*\\(end\\)\\_>"
      2 (if (matlab-valid-end-construct-p) font-lock-keyword-face nil))
    ;; The global keyword defines some variables.  Mark them.
    '("^\\s-*global\\s-+"
@@ -883,7 +857,7 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
     (matlab-font-lock-regexp-opt matlab-constants-keyword-list)
     1 font-lock-constant-face)
    ;; Imaginary number support
-   '("\\<[0-9]\\.?\\(i\\|j\\)\\>" 1 font-lock-reference-face)
+   '("\\<[0-9]\\.?\\(i\\|j\\)\\_>" 1 font-lock-reference-face)
    )
   "Basic Expressions to highlight in MATLAB mode or shell.")
 
@@ -895,7 +869,7 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
     ;; also be alone, or have parameters after it.
     (list (concat "^\\s-*\\("
 		  (matlab-font-lock-regexp-opt matlab-keyword-first-on-line-list)
-		  "\\)\\s-*[(,;%\n]")
+		  "\\)\\_>")
 	  '(1 font-lock-keyword-face))
     ;; Highlight cross function variables
     '(matlab-font-lock-cross-function-variables-match
@@ -1231,13 +1205,6 @@ All Key Bindings:
 			     ;; This puts _ as a word constituent,
 			     ;; simplifying our keywords significantly
 			     ((?_ . "w"))))
-  
-  (setq font-lock-multiline 'undecided)
-  (add-to-list 'font-lock-extend-region-functions #'matlab-font-lock-extend-region t)
-
-  ;; Parens mode support
-  (make-local-variable 'show-paren-data-function)
-  (setq show-paren-data-function #'matlab-show-paren-or-block)
 
   (if window-system (matlab-frame-init))
 
@@ -2773,6 +2740,7 @@ ARG is passed to `fill-paragraph' and will justify the text."
 	(t
 	 (message "Paragraph Fill not supported in this context."))))
 
+;;; TODO - move this someplace better.
 (defvar gud-matlab-debug-active nil)
 (declare-function matlab-shell-gud-minor-mode "matlab-shell-gud")
 

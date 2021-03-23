@@ -47,6 +47,9 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
             
             obj.AB = obj.AP(1:end);
             % !!12
+
+            unusedvar = 1;  %#ok
+% $$$^       ^df              ^pr
             
             disp('charvect with if and for words [ in it'); % #2#
 
@@ -141,6 +144,7 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
         function usestuff(obj)  %!!8
         % Try using the methods of this object
             obj.properties();  %!!12
+% $$$^      ^df   ^df             ^co
             obj.methods();  %!!12
             obj.events();  %!!12
             obj.arguments();  %!!12

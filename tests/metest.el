@@ -407,18 +407,21 @@
 			      ( "ty" . font-lock-type-face )
 			      ( "fn" . font-lock-function-name-face )
 			      ( "vn" . font-lock-variable-name-face )
+			      ( "vc" . (font-lock-variable-name-face matlab-cross-function-variable-face) )
 			      ( "cn" . font-lock-constant-face )
 			      ( "co" . font-lock-comment-face )
 			      ( "cb" . matlab-cellbreak-face )
+			      ( "pr" . matlab-pragma-face )
 			      ( "cd" . matlab-commanddual-string-face )
 			      ( "st" . font-lock-string-face )
 			      ( "us" . matlab-unterminated-string-face )
+			      ( "bo" . bold )
 			      ( "df" . nil )
 			      )
   "List of testing keywords and associated faces.")
 			    
 
-(defvar met-fontlock-files '("mclass.m")
+(defvar met-fontlock-files '("fontlock.m" "mclass.m")
   "List of files for running font lock tests.")
 
 (defvar metest-fontlock-test (cons "font lock" met-fontlock-files))
@@ -459,12 +462,22 @@
 		     (fk  (match-string-no-properties 1))
 		     (pt (+ prevstart col))
 		     (fnt (get-text-property pt 'face))
+		     (fnt1 (if (consp fnt) (car fnt) fnt))
+		     (fnt2 (if (consp fnt) (nth 1 fnt) nil))
 		     (exp (cdr (assoc fk met-kw-font-alist))))
 
-		(when (consp fnt) (setq fnt (car fnt)))
-		(when (not (eq exp fnt))
-		  (metest-error "Bad font found @ char %d: Expected %S but found %S"
-		    pt exp fnt))
+		(cond
+		 ((consp exp)
+		  (when (not (eq (car exp) fnt1))
+		    (metest-error "Bad font layer 1 found @ col %d: Expected %S but found %S"
+				  col (car exp) fnt1))
+		  (when (not (eq (nth 1 exp) fnt2))
+		    (metest-error "Bad font layer 2 found @ col %d: Expected %S but found %S"
+				  col (nth 1 exp) fnt2)))
+		 (t
+		  (when (not (eq exp fnt1))
+		    (metest-error "Bad font found @ col %d: Expected %S but found %S"
+				  col exp fnt))))
 
 		(setq fntcnt (1+ fntcnt))
 		))

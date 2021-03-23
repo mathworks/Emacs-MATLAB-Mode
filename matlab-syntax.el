@@ -317,6 +317,9 @@ Called when comments found in `matlab--scan-line-for-unterminated-string'."
     (cond ((and (< (nth 8 pps) (point-max))
 		(= (char-after (1+ (nth 8 pps))) ?\%))
 	   'matlab-cellbreak-face)
+	  ((and (< (nth 8 pps) (point-max))
+		(= (char-after (1+ (nth 8 pps))) ?\#))
+	   'matlab-pragma-face)
 	  (t
 	   'font-lock-comment-face))
     ))
