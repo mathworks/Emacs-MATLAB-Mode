@@ -19,7 +19,7 @@ function indents(a,b,stuff,cmddual1fake,cmddual2fake)
     global     var2 % !!4
     persistent var3 % !!4
     
-
+    
     locala = a; %#ok
     localb = b; %#ok
     localstuff = stuff; %#ok
@@ -40,9 +40,9 @@ function indents(a,b,stuff,cmddual1fake,cmddual2fake)
     
 % $$$ !!0  
 % $$$ special ignore comments
-
+    
     has_nested_fcn(); % !!4
-
+    
     % !!4  - after ignore comments
     
 end % Comment with end in it
@@ -83,23 +83,23 @@ function B = ends_in_comments_and_strings()
     % !!4
     
     E = B;
-
+    
     if baz
         
         A = C;
         
     end; B = [ 1 2 ...  % is this the end?
                3 4 ];   % !!15
-
+    
     % !!4
-
+    
     if foo
         
         A = E;
         
     end ... the other end
     % !! 4
-
+    
     B = [ B A ]; % !!4
     
     str = 'This is a char array with ... in it';
@@ -133,7 +133,7 @@ function out = array_constant_decls()
               3 4; %!!14
             ]; %!!12
     
-    Csep = [
+    Csep = [ 
         1 2; %!!8
         3 4; %!!8
            ]; %!!11
@@ -148,7 +148,21 @@ function out = array_constant_decls()
                           [ 13 14;    %!!26
                             15 16 ])  %!!28
                 } ;  %!!16
-
+    
+    nest = { ... %!!4
+        1        %!!8
+        [ ...    %!!8
+          2 3    %!!10
+        ] ...    %!!8
+        3        %!!8
+           };    %!!11
+    
+    cascade_long_name = ... %!!4
+        { ...               %!!8
+          1                 %!!10
+          2                 %!!10
+        };                  %!!8
+    
     % TODO
     % I don't know why the below indents this way.
     % It should either do all max indent, or all lined up with parens.
@@ -184,7 +198,9 @@ function out = array_constant_decls()
     out = { A     %!!4
             Blong %!!12
             Csep  %!!12
+            nest  %!!12
             multinest%!!12
+            cascade_long_name%!!12
             Closures%!!12
             dep %!!12
           };      %!!10
@@ -243,7 +259,7 @@ function B = continuations_and_block_comments
 % !!0
     
 %{
-  !!2
+  !!2  {  }
   !!2
 %}
     
@@ -272,9 +288,9 @@ function B = continuations_and_block_comments
           3 4 ]; % !!10
     
     foo(['this is a very long string' ... %!!4
-         'with a continution to do something very exciting'])%!!9
+         'with a continution to do something very exciting']);%!!9
     
-    set(gcf,'Position',[ 1 2 3 4],... !!4
+    set(gcf,'Position',[ 1 2 3 4], ... !!4
             'Color', 'red');  % !!12
     
     B = A + 1 + 4 ...
@@ -288,7 +304,7 @@ function B = continuations_and_block_comments
 
     if condition1 || ...  % !!4
             fcn_call(arg1, ... % !!12
-                     arg2)  % !!21
+                     arg2);  % !!21
         line_in_if();
     end  % !!4
     

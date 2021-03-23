@@ -92,6 +92,11 @@ nil (never) means that new *.m files will not enter
   :group 'matlab
   :type 'integer)
 
+(defcustom matlab-array-continuation-indent-level 2
+  "*Basic indentation after continuation within an array if no other methods are found."
+  :group 'matlab
+  :type 'integer)
+
 (defcustom matlab-cont-requires-ellipsis t
   "*Specify if ellipses are required at the end of a line for continuation.
 Future versions of Matlab may not require ellipses ... , so a heuristic
@@ -115,6 +120,39 @@ so if you customize these variables, follow the above rule, and you
 should be ok."
   :group 'matlab
   :type 'sexp)
+
+(defcustom matlab-indent-past-arg1-functions
+  "[sg]et\\(_param\\)?\\|waitfor\\|notify"
+  "*Regex describing functions whose first arg is special.
+This specialness means that all following parameters which appear on
+continued lines should appear indented to line up with the second
+argument, not the first argument."
+  :group 'matlab
+  :type 'string)
+
+(defcustom matlab-arg1-max-indent-length 15
+  "*The maximum length to indent when indenting past arg1.
+If arg1 is exceptionally long, then only this number of characters
+will be indented beyond the open paren starting the parameter list."
+  :group 'matlab
+  :type 'integer)
+
+(defcustom matlab-maximum-indents '(;; = is a convenience. Don't go too far
+				    (?= . (10 . 4))
+				    ;; Fns should provide hard limits
+				    (?\( . 50)
+				    ;; Matrix/Cell arrays
+				    (?\[ . 20)
+				    (?\{ . 20))
+  "Alist of maximum indentations when lining up code.
+Each element is of the form (CHAR . INDENT) where char is a character
+the indent engine is using, and INDENT is the maximum indentation
+allowed.  Indent could be of the form (MAXIMUM . INDENT), where
+MAXIMUM is the maximum allowed calculated indent, and INDENT is the
+amount to use if MAXIMUM is reached."
+  :group 'matlab
+  :type '(repeat (cons (character :tag "Open List Character")
+		       (sexp :tag "Number (max) or cons (max indent)"))))
 
 (defcustom matlab-align-to-paren t
   "*Whether continuation lines should be aligned to the opening parenthesis.
@@ -261,39 +299,6 @@ See `matlab-indent-function-body' variable."
       matlab-functions-have-end
     ;; Else, just return the variable.
     matlab-indent-function-body))
-
-(defcustom matlab-indent-past-arg1-functions
-  "[sg]et\\(_param\\)?\\|waitfor\\|notify"
-  "*Regex describing functions whose first arg is special.
-This specialness means that all following parameters which appear on
-continued lines should appear indented to line up with the second
-argument, not the first argument."
-  :group 'matlab
-  :type 'string)
-
-(defcustom matlab-arg1-max-indent-length 15
-  "*The maximum length to indent when indenting past arg1.
-If arg1 is exceptionally long, then only this number of characters
-will be indented beyond the open paren starting the parameter list."
-  :group 'matlab
-  :type 'integer)
-
-(defcustom matlab-maximum-indents '(;; = is a convenience. Don't go too far
-				    (?= . (10 . 4))
-				    ;; Fns should provide hard limits
-				    (?\( . 50)
-				    ;; Matrix/Cell arrays
-				    (?\[ . 20)
-				    (?\{ . 20))
-  "Alist of maximum indentations when lining up code.
-Each element is of the form (CHAR . INDENT) where char is a character
-the indent engine is using, and INDENT is the maximum indentation
-allowed.  Indent could be of the form (MAXIMUM . INDENT), where
-MAXIMUM is the maximum allowed calculated indent, and INDENT is the
-amount to use if MAXIMUM is reached."
-  :group 'matlab
-  :type '(repeat (cons (character :tag "Open List Character")
-		       (sexp :tag "Number (max) or cons (max indent)"))))
 
 (defcustom matlab-fill-fudge 10
   "Number of characters around `fill-column' we can fudge filling.
@@ -1951,11 +1956,18 @@ LVL2 is a level 2 scan context with info from previous lines."
 	     (parencol (matlab-line-close-paren-inner-col lvl1))
 	     (parenchar (matlab-line-close-paren-inner-char lvl1))
 	     (parenpt (matlab-line-close-paren-inner-point lvl1))
+	     (parenindent (when parenpt
+			    (save-excursion (goto-char parenpt)
+					    (current-indentation))))
+	     (parenopt (matlab-line-close-paren-outer-point lvl1))
 
+	     
 	     ;; What shall we use to describe this for debugging?
 	     (indent-type (cond ((matlab-line-empty-p lvl1) 'empty)
 				((and parenchar (= parenchar ?\()) 'function-call-cont)
-				((matlab-line-close-paren-outer-point lvl1) 'array-cont)
+				((and parencol (= parenindent parencol)) 'array-solo-cont)
+				((and parenpt (/= parenpt parenopt)) 'nested-array-cont)
+				(parenpt 'array-cont)
 				(t 'code-cont)))
 	     
 	     (found-column nil)
@@ -2007,7 +2019,17 @@ LVL2 is a level 2 scan context with info from previous lines."
 		    ;; indent.
 		    (if (or (not matlab-align-to-paren)
 			    (looking-at "\\.\\.\\.\\|$"))
-			(+ ci-boc matlab-continuation-indent-level)
+			(if (or (eq indent-type 'function-call-cont)
+				(and (not (eq indent-type 'array-solo-cont))
+				     (not (eq indent-type 'nested-array-cont))))
+			    ;; functions or an array ending on a EOL should
+			    ;; do normal code indentation from beginning of cmd
+			    (+ ci-boc matlab-continuation-indent-level)
+			  ;; If in an array in an array ending on EOL should
+			  ;; indent a wee bit
+			  (+ parencol matlab-array-continuation-indent-level))
+		      ;; current column is location on original line where
+		      ;; first bit of text is, so line up with that.
 		      (current-column)
 		      ;; TODO - this disables indentation MAXs
 		      ;;        if we really want to be rid of this
