@@ -361,7 +361,12 @@ Call the new entrie's activate method."
 
 (defun linemark-find-file-hook ()
   "Activate all marks which can benifit from this new buffer."
-  (mapcar (lambda (g) (linemark-display g t)) linemark-groups))
+  (mapcar (lambda (g) (condition-case nil
+			  ;; See comment in linemark-add-entry for
+			  ;; reasoning on this condition-case.
+			  (linemark-display g t)
+			(error nil)))
+	    linemark-groups))
 
 (defun linemark-kill-buffer-hook ()
   "Deactivate all entries in the current buffer."
