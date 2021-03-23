@@ -2179,7 +2179,13 @@ Similar to  `comint-send-input'."
 		))
       
 	  ;; If not changing dir, maybe we need to use 'run' command instead?
-	  (let ((cmd (concat "emacsrun('" dir fn-name "')")))
+	  (let* ((match 0)
+		 (tmp (while (setq match (string-match "'" param match))
+			(setq param (replace-match "''" t t param))
+			(setq match (+ 2 match))))
+		 (cmd (concat "emacsrun('" dir fn-name "'"
+			      (if (string= param "") "" (concat ", '" param "'"))
+			      ")")))
 	    (matlab-shell-send-command cmd)))
 	))))
 
