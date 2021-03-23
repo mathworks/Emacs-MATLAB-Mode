@@ -1283,6 +1283,26 @@ All Key Bindings:
 	;; continue.
 	(error nil))))
 
+
+;; Support debug mode and read only toggling.
+(defvar gud-matlab-debug-active nil)
+(declare-function matlab-shell-gud-minor-mode "matlab-shell-gud")
+
+(defun matlab-toggle-read-only (&optional arg interactive)
+  "Toggle read-only bit in MATLAB mode.
+This looks to see if we are currently debugging, and if so re-enable
+our debugging feature.
+Optional argument ARG specifies if the read-only mode should be set.
+INTERACTIVE is ignored."
+  (interactive "P")
+  (if (and (featurep 'matlab-shell-gud)
+	   gud-matlab-debug-active)
+      ;; The debugging is active, just re-enable debugging read-only-mode
+      (matlab-shell-gud-minor-mode 1)
+    ;; Else - it is not - probably doing something else.
+    (call-interactively 'read-only-mode)
+    ))
+
 
 ;;; Utilities =================================================================
 
@@ -2739,25 +2759,6 @@ ARG is passed to `fill-paragraph' and will justify the text."
 		     (matlab-justify-line)))))
 	(t
 	 (message "Paragraph Fill not supported in this context."))))
-
-;;; TODO - move this someplace better.
-(defvar gud-matlab-debug-active nil)
-(declare-function matlab-shell-gud-minor-mode "matlab-shell-gud")
-
-(defun matlab-toggle-read-only (&optional arg interactive)
-  "Toggle read-only bit in MATLAB mode.
-This looks to see if we are currently debugging, and if so re-enable
-our debugging feature.
-Optional argument ARG specifies if the read-only mode should be set.
-INTERACTIVE is ignored."
-  (interactive "P")
-  (if (and (featurep 'matlab-shell-gud)
-	   gud-matlab-debug-active)
-      ;; The debugging is active, just re-enable debugging read-only-mode
-      (matlab-shell-gud-minor-mode 1)
-    ;; Else - it is not - probably doing something else.
-    (call-interactively 'read-only-mode)
-    ))
 
 
 ;;; Show Paren Mode support ==================================================
