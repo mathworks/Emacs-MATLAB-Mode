@@ -275,7 +275,12 @@ Call the new entrie's activate method."
       (oset new-entry face (or face (oref g face)))
       (oset g marks (cons new-entry (oref g marks)))
       (if (oref g active)
-	    (linemark-display new-entry t))
+	  (condition-case nil
+	      ;; Somewhere in the eieio framework this can throw 'end of buffer' error
+	      ;; after the display function exits.  Not sure where that is, but this
+	      ;; condition-case can capture it and allow things to keep going.
+	      (linemark-display new-entry t)
+	    (error nil)))
       new-entry)
     ))
 
