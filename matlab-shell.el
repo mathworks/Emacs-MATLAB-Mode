@@ -2196,20 +2196,22 @@ Similar to  `comint-send-input'."
 (defun matlab-shell-run-cell ()
   "Run the cell the cursor is in."
   (interactive)
-  (let ((start (save-excursion (forward-page -1)
-			       (if (looking-at "function")
-				   (error "You are not in a cell.  Try `matlab-shell-save-and-go' instead"))
-			       (when (matlab-ltype-comm)
-				 ;; Skip over starting comment from the current cell.
-				 (matlab-end-of-command)
-				 (end-of-line)
-				 (forward-char 1))
-			       (point)))
-	(end (save-excursion (forward-page 1)
-			     (when (matlab-ltype-comm)
-			       (beginning-of-line)
-			       (forward-char -1))
-			     (point))))
+  (let ((start (save-excursion
+		 (forward-page -1)
+		 (if (looking-at "function")
+		     (error "You are not in a cell.  Try `matlab-shell-save-and-go' instead"))
+		 (when (matlab-line-comment-p (matlab-compute-line-context 1))
+		   ;; Skip over starting comment from the current cell.
+		   (matlab-end-of-command)
+		   (end-of-line)
+		   (forward-char 1))
+		 (point)))
+	(end (save-excursion
+	       (forward-page 1)
+	       (when (matlab-line-comment-p (matlab-compute-line-context 1))
+		 (beginning-of-line)
+		 (forward-char -1))
+	       (point))))
     (matlab-shell-run-region start end t)))
 
 (defun matlab-shell-run-region-or-line ()

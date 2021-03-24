@@ -201,24 +201,23 @@ Values are nil 'solo, 'value, and 'boolean.  Boolean is a subset of
 value.  nil means there is no semantic content (ie, string or comment.)
 If optional PREFIX, then return 'solo if that is the only thing on the
 line."
-  (cond ;((matlab-cursor-in-string-or-comment)
-	 ;nil)
-	((or (matlab-ltype-empty)
-	     (and prefix (save-excursion
-			   (beginning-of-line)
-			   (looking-at (concat "\\s-*" prefix "\\s-*$")))))
-	 'solo)
-	((save-excursion
-	   (matlab-beginning-of-command)
-	   (looking-at "\\s-*\\(if\\|elseif\\|while\\)\\>"))
-	 'boolean)
-	((save-excursion
-	   (matlab-beginning-of-command)
-	   (looking-at (concat "\\s-*\\(" (matlab-property-function)
-			       "\\)\\>")))
-	 'property)
-	(t
-	 'value)))
+  (cond
+   ((or (matlab-line-empty-p (matlab-compute-line-context 1))
+	(and prefix (save-excursion
+		      (beginning-of-line)
+		      (looking-at (concat "\\s-*" prefix "\\s-*$")))))
+    'solo)
+   ((save-excursion
+      (matlab-beginning-of-command)
+      (looking-at "\\s-*\\(if\\|elseif\\|while\\)\\>"))
+    'boolean)
+   ((save-excursion
+      (matlab-beginning-of-command)
+      (looking-at (concat "\\s-*\\(" (matlab-property-function)
+			  "\\)\\>")))
+    'property)
+   (t
+    'value)))
 
 ;;; Completion Framework ===================================================
 ;;

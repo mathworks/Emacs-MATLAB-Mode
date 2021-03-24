@@ -77,7 +77,9 @@
   "Insert and END block based on the current syntax.
 Optional argument REINDENT indicates if the specified block should be re-indented."
   (interactive "P")
-  (if (not (matlab-ltype-empty)) (progn (end-of-line) (insert "\n")))
+  (when (not (matlab-line-empty-p (matlab-compute-line-context 1)))
+    (end-of-line) (insert "\n"))
+  
   (let ((valid t) (begin nil))
     (save-excursion
       (condition-case nil
@@ -172,7 +174,8 @@ Optional argument REINDENT indicates if the specified block should be re-indente
 	(error (setq valid nil))))
     (if (not valid)
 	(error "Not in a switch statement")))
-  (if (not (matlab-ltype-empty)) (progn (end-of-line) (insert "\n")))
+  (when (not (matlab-line-empty-p (matlab-compute-line-context 1)))
+    (end-of-line) (insert "\n"))
   (indent-to 0)
   (insert "case ")
   (matlab-indent-line))

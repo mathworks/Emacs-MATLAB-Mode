@@ -1572,17 +1572,7 @@ Travells a cross continuations"
 
 ;;; Line types, attributes, and string/comment context ====================================
 
-(defun matlab-ltype-empty ()		; blank line
-  "Return t if current line is empty."
-  (matlab-line-empty-p (matlab-compute-line-context 1)))
-
-(defun matlab-ltype-comm ()		; comment line
-  "Return t if current line is a MATLAB comment line."
-  ;; Looking through uses, no one uses the extra type of output
-  ;; this provides, so replace with very simple call.
-  (matlab-line-comment-p (matlab-compute-line-context 1)))
-
-(defun matlab-ltype-continued-comm ()
+(defun matlab-line-continued-comment ()
   "Return column of previous line's comment start, or nil."
   (save-excursion
     (beginning-of-line)
@@ -1595,8 +1585,8 @@ Travells a cross continuations"
 	(forward-line -1)
 	(matlab-line-end-comment-column (matlab-compute-line-context 1))))))
 
-(defun matlab-lattr-block-open (&optional eol)
-  "Return a number representing the number of unterminated block constructs.
+(defun matlab-line-count-open-blocks (&optional eol)
+  "Return a the number of unterminated block constructs.
 This is any block, such as if or for, that doesn't have an END on this line.
 Optional EOL indicates a virtual end of line."
   (save-excursion
@@ -1627,7 +1617,7 @@ Optional EOL indicates a virtual end of line."
 		(setq v (1- v))))))
 	v))))
 
-(defun matlab-lattr-block-close (&optional start)
+(defun matlab-line-count-closed-blocks (&optional start)
   "Return the number of closing block constructs on this line.
 Argument START is where to start searching from."
   (save-excursion
@@ -1844,7 +1834,7 @@ LVL2 is a level 2 scan context with info from previous lines."
 	 ((matlab-line-comment-ignore-p lvl1)
 	  (list 'comment-ignore 0))
 	 ;; COMMENT Continued From Previous Line
-	 ((setq tmp (matlab-ltype-continued-comm)) ;;; TODO : REPLACE
+	 ((setq tmp (matlab-line-continued-comment)) ;;; TODO : REPLACE
 	  (list 'comment tmp))
 	 (t
 	  (list 'comment (+ ci matlab-comment-anti-indent))))))
@@ -2070,8 +2060,8 @@ See `matlab-calculate-indentation' for how the output of this fcn is used."
 	  
       (back-to-indentation)
       (setq lvl1 (matlab-compute-line-context 1))
-      (let ((cc (matlab-lattr-block-close startpnt))
-	    (bc (matlab-lattr-block-open startpnt))
+      (let ((cc (matlab-line-count-closed-blocks startpnt))
+	    (bc (matlab-line-count-open-blocks startpnt))
 	    (end (matlab-line-end-p lvl1))
 	    (mc (and (matlab-line-block-middle-p lvl1) 1))
 	    (ec (and (matlab-line-block-case-p lvl1) 1))
@@ -2200,40 +2190,16 @@ Has effect of `matlab-return' with (not matlab-indent-before-return)."
 (defun matlab-comment-return ()
   "Handle carriage return for MATLAB comment line."
   (interactive)
-  (cond
-   ((matlab-ltype-comm)
-    (matlab-set-comm-fill-prefix) (newline) (insert fill-prefix)
-    (matlab-reset-fill-prefix) (matlab-indent-line))
-   ((matlab-ltype-comm)
-    (newline) (indent-to comment-column)
-    (insert matlab-comment-on-line-s))
-   (t
-    (newline) (matlab-comment) (matlab-indent-line))))
-
-(defun matlab-comm-from-prev ()
-  "If the previous line is a `comment-line' then set up a comment on this line."
-  (save-excursion
-    ;; If the previous line is a comment-line then set the fill prefix from
-    ;; the previous line and fill this line.
-    (if (and (= 0 (forward-line -1)) (matlab-ltype-comm))
-	(progn
-	  (matlab-set-comm-fill-prefix)
-	  (forward-line 1) (beginning-of-line)
-	  (delete-horizontal-space)
-	  (if (looking-at "%") (delete-char 1))
-	  (delete-horizontal-space)
-	  (insert fill-prefix)
-	  (matlab-reset-fill-prefix)))))
+  (newline)
+  (matlab-comment))
 
 (defun matlab-electric-comment (arg)
   "Indent line and insert comment character.
 Argument ARG specifies how many %s to insert."
   (interactive "P")
   (self-insert-command (or arg 1))
-  (when (matlab-ltype-comm)
-    (matlab-indent-line)
-    ;; The above seems to put the cursor on the %, not after it.
-    (skip-chars-forward "%")))
+  (matlab-indent-line)
+  (skip-chars-forward "%"))
 
 (defun matlab-electric-block-comment (arg)
   "Indent line and insert block comment end character.
@@ -2285,38 +2251,41 @@ Argument ARG specifies how many %s to insert."
 (defun matlab-comment ()
   "Add a comment to the current line."
   (interactive)
-  (cond ((region-active-p)
-	 (call-interactively #'comment-or-uncomment-region))
-	((matlab-ltype-empty)		; empty line
-	 (matlab-comm-from-prev)
-	 (if (matlab-ltype-comm)
-	     (skip-chars-forward " \t%")
+  (let ((lvl1 (matlab-compute-line-context 1)))
+    (cond ((region-active-p)
+	   (call-interactively #'comment-or-uncomment-region))
+
+	  ((matlab-line-empty-p lvl1)	; empty line
 	   (insert matlab-comment-line-s)
-	   (matlab-indent-line)))
-	((matlab-ltype-comm)		; comment line
-	 (matlab-comm-from-prev)
-	 (skip-chars-forward " \t%"))
-	((matlab-ltype-comm)		; code line w/ comment
-	 (beginning-of-line)
-	 (re-search-forward "[^%]\\(%\\)[ \t]")
-	 (goto-char (match-beginning 1))
-	 (if (> (current-column) comment-column) (delete-horizontal-space))
-	 (if (< (current-column) comment-column) (indent-to comment-column))
-         ;; Now see if the current line is too long to fit.  Can we back indent?
-         (let ((eol-col (- (point-at-eol) (point-at-bol))))
-           (when (> eol-col fill-column)
-             (delete-horizontal-space)
-             (indent-to (- comment-column (- eol-col fill-column)))))
-         (skip-chars-forward "% \t"))
-	(t				; code line w/o comment
-	 (end-of-line)
-	 (re-search-backward "[^ \t\n^]" 0 t)
-	 (forward-char)
-	 (delete-horizontal-space)
-	 (if (< (current-column) comment-column)
-	     (indent-to comment-column)
-	   (insert " "))
-	 (insert matlab-comment-on-line-s))))
+	   (back-to-indentation)
+	   (matlab-indent-line)
+	   (skip-chars-forward " \t%"))
+	  
+	  ((matlab-line-comment-p lvl1) ; comment line
+	   (back-to-indentation)
+	   (matlab-indent-line)
+	   (skip-chars-forward " \t%"))
+	  
+	  ((matlab-line-end-comment-column lvl1)  ; code line w/ comment
+	   (goto-char (matlab-line-end-comment-point lvl1))
+	   (if (> (current-column) comment-column) (delete-horizontal-space))
+	   (if (< (current-column) comment-column) (indent-to comment-column))
+           ;; Now see if the current line is too long to fit.  Can we back indent?
+           (let ((eol-col (- (point-at-eol) (point-at-bol))))
+             (when (> eol-col fill-column)
+               (delete-horizontal-space)
+               (indent-to (- comment-column (- eol-col fill-column)))))
+           (skip-chars-forward "% \t"))
+
+	  (t				; code line w/o comment
+	   (end-of-line)
+	   (re-search-backward "[^ \t\n^]" 0 t)
+	   (forward-char)
+	   (delete-horizontal-space)
+	   (if (< (current-column) comment-column)
+	       (indent-to comment-column)
+	     (insert " "))
+	   (insert matlab-comment-on-line-s)))))
 
 (defun matlab-comment-line-break-function (&optional soft)
   "Break the current line, and if in a comment, continue it.
@@ -2371,7 +2340,7 @@ Argument BEG and END indicate the region to uncomment."
 (defun matlab-set-comm-fill-prefix ()
   "Set the `fill-prefix' for the current (comment) line."
   (interactive)
-  (if (matlab-ltype-comm)
+  (if (matlab-line-comment-p (matlab-compute-line-context 1))
       (setq fill-prefix
 	    (save-excursion
 	      (beginning-of-line)
@@ -2412,7 +2381,7 @@ not be broken.  This function will ONLY work on code."
 	      (orig (point)))
 	  (or
 	   ;; Next, if we have a trailing comment, use that.
-	   (progn (setq pos (or (matlab-line-comment-p lvl1) ;;(matlab-ltype-comm)
+	   (progn (setq pos (or (matlab-line-comment-p lvl1)
 				(matlab-point-at-bol)))
 		  (goto-char pos)
 		  (if (and (> (current-column) (- fill-column matlab-fill-fudge))
@@ -2686,7 +2655,7 @@ With optional argument, JUSTIFY the comment as well."
 Paragraphs are always assumed to be in a comment.
 ARG is passed to `fill-paragraph' and will justify the text."
   (interactive "P")
-  (cond ((or (matlab-ltype-comm)
+  (cond ((or (matlab-line-comment-p (matlab-compute-line-context 1))
 	     (and (matlab-cursor-in-comment)
 		  (not (matlab-line-ellipsis-p (matlab-compute-line-context 1)))))
 	 ;; We are in a comment, lets fill the paragraph with some
@@ -2695,12 +2664,11 @@ ARG is passed to `fill-paragraph' and will justify the text."
 	 (let ((paragraph-separate "%%\\|%[a-zA-Z]\\|%[ \t]*$\\|[ \t]*$")
 	       (paragraph-start "%[a-zA-Z]\\|%[ \t]*$\\|[ \t]*$\\|%\\s-*\\*")
 	       (paragraph-ignore-fill-prefix nil)
-	       (start (save-excursion (matlab-beginning-of-command)
+	       (start (save-excursion (matlab-scan-beginning-of-command)
 				      (if (looking-at "%%")
 					  (progn (end-of-line)
 						 (forward-char 1)))
-				      (beginning-of-line)
-				      (point)))
+				      (point-at-bol)))
 	       (end (save-excursion (matlab-scan-end-of-command)))
 	       (fill-prefix nil))
 	   (matlab-set-comm-fill-prefix)
@@ -2970,9 +2938,7 @@ If optional FAST is non-nil, do not perform usually lengthy checks."
 Optional argument FAST is ignored."
   (matlab-navigation-syntax
     (goto-char (point-min))
-    (while (and (or (matlab-ltype-empty) (matlab-ltype-comm))
-		(/= (matlab-point-at-eol) (point-max)))
-      (forward-line 1))
+    (matlab-find-code-line)
     (let ((func nil)
 	  (bn (file-name-sans-extension
 	       (file-name-nondirectory (buffer-file-name)))))
@@ -3001,10 +2967,7 @@ Optional argument FAST is ignored."
 Optional argument FAST is ignored."
   (matlab-navigation-syntax
     (goto-char (point-min))
-    ;; Skip over whitespace.
-    (while (and (or (matlab-ltype-empty) (matlab-ltype-comm))
-		(/= (matlab-point-at-eol) (point-max)))
-      (forward-line 1))
+    (matlab-find-code-line)
     (let ((class nil)
 	  (bn (file-name-sans-extension
 	       (file-name-nondirectory (buffer-file-name)))))
@@ -3270,10 +3233,10 @@ desired.  Optional argument FAST is not used."
 			"  Indent Style: " (symbol-name (car indent))
 			))
       
-      (if (matlab-line-ellipsis-p lvl1)
-	  (setq msg (concat msg " w/cont")))
-      (if (matlab-ltype-comm)
-	  (setq msg (concat msg " w/comm")))
+      (when (matlab-line-ellipsis-p lvl1)
+	(setq msg (concat msg " w/cont")))
+      (when (matlab-line-end-comment-point lvl1)
+	(setq msg (concat msg " w/comm")))
       (message "%s" msg))))
 
 
