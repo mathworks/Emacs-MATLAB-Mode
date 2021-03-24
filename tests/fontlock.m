@@ -114,7 +114,7 @@ function dodebug()
 % $$$^  ^bo
     
 end
-
+ 
 function mathstuff()
     
    myvar = eps +   pi  +   nan +   ans +   i   +   NaT + true  ;
@@ -125,6 +125,14 @@ function helptest()
 % HELPTEST has fancy fonts in it.
 %^  ^cn
         
+end
+
+classdef (Abstract) myclass < handle
+%^ ^kw      ^ty       ^fn   ^cn ^ty
+end
+
+classdef (Abstract)myclass<handle
+%^ ^kw      ^ty       ^fn ^cn ^ty
 end
 
 %{

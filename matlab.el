@@ -935,9 +935,9 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
 (defconst matlab-file-class-font-lock-keywords
   (list
    ;; Classdefs keyword and the class name
-   (list (concat "^\\s-*\\(classdef\\)"
+   (list (concat "^\\s-*\\(classdef\\)\\_>"
 		 matlab-class-attributes-list-re
-		 "\\s-+\\(?3:\\sw+\\)")
+		 "\\s-*\\(?3:\\sw+\\)")
 	 '(1 font-lock-keyword-face append)
 	 '(3 font-lock-function-name-face)
 	 )
