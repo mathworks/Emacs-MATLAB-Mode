@@ -304,7 +304,7 @@ function B = continuations_and_block_comments
 
     if condition1 || ...  % !!4
             fcn_call(arg1, ... % !!12
-                     arg2);  % !!21
+                     arg2)  % !!21
         line_in_if();
     end  % !!4
     
@@ -336,4 +336,22 @@ function b=function_end_same_line(a), b=a; end %!!0
 function function_after_end_same_line()%!!0
 %!!0
     disp('foo');%!!4
+    
+    debug_cmd_dual();
+    
 end%!!0
+
+function debug_cmd_dual ()
+% These dbstop command dual content have 'if' blocks in them.
+% The command dual detection needs to block these from being
+% detected as block initiators which would cause indentaiton.
+    
+    dbstop in hRandomFile at 14 if func() % !!4
+    dbstop in hRandomFile at 30@1 if x==1 % !!4
+    dbstop in hPFile                      % !!4
+    dbstop in hSimpleFile at 2            % !!4
+    dbstop if error                       % !!4
+    
+    %!!4
+
+end

@@ -30,7 +30,7 @@
 (require 'matlab-compat)
 
 ;;; Code:
-(defvar matlab-syntax-support-command-dual nil
+(defvar matlab-syntax-support-command-dual t
   "Non-nil means to support command dual for indenting and syntax highlight.
 Does not work well in classes with properties with datatypes.")
 (make-variable-buffer-local 'matlab-syntax-support-command-dual)
@@ -208,16 +208,24 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
 	(forward-line 1))
       )))
 
-(declare-function matlab-keyword-p "matlab-scan")
+(defconst matlab-syntax-commanddual-functions
+  '("warning" "disp"
+    ;; debug
+    "dbstop" "dbclear"
+    ;; Graphics
+    "print" "xlim" "ylim" "zlim" "grid" "hold" "box")
+  "Functions that are commonly used with commandline dual")
+(defconst matlab-cds-regex (regexp-opt matlab-syntax-commanddual-functions 'symbols))
 
 (defun matlab--scan-line-for-command-dual (&optional debug)
   "Scan this line for command line duality strings."
   ;; Note - add \s$ b/c we'll add that syntax to the first letter, and it
   ;; might still be there during an edit!
-  (when (looking-at "^\\s-*\\([a-zA-Z_]\\(?:\\w\\|\\s_\\)*\\)\\s-+\\(\\s$\\|\\w\\|\\s_\\)")
-    ;; This is likely command line dual for a function.
-    (when (not (matlab-keyword-p 1))
-      (goto-char (match-beginning 2)))))
+  (when (looking-at
+	 (concat "^\\s-*"
+		 matlab-cds-regex
+		 "\\s-+\\(\\s$\\|\\w\\|\\s_\\)"))
+    (goto-char (match-beginning 2))))
 
 (matlab--syntax-symbol matlab--transpose-syntax '(3 . nil) ;; 3 = symbol
   "Treat ' as non-string when used as transpose.")

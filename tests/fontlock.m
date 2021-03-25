@@ -112,9 +112,9 @@ function dographics(value)
 end
 
 function dodebug()
-   
-    dbstop on dodebug
-%^      ^bo
+
+    dbstop in dodebug
+%^      ^bo     ^cd
     
     dbclear
 %^      ^bo

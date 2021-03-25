@@ -170,8 +170,8 @@ not_commented();
 %% Command line dual #C#
 % Note: stuff after a symbol<space> treated as string
 
-funcall  _this is string input to function #d#_
-fun_call _this is also string input to a function #d#_
+disp  _this is string input to function #d#_
+disp  _this is also string input to a function #d#_
 
 %{
 %  Local Variables:
