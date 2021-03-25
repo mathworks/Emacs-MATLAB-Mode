@@ -6,33 +6,34 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
     
 % >>11
     properties (Access='public') % #2#
-% $$$^ ^kw       ^ty     ^st       ^co
+%^     ^kw       ^ty     ^st       ^co
 
         % !!8
         AP = []; % #2#
-% $$$^  ^vn  ^df   ^co
+%^      ^vn  ^df   ^co
         AB = 'charvec with space'; % #2#
         AC = "string with space and ( ";  % #2#
         AD = fun_call(1,2); % #3#
         AE (1,:) double {mustBePositive} = 1; % #5#
-% $$$^  ^vn      ^ty      ^df                   ^co
+%^      ^vn      ^ty      ^df                   ^co
     end % <<11
     
     % >> 111
     properties (AbortSet=true, NonCopyable=true) % #2#
-% $$$^  ^kw       ^ty     ^cn   ^ty         ^cn    ^co
+%^      ^kw       ^ty     ^cn   ^ty         ^cn    ^co
 
         % !!8
         AF (1,1) char {mustBeMember(AF, {'High','Medium','Low'})} = 'Low'; % #5#
-% $$$^  ^vn   ^ty       ^df               ^st                   ^df  ^st     ^co
+%^      ^vn   ^ty       ^df               ^st                   ^df  ^st     ^co
         AG (1,1) matlab.lang.OnOffSwitchState = 'on'; % #6#
+%^      ^vn   ^ty        ^ty                      ^st    ^co
     end % <<111
 
     % >> 112
     events
         % !!8
         Event1
-        %^ ^vn
+%^        ^vn
         Event2
     end % <<112
     
@@ -49,7 +50,7 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
             % !!12
 
             unusedvar = 1;  %#ok
-% $$$^       ^df              ^pr
+%^           ^df              ^pr
             
             disp('charvect with if and for words [ in it'); % #2#
 
@@ -59,7 +60,7 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
                        'indent test');
             
             notify(obj, 'Event1', 'indent test');
-            %^ ^df   ^vn   ^st      ^st         ^df
+%^            ^df   ^vn   ^st      ^st         ^df
 
             
             % >>17
@@ -144,13 +145,13 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
         function usestuff(obj)  %!!8
         % Try using the methods of this object
             obj.properties();  %!!12
-% $$$^      ^df   ^df             ^co
+%^          ^df   ^df             ^co
             obj.methods();  %!!12
             obj.events();  %!!12
             obj.arguments();  %!!12
             obj.enumeration();  %!!12
         end  %!!8
-    
+        
     end %!!4
     
 end % <<1

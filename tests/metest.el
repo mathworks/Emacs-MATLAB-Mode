@@ -407,7 +407,8 @@
 			      ( "ty" . font-lock-type-face )
 			      ( "fn" . font-lock-function-name-face )
 			      ( "vn" . font-lock-variable-name-face )
-			      ( "vc" . (font-lock-variable-name-face matlab-cross-function-variable-face) )
+			      ( "vc" . (font-lock-variable-name-face
+					matlab-cross-function-variable-face) )
 			      ( "cn" . font-lock-constant-face )
 			      ( "co" . font-lock-comment-face )
 			      ( "cb" . matlab-cellbreak-face )
@@ -421,7 +422,7 @@
   "List of testing keywords and associated faces.")
 			    
 
-(defvar met-fontlock-files '("fontlock.m" "mclass.m")
+(defvar met-fontlock-files '("fontlock.m" "mclass.m" "blocks.m")
   "List of files for running font lock tests.")
 
 (defvar metest-fontlock-test (cons "font lock" met-fontlock-files))

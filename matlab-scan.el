@@ -92,6 +92,10 @@ If word is a number, it is a match-string index for the current buffer."
 (defvar matlab-kwt-indent nil)
 (defvar matlab-kwt-end nil)
 (defvar matlab-kwt-blocks nil)
+(defvar matlab-kwt-mcos nil)
+(defvar matlab-kwt-args nil)
+(defvar matlab-kwt-vardecl nil)
+(defvar matlab-kwt-fl-simple nil)
 
 (defun matlab-keyword-regex (types)
   "Find keywords that match TYPES and return optimized regexp.
@@ -102,6 +106,7 @@ keyword types.  These include:
    indent - any keyword that causes an indent
    end    - the end keyword (that causes dedent)
    blocks - indent and end keywords
+   fl-simple - simple to highilght w/ font lock
 Caches some found regexp to retrieve them faster."
   (cond
    ((or (eq types nil) (eq types 'all))
@@ -114,6 +119,16 @@ Caches some found regexp to retrieve them faster."
     (or matlab-kwt-end (setq matlab-kwt-end (matlab--keyword-regex '(end)))))
    ((eq types 'blocks)
     (or matlab-kwt-blocks (setq matlab-kwt-blocks (matlab--keyword-regex '(end decl ctrl args mcos)))))
+   ((eq types 'fl-simple)
+    (or matlab-kwt-fl-simple (setq matlab-kwt-fl-simple (matlab--keyword-regex '(end decl ctrl mid case keyword vardecl)))))
+   ((eq types 'mcos)
+    (or matlab-kwt-mcos (setq matlab-kwt-mcos (matlab--keyword-regex '(mcos)))))
+   ((eq types 'args)
+    (or matlab-kwt-args (setq matlab-kwt-args (matlab--keyword-regex '(args)))))
+   ((eq types 'vardecl)
+    (or matlab-kwt-vardecl (setq matlab-kwt-vardecl (matlab--keyword-regex '(vardecl)))))
+   ((symbolp types)
+    (matlab--keyword-regex (list types)))
    (t
     (matlab--keyword-regex types))))
 
@@ -239,7 +254,8 @@ in a single call using fastest methods."
 			   'block-start)
 			  ((looking-at "%%")
 			   'cell-start)
-			  ((looking-at "% \\$\\$\\$")
+			  ;; The %^ is used in tests
+			  ((looking-at "%\\(?:\\^\\| \\$\\$\\$\\)")
 			   'indent-ignore)
 			  (t nil))))
 
@@ -948,6 +964,21 @@ Return nil if no valid block under pt."
 	    nil
 	  (push thiskeyword providedstate)))))
 
+;;; Keyword Scanning
+;;
+;; Use for font locking
+(defun matlab--scan-next-keyword (keyword-type limit)
+  "Scan for the next keyword of KEYWORD-TYPE and stop.
+Sets match data to be around the keyword.
+If nothing is found before LIMIT, then stop and return nil."
+  (let* ((regex (matlab-keyword-regex keyword-type))
+	 (filter (cond ((eq keyword-type 'mcos)
+			#'matlab--valid-mcos-keyword-point)
+		       ((eq keyword-type 'args)
+			#'matlab--valid-arguments-keyword-point)
+		       (t nil))))
+    (matlab-re-search-keyword-forward regex limit t filter)))
+
 ;;; Block Scanning
 ;;
 (defun matlab--scan-block-forward (&optional bounds state)
@@ -1082,8 +1113,10 @@ Limit search to within BOUNDS.  If keyword not found, return nil."
 ;;
 ;; These utilities will simplify searching for code bits by skipping
 ;; anything in a comment or string.
-(defun matlab-re-search-keyword-forward (regexp &optional bound noerror)
-  "Like `re-search-forward' but will not match content in strings or comments."
+(defun matlab-re-search-keyword-forward (regexp &optional bound noerror bonustest)
+  "Like `re-search-forward' but will not match content in strings or comments.
+If BONUSTEST is a function, use it to test each match if it is valid.  If not
+then skip and keep searching."
   (let ((ans nil) (case-fold-search nil) (err nil))
     (save-excursion
       (while (and (not ans) (not err)
@@ -1104,6 +1137,8 @@ Limit search to within BOUNDS.  If keyword not found, return nil."
 			(setq err t)))
 	       (setq ans nil))
 	      ((matlab-syntax-keyword-as-variable-p)
+	       (setq ans nil))
+	      ((and bonustest (save-match-data  (not (funcall bonustest))))
 	       (setq ans nil))
 	      )))
     (when ans (goto-char ans) (matlab--mk-keyword-node))))

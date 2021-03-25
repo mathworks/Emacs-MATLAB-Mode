@@ -78,16 +78,21 @@ classdef blocks < handle
         %>>20
         function events=arguments(arguments)%!!8
             arguments, arguments(:,:) {mustBeNumeric}, end %!!12
-        
+%^             ^kw        ^df    ^ty        ^df         ^kw    ^co        
             enumeration ... %!!12
+                ...%^ ^df
                 = arguments;
+%^                   ^df
             
             if enumeration > 0  %!!12
                 arguments = -enumeration;  %!!16
+%^                   ^df    ^ty   ^df
             end  %!!12
             
             events ...  %!!12
                 = arguments + 1;
+%^                   ^df
+            
         end %<<20
         
         %>>21
@@ -156,8 +161,8 @@ classdef blocks < handle
 
         function tightcomments(~)%!!8
             if condition%!!12
-                switch thing%!!16
-                  case b%!!18
+                switch thing %!!16
+                  case b %!!18
                 end%!!16
             end%!!12
         end%!!8

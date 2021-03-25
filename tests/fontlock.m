@@ -4,6 +4,12 @@ function fontlock()
 %^ ^kw     ^fn    ^df
 %^  ^co
 
+    persistent var1 % !!4
+%^     ^kw      ^vn    ^co
+    
+    global     var2 % !!4
+%^     ^kw      ^vn    ^co
+    
  end
 %^ ^kw
 
@@ -41,53 +47,53 @@ end
 function keywordstuff()
    
     while true
-% $$$^  ^kw  ^cn
+%^    ^kw  ^cn
         
         for varname=1:10
-% $$$^   ^kw  ^vn    ^cn
+%^       ^kw  ^vn    ^cn
             break
-% $$$^       ^kw
+%^           ^kw
         end
         
         if varname ==  2
-% $$$^  ^kw   ^df  ^ty ^df
+%^      ^kw   ^df  ^ty ^df
             disp(1)
         elseif varname==3
-% $$$^    ^kw     ^df  ^ty
+%^        ^kw     ^df  ^ty
             disp(2)
         else
-% $$$^    ^kw
+%^        ^kw
             disp(3)
         end
-% $$$^   ^kw
+%^       ^kw
         
         switch varname
-% $$$^   ^kw     ^cn
+%^       ^kw     ^cn
           case 1
-% $$$^    ^kw  ^cn
+%^        ^kw  ^cn
             disp(1)
             continue
-% $$$^       ^kw
+%^           ^kw
           case 2
-% $$$^    ^kw  ^cn
+%^        ^kw  ^cn
             disp(2)
           otherwise
-% $$$^    ^kw
+%^        ^kw
             disp('other');
-% $$$^      ^df    ^st
+%^          ^df    ^st
             return
-% $$$^       ^kw
+%^           ^kw
         end
-% $$$^    ^kw
+%^        ^kw
         
         try
-% $$$^    ^kw
+%^        ^kw
             disp(1)
         catch
-% $$$^    ^kw
+%^        ^kw
             disp(2)
         end
-% $$$^    ^kw
+%^        ^kw
         
         
     end
@@ -96,29 +102,29 @@ end
 function dographics(value)
     
     f = figure;
-% $$$^    ^ty
+%^        ^ty
     ax = axes(f);
-% $$$^    ^ty
+%^        ^ty
  
     set ( ax, 'property',value)
-% $$$^^ty  ^vn    ^st
+%^    ^ty  ^vn    ^st
     
 end
 
 function dodebug()
    
     dbstop on dodebug
-% $$$^  ^bo
+%^      ^bo
     
     dbclear
-% $$$^  ^bo
+%^      ^bo
     
 end
  
 function mathstuff()
     
    myvar = eps +   pi  +   nan +   ans +   i   +   NaT + true  ;
-% $$$^ ^df ^cn ^ty ^cn ^ty ^cn ^ty ^cn ^ty ^cn ^ty ^cn ^ty ^cn ^df
+%^     ^df ^cn ^ty ^cn ^ty ^cn ^ty ^cn ^ty ^cn ^ty ^cn ^ty ^cn ^df
 end
 
 function helptest()
@@ -128,11 +134,11 @@ function helptest()
 end
 
 classdef (Abstract) myclass < handle
-%^ ^kw      ^ty       ^fn   ^cn ^ty
+%^ ^kw      ^ty       ^fn   ^ty ^cn
 end
 
 classdef (Abstract)myclass<handle
-%^ ^kw      ^ty       ^fn ^cn ^ty
+%^ ^kw      ^ty       ^fn ^ty ^ty
 end
 
 %{
