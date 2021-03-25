@@ -676,7 +676,10 @@ If LVL2 is nil, compute it."
 	  (matlab-scan-stat-inc 'codemiss)
 	  (beginning-of-line)
 	  (when (not (bobp))
-	    (forward-comment -100000) ;; Skip over all whitespace and comments.
+	    ;; Skip over all comments and intervening whitespace
+	    (forward-comment -100000)
+	    ;; If no comments, then also skip over these whitespace chars.
+	    (skip-chars-backward " \t\n")
 	    (setq prev (matlab-compute-line-context 1))
 	    (setcar (nthcdr mlf-previous-code lvl2) prev)))
       ;; else record a cache hit

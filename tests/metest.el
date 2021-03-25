@@ -317,7 +317,9 @@
 	(goto-char (point-min))
 	(while (not (eobp))
 	  (beginning-of-line)
-	  (matlab--change-indentation 3) ;;(random 12)
+	  (if (looking-at "^\\s-*$")
+	      (matlab--change-indentation 0)
+	    (matlab--change-indentation 3)) ;;(random 13)?
 	  (forward-line 1)
 	  )
 	;; And don't delete - leave it to find for the next test.

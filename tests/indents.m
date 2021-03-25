@@ -354,4 +354,6 @@ function debug_cmd_dual ()
     
     %!!4
 
+    debug_cmd_dual(); %!!4
+    
 end
