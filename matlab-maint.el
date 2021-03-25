@@ -36,6 +36,7 @@
     ;; compile debug cycle
     (define-key km [f8] 'matlab-maint-run-tests)
     (define-key km [f9] 'matlab-maint-compile-matlab-emacs)
+    (define-key km [f10] 'matlab-maint-reload-mode)
     ;; coding
     (define-key km [f7] 'matlab-maint-symref-this)
     ;; matlab
@@ -158,6 +159,19 @@ With universal ARG, ask for the code to be run with output tracking turned on."
   (delete-other-windows)
   (goto-char (point-max)))
 
+(defun matlab-maint-reload-mode ()
+  "Reload matlab mode, and refresh displayed ML buffers modes."
+  (interactive)
+  (load-library "matlab-syntax")
+  (load-library "matlab-scan")
+  (load-library "matlab")
+  (mapc (lambda (b) (with-current-buffer b
+		      (when (eq major-mode 'matlab-mode)
+			(message "Updating matlab mode in %S" b)
+			(matlab-mode))))
+	(buffer-list (selected-frame)))
+  (message "loading done")
+  )
 ;;; MATLAB SHELL tools
 ;;
 
