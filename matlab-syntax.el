@@ -213,7 +213,7 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
     ;; debug
     "dbstop" "dbclear"
     ;; Graphics
-    "print" "xlim" "ylim" "zlim" "grid" "hold" "box" "colormap")
+    "print" "xlim" "ylim" "zlim" "grid" "hold" "box" "colormap" "axis")
   "Functions that are commonly used with commandline dual")
 (defconst matlab-cds-regex (regexp-opt matlab-syntax-commanddual-functions 'symbols))
 
