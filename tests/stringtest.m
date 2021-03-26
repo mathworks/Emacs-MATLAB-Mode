@@ -1,4 +1,3 @@
-% -*- matlab-show-mlint-warnings: nil -*-
 %% Tests for char vector and string handling.
 %
 %  #c#
@@ -166,6 +165,12 @@ not_commented();
 
 % Normal comment #c#
 
+%% Ignored Comments #C#
+
+% $$$ This comment is ignored by indentation engine.  #i#
+
+%^ This comment is igored too, used in tests for font lock.  #i#
+
 
 %% Command line dual #C#
 % Note: stuff after a symbol<space> treated as string
@@ -173,9 +178,15 @@ not_commented();
 disp  _this is string input to function #d#_
 disp  _this is also string input to a function #d#_
 
+regularcode;  #r#
+
+% Note: Case sensitivity of cmd dual functions
+DISP _regular code even though ML would treat as cmd dual #r#_
+
 %{
 %  Local Variables:
 %  matlab-syntax-support-command-dual: t
+%  matlab-show-mlint-warnings: nil
 %  End:
 %}
 

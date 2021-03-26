@@ -160,7 +160,7 @@
 	    
 	
 	;;(message ">> Starting string/comment detect loop in %S" (current-buffer))
-	(while (re-search-forward "#\\([cCsSvVebd]\\)#" nil t)
+	(while (re-search-forward "#\\([cCisSvVebdr]\\)#" nil t)
 	  (let* ((md  (match-data))
 		 (pt  (match-end 1))
 		 (mc  (match-string-no-properties 1))
@@ -178,8 +178,10 @@
 			(and (string= "S" mc) (eq 'string qd))
 			(and (string= "c" mc) (eq 'comment qd))
 			(and (string= "C" mc) (eq 'comment qd))
+			(and (string= "i" mc) (eq 'comment qd))
 			(and (string= "e" mc) (eq 'ellipsis qd))
 			(and (string= "d" mc) (eq 'commanddual qd))
+			(and (string= "r" mc) (eq nil qd))
 			)
 	      (metest-error "Syntax Test Failure @ char %d: Expected %s but found %S"
 			    pt
@@ -190,8 +192,10 @@
 				  ((string= mc "S") "string")
 				  ((string= mc "c") "comment")
 				  ((string= mc "C") "comment")
+				  ((string= mc "i") "comment")
 				  ((string= mc "e") "ellipsis")
 				  ((string= mc "d") "commanddual")
+				  ((string= mc "r") "normal code")
 				  (t "unknown test token"))
 			    qd))
 	    ;; Test 2 - is match-data unchanged?
@@ -207,8 +211,10 @@
 			(and (string= "S" mc) (eq fnt 'matlab-unterminated-string-face))
 			(and (string= "c" mc) (eq fnt 'font-lock-comment-face))
 			(and (string= "C" mc) (eq fnt 'matlab-cellbreak-face))
+			(and (string= "i" mc) (eq fnt 'matlab-ignored-comment-face))
 			(and (string= "e" mc) (eq fnt 'font-lock-comment-face))
 			(and (string= "d" mc) (eq fnt 'matlab-commanddual-string-face))
+			(and (string= "r" mc) (eq fnt nil))
 			)
 	      (metest-error "Font Lock Failure @ char %d: Expected %s but found %S"
 			    pt
@@ -218,8 +224,11 @@
 				  ((string= mc "s") "string face")
 				  ((string= mc "S") "unterminated string face")
 				  ((string= mc "c") "comment face")
+				  ((string= mc "C") "cellbreak face")
+				  ((string= mc "i") "ignored comment face")
 				  ((string= mc "e") "comment face")
 				  ((string= mc "d") "commanddual string face")
+				  ((string= mc "r") "regular code / no face")
 				  (t "unknown test token"))
 			    (get-text-property pt 'face)))
 	    ;; Track
@@ -414,6 +423,7 @@
 			      ( "cn" . font-lock-constant-face )
 			      ( "co" . font-lock-comment-face )
 			      ( "cb" . matlab-cellbreak-face )
+			      ( "ig" . matlab-ignored-comment-face )
 			      ( "pr" . matlab-pragma-face )
 			      ( "cd" . matlab-commanddual-string-face )
 			      ( "st" . font-lock-string-face )

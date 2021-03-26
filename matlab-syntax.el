@@ -209,11 +209,11 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
       )))
 
 (defconst matlab-syntax-commanddual-functions
-  '("warning" "disp"
+  '("warning" "disp" "cd"
     ;; debug
     "dbstop" "dbclear"
     ;; Graphics
-    "print" "xlim" "ylim" "zlim" "grid" "hold" "box")
+    "print" "xlim" "ylim" "zlim" "grid" "hold" "box" "colormap")
   "Functions that are commonly used with commandline dual")
 (defconst matlab-cds-regex (regexp-opt matlab-syntax-commanddual-functions 'symbols))
 
@@ -221,11 +221,12 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
   "Scan this line for command line duality strings."
   ;; Note - add \s$ b/c we'll add that syntax to the first letter, and it
   ;; might still be there during an edit!
-  (when (looking-at
-	 (concat "^\\s-*"
-		 matlab-cds-regex
-		 "\\s-+\\(\\s$\\|\\w\\|\\s_\\)"))
-    (goto-char (match-beginning 2))))
+  (let ((case-fold-search nil))
+    (when (looking-at
+	   (concat "^\\s-*"
+		   matlab-cds-regex
+		   "\\s-+\\(\\s$\\|\\w\\|\\s_\\)"))
+      (goto-char (match-beginning 2)))))
 
 (matlab--syntax-symbol matlab--transpose-syntax '(3 . nil) ;; 3 = symbol
   "Treat ' as non-string when used as transpose.")
@@ -328,6 +329,9 @@ Called when comments found in `matlab--scan-line-for-unterminated-string'."
 	  ((and (< (nth 8 pps) (point-max))
 		(= (char-after (1+ (nth 8 pps))) ?\#))
 	   'matlab-pragma-face)
+	  ((and (< (nth 8 pps) (point-max))
+		(looking-at "\\^\\| \\$\\$\\$"))
+	   'matlab-ignored-comment-face)
 	  (t
 	   'font-lock-comment-face))
     ))
@@ -394,6 +398,7 @@ Return 'comment if in a comment.
 Return 'string if in a string.
 Return 'charvector if in a character vector
 Return 'ellipsis if after an ... ellipsis
+Return 'commanddual if in text interpreted as string for command dual
 Return nil if none of the above.
 Scans from the beginning of line to determine the context.
 If optional BOUNDS-SYM is specified, set that symbol value to the

@@ -2,8 +2,11 @@
 % TEST FILE FOR FONT LOCK SPECIAL WORDS
 function fontlock()
 %^ ^kw     ^fn    ^df
-%^  ^co
+%^  ^ig
 
+% $$$ ignored comment
+%^    ^ig
+    
     persistent var1 % !!4
 %^     ^kw      ^vn    ^co
     

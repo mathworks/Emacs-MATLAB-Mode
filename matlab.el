@@ -701,6 +701,13 @@ point, but it will be restored for them."
        :bold t))
   "*Face to use for cellbreak %% lines.")
 
+(defface matlab-ignored-comment-face
+  '((t :inherit font-lock-comment-face
+       :height  .8
+       :slant italic))
+  "*Face to use for ignored comments.
+Ignored comments are lines that start with '% $$$'  or '%^'.")
+
 (defface matlab-pragma-face
   '((t :inherit font-lock-comment-face
        :bold t))
