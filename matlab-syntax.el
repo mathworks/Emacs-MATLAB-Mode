@@ -226,8 +226,8 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
 	       (looking-at
 		(concat "^\\s-*"
 			matlab-cds-regex
-			"\\s-+\\(\\s$\\|\\w\\|\\s_\\)"))
-	       (goto-char (match-beginning 2))))))
+			"\\s-+\\(\\s$\\|\\w\\|\\s_\\)")))
+      (goto-char (match-beginning 2)))))
 
 (matlab--syntax-symbol matlab--transpose-syntax '(3 . nil) ;; 3 = symbol
   "Treat ' as non-string when used as transpose.")
