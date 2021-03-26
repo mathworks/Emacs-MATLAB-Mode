@@ -666,6 +666,9 @@ point, but it will be restored for them."
 (defvar matlab-cellbreak-face 'matlab-cellbreak-face
   "Self reference for cellbreaks.")
 
+(defvar matlab-math-face 'matlab-math-face
+  "Self reference for math.")
+
 (defface matlab-unterminated-string-face
   '((t :inherit font-lock-string-face
        :underline t))
@@ -679,7 +682,7 @@ point, but it will be restored for them."
   :group 'matlab)
 
 (defface matlab-simulink-keyword-face
-  '((t :inherit font-lock-type-face
+  '((t :inherit font-lock-builtin-face
        :underline t))
   "*Face used to highlight simulink specific functions."
   :group 'matlab)
@@ -703,7 +706,6 @@ point, but it will be restored for them."
 
 (defface matlab-ignored-comment-face
   '((t :inherit font-lock-comment-face
-       :height  .8
        :slant italic))
   "*Face to use for ignored comments.
 Ignored comments are lines that start with '% $$$'  or '%^'.")
@@ -711,6 +713,11 @@ Ignored comments are lines that start with '% $$$'  or '%^'.")
 (defface matlab-pragma-face
   '((t :inherit font-lock-comment-face
        :bold t))
+  "*Face to use for cellbreak %% lines.")
+
+(defface matlab-math-face
+  '((t :inherit font-lock-constant-face
+       :slant italic))
   "*Face to use for cellbreak %% lines.")
 
 ;;; Font Lock MLINT data highlighting
@@ -770,32 +777,39 @@ Argument LIMIT is the maximum distance to search."
       nil ;; no matches, stop
       )))
 
-(defcustom matlab-keyword-list '("global" "persistent" "for" "parfor" "while"
-				 "spmd" "if" "elseif" "else"
-				 "return" "break" "continue"
-				 "switch" "case" "otherwise" "try"
-				 "catch" "tic" "toc"
-				 )
-  "List of keywords for MATLAB used in highlighting.
-Customizing this variable is only useful if `regexp-opt' is available."
-  :group 'matlab
-  :type '(repeat (string :tag "Keyword: ")))
 
-(defcustom matlab-keyword-first-on-line-list '( "properties" "methods" "enumeration" "events"
-						"arguments"
-						)
-  "List of keywords for MATLAB that should be highilghted only if the first word on a line.
-Customizing this variable is only useful if `regexp-opt' is available."
-  :group 'matlab
-  :type '(repeat (string :tag "Keyword: ")))
-
-(defcustom matlab-handle-graphics-list '("figure" "axes" "axis" "line"
-					"surface" "patch" "text" "light"
-					"image" "set" "get" "uicontrol"
-					"uimenu" "uitoolbar"
-					"uitoggletool" "uipushtool"
-					"uicontext" "uicontextmenu"
-					"setfont" "setcolor")
+(defcustom matlab-hg-primitives-list
+  '(;; start with basic / primitive objects
+    "figure" "axes" "line" "surface" "patch" "text" "light" "image" "imagesc"
+    "rectangle" "animatedline"
+    ;; core utilities
+    "set" "get" "reset" "copyobj" "findobj" "cla" "clf" "shg"
+    ;; popular helpers
+    "axis" "hold" "title" "xlabel" "ylabel" "zlabel" "xlim" "ylim" "zlim" "rlim" "thetalim"
+    "lighting" "shading" "material"
+    ;; popular cartesian charts
+    "plot" "plot3" "semilogx" "semilogy" "loglog" "scatter" "scatter3" "stackedplot"
+    "area" "errorbar" "bubblechart" "bubblechart3" "swarmchart" "swarmchart3" "spy"
+    "histogram" "histogram2" "wordcloud" "bubblecloud" "heatmap" "parallelplot"
+    "bar" "barh" "bar3" "bar3h" "stem" "stair" "quiver" "quiver3" "stem3"
+    "contour" "contourf" "contour3" "contourslice" "fcontour"
+    ;; 3D
+    "surf" "surfc" "surfl" "ribbon" "pcolor" "mesh" "meshc" "meshz" "waterfall"
+    ;; anim
+    "comet" "comet3"
+    ;; polar
+    "polarplot" "polarscatter" "polarhistogram" "polarbubblechart"
+    ;; geographic
+    "goeplot" "geoscatter" "geobubble" "geodensity"
+    ;; function plots
+    "fplot" "fplot3" "fimplicit" "fsurf" "fimplicit3"
+    ;; misc tools
+    "legend" "colorbar" "tiledlayout" "nexttile" "subplot" "annotation"
+    ;; Componnents					
+    "uicontrol" "uimenu" "uitoolbar" "uitoggletool" "uipushtool" "uicontext" "uicontextmenu"
+    ;; misc dialogs
+    "uisetfont" "uisetcolor" "uigetfile" "uiputfile")
+  
   "List of handle graphics functions used in highlighting.
 Customizing this variable is only useful if `regexp-opt' is available."
   :group 'matlab
@@ -822,7 +836,7 @@ Customizing this variable is only useful if `regexp-opt' is available."
 
 
 (defcustom matlab-constants-keyword-list
-  '("eps" "pi" "inf" "Inf" "nan" "NaN" "ans" "i" "j" "NaT" "true" "false")
+  '("eps" "pi" "flintmax" "inf" "Inf" "nan" "NaN" "ans" "i" "j" "NaT" "true" "false")
   "List of constants and special variables in MATLAB."
   :group 'matlab
   :type '(repeat (string :tag "Debug Keyword: ")))
@@ -830,11 +844,11 @@ Customizing this variable is only useful if `regexp-opt' is available."
 (defun matlab-font-lock-regexp-opt (keywordlist)
   "Create a font-lock usable KEYWORDLIST matching regular expression.
 Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
-  (concat "\\<\\("
+  (concat "\\_<\\("
 	  (if (fboundp 'regexp-opt)
 	      (regexp-opt keywordlist)
 	    (mapconcat (lambda (s) s) keywordlist "\\|"))
-	  "\\)\\>"))
+	  "\\)\\_>"))
 
 ;;; Font lock keyword handlers
 ;;
@@ -852,9 +866,13 @@ Fails to match when keywords show up as variables, etc."
 (defun matlab-font-lock-mcos-keyword-match (limit)
   "Font lock matcher for mcos keywords.
 Fails to match when keywords show up as variables, etc."
-  (and (eq matlab-functions-have-end 'class)
-       (setq matlab-fl-anchor-keyword
-	     (matlab--scan-next-keyword 'mcos limit))))
+  (when (and (eq matlab-functions-have-end 'class)
+	     (setq matlab-fl-anchor-keyword
+		   (matlab--scan-next-keyword 'mcos limit)))
+    (save-match-data
+      ;; Skip over attributes.
+      (when (looking-at "\\s-*(") (forward-sexp 1)))
+    t))
 
 (defun matlab-font-lock-args-keyword-match (limit)
   "Font lock matcher for mcos keywords.
@@ -890,11 +908,12 @@ color support."
 (defun matlab-font-lock-anchor-set-end-limit ()
   "Set the end limit for anchored matchers."
   (save-excursion
-    ;; next keyword is faster, plus if someone is in the middle of typing
-    ;; a new block, prevents going too far into the distance.
-    (matlab--scan-next-keyword 'all (point-max))
-    (forward-word -1)
-    (setq ml-fl-anchor-limit (point))))
+    (save-match-data
+      ;; next keyword is faster, plus if someone is in the middle of typing
+      ;; a new block, prevents going too far into the distance.
+      (matlab--scan-next-keyword 'all (point-max))
+      (forward-word -1)
+      (setq ml-fl-anchor-limit (point)))))
 
 (defun matlab-font-lock-anchor-clear-end-limit ()
   "Clear the end limit for anchored matchers."
@@ -905,18 +924,18 @@ color support."
 This matcher will handle a range of variable features."
   (when (member (nth 1 matlab-fl-anchor-keyword)
 		'("properties" "events" "arguments"))
-    (let* ((match (re-search-forward "^\\s-+\\(\\w+\\)\\_>" ml-fl-anchor-limit t))
+    (let* ((match (re-search-forward "\\(?:^\\|[,;]\\)\\s-+\\(\\w+\\)\\_>" ml-fl-anchor-limit t))
 	   ;; Save this match so we can do a 2nd anchored search for a data type.
 	   (md1 (list (match-beginning 1) (match-end 1)))
 	   (tm (looking-at
-		"\\s-*\\(\\(?:([^\n)]+)\\)?\\s-*\\(?:\\w+\\|\\.\\)*\\)\\s-*\\($\\|[.%{=]\\)"))
+		"\\(\\(?:\\s-*([^\n\)]+)\\s-*\\|\\s-+\\)?\\(?:\\w+\\|\\.\\)*\\)\\s-*\\($\\|[.%{=]\\)"))
 	   (tm1 (if tm (list (match-beginning 1) (match-end 1))
 		  ;; The below is a cheat to not highlight anything but
 		  ;; still supply the match data for this optional piece.
 		  (list (nth 1 md1) (nth 1 md1))))
 	   (newmdata (append md1 md1 tm1)))
       (when match
-	(goto-char (apply 'max newmdata))
+	(goto-char (point-at-eol))
 	(set-match-data newmdata)
 	t))))
 
@@ -937,12 +956,12 @@ This matcher will handle a range of variable features."
      (0 font-lock-keyword-face))
    ;; Handle graphics stuff
    (list
-    (matlab-font-lock-regexp-opt matlab-handle-graphics-list)
-    '(0 font-lock-type-face))
+    (matlab-font-lock-regexp-opt matlab-hg-primitives-list)
+    '(0 font-lock-builtin-face))
    (list
     ;; How about a few matlab constants such as pi, infinity, and sqrt(-1)?
     (matlab-font-lock-regexp-opt matlab-constants-keyword-list)
-    1 font-lock-constant-face)
+    1 'matlab-math-face)
    ;; Imaginary number support
    '("\\<[0-9]\\.?\\(i\\|j\\)\\_>" 1 font-lock-reference-face)
    )
@@ -1021,7 +1040,7 @@ This matcher will handle a range of variable features."
    '("\\_<\\(case\\|switch\\)\\_>\\s-+\\({[^}\n]+}\\|[^,%\n]+\\)"
      (2 font-lock-reference-face))
     ;; set_param and waitfor have input variables that can be highlighted.
-    (list (concat "\\<" matlab-indent-past-arg1-functions "\\s-*")
+    (list (concat "\\_<" matlab-indent-past-arg1-functions "\\_>\\s-*")
 	  '("(\\s-*\\(\\w+\\)\\s-*\\(,\\|)\\)" nil  nil
 	    (1 font-lock-variable-name-face)))
    )
@@ -1060,17 +1079,6 @@ This matcher will handle a range of variable features."
       (2 font-lock-type-face t)
       ))
    
-   ;; Properties can have a type syntax after them
-   ;;'("^\\s-*\\w+\\s-*\\(([:0-9,]+)\\s-*[^{=\n]+\\)"
-   ;;  (1 font-lock-type-face nil nil))
-   ;; Properties blocks are full of variables
-   ;;'("^\\s-*\\(properties\\|events\\|arguments\\)\\s-*[(,;%\n]"
-   ;;  ("^\\s-*\\(\\sw+\\)\\>" ;; This part matches the variable
-   ;;   ;; extend region to match in
-   ;;   (save-excursion (matlab-forward-sexp t) (beginning-of-line) (point))
-   ;;   nil
-   ;;   (1 font-lock-variable-name-face t))
-   ;;  )
    )
   "List of font-lock keywords used when an MATLAB file contains a class.")
 
@@ -1087,8 +1095,8 @@ This matcher will handle a range of variable features."
   (append
    (list
     ;; Since it's a math language, how bout dem symbols?
-    '("\\([<>~]=?\\|\\.[/*^']\\|==\\|\\<xor\\>\\|[-!^&|*+\\/~:]\\)"
-      1 font-lock-type-face)
+    '("\\([<>~=]=\\|\\.[/\\*^'?]\\|\\_<\\(?:\\<xor\\|any\\|all\\|find\\)\\_>\\|[-<>!?^&|*+\\/~:@]\\)"
+      1 font-lock-builtin-face)
     '("[]A-Za-z0-9_\"})']\\('+\\)" 1 font-lock-type-face)
     ;; How about references in the HELP text.
     (list (concat "^" matlab-comment-line-s "\\s-*"
@@ -1107,13 +1115,7 @@ This matcher will handle a range of variable features."
 	  '(0 'bold))
     ;; Simulink functions
     (list (matlab-font-lock-regexp-opt matlab-simulink-keywords)
-	;;(list (list (concat "\\<\\(\\([sg]et_param\\|sim\\([gs]et\\)?\\|"
-	;;		    "\\(mld\\|ss\\)[A-Z]\\w+\\)\\|"
-	;;		    "\\(new\\|open\\|close\\|save\\|find\\)_system\\|"
-	;;		    "\\(add\\|delete\\|replace\\)_\\(block\\|line\\)\\|"
-	;;		    "simulink\\|bd\\(root\\|close\\)"
-	;;		    "\\)\\>")
-	      1 matlab-simulink-keyword-face)
+	  1 matlab-simulink-keyword-face)
     ))
   "Expressions to highlight in MATLAB mode.")
 

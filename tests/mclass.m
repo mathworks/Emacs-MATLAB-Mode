@@ -1,6 +1,6 @@
 % >>1
 classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
-%^  ^kw     ^ty       ^fn     ^cn   ^ty  ^cn                          ^co
+%^  ^kw     ^ty       ^fn     ^cn   ^bi  ^cn                          ^co
 % !!0
 % %%% class class
     
@@ -20,7 +20,7 @@ classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
     
     % >> 111
     properties (AbortSet=true, NonCopyable=true) % #2#
-%^      ^kw       ^ty     ^cn   ^ty         ^cn    ^co
+%^      ^kw       ^ty     ^ma   ^ty         ^ma    ^co
 
         % !!8
         AF (1,1) char {mustBeMember(AF, {'High','Medium','Low'})} = 'Low'; % #5#

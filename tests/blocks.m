@@ -14,7 +14,7 @@ classdef blocks < handle
         %properties = 1;
         %methods = 1;
         %events = 1;
-        arguments %!!8
+        arguments    %!!8
         prop = 1;
         
     end %<<12
@@ -78,7 +78,7 @@ classdef blocks < handle
         %>>20
         function events=arguments(arguments)%!!8
             arguments, arguments(:,:) {mustBeNumeric}, end %!!12
-%^             ^kw        ^df    ^ty        ^df         ^kw    ^co        
+%^             ^kw        ^vn    ^ty        ^df         ^kw    ^co        
             enumeration ... %!!12
                 ...%^ ^df
                 = arguments;
@@ -86,7 +86,7 @@ classdef blocks < handle
             
             if enumeration > 0  %!!12
                 arguments = -enumeration;  %!!16
-%^                   ^df    ^ty   ^df
+%^                   ^df    ^bi   ^df
             end  %!!12
             
             events ...  %!!12

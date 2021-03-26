@@ -50,7 +50,7 @@ end
 function keywordstuff()
    
     while true
-%^    ^kw  ^cn
+%^    ^kw  ^ma
         
         for varname=1:10
 %^       ^kw  ^vn    ^cn
@@ -59,10 +59,10 @@ function keywordstuff()
         end
         
         if varname ==  2
-%^      ^kw   ^df  ^ty ^df
+%^      ^kw   ^df  ^bi ^df
             disp(1)
         elseif varname==3
-%^        ^kw     ^df  ^ty
+%^        ^kw     ^df  ^bi
             disp(2)
         else
 %^        ^kw
@@ -105,13 +105,18 @@ end
 function dographics(value)
     
     f = figure;
-%^        ^ty
+%^        ^bi
     ax = axes(f);
-%^        ^ty
+%^        ^bi
  
     set ( ax, 'property',value)
-%^    ^ty  ^vn    ^st
+%^    ^bi  ^vn    ^st
     
+    s = open_system('foo.mdl');
+%^         ^si        ^st
+    
+    set_param(s, 'param', value);
+%^      ^si   ^vn  ^st      ^df
 end
 
 function dodebug()
@@ -127,21 +132,21 @@ end
 function mathstuff()
     
    myvar = eps +   pi  +   nan +   ans +   i   +   NaT + true  ;
-%^     ^df ^cn ^ty ^cn ^ty ^cn ^ty ^cn ^ty ^cn ^ty ^cn ^ty ^cn ^df
+%^     ^df ^ma ^bi ^ma ^bi ^ma ^bi ^ma ^bi ^ma ^bi ^ma ^bi ^ma ^df
 end
 
 function helptest()
-% HELPTEST has fancy fonts in it.
+% HELPTEXT has fancy fonts in it.
 %^  ^cn
         
 end
 
 classdef (Abstract) myclass < handle
-%^ ^kw      ^ty       ^fn   ^ty ^cn
+%^ ^kw      ^ty       ^fn   ^bi ^cn
 end
 
 classdef (Abstract)myclass<handle
-%^ ^kw      ^ty       ^fn ^ty ^ty
+%^ ^kw      ^ty       ^fn ^bi ^ty
 end
 
 %{

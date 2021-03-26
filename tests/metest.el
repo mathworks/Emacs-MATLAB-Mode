@@ -422,12 +422,17 @@
 					matlab-cross-function-variable-face) )
 			      ( "cn" . font-lock-constant-face )
 			      ( "co" . font-lock-comment-face )
+			      ( "st" . font-lock-string-face )
+			      ( "bi" . font-lock-builtin-face )
+
 			      ( "cb" . matlab-cellbreak-face )
 			      ( "ig" . matlab-ignored-comment-face )
 			      ( "pr" . matlab-pragma-face )
 			      ( "cd" . matlab-commanddual-string-face )
-			      ( "st" . font-lock-string-face )
 			      ( "us" . matlab-unterminated-string-face )
+			      ( "ma" . matlab-math-face )
+			      ( "si" . matlab-simulink-keyword-face )
+
 			      ( "bo" . bold )
 			      ( "df" . nil )
 			      )
