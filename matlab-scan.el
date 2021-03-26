@@ -893,16 +893,17 @@ Returns nil if preceeding non-whitespace char is `.'"
       nil
     parent))
 
-(defun matlab--valid-keyword-node (node &optional parentblock)
+(defun matlab--valid-keyword-node (&optional node parentblock)
   "Return non-nil if NODE is in a valid location.
 Optional parentblock specifies containing parent block if it is known."
+  (when (not node) (setq node (matlab--mk-keyword-node)))
   (when node
     (save-excursion
       (goto-char (nth 2 node))
       (and (matlab--valid-keyword-point)
 	   (cond ((eq (car node) 'mcos)
 		  (matlab--valid-mcos-keyword-point parentblock))
-		 ((eq (car node) 'arg)
+		 ((eq (car node) 'args)
 		  (matlab--valid-arguments-keyword-point parentblock))
 		 (t t))))))
 
@@ -979,7 +980,9 @@ If nothing is found before LIMIT, then stop and return nil."
 			#'matlab--valid-mcos-keyword-point)
 		       ((eq keyword-type 'args)
 			#'matlab--valid-arguments-keyword-point)
-		       (t nil))))
+		       (t
+			;; Not sure - do the super check
+			#'matlab--valid-keyword-node))))
     (matlab-re-search-keyword-forward regex limit t filter)))
 
 ;;; Block Scanning
