@@ -222,11 +222,12 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
   ;; Note - add \s$ b/c we'll add that syntax to the first letter, and it
   ;; might still be there during an edit!
   (let ((case-fold-search nil))
-    (when (looking-at
-	   (concat "^\\s-*"
-		   matlab-cds-regex
-		   "\\s-+\\(\\s$\\|\\w\\|\\s_\\)"))
-      (goto-char (match-beginning 2)))))
+    (when (and (not (nth 9 (syntax-ppss (point))))
+	       (looking-at
+		(concat "^\\s-*"
+			matlab-cds-regex
+			"\\s-+\\(\\s$\\|\\w\\|\\s_\\)"))
+	       (goto-char (match-beginning 2))))))
 
 (matlab--syntax-symbol matlab--transpose-syntax '(3 . nil) ;; 3 = symbol
   "Treat ' as non-string when used as transpose.")
