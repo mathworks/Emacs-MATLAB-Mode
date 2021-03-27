@@ -406,7 +406,7 @@ All lines that start with a comment end with a comment."
   (eq (car lvl1) 'block-start))
 
 (defsubst matlab-line-declaration-p (lvl1)
-  "If the current line is a declaration, return the column it starts on.
+  "If the current line is a declaration return non-nil.
 Declarations are things like function or classdef."
   (and (matlab-line-block-start-keyword-p lvl1) (eq (nth mlf-stype lvl1) 'decl)))
 
@@ -454,6 +454,13 @@ Return nil for empty and comment only lines."
 	))
     (when endpt
       (goto-char endpt))))
+
+(defun matlab-line-first-word-text (&optional lvl1)
+  "Return text for the specific keyword found under point."
+  (matlab-with-context-line lvl1
+    (buffer-substring-no-properties
+     (point) (save-excursion (skip-syntax-forward "w_") (point))))
+  )
 
 ;; Parenthetical blocks
 (defsubst matlab-line-close-paren-p (lvl1)

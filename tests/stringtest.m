@@ -2,7 +2,7 @@
 %
 %  #c#
 %
-% %%%script script
+% %%%script script script
 
 %% Basic strings
 

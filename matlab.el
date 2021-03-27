@@ -219,7 +219,6 @@ If the value is 'guess, then we guess if a file has end when
       ))
   )
 
-(defvar matlab-defun-regex) ;; Quiet compiler warning (is defined below)
 (defvar matlab-last-script-type-guess nil
   "The last time we guessed the script type, what was it?")
 (defun matlab-last-guess-decl-p ()
@@ -229,24 +228,28 @@ If the value is 'guess, then we guess if a file has end when
 (defun matlab-guess-script-type ()
   "Guess the type of script this `matlab-mode' file contains.
 Returns one of 'empty, 'script, 'function, 'class."
-  (setq matlab-last-script-type-guess
-	(save-excursion
-	  (goto-char (point-min))
-	  (if (matlab-find-code-line)
+  (setq
+   matlab-last-script-type-guess
+   (save-excursion
+     (goto-char (point-min))
+     (let ((lvl1 nil))
+       (cond ((not (matlab-find-code-line))
+	      'empty)
+
 	      ;; We found some code, what is it?
-	      (if (save-excursion
-		    (beginning-of-line)
-		    (looking-at matlab-defun-regex))
-		  ;; A match - figure out the type of thing.
-		  (let ((str (match-string-no-properties 1)))
-		    (cond ((string= str "function")
-			   'function)
-			  ((string= str "classdef")
-			   'class)))
-		;; No function or class - just a script.
-		'script)
-	    ;; No lines of code, we are empty, so undecided.
-	    'empty))))
+	     ((and (setq lvl1 (matlab-compute-line-context 1))
+		   (matlab-line-declaration-p lvl1))
+	      ;; We are on a decl - distinguis between type
+	      (let ((str (matlab-line-first-word-text lvl1)))
+		(cond ((string= str "function")
+		       'function)
+		      ((string= str "classdef")
+		       'class)
+		      (t (error "Error in script guessing algorithm.")))))
+
+	     (t 
+	      ;; No function or class - just a script.
+	      'script))))))
 	
 (defun matlab-do-functions-have-end-p (&optional no-navigate)
   "Look at the contents of the current buffer and decide if functions have end.
@@ -299,6 +302,49 @@ See `matlab-indent-function-body' variable."
       matlab-functions-have-end
     ;; Else, just return the variable.
     matlab-indent-function-body))
+
+(defun matlab-guess-function-indentation ()
+  "Look at the current buffer and determine if functions are indented.
+Setup various variables based on what we find."
+  (let ((st (matlab-guess-script-type))
+	)
+    (cond
+     ((not (eq st 'function))
+      ;; Anything not a function should follow the mathworks standard.
+      (setq matlab-indent-function-body 'MathWorks-Standard)
+      )
+
+     ;; If we are guessing, keep guessing (vaguely true)
+     ((eq (matlab-do-functions-have-end-p t) 'guess)
+      (setq matlab-indent-function-body 'guess))
+
+     ;; Here it is a function, and there are no ends.
+     (t
+      ;; Functions in guess mode we need to find the function decl
+      ;; and then look at the first code line and see if it is indented
+      ;; to guess what to do.
+      (save-excursion
+	(goto-char (point-min))
+	(matlab-find-code-line)
+	;; We are likely on the fcn line.  Scan to end of it.
+	(matlab-scan-end-of-command)
+	;; Now find next code line after comments
+	(matlab-find-code-line)
+	;; If it is indented, then we too will indent.
+	(setq matlab-indent-function-body
+	      (if (> (current-indentation) 0)
+		  (if (matlab-do-functions-have-end-p t)
+		      ;; if it indented and we have ends, that is std.
+		      'MathWorks-Standard
+		    ;; no ends but indented, not the standard.
+		    t)
+		(if (matlab-do-functions-have-end-p t)		
+		    ;; have ends, not indented, force nil.
+		    nil
+		  ;; no ends and not indented, mw stadnard
+		  'MathWorks-Standard)))
+	)))
+    ))
 
 (defcustom matlab-fill-fudge 10
   "Number of characters around `fill-column' we can fudge filling.
@@ -384,8 +430,6 @@ point, but it will be restored for them."
 			 '(matlab-mode-vf-functionname
 			   matlab-mode-vf-classname
 			   matlab-mode-vf-add-ends
-			   matlab-mode-vf-block-matches-forward
-			   matlab-mode-vf-block-matches-backward
 			   matlab-mode-vf-quiesce-buffer
 			   ))))
 
@@ -970,20 +1014,19 @@ This matcher will handle a range of variable features."
 (defconst matlab-file-basic-font-lock-keywords
   (append
    matlab-basic-font-lock-keywords
-   (list
-    ;; MCOS keywords like properties, methods, events
-    '(matlab-font-lock-mcos-keyword-match
+   '(;; MCOS keywords like properties, methods, events
+     (matlab-font-lock-mcos-keyword-match
       (1 font-lock-keyword-face))
-    ;; ARGUMENTS keyword
-    '(matlab-font-lock-args-keyword-match
+     ;; ARGUMENTS keyword
+     (matlab-font-lock-args-keyword-match
       (1 font-lock-keyword-face))
-    ;; Highlight cross function variables
-    '(matlab-font-lock-cross-function-variables-match
+     ;; Highlight cross function variables
+     (matlab-font-lock-cross-function-variables-match
       (1 matlab-cross-function-variable-face prepend))
-    ;; Highlight nested function/end keywords
-    '(matlab-font-lock-nested-function-keyword-match
+     ;; Highlight nested function/end keywords
+     (matlab-font-lock-nested-function-keyword-match
       (0 matlab-nested-function-keyword-face prepend))
-    ))
+     ))
   "Basic Expressions to highlight in MATLAB Files.")
 
 (defconst matlab-function-arguments
@@ -1097,7 +1140,8 @@ This matcher will handle a range of variable features."
     ;; Since it's a math language, how bout dem symbols?
     '("\\([<>~=]=\\|\\.[/\\*^'?]\\|\\_<\\(?:\\<xor\\|any\\|all\\|find\\)\\_>\\|[-<>!?^&|*+\\/~:@]\\)"
       1 font-lock-builtin-face)
-    '("[]A-Za-z0-9_\"})']\\('+\\)" 1 font-lock-type-face)
+    ;; highlight transpose
+    '("[]A-Za-z0-9_\"})']\\('+\\)" 1 font-lock-builtin-face)
     ;; How about references in the HELP text.
     (list (concat "^" matlab-comment-line-s "\\s-*"
 		  "\\(\\([A-Z]+\\s-*=\\s-+\\|\\[[^]]+]\\s-*=\\s-+\\|\\)"
@@ -1342,32 +1386,8 @@ All Key Bindings:
     )
 
    ((eq matlab-indent-function-body 'guess)
-    (save-excursion
-      (goto-char (point-max))
-
-      (if (re-search-backward matlab-defun-regex nil t)
-	  (let ((beg (point))
-		end			; filled in later
-		(cc (current-column))
-		)
-	    (setq end (if matlab-functions-have-end
-			  (progn (forward-line 0) (point))
-			(point-max)))
-	    (goto-char beg)
-	    (catch 'done
-	      (while (progn (forward-line 1) (< (point) end))
-		(if (looking-at "\\s-*\\(%\\|$\\)")
-		    nil			; go on to next line
-		  (looking-at "\\s-*")
-		  (goto-char (match-end 0))
-		  (setq matlab-indent-function-body (> (current-column) cc))
-		  (throw 'done nil))))
-	    )
-	(setq matlab-indent-function-body 'MathWorks-Standard)
-	))
+    (matlab-guess-function-indentation)
     )
-
-   (t)
    )
 
   ;; When leaving matlab-mode, turn off mlint
@@ -1423,43 +1443,6 @@ INTERACTIVE is ignored."
   (interactive)
   (message "matlab-mode, version %s" matlab-mode-version))
 
-(defun matlab-find-prev-code-line ()
-  "Navigate backward until a code line is found.
-Navigate across continuations until we are at the beginning of
-that command.
-Return t on success, nil if we couldn't navigate backwards."
-  (let ((ans (matlab-find-prev-line 'ignore-comments)))
-    (when ans
-      (matlab-scan-beginning-of-command)
-      ans)))
-
-(defun matlab-find-prev-line (&optional ignorecomments)
-  "Recurse backwards until a code line is found."
-  (if ignorecomments
-      ;; This version is now super easy, as this built-in
-      ;; skips comments and whitespace.  Nil on bobp.
-      (progn
-	(beginning-of-line)
-	(forward-comment -100000)
-	(not (bobp)))
-    ;; Else, scan backward at least 1 step.  nil if bob
-    (if (= -1 (forward-line -1)) nil
-      ;; Now scan backwards iteratively
-      (catch 'moose
-	(let ((lvl1 (matlab-compute-line-context 1)))
-	  (while (or (matlab-line-empty-p lvl1)
-		     (matlab-line-comment-ignore-p lvl1)
-		     )
-	    (when (= -1 (forward-line -1))
-	      (throw 'moose nil))))
-	t))))
-
-(defun matlab-prev-line ()
-  "Go to the previous line of code or comment.  Return nil if not found."
-  (interactive)
-  (let ((old-point (point)))
-    (if (matlab-find-prev-line) t (goto-char old-point) nil)))
-
 (defun matlab-find-code-line ()
   "Walk forwards until we are on a line of code return t on success.
 If the currnet line is code, return immediately.
@@ -1467,25 +1450,11 @@ Ignore comments and whitespace."
   (forward-comment 100000)
   (not (eobp)))
 
-(defun matlab-valid-end-construct-p ()
-  "Return non-nil if the end after point terminates a block.
-Return nil if it is being used to dereference an array."
-  (if (eq (preceding-char) ?.)
-      ;; This is a struct field, not valid.
-      nil
-    (let ((pps (syntax-ppss (point))))
-      ;; If we are in a set of parenthisis, then not valid b/c it is
-      ;; likely an array reference.  Valid == 0 paren depth.
-      (= (nth 0 pps) 0))))
-
 
 ;;; Regexps for MATLAB language ===============================================
 
 ;; "-pre" means "partial regular expression"
 ;; "-if" and "-no-if" means "[no] Indent Function"
-
-(defconst matlab-defun-regex "^\\s-*\\(function\\|classdef\\)[ \t.[]"
-  "Regular expression defining the beginning of a MATLAB function.")
 
 (defconst matlab-mcos-innerblock-regexp "properties\\|methods\\|events\\|enumeration\\|arguments"
   "Keywords which mark the beginning of mcos blocks.
@@ -1692,8 +1661,8 @@ Travells a cross continuations"
       (if (or (null (matlab-line-regular-comment-p lvl))
 	      (bobp))
 	  nil
-	;; We use forward-line and not matlab-prev-line because
-	;; we want blank lines to terminate this indentation method.
+	;; We use forward-line -1 and not matlab-previous-command-begin
+	;; because we want blank lines to terminate this indentation method.
 	(forward-line -1)
 	(matlab-line-end-comment-column (matlab-compute-line-context 1))))))
 
@@ -3256,29 +3225,6 @@ by `matlab-mode-vf-add-ends'"
       (goto-char (point-max))
       (save-excursion (insert "\nend\n\n"))
       (matlab-indent-line))))
-
-(defun matlab-mode-vf-block-matches-backward (&optional fast)
-  "Verify/fix unstarted (or dangling end) blocks.
-Optional argument FAST causes this check to be skipped."
-  (goto-char (point-max))
-  (let ((go t) (expr (matlab-keyword-regex 'end)))
-    (matlab-navigation-syntax
-      (while (and (not fast) go (matlab-re-search-keyword-backward expr nil t))
-	(forward-word 1)
-	(let ((s (point)))
-	  (condition-case nil
-	      (if (and (not (matlab-cursor-in-string-or-comment))
-		       (matlab-valid-end-construct-p))
-		  (matlab-backward-sexp)
-		(backward-word 1))
-	    (error (setq go nil)))
-	  (if (and (not go) (goto-char s)
-		   (not (matlab-mode-highlight-ask
-			 (point) (save-excursion (backward-word 1) (point))
-			 "Unstarted block.  Continue anyway?")))
-	      (error "Unstarted Block found!")))
-	(message "Block-check: %d%%"
-		 (+ (/ (/ (* 100 (- (point-max) (point))) (point-max)) 2) 50))))))
 
 ;;; Utility for verify/fix actions if you need to highlight
 ;;  a section of the buffer for the user's approval.

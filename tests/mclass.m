@@ -2,7 +2,7 @@
 classdef (abstract) mclass < handle & matlab.mixin.SetGetExactNames % #7#
 %^  ^kw     ^ty       ^fn     ^cn   ^bi  ^cn                          ^co
 % !!0
-% %%% class class
+% %%% class class class
     
 % >>11
     properties (Access='public') % #2#

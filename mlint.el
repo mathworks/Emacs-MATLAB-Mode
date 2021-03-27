@@ -661,7 +661,8 @@ Optional arguments FIELDS are the initialization arguments."
 		  (progn
 		    (beginning-of-line)
 		    ;; skip over comments that might be headers to the found function.
-		    (matlab-find-prev-code-line)
+		    (matlab-previous-command-begin
+		     (matlab-compute-line-context 2)) ;;(matlab-find-prev-code-line)
 		    (forward-line 1)
 		    (save-excursion (insert "end\n\n"))
 		    (matlab-indent-line))

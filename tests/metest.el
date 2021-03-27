@@ -47,7 +47,10 @@
   
   (metest-log-init)
 
+  (setq-default matlab-indent-function-body 'guess) ;; Force the guess system to be exercised.
   (metest-run 'metest-end-detect-test)
+  (setq-default matlab-indent-function-body 'MathWorks-Standard) ;; put it back
+
   (metest-run 'metest-comment-string-syntax-test)
   (metest-run 'metest-sexp-counting-test)
   (metest-run 'metest-sexp-traversal-test)
@@ -97,7 +100,7 @@
 	    0)
      ))
 
-(defvar met-end-detect-files '("empty.m" "stringtest.m" "mfuncnoend.m" "mfuncnoendblock.m" "mfuncends.m" "mclass.m" "mfuncspacey.m" )
+(defvar met-end-detect-files '("empty.m" "stringtest.m" "mfuncnoend.m" "mfuncnoendblock.m" "mfuncends.m" "mclass.m" "mfuncspacey.m" "mfuncnoendindent.m" )
   "List of files for running end detection tests on.")
 
 (defvar metest-end-detect-test (cons "END detection" met-end-detect-files))
@@ -109,19 +112,25 @@
     (with-current-buffer buf
       (goto-char (point-min))
       ;;(message ">> Checking END detection in %S" (current-buffer))
-      (if (re-search-forward "%%%\\s-*\\(\\w+\\)\\s-+\\(\\w+\\)$" nil t)
+      (if (re-search-forward "%%%\\s-*\\(\\w+\\)\\s-+\\(\\w+\\)\\s-+\\(\\w+\\)$" nil t)
 	  (let ((st-expect (intern (match-string-no-properties 1)))
 		(end-expect (intern (match-string-no-properties 2)))
+		(indent-expect (intern (match-string-no-properties 3)))
 		(st-actual (matlab-guess-script-type))
-		(end-actual (matlab-do-functions-have-end-p)))
+		(end-actual (matlab-do-functions-have-end-p))
+		(indent-actual (matlab-indent-function-body-p))
+		)
 	    (unless (eq st-actual st-expect)
 	      (metest-error "Script type detection failure: Expected %s but found %s"
 			    st-expect st-actual))
 	    (unless (eq end-actual end-expect)
 	      (metest-error "Script end detection failure: Expected %s but found %s"
 			    end-expect end-actual))
+	    (unless (eq indent-actual indent-expect)
+	      (metest-error "Script indent detection failure: Expected %s but found %s"
+			    indent-expect indent-actual))
 	      
-	    (setq ret (list st-actual end-actual))
+	    (setq ret (list "script[" st-actual "]  end[" end-actual "]  indent-p[" indent-actual "]"))
 	    ;;(message "<< Script type and end detection passed: %s, %s" st-actual end-actual)
 	    )
 	;; No expected values found in the file.

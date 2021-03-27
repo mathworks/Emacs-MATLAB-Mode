@@ -6,7 +6,7 @@
 function mfuncnoendblock 
 % A function file that does not have ends at the end of functions.
 % !!0
-% %%% function nil
+% %%% function nil nil
 
 fcn_call(1) %!!0
 

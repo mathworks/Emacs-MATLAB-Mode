@@ -3,7 +3,7 @@ function mfuncends( )
 %  !!0
 % Used with test harness to validate indentation and end detection.  !!0
 %   !!0
-% %%%function function
+% %%%function function function
     
     fcn_call(); %!!4
     

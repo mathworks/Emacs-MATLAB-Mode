@@ -1,7 +1,7 @@
 function mfuncnoend
 % A function file that does not have ends at the end of functions.
 %
-% %%% function nil
+% %%% function nil nil
 
 fcn_call(1)
 
