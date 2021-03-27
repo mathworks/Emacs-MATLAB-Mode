@@ -1356,6 +1356,7 @@ All Key Bindings:
   (setq font-lock-multiline 'undecided)
   (add-to-list 'font-lock-extend-region-functions #'matlab-font-lock-extend-region t)
 
+  (make-local-variable 'show-paren-data-function)
   (setq show-paren-data-function 'matlab-show-paren-or-block)
   
   ;; If first function is terminated with an end statement, then functions have
