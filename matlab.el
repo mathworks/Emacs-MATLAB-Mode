@@ -538,89 +538,83 @@ point, but it will be restored for them."
 (defvar matlab-mode-menu-keymap nil
   "Keymap used in MATLAB mode to provide a menu.")
 
-(defun matlab-frame-init ()
-  "Initialize Emacs menu system."
-  (interactive)
-  ;; make a menu keymap
-  (easy-menu-define
-   matlab-mode-menu
-   matlab-mode-map
-   "MATLAB menu"
-   '("MATLAB"
-     ["Start MATLAB" matlab-shell
-      :active (not (matlab-shell-active-p))
-      :visible (not (matlab-shell-active-p)) ]
-     ["Switch to MATLAB" matlab-shell
+;; make a menu keymap
+(easy-menu-define matlab-mode-menu matlab-mode-map "MATLAB menu"
+  '("MATLAB"
+    ["Start MATLAB" matlab-shell
+     :active (not (matlab-shell-active-p))
+     :visible (not (matlab-shell-active-p)) ]
+    ["Switch to MATLAB" matlab-shell
+     :active (matlab-any-shell-active-p)
+     :visible (matlab-any-shell-active-p)]
+    ["Save and go" matlab-shell-save-and-go
+     :active (matlab-any-shell-active-p) ]
+    ["Run Region" matlab-shell-run-region
+     :active (matlab-any-shell-active-p) ]
+    ["Run Cell" matlab-shell-run-cell
+     :active (matlab-any-shell-active-p) ]
+    ["Version" matlab-show-version t]
+    "----"
+    ["Locate MATLAB function" matlab-shell-locate-fcn
+     :active (matlab-shell-active-p)
+     :help "Run 'which FCN' in matlab-shell, then open the file in Emacs"]
+    ["Show M-Lint Warnings" matlab-toggle-show-mlint-warnings
+     :active (and (locate-library "mlint") (fboundp 'mlint-minor-mode))
+     :style toggle :selected  matlab-show-mlint-warnings
+     ]
+    ("Auto Fix"
+     ["Verify/Fix source" matlab-mode-verify-fix-file t]
+     ["Spell check strings and comments" matlab-ispell-strings-and-comments t]
+     ["Quiesce source" matlab-mode-vf-quiesce-buffer t]
+     )
+    ("Navigate"
+     ["Beginning of Command" matlab-beginning-of-command t]
+     ["End of Command" matlab-end-of-command t]
+     ["Forward Block" matlab-forward-sexp t]
+     ["Backward Block" matlab-backward-sexp t]
+     ["Beginning of Function" matlab-beginning-of-defun t]
+     ["End of Function" matlab-end-of-defun t])
+    ("Format"
+     ["Justify Line" matlab-justify-line t]
+     ["Fill Region" matlab-fill-region t]
+     ["Fill Comment Paragraph" matlab-fill-paragraph
+      (save-excursion (matlab-comment-on-line))]
+     ["Join Comment" matlab-join-comment-lines
+      (save-excursion (matlab-comment-on-line))]
+     ["Comment Region" matlab-comment-region t]
+     ["Uncomment Region" matlab-uncomment-region t]
+     ["Indent Syntactic Block" matlab-indent-sexp])
+    ("Debug"
+     ["Edit File (toggle read-only)" matlab-shell-gud-mode-edit
+      :help "Exit MATLAB debug minor mode to edit without exiting MATLAB's K>> prompt."
+      :visible gud-matlab-debug-active ]
+     ["Add Breakpoint (ebstop in FILE at point)" gud-break
+      :active (matlab-shell-active-p)
+      :help "When MATLAB debugger is active, set break point at current M-file point"]
+     ["Remove Breakpoint (ebclear in FILE at point)" gud-remove
+      :active (matlab-shell-active-p)
+      :help "Show all active breakpoints in a separate buffer." ]
+     ["List Breakpoints (ebstatus)" gud-list-breakpoints
+      :active (matlab-shell-active-p)
+      :help "List active breakpoints."]
+     ["Step (dbstep in)" gud-step
+      :active gud-matlab-debug-active
+      :help "When MATLAB debugger is active, step into line"]
+     ["Next (dbstep)" gud-next
+      :active gud-matlab-debug-active
+      :help "When MATLAB debugger is active, step one line"]
+     ["Finish function  (dbstep out)" gud-finish
+      :active gud-matlab-debug-active
+      :help "When MATLAB debugger is active, run to end of function"]
+     ["Continue (dbcont)" gud-cont
+      :active gud-matlab-debug-active
+      :help "When MATLAB debugger is active, run to next break point or finish"]
+     ["Evaluate Expression" matlab-shell-gud-show-symbol-value
       :active (matlab-any-shell-active-p)
-      :visible (matlab-any-shell-active-p)]
-     ["Save and go" matlab-shell-save-and-go
-      :active (matlab-any-shell-active-p) ]
-     ["Run Region" matlab-shell-run-region
-      :active (matlab-any-shell-active-p) ]
-     ["Run Cell" matlab-shell-run-cell
-      :active (matlab-any-shell-active-p) ]
-     ["Version" matlab-show-version t]
-     "----"
-     ["Locate MATLAB function" matlab-shell-locate-fcn
-       :active (matlab-shell-active-p)
-       :help "Run 'which FCN' in matlab-shell, then open the file in Emacs"]
-     ["Show M-Lint Warnings" matlab-toggle-show-mlint-warnings
-      :active (and (locate-library "mlint") (fboundp 'mlint-minor-mode))
-      :style toggle :selected  matlab-show-mlint-warnings
-      ]
-     ("Auto Fix"
-      ["Verify/Fix source" matlab-mode-verify-fix-file t]
-      ["Spell check strings and comments" matlab-ispell-strings-and-comments t]
-      ["Quiesce source" matlab-mode-vf-quiesce-buffer t]
-      )
-     ("Navigate"
-      ["Beginning of Command" matlab-beginning-of-command t]
-      ["End of Command" matlab-end-of-command t]
-      ["Forward Block" matlab-forward-sexp t]
-      ["Backward Block" matlab-backward-sexp t]
-      ["Beginning of Function" matlab-beginning-of-defun t]
-      ["End of Function" matlab-end-of-defun t])
-     ("Format"
-      ["Justify Line" matlab-justify-line t]
-      ["Fill Region" matlab-fill-region t]
-      ["Fill Comment Paragraph" matlab-fill-paragraph
-       (save-excursion (matlab-comment-on-line))]
-      ["Join Comment" matlab-join-comment-lines
-       (save-excursion (matlab-comment-on-line))]
-      ["Comment Region" matlab-comment-region t]
-      ["Uncomment Region" matlab-uncomment-region t]
-      ["Indent Syntactic Block" matlab-indent-sexp])
-     ("Debug"
-      ["Edit File (toggle read-only)" matlab-shell-gud-mode-edit
-       :help "Exit MATLAB debug minor mode to edit without exiting MATLAB's K>> prompt."
-       :visible gud-matlab-debug-active ]
-      ["Add Breakpoint (ebstop in FILE at point)" gud-break
-       :active (matlab-shell-active-p)
-       :help "When MATLAB debugger is active, set break point at current M-file point"]
-      ["Remove Breakpoint (ebclear in FILE at point)" gud-remove
-       :active (matlab-shell-active-p)
-       :help "Show all active breakpoints in a separate buffer." ]
-      ["List Breakpoints (ebstatus)" gud-list-breakpoints
-       :active (matlab-shell-active-p)
-       :help "List active breakpoints."]
-      ["Step (dbstep in)" gud-step
-       :active gud-matlab-debug-active
-       :help "When MATLAB debugger is active, step into line"]
-      ["Next (dbstep)" gud-next
-       :active gud-matlab-debug-active
-       :help "When MATLAB debugger is active, step one line"]
-      ["Finish function  (dbstep out)" gud-finish
-       :active gud-matlab-debug-active
-       :help "When MATLAB debugger is active, run to end of function"]
-      ["Continue (dbcont)" gud-cont
-       :active gud-matlab-debug-active
-       :help "When MATLAB debugger is active, run to next break point or finish"]
-      ["Evaluate Expression" matlab-shell-gud-show-symbol-value
-       :active (matlab-any-shell-active-p)
-       :help "When MATLAB is active, show value of the symbol under point."]
-      ["Show Stack" mlg-show-stack
-       :active gud-matlab-debug-active
-       :help "When MATLAB debugger is active, show the stack in a buffer."]
+      :help "When MATLAB is active, show value of the symbol under point."]
+     ["Show Stack" mlg-show-stack
+      :active gud-matlab-debug-active
+      :help "When MATLAB debugger is active, show the stack in a buffer."]
 ;;;  Advertise these more if we can get them working w/ gud's frame show.
 ;;;      ["Up Call Stack (dbup)" gud-up
 ;;;       :active gud-matlab-debug-active
@@ -628,59 +622,59 @@ point, but it will be restored for them."
 ;;;      ["Down Call Stack (dbdown)" gud-down
 ;;;       :active gud-matlab-debug-active
 ;;;       :help "When MATLAB debugger is active and at break point, go down a frame"]
-      ["Quit debugging (dbquit)" gud-stop-subjob
-       :active gud-matlab-debug-active
-       :help "When MATLAB debugger is active, stop debugging"]
-      )
+     ["Quit debugging (dbquit)" gud-stop-subjob
+      :active gud-matlab-debug-active
+      :help "When MATLAB debugger is active, stop debugging"]
+     )
 
-;; TODO - how to autoload these?  Do we want this menu?
-;;     ("Insert"
-;;      ["Complete Symbol" matlab-complete-symbol t]
-;;      ["Comment" matlab-comment t]
-;;      ["if end" tempo-template-matlab-if t]
-;;      ["if else end" tempo-template-matlab-if-else t]
-;;      ["for end" tempo-template-matlab-for t]
-;;      ["switch otherwise end" tempo-template-matlab-switch t]
-;;      ["Next case" matlab-insert-next-case t]
-;;      ["try catch end" tempo-template-matlab-try t]
-;;      ["while end" tempo-template-matlab-while t]
-;;      ["End of block" matlab-insert-end-block t]
-;;      ["Function" tempo-template-matlab-function t]
-;;      ["Stringify Region" matlab-stringify-region t]
-;;      )
-     ("Customize"
-      ["Indent Function Body"
-       (setq matlab-indent-function-body (not (matlab-indent-function-body-p)))
-       :style toggle :selected matlab-indent-function-body]
-      ["Functions Have end"
-       matlab-toggle-functions-have-end
-       :style toggle :selected matlab-functions-have-end]
-      ["Verify File on Save"
-       (setq matlab-verify-on-save-flag (not matlab-verify-on-save-flag))
-       :style toggle :selected matlab-verify-on-save-flag]
-      ["Auto Fill does Code"
-       (setq matlab-fill-code (not matlab-fill-code))
-       :style toggle :selected matlab-fill-code ]
-      ["Highlight Cross-Function Variables"
-       matlab-toggle-highlight-cross-function-variables
-       :active (locate-library "mlint")
-       :style toggle :selected  matlab-highlight-cross-function-variables
-       ]
-      ["Add Needed Semicolon on RET"
-       (setq matlab-return-add-semicolon (not matlab-return-add-semicolon))
-       :style toggle :selected  matlab-return-add-semicolon
-       ]
-      ["Customize" (customize-group 'matlab)
-       (and (featurep 'custom) (fboundp 'custom-declare-variable))
-       ]
-      )
-     "----"
-     ["Run M Command" matlab-shell-run-command (matlab-shell-active-p)]
-     ["Describe Command" matlab-shell-describe-command (matlab-shell-active-p)]
-     ["Describe Variable" matlab-shell-describe-variable (matlab-shell-active-p)]
-     ["Command Apropos" matlab-shell-apropos (matlab-shell-active-p)]
-     ))
-  (easy-menu-add matlab-mode-menu matlab-mode-map))
+    ;; TODO - how to autoload these?  Do we want this menu?
+    ;;     ("Insert"
+    ;;      ["Complete Symbol" matlab-complete-symbol t]
+    ;;      ["Comment" matlab-comment t]
+    ;;      ["if end" tempo-template-matlab-if t]
+    ;;      ["if else end" tempo-template-matlab-if-else t]
+    ;;      ["for end" tempo-template-matlab-for t]
+    ;;      ["switch otherwise end" tempo-template-matlab-switch t]
+    ;;      ["Next case" matlab-insert-next-case t]
+    ;;      ["try catch end" tempo-template-matlab-try t]
+    ;;      ["while end" tempo-template-matlab-while t]
+    ;;      ["End of block" matlab-insert-end-block t]
+    ;;      ["Function" tempo-template-matlab-function t]
+    ;;      ["Stringify Region" matlab-stringify-region t]
+    ;;      )
+    ("Customize"
+     ["Indent Function Body"
+      (setq matlab-indent-function-body (not (matlab-indent-function-body-p)))
+      :style toggle :selected matlab-indent-function-body]
+     ["Functions Have end"
+      matlab-toggle-functions-have-end
+      :style toggle :selected matlab-functions-have-end]
+     ["Verify File on Save"
+      (setq matlab-verify-on-save-flag (not matlab-verify-on-save-flag))
+      :style toggle :selected matlab-verify-on-save-flag]
+     ["Auto Fill does Code"
+      (setq matlab-fill-code (not matlab-fill-code))
+      :style toggle :selected matlab-fill-code ]
+     ["Highlight Cross-Function Variables"
+      matlab-toggle-highlight-cross-function-variables
+      :active (locate-library "mlint")
+      :style toggle :selected  matlab-highlight-cross-function-variables
+      ]
+     ["Add Needed Semicolon on RET"
+      (setq matlab-return-add-semicolon (not matlab-return-add-semicolon))
+      :style toggle :selected  matlab-return-add-semicolon
+      ]
+     ["Customize" (customize-group 'matlab)
+      (and (featurep 'custom) (fboundp 'custom-declare-variable))
+      ]
+     )
+    "----"
+    ["Run M Command" matlab-shell-run-command (matlab-shell-active-p)]
+    ["Describe Command" matlab-shell-describe-command (matlab-shell-active-p)]
+    ["Describe Variable" matlab-shell-describe-variable (matlab-shell-active-p)]
+    ["Command Apropos" matlab-shell-apropos (matlab-shell-active-p)]
+    ))
+(easy-menu-add matlab-mode-menu matlab-mode-map)
 
 
 ;;; Font Lock : Character Vectors, Strings and Comments ================================
@@ -1361,9 +1355,9 @@ All Key Bindings:
 			     ((?_ . "w"))))
   (setq font-lock-multiline 'undecided)
   (add-to-list 'font-lock-extend-region-functions #'matlab-font-lock-extend-region t)
-  
-  (if window-system (matlab-frame-init))
 
+  (setq show-paren-data-function 'matlab-show-paren-or-block)
+  
   ;; If first function is terminated with an end statement, then functions have
   ;; ends.
   (if (matlab-do-functions-have-end-p)
@@ -3141,8 +3135,9 @@ not be needed.
 Optional argument FAST causes this check to be skipped.
 Optional argument ADDEND asks to add ends to functions, and is used
 by `matlab-mode-vf-add-ends'"
-  (let ((go t)
-	(expr nil)
+  (let ((expr nil)
+	(scanstate nil)
+	(exit nil)
 	;; lets avoid asking questions based on id of this file
 	;; and if ends are optional in the first place.
 	(filetype (matlab-guess-script-type))
@@ -3155,71 +3150,48 @@ by `matlab-mode-vf-add-ends'"
       ;; In a bad state - go fast.
       (setq fast t))
 
-    ;; compute expression after changing state of funtions have end above.
-    (setq expr (concat "\\<\\(" (matlab-block-beg-pre) "\\)\\>"))
-    
     ;; Navigate our sexp's and make sure we're all good.
     (matlab-navigation-syntax
       (goto-char (point-min))
-      (while (and (not fast) go (re-search-forward expr nil t))
-	(forward-word -1)		;back over the special word
-	(let ((s (point))
-	      e)
-	  (condition-case nil
-	      (if (and (not (matlab-cursor-in-string-or-comment))
-		       (not (matlab-block-comment-bounds))
-		       (or matlab-functions-have-end (not (eq (matlab-on-keyword-p) 'decl))))
-		  (progn
-		    (matlab-forward-sexp)
-		    (forward-word -1)
-		    (when (not (eq (matlab-on-keyword-p) 'end))
-		      ;; TODO - is this possible ?
-		      (setq go nil)))
-		(forward-word 1))
-	    (error (setq go nil)))
+      (while (and (not fast) (not exit)
+		  (matlab--scan-next-keyword 'decl (point-max)))
+	(forward-word -1)
+	(if (not (setq scanstate (matlab--scan-block-forward)))
+	    ;; This scan returns any leftover unterminated blocks.
+	    ;; If it is empty, we are fine.
+	    (when (eq matlab-functions-have-end 'guess)
+	      (matlab-functions-have-end-minor-mode 1))
 
-	  (cond
-	   ;; If we are still in guess mode and file is good, then we now have our answer.
-	   ((and go (eq matlab-functions-have-end 'guess))
-	    (matlab-functions-have-end-minor-mode 1))
-	  
-	   ;; If we had an error and still in guess mode we can look at the latest
-	   ;; content and decide if we should have ends anyway.
-	   ((and (not go) (eq matlab-functions-have-end 'guess))
-	    (if (matlab-do-functions-have-end-p 'no-navigate)
-		;; minor mode now looks at file type when passing in 1
-		(matlab-functions-have-end-minor-mode 1)
-	      ;; Turn off for this file.  No questions.
-	      (matlab-functions-have-end-minor-mode -1)))
-
-	   ;; If we had an error, but none of the above, try to fix?
-	   ((not go)
-	    (goto-char s)
-	    (setq e (save-excursion (forward-word 1) (point)))
-	    ;; Try to add an end to the broken block
-	    (if addend
-		(if (matlab-mode-highlight-ask
-		     s e "Unterminated block.  Try to add end?")
-		    (progn
+	  ;; If we had an error, but none of the above, try to fix?
+	  ;; Get locations out of the found keyword.
+	  (save-excursion
+	    (let ((s (nth 2 (car scanstate)))
+		  (e (nth 3 (car scanstate))))
+	      (goto-char s)
+	      ;; Try to add an end to the broken block
+	      (if addend
+		  (if (matlab-mode-highlight-ask
+		       s e
+		       "Unterminated block.  Try to add end?")
 		      (matlab-mode-vf-add-end-to-this-block)
-		      (setq go t))
-		  ;; Else, mark this buffer as not needing ends,
-		  ;; but ONLY if a function buffer
-		  (when (eq filetype 'function)
-		    (if (matlab-mode-highlight-ask
-			 s e "Should funtions have end in this file?")
-			(matlab-functions-have-end-minor-mode 1)
-		      (matlab-functions-have-end-minor-mode -1)
-		      (message "Marking buffer as not needing END for this session.")
-		      (sit-for 1))))
-	      ;; We aren't in addend mode then we are in plain verify
-	      ;; mode
-	      (if (matlab-mode-highlight-ask
-		   s e
-		   "Unterminated block.  Continue anyway?")
-		  nil ;; continue anyway.
-		(error "Unterminated Block found!"))))
-	   )) ;; cond, let
+		    ;; Else, mark this buffer as not needing ends,
+		    ;; but ONLY if a function buffer
+		    (when (eq filetype 'function)
+		      (if (matlab-mode-highlight-ask
+			   s e
+			   "Should funtions have end in this file?")
+			  (matlab-functions-have-end-minor-mode 1)
+			(matlab-functions-have-end-minor-mode -1)
+			(message "Marking buffer as not needing END for this session.")
+			(sit-for 1))))
+		;; We aren't in addend mode then we are in plain verify
+		;; mode
+		(if (matlab-mode-highlight-ask
+		     s e
+		     "Unterminated block.  Continue anyway?")
+		    nil ;; continue anyway.
+		  (error "Unterminated Block found!")))
+	      ))) ;; save-excursion, let, if
 	(message "Block-check: %d%%" (/ (/ (* 100 (point)) (point-max)) 2))))))
 
 (defun matlab-mode-vf-add-end-to-this-block ()
