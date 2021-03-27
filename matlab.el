@@ -1447,35 +1447,6 @@ Ignore comments and whitespace."
 
 ;;; Regexps for MATLAB language ===============================================
 
-;; "-pre" means "partial regular expression"
-;; "-if" and "-no-if" means "[no] Indent Function"
-
-(defconst matlab-mcos-innerblock-regexp "properties\\|methods\\|events\\|enumeration\\|arguments"
-  "Keywords which mark the beginning of mcos blocks.
-These keywords can be overriden as variables or functions in other contexts
-asside from that which they declare their content.")
-
-(defconst matlab-mcos-regexp (concat "\\|classdef\\|" matlab-mcos-innerblock-regexp)
-  "Keywords which mark the beginning of mcos blocks.")
-
-(defconst matlab-block-beg-pre-if
-  (concat "function\\|parfor\\|spmd\\|for\\|while\\|if\\|switch\\|try"
-	  matlab-mcos-regexp)
-  "Keywords which mark the beginning of an indented block.
-Includes function.")
-
-(defconst matlab-block-beg-pre-no-if
-  (concat "parfor\\|for\\|spmd\\|while\\|if\\|switch\\|try"
-	  matlab-mcos-regexp)
-  "Keywords which mark the beginning of an indented block.
-Excludes function.")
-
-(defun matlab-block-beg-pre ()
-  "Partial regular expression to recognize MATLAB block-begin keywords."
-  (if matlab-functions-have-end
-      matlab-block-beg-pre-if
-    matlab-block-beg-pre-no-if))
-
 (defun matlab-match-function-re ()
   "Expression to match a function start line.
 There are no reliable numeric matches in this expression.

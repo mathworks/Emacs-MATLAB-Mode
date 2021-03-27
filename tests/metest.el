@@ -34,6 +34,7 @@
 (require 'matlab-load)
 (require 'matlab)
 (require 'cedet-matlab)
+(require 'matlab-complete)
 (require 'semantic-matlab)
 
 ;; Enable semantic
@@ -52,6 +53,7 @@
   (setq-default matlab-indent-function-body 'MathWorks-Standard) ;; put it back
 
   (metest-run 'metest-comment-string-syntax-test)
+  (metest-run 'metest-fontlock-test)
   (metest-run 'metest-sexp-counting-test)
   (metest-run 'metest-sexp-traversal-test)
 
@@ -61,10 +63,10 @@
   (metest-indents-randomize-files)
   (metest-run 'metest-indents-test)
 
+  ;; Parsing and completion are high level tools
   (metest-run 'metest-parse-test)
+  (metest-run 'metest-complete-test)
 
-  (metest-run 'metest-fontlock-test)
-  
   (metest-log-report (metest-log-write))
 
   (matlab-scan-stats-print)
@@ -446,7 +448,52 @@
 			      ( "df" . nil )
 			      )
   "List of testing keywords and associated faces.")
-			    
+
+
+(defvar met-complete-files '("complete.m")
+  "List of files for running font completion tests.")
+
+(defvar met-complete-tools '((var . matlab-find-recent-variable)
+			     (fcn . matlab-find-user-functions)
+			     )
+  "List of tools that generate completions.")
+
+(defvar metest-complete-test (cons "completion" met-complete-files))
+(defun metest-complete-test (F)
+  "Test the completion tools in matlab-complete.el"
+    (let ((buf (metest-find-file F))
+	  exp act
+	  (cnt 0))
+      (with-current-buffer buf
+	(goto-char (point-min))
+
+	(while (re-search-forward "%\\s-*@@" nil t)
+	  (setq exp (read (buffer-substring-no-properties (point) (scan-sexps (point) 1))))
+	  ;; Move to end of previous line, and try to do a complete
+	  (matlab-with-context-line (matlab-previous-code-line (matlab-compute-line-context 2))
+	    (end-of-line)
+	    (let* ((prefix (buffer-substring-no-properties
+			    (save-excursion (forward-word -1) (point))
+			    (point)))
+		   (sem (matlab-lattr-semantics prefix))
+		   )
+	      ;; Did we get the expected semantics of this location?
+	      (when (not (eq sem (car exp)))
+		(metest-error "Completion Semantic Missmatch: Expected %s but found %s" (car exp) sem))
+
+	      (let* ((expR (nthcdr 2 exp))
+		     (fcn (assoc (nth 1 exp) met-complete-tools))
+		     (act (funcall (cdr fcn) prefix)))
+		(when (not (equal act expR))
+		  (metest-error "Completion Missmatch: Expected %S but found %S using function %S"
+				expR act fcn))
+		)
+	      ))
+	  (setq cnt (1+ cnt))
+	  ;; Skip this match, find the next.
+	  (end-of-line)))
+      (list cnt "tests")))
+
 
 (defvar met-fontlock-files '("fontlock.m" "mclass.m" "blocks.m")
   "List of files for running font lock tests.")
