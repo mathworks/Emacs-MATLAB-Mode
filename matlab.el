@@ -1444,23 +1444,6 @@ Ignore comments and whitespace."
   (forward-comment 100000)
   (not (eobp)))
 
-
-;;; Regexps for MATLAB language ===============================================
-
-(defun matlab-match-function-re ()
-  "Expression to match a function start line.
-There are no reliable numeric matches in this expression.
-Know that `match-end' of 0 is the end of the function name."
-  ;; old function was too unstable.
-  ;;"\\(^function\\s-+\\)\\([^=\n]+=[ \t\n.]*\\)?\\(\\sw+\\)"
-  (concat "\\(^\\s-*function\\b[ \t\n.]*\\)\\(\\(\\[[^]]*\\]\\|\\sw+\\)"
-	  "[ \t\n.]*=[ \t\n.]*\\|\\(\\)\\)\\(\\sw+\\)"))
-
-(defun matlab-match-classdef-re ()
-  "Expression to match a classdef start line.
-The class name is match 2."
-  "\\(^\\s-*classdef\\b[ \t\n]*\\)\\(\\sw+\\)\\(\\s-*<\\)?")
-
 ;;; Navigation ===============================================================
 
 (defvar matlab-scan-on-screen-only nil
@@ -1598,10 +1581,7 @@ a valid context."
   "Return the name of the current function."
   (save-excursion
     (matlab-beginning-of-defun)
-    (if (looking-at (matlab-match-function-re))
-	(progn
-	  (goto-char (match-end 0))
-	  (current-word)))))
+    (nth 1 (matlab-line-declaration-name))))
 
 (defun matlab-beginning-of-command ()
   "Go to the beginning of an M command.
@@ -3044,26 +3024,16 @@ Optional argument FAST is ignored."
     (matlab-find-code-line)
     (let ((func nil)
 	  (bn (file-name-sans-extension
-	       (file-name-nondirectory (buffer-file-name)))))
-    (if (looking-at (matlab-match-function-re))
-	;; The expression above creates too many numeric matches
-	;; to apply a known one to our function.  We cheat by knowing that
-	;; match-end 0 is at the end of the function name.  We can then go
-	;; backwards, and get the extents we need.  Navigation syntax
-	;; lets us know that backward-word really covers the word.
-	(let ((end (match-end 0))
-	      (begin (progn (goto-char (match-end 0))
-			    (forward-word -1)
-			    (point))))
-	  (setq func (buffer-substring-no-properties begin end))
-	  (if (not (string= func bn))
-	      (if (not (matlab-mode-highlight-ask
-			begin end
-			"Function and file names are different. Fix function name?"))
-		  nil
-		(goto-char begin)
-		(delete-region begin end)
-		(insert bn))))))))
+	       (file-name-nondirectory (buffer-file-name))))
+	  (fcn (matlab-line-declaration-name)))
+      (when (and fcn (eq (car fcn) 'function)
+		 (not (string= (nth 1 fcn) bn)))
+	(unless (not (matlab-mode-highlight-ask
+		      (nth 2 fcn) (nth 3 fcn)
+		      "Function name and file names are different. Fix function name?"))
+	  (goto-char (nth 2 fcn))
+	  (delete-region (nth 2 fcn) (nth 3 fcn))
+	  (insert bn))))))
 
 (defun matlab-mode-vf-classname (&optional fast)
   "Verify/Fix the class name of this file.
@@ -3073,20 +3043,16 @@ Optional argument FAST is ignored."
     (matlab-find-code-line)
     (let ((class nil)
 	  (bn (file-name-sans-extension
-	       (file-name-nondirectory (buffer-file-name)))))
-    (if (looking-at (matlab-match-classdef-re))
-	;; The name of this class is match 2.
-	(let ((end (match-end 2))
-	      (begin (match-beginning 2)))
-	  (setq class (buffer-substring-no-properties begin end))
-	  (if (not (string= class bn))
-	      (if (not (matlab-mode-highlight-ask
-			begin end
-			"Class name and file names are different. Fix class name?"))
-		  nil
-		(goto-char begin)
-		(delete-region begin end)
-		(insert bn))))))))
+	       (file-name-nondirectory (buffer-file-name))))
+	  (class (matlab-line-declaration-name)))
+      (when (and class (eq (car class) 'classdef)
+		 (not (string= (nth 1 class) bn)))
+	(unless (not (matlab-mode-highlight-ask
+		      (nth 2 class) (nth 3 class)
+		      "Class name and file names are different. Fix class name?"))
+	  (goto-char (nth 2 class))
+	  (delete-region (nth 2 class) (nth 3 class))
+	  (insert bn))))))
 
 (defun matlab-mode-vf-add-ends (&optional fast)
   "Verify/Fix adding ENDS to functions.

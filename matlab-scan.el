@@ -346,11 +346,11 @@ Returns the value from the last part of forms."
 
 ;; Comments
 (defsubst matlab-line-comment-p (lvl1)
-  "Return t if the current line is a comment based on LVL1 cache."
+  "Return t if the current line is a comment."
   (eq (car lvl1) 'comment))
 
 (defsubst matlab-line-regular-comment-p (lvl1)
-  "Return t if the current line is a boring style comment based on LVL1 cache."
+  "Return t if the current line is a comment w/ no attributes."
   (and (eq (car lvl1) 'comment) (eq (nth 1 lvl1) nil)))
 
 (defsubst matlab-line-comment-ignore-p (lvl1)
@@ -398,7 +398,7 @@ All lines that start with a comment end with a comment."
   (eq (car lvl1) 'code))
 
 (defsubst matlab-line-boring-code-p (lvl1)
-  "Return t if the current line is boring old code."
+  "Return t if the current line is code w/ no keyword."
   (and (eq (car lvl1) 'code) (not (nth 1 lvl1))))
 
 (defsubst matlab-line-block-start-keyword-p (lvl1)
@@ -461,6 +461,54 @@ Return nil for empty and comment only lines."
     (buffer-substring-no-properties
      (point) (save-excursion (skip-syntax-forward "w_") (point))))
   )
+
+;; Declarations and Names
+(defun matlab-line-declaration-name (&optional lvl1)
+  "Return string name of a declaration on the line.
+For functions, this is the name of the function.
+For classes, this is the name of the class.
+Output is a list of the form:
+  ( NAME DECL-TYPE START END)
+Where NAME is the name, and DECL-TYPE is one of
+'function or 'class
+START and END are buffer locations around the found name.
+If the current line is not a declaration, return nil."
+  (unless lvl1 (setq lvl1 (matlab-compute-line-context 1)))
+  (when (matlab-line-declaration-p lvl1)
+    (let (type name start end)
+      (matlab-navigation-syntax
+	(matlab-with-context-line lvl1
+	  (cond
+	   ;; FUNCTION : can have return arguments that need to be skipped.
+	   ((string= (matlab-line-first-word-text lvl1) "function")
+	    (forward-word 1)
+	    (skip-syntax-forward " ")
+	    (when (looking-at "\\(\\[[^]]+]\\|\\w+\\)\\s-*=")
+	      (goto-char (match-end 0))
+	      (skip-syntax-forward " "))
+	    (setq type 'function
+		  start (point)
+		  end (save-excursion
+			(skip-syntax-forward "w_")
+			(point))))
+	   
+	   ;; CLASS : Can have class attributes to be skipped.
+	   ((string= (matlab-line-first-word-text lvl1) "classdef")
+	    (forward-word 1)
+	    (skip-syntax-forward " ")
+	    (when (looking-at "([^)]+)")
+	      (goto-char (match-end 0))
+	      (skip-syntax-forward " "))	       
+	    (setq type 'classdef
+		  start (point)
+		  end (save-excursion
+			(skip-syntax-forward "w_")
+			(point)))))))
+
+      (when type
+	(list type (buffer-substring-no-properties start end)
+	      start end))
+      )))
 
 ;; Parenthetical blocks
 (defsubst matlab-line-close-paren-p (lvl1)
