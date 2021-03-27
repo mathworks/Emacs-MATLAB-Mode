@@ -2963,30 +2963,7 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
 	    (list here-beg here-end there-beg there-end mismatch) ))))))
 
 
-;;; M Code verification & Auto-fix ============================================
-
-(defun matlab-mode-verify-fix-file-fn ()
-  "Verify the current buffer from `write-contents-hooks'."
-  (if matlab-verify-on-save-flag
-      (matlab-mode-verify-fix-file (> (point-max)
-				      matlab-block-verify-max-buffer-size)))
-  ;; Always return nil.
-  nil)
-
-(defun matlab-mode-verify-fix-file (&optional fast)
-  "Verify the current buffer satisfies all M things that might be useful.
-We will merely loop across a list of verifiers/fixers in
-`matlab-mode-verify-fix-functions'.
-If optional FAST is non-nil, do not perform usually lengthy checks."
-  (interactive)
-  (let ((p (point))
-	(l matlab-mode-verify-fix-functions))
-    (while l
-      (funcall (car l) fast)
-      (setq l (cdr l)))
-    (goto-char p))
-  (if (matlab-called-interactively-p)
-      (message "Done.")))
+;;; M Code verification ============================================
 
 (defun matlab-toggle-show-mlint-warnings ()
   "Toggle `matlab-show-mlint-warnings'."
@@ -3017,9 +2994,83 @@ If optional FAST is non-nil, do not perform usually lengthy checks."
            matlab-show-mlint-warnings)
        1 -1)))        ; change mlint mode altogether
 
+;;; Verify / Auto-fix ============================================
+
+(defun matlab-mode-verify-fix-file-fn ()
+  "Verify the current buffer from `write-contents-hooks'."
+  (if matlab-verify-on-save-flag
+      (matlab-mode-verify-fix-file (> (point-max)
+				      matlab-block-verify-max-buffer-size)))
+  ;; Always return nil.
+  nil)
+
+(defun matlab-mode-verify-fix-file (&optional fast)
+  "Verify the current buffer satisfies all M things that might be useful.
+We will merely loop across a list of verifiers/fixers in
+`matlab-mode-verify-fix-functions'.
+If optional FAST is non-nil, do not perform usually lengthy checks."
+  (interactive)
+  (save-excursion
+    ;; Always re-validate if functions have end.
+    (matlab-mode-vf-guess-functions-have-end fast)
+    ;; Loop over the options.
+    (mapc (lambda (func) (funcall func fast))
+	  matlab-mode-verify-fix-functions))
+  (if (matlab-called-interactively-p)
+      (message "Done.")))
+
 ;;
 ;; Add more auto verify/fix functions here!
 ;;
+(defun matlab-mode-vf-guess-functions-have-end (&optional fast)
+  "Look at the current buffer state and decide determine if functions have end.
+If this is already known, no action is taken."
+  (let ((filetype (matlab-guess-script-type)))
+    
+    ;; Lets if if the file if we were in still doesn't know what to do
+    ;; a bout ends, and and re-assert what we should do.
+    (cond
+     ;; If the file is empty of code (from before, or just now)
+     ;; then optimize out this step.
+     ((eq filetype 'empty)
+      ;; If user deleted content, go back into guess mode.
+      (setq matlab-functions-have-end 'guess)
+      (matlab-functions-have-end-minor-mode 1)
+      )
+
+     ;; If there is just bad syntax somewhere, skip it with a notice.
+     ((save-excursion (goto-char (point-max)) (matlab-in-list-p))
+      (setq matlab-functions-have-end 'guess)
+      (matlab-functions-have-end-minor-mode 1)
+      (message "Unterminated list - skipping block check"))
+     
+     ;; If we are in guess mode, but user added content, we can
+     ;; not have a fresh new guess.
+     ((eq matlab-functions-have-end 'guess)
+      (let ((guess (matlab-do-functions-have-end-p 'no-navigate)))
+	(if guess (matlab-functions-have-end-minor-mode 1)
+	  (matlab-functions-have-end-minor-mode -1)))
+      )
+
+     ;; If we are in no-end mode, BUT the filetype is wrong, say something.
+     ((and (not matlab-functions-have-end) (or (eq filetype 'script) (eq filetype 'class)))
+      (message "Type of file detected no longer matches `matlab-functions-have-end' of nil, assume t.")
+      (matlab-functions-have-end-minor-mode 1)
+      (sit-for 1)
+      )
+
+     ;; If functions have end but the style changes, re-up the lighter on the minor mode.
+     ;; note, we can ignore that 'empty == 'guess b/c handled earlier.
+     ((and matlab-functions-have-end (not (eq matlab-functions-have-end filetype)))
+      (matlab-functions-have-end-minor-mode 1))
+
+     ;; If the variable was specified and file is not empty, then do nothing.
+     ;; TODO - maybe we should force to t for scripts and classes?
+
+     ) ;; end cond
+
+  ))
+
 (defun matlab-mode-vf-functionname (&optional fast)
   "Verify/Fix the function name of this file.
 Optional argument FAST is ignored."
@@ -3099,50 +3150,10 @@ by `matlab-mode-vf-add-ends'"
     
     ;; Before checking syntax, lets re-look at the file if we were in
     ;; guess mode and re-assert what we should do.
-    (cond
-     ;; If the file is empty of code (from before, or just now)
-     ;; then optimize out this step.
-     ((eq filetype 'empty)
-      ;; No code, no need to loop.
-      (setq fast t)
-      ;; If user deleted content, go back into guess mode.
-      (setq matlab-functions-have-end 'guess)
-      (matlab-functions-have-end-minor-mode 1)
-      )
-
-     ;; If there is just bad syntax somewhere, skip it with a notice.
-     ((save-excursion (goto-char (point-max)) (matlab-in-list-p))
-      (setq fast t)
-      ;; Let user fix it later
-      (setq matlab-functions-have-end 'guess)
-      (matlab-functions-have-end-minor-mode 1)
-      (message "Unterminated list - skipping block check"))
-
-     
-     ;; If we are in guess mode, but user added content, we can
-     ;; not have a fresh new guess.
-     ((eq matlab-functions-have-end 'guess)
-      (let ((guess (matlab-do-functions-have-end-p 'no-navigate)))
-	(if guess (matlab-functions-have-end-minor-mode 1)
-	  (matlab-functions-have-end-minor-mode -1)))
-      )
-
-     ;; If we are in no-end mode, BUT the filetype is wrong, say something.
-     ((and (not matlab-functions-have-end) (or (eq filetype 'script) (eq filetype 'class)))
-      (message "Type of file detected no longer matches `matlab-functions-have-end' of nil, assume t.")
-      (matlab-functions-have-end-minor-mode 1)
-      (sit-for 1)
-      )
-
-     ;; If functions have end but the style changes, re-up the lighter on the minor mode.
-     ;; note, we can ignore that 'empty == 'guess b/c handled earlier.
-     ((and matlab-functions-have-end (not (eq matlab-functions-have-end filetype)))
-      (matlab-functions-have-end-minor-mode 1))
-
-     ;; If the variable was specified and file is not empty, then do nothing.
-     ;; TODO - maybe we should force to t for scripts and classes?
-
-     ) ;; end cond
+    (when (or (eq filetype 'empty)
+	      (save-excursion (goto-char (point-max)) (matlab-in-list-p)))
+      ;; In a bad state - go fast.
+      (setq fast t))
 
     ;; compute expression after changing state of funtions have end above.
     (setq expr (concat "\\<\\(" (matlab-block-beg-pre) "\\)\\>"))
