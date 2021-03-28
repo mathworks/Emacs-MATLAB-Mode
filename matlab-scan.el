@@ -548,13 +548,11 @@ If the current line is not a declaration, return nil."
 ;; Level 2 scanning information cascades from line-to-line, several fields will
 ;; be blank unless a previous line is also scanned.
 (defconst mlf-level1 0)
-(defconst mlf-previous-line1 1)
-(defconst mlf-previous-line2 2)
-(defconst mlf-previous-command-beginning 3)
-(defconst mlf-previous-nonempty 4)
-(defconst mlf-previous-code 5)
-(defconst mlf-previous-block 6)
-(defconst mlf-previous-fcn 7)
+(defconst mlf-previous-command-beginning 1)
+(defconst mlf-previous-nonempty 2)
+(defconst mlf-previous-code 3)
+(defconst mlf-previous-block 4)
+(defconst mlf-previous-fcn 5)
 
 (defun matlab-compute-line-context-lvl-2 (&optional lvl1 previous2)
   "Compute the level 2 context for the current line of MATLAB code.
@@ -593,8 +591,8 @@ in the returned list for quick access."
       ;; copy data from previous2.
       (if previous2
 	  (progn
-	    (setq prev-lvl1 (car previous2)
-		  prev-lvl2 previous2
+	    (setq prev-lvl1 t
+		  prev-lvl2 t
 		  prev-cmd-begin (nth mlf-previous-command-beginning previous2)
 		  prev-nonempty (nth mlf-previous-nonempty previous2)
 		  prev-code1 (nth mlf-previous-code previous2)
@@ -655,7 +653,7 @@ in the returned list for quick access."
 	    ;; Do something with comment here ??
 	    )))
 
-      (list lvl1 prev-lvl1 prev-lvl2 prev-cmd-begin prev-nonempty prev-code1 prev-block1 prev-fcn1
+      (list lvl1 prev-cmd-begin prev-nonempty prev-code1 prev-block1 prev-fcn1
 	  
 	    ))))
 
@@ -684,24 +682,6 @@ If LVL2 is nil, compute it."
   (if lvl2
       (if (consp (car lvl2)) (car lvl2) lvl2)
     (matlab-compute-line-context 1)))
-
-(defun matlab-previous-line (lvl2)
-  "Return the previous line from lvl2 context."
-  (matlab-scan-stat-inc 'prevline)
-  (nth mlf-previous-line1 lvl2))
-
-(defun matlab-previous-line-lvl2 (lvl2)
-  "Return the previous line from lvl2 context."
-  (let ((prev (nth mlf-previous-line2 lvl2)))
-    (if (eq prev t)
-	(save-excursion
-	  (matlab-scan-stat-inc 'prevline2miss)
-	  (matlab-with-context-line (matlab-previous-line lvl2)
-	    (setq prev (matlab-compute-line-context 2)))
-	  (setcar (nthcdr mlf-previous-line1 lvl2) prev))
-      ;; Else, return
-      (matlab-scan-stat-inc 'prevline2)
-      prev)))
 
 (defun matlab-previous-nonempty-line (lvl2)
   "Return lvl1 ctxt for previous non-empty line."
@@ -749,43 +729,14 @@ If LVL2 is nil, compute it."
     (if (eq prev t)
 	;; Compute it and stash it.
 	(save-excursion
-	  (matlab-scan-stat-inc 'cmdbeginmiss)
-	  (beginning-of-line)
-	  (when (not (bobp))
-	    (forward-comment -100000) ;; Skip over all whitespace and comments.
+	  (matlab-with-context-line (matlab-previous-code-line lvl2)
 	    (matlab-scan-beginning-of-command)
-	     ;; TODO!! 
 	    (setq prev (matlab-compute-line-context 1))
 	    (setcar (nthcdr mlf-previous-command-beginning lvl2) prev)))
       ;; else record a cache hit
       (matlab-scan-stat-inc 'cmdbegin)
       )
     prev))
-
-;;(defun matlab-previous-fcn-line (lvl2)
-;;  "Return lvl1 ctxt for previous non-empty line."
-;;  (let ((prev (nth mlf-previous-fcn lvl2))
-;;	)    
-;;    (if (eq prev t)
-;;	;; Compute it and stash it.
-;;	(save-excursion
-;;	  (matlab-scan-stat-inc 'fcnmiss)
-;;	  (beginning-of-line)
-;;	  ;; TODO
-;;	  (setq prev (matlab-compute-line-context 1))
-;;	  (setcar (nthcdr mlf-previous-fcn lvl2) prev))
-;;      ;; else record a cache hit
-;;      (matlab-scan-stat-inc 'fcn)
-;;      )
-;;    prev))
-
-
-
-;;; MATLAB focused queries (more specific names than for first set)
-;;
-(defun matlab-line-in-array (lvl2)
-  "Return the location of an opening paren if in array parens."
-  (matlab-line-close-paren-outer-point (matlab-get-lvl1-from-lvl2 lvl2)))
 
 
 ;;; Scanning Accessor utilities

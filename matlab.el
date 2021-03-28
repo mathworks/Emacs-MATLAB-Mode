@@ -1791,7 +1791,7 @@ line of code.  It then scans that line and recommends either:
    ((save-excursion (beginning-of-line) (bobp))
     ;; Beginning of buffer - do no work, just return 0.
     0)
-   ((matlab-line-in-array lvl2)
+   ((matlab-line-close-paren-outer-point (matlab-get-lvl1-from-lvl2 lvl2))
     ;; If we are inside an array continuation, then we shouldn't
     ;; need to do anything complicated here b/c we'll just ignore
     ;; the returned value in the next step.  Return current indentation
@@ -1800,8 +1800,7 @@ line of code.  It then scans that line and recommends either:
    (t
     ;; Else, the previous line might recommend an indentation based
     ;; on it's own context, like being a block open or continuation.
-    (let ((prevcmd (or (matlab-previous-code-line lvl2)
-		       (matlab-previous-line lvl2))))
+    (let ((prevcmd (matlab-previous-code-line lvl2)))
       (matlab-with-context-line prevcmd
 	(matlab-next-line-indentation prevcmd))))))
   
@@ -3210,7 +3209,7 @@ desired.  Optional argument FAST is not used."
 	   (lvl1msg (matlab-describe-line-indent-context lvl1 t))
 	   (indent nil)
 	   (fullindent (matlab--calc-indent lvl2 'indent))
-	   (nexti (matlab-next-line-indentation (matlab-previous-line lvl2))))
+	   (nexti (matlab-next-line-indentation nil)))
       (setq msg (concat msg
 			"Line Syntax: " lvl1msg
 			"  | Preferred Indents: This: " (int-to-string (nth 1 indent))
