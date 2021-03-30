@@ -89,7 +89,6 @@ Disable this option if the tooltips are too slow in your setup."
   ;; (gud-def gud-print  "% gud-print not available" "\C-p" "gud-print not available.")
 
   (when window-system
-    (matlab-frame-init)
 
     (setq gud-matlab-tool-bar-map
 	  (let ((map (make-sparse-keymap)))
