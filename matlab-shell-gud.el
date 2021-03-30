@@ -372,10 +372,10 @@ LONGESTNAME specifies the how long the longest name we can expect is."
   "Specify a NEWSTACK provided by MATLAB to replace the old one."
   (setq mlg-stack nil)
   (dolist (L newstack)
-    (push (mlg-stack-frame ""
-	   :file (nth 0 L)
-	   :name (nth 1 L)
-	   :line (nth 2 L))
+    (push (make-instance 'mlg-stack-frame
+			 :file (nth 0 L)
+			 :name (nth 1 L)
+			 :line (nth 2 L))
 	  mlg-stack))
   (setq mlg-stack (nreverse mlg-stack))
   (mlg-refresh-stack-buffer)
@@ -597,9 +597,10 @@ LONGESTNAME specifies the how long the longest name we can expect is."
 	(setq found t)))
     (when (not found)
       (setq matlab-gud-visible-breakpoints
-	    (cons (mlg-breakpoint "" :file file
-				  :name fcn
-				  :line line)
+	    (cons (make-instance 'mlg-breakpoint
+				 :file file
+				 :name fcn
+				 :line line)
 		  matlab-gud-visible-breakpoints))
       (mlg-activate (car matlab-gud-visible-breakpoints))
       ))
