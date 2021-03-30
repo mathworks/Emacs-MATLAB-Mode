@@ -1,4 +1,4 @@
-function emacsrun(mfile, args)
+function emacsrun(mfile, varargin)
 % Run code from MFILE.
 % Assumes MFILE was recently edited, and proactively clears that function.
 %
@@ -22,7 +22,7 @@ function emacsrun(mfile, args)
     end
     clear(shortFileName);
 
-    cmd = [ shortFileName args ];
+    cmd = [ shortFileName varargin{:} ];
     
     evalin('base',cmd);
 end
