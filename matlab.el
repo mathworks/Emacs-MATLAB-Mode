@@ -1950,8 +1950,8 @@ this line."
       ;; Code always matches up against the previous line.
       (list 'code (matlab--previous-line-indent-recommendation lvl2)))
      
-     ;; CONTINUATION : A group of cases for continuation
-     (t
+     ;; CONTINUATION but from within a parenthetical: A group of cases for continuation
+     ((matlab-line-close-paren-inner-col lvl1)
       (let* ((boc-lvl1 (save-excursion
 			 (matlab-scan-beginning-of-command)
 			 (matlab-compute-line-context 1)))
@@ -1969,12 +1969,10 @@ this line."
 
 	     
 	     ;; What shall we use to describe this for debugging?
-	     (indent-type (cond ((matlab-line-empty-p lvl1) 'empty)
-				((and parenchar (= parenchar ?\()) 'function-call-cont)
+	     (indent-type (cond ((and parenchar (= parenchar ?\()) 'function-call-cont)
 				((and parencol (= parenindent parencol)) 'array-solo-cont)
 				((and parenpt (/= parenpt parenopt)) 'nested-array-cont)
-				(parenpt 'array-cont)
-				(t 'code-cont)))
+				(t 'code-cont))) ;; last not likely.
 	     
 	     (found-column nil)
 	     )
@@ -2010,8 +2008,8 @@ this line."
 		(setq tmp (+ parencol matlab-arg1-max-indent-length))
 	      (setq tmp (current-column))))
 
-	   ;; CONTINUATION with PARENS
-	   (parenchar ;; a str if in parens
+	   ;; CONTINUATION with PARENS, BRACKETS, etc
+	   (t 
 	    (let* ((mi (assoc parenchar matlab-maximum-indents))
 		   (max (if mi (if (listp (cdr mi)) (car (cdr mi)) (cdr mi)) nil))
 		   (ind (if mi (if (listp (cdr mi)) (cdr (cdr mi)) (cdr mi)) nil)))
@@ -2044,21 +2042,45 @@ this line."
 		;;    (+ ci-boc ind)
 		;;  (current-column))
 		)))
+	   ))
+	(list indent-type tmp)))
 
-	   ;; CONTINUATION with EQUALS
-	   ((save-excursion
-	      (goto-char boc)
-	      (while (and (re-search-forward "=" (matlab-point-at-eol) t)
-			  (matlab-cursor-in-string-or-comment)))
-	      (when (= (preceding-char) ?=)
-		(skip-chars-forward " \t")
-		(setq found-column (point)))
-	      )
+     (t
+      ;; Other kinds of continuations
+      (let* ((prev-lvl1 (save-excursion
+			  (forward-line -1)
+			  (matlab-compute-line-context 1)))
+	     (prev2-lvl1 (save-excursion
+			   (forward-line -2)
+			   (matlab-compute-line-context 1)))
+	     (ci-prev (matlab-line-indentation prev-lvl1))
+	     
+	     (boc (matlab-line-point prev-lvl1))
+	     (boc2 (matlab-line-point prev2-lvl1))
+
+	     (indent-type (cond ((matlab-line-empty-p lvl1) 'empty)
+				(t 'code-cont)))
+	     (found-column nil)
+	     )
+     
+	(save-excursion
+	  (cond
+	   ;; Beginning of CONTINUATION has EQUALS
+	   ((and (or (not (matlab-line-ellipsis-p prev2-lvl1))
+		     (= boc boc2))
+		 (save-excursion
+		   (goto-char boc)
+		   (while (and (re-search-forward "=" (matlab-point-at-eol) t)
+			       (matlab-cursor-in-string-or-comment)))
+		   (when (= (preceding-char) ?=)
+		     (skip-chars-forward " \t")
+		     (setq found-column (point)))
+		   ))
 	    (save-excursion
 	      (goto-char found-column)
 	      (let ((cc (current-column))
 		    (mi (assoc ?= matlab-maximum-indents)))
-		      
+		
 		(if (looking-at "\\.\\.\\.\\|$")
 		    ;; In this case, the user obviously wants the
 		    ;; indentation to be somewhere else.
@@ -2066,16 +2088,25 @@ this line."
 		  ;; If the indent delta is greater than the max,
 		  ;; use the max + current
 		  (if (and mi (> (- cc (matlab--previous-line-indent-recommendation lvl2)) (if (listp (cdr mi))
-					       (car (cdr mi))
-					     (cdr mi))))
+											       (car (cdr mi))
+											     (cdr mi))))
 		      (setq tmp (+ (matlab--previous-line-indent-recommendation lvl2) (if (listp (cdr mi))
-					  (cdr (cdr mi))
-					(cdr mi))))
+											  (cdr (cdr mi))
+											(cdr mi))))
 		    (setq tmp cc))))))
-
+	   
 	   ;; CONTINUATION with nothing special about it.
+	   ((or (not (matlab-line-ellipsis-p prev2-lvl1))
+		(= boc boc2))
+	   
+	    ;; Continued from non-continued line, push in just a little
+	    (setq tmp (+ ci-prev matlab-continuation-indent-level)))
+
+	   ;; CONTINUATION from a continued line, nothing special
 	   (t
-	    (setq tmp (+ (matlab--previous-line-indent-recommendation lvl2) matlab-continuation-indent-level)))
+	    ;; Just match the same
+	    (setq tmp ci-prev))
+	   
 	   ))
 	
 	(list indent-type tmp)
