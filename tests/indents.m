@@ -303,8 +303,8 @@ function B = continuations_and_block_comments
     % !!4 - more comments
 
     if condition1 || ...  % !!4
-            fcn_call(arg1, ... % !!12
-                     arg2)  % !!21
+        fcn_call(arg1, ... % !!8
+                 arg2)  % !!17
         line_in_if();
     end  % !!4
     
