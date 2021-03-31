@@ -76,7 +76,7 @@
 ;; Create the database, and add it to searchable databases for matlab mode.
 (defvar-mode-local matlab-mode semanticdb-project-system-databases
   (list
-   (semanticdb-project-database-matlab "Matlab"))
+   (make-instance 'semanticdb-project-database-matlab))
   "Search MATLAB path for symbols.")
 
 ;; NOTE: Be sure to modify this to the best advantage of your
@@ -99,7 +99,7 @@ Create one of our special tables that can act as an intermediary."
   ;; We need to return something since there is always the "master table"
   ;; The table can then answer file name type questions.
   (when (not (slot-boundp obj 'tables))
-    (let ((newtable (semanticdb-table-matlab "MATLAB system table")))
+    (let ((newtable (make-instance 'semanticdb-table-matlab)))
       (oset obj tables (list newtable))
       (oset newtable parent-db obj)
       (oset newtable tags nil)

@@ -518,7 +518,7 @@ Subclasses fulfill the duty of actually fixing the code."
 Optional argument FIELDS are the initialization arguments."
   ;; After basic initialization, update the fix description.
   (oset this fix-description
-	(concat (oref-default mlint-lm-replace-focus fix-description)
+	(concat (oref-default this fix-description)
 		(oref this new-text))))
 
 (cl-defmethod mlint-fix-entry ((ent mlint-lm-replace-focus))
@@ -548,7 +548,7 @@ Optional argument FIELDS are the initialization arguments."
     (oset this new-text newfcn)
     ;; After basic initialization, update the fix description.
     (oset this fix-description
-	  (concat (oref-default mlint-lm-replace-focus fix-description)
+	  (concat (oref-default this fix-description)
 		  newfcn))
     ))
 
@@ -568,7 +568,7 @@ Optional arguments FIELDS are the initialization arguments."
     (oset this new-text newfcn)
     ;; After basic initialization, update the fix description.
     (oset this fix-description
-	  (concat (oref-default mlint-lm-replace-focus fix-description)
+	  (concat (oref-default this fix-description)
 		  newfcn))
     ))
 
