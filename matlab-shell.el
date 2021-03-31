@@ -206,17 +206,6 @@ If multiple prompts are seen together, only call this once.")
 ;; Extra font lock keywords for the MATLAB shell.
 (defconst matlab-shell-font-lock-keywords
   (list
-   ;; Startup notices
-   '(" M A T L A B " 0 'underline)
-   '("All Rights Reserved" 0 'italic)
-   '("\\(\\(?:(c)\\)?\\s-+Copyright[^\n]+\\)" 1 font-lock-comment-face)
-   '("\\(Version\\)\\s-+\\([^\n]+\\)"
-     (1 font-lock-function-name-face) (2 font-lock-variable-name-face))
-   '("\\(R[0-9]+[ab]\\(?: Update [0-9]+\\)\\) \\([^\n]+\\)"
-     (1 font-lock-function-name-face) (2 font-lock-variable-name-face))
-   '("^To get started, type doc.$" 0 font-lock-comment-face prepend)
-   '("For product information, [^\n]+" 0 font-lock-comment-face)
-
    ;; How about Errors?
    '("^\\(Error in\\|Syntax error in\\)\\s-+==>\\s-+\\(.+\\)$"
      (1 font-lock-comment-face) (2 font-lock-string-face))
@@ -224,10 +213,6 @@ If multiple prompts are seen together, only call this once.")
    '("^\\(\\(On \\)?line [0-9]+\\)" 1 font-lock-comment-face)
    ;; User beep things
    '("\\(\\?\\?\\?[^\n]+\\)" 1 font-lock-comment-face)
-   ;; Useful user commands, but not useful programming constructs
-   '("\\<\\(demo\\|whatsnew\\|info\\|subscribe\\|help\\|doc\\|lookfor\\|what\
-\\|whos?\\|cd\\|clear\\|load\\|save\\|helpdesk\\|helpwin\\)\\>"
-     1 font-lock-keyword-face)
    )
   "Additional keywords used by MATLAB when reporting errors in interactive\
 mode.")
@@ -239,6 +224,21 @@ mode.")
 
 (defconst matlab-shell-object-output-font-lock-keywords
   (list
+   ;; Startup notices
+   '(" M A T L A B " 0 'underline)
+   '("All Rights Reserved" 0 'italic)
+   '("\\(\\(?:(c)\\)?\\s-+Copyright[^\n]+\\)" 1 font-lock-comment-face)
+   '("\\(Version\\)\\s-+\\([^\n]+\\)"
+     (1 font-lock-function-name-face) (2 font-lock-variable-name-face))
+   '("\\(R[0-9]+[ab]\\(?: Update [0-9]+\\)\\) \\([^\n]+\\)"
+     (1 font-lock-function-name-face) (2 font-lock-variable-name-face))
+   '("^To get started, type doc.$" 0 font-lock-comment-face prepend)
+   '("For product information, [^\n]+" 0 font-lock-comment-face)
+
+   ;; Useful user commands, but not useful programming constructs
+   '("\\<\\(demo\\|whatsnew\\|info\\|subscribe\\|help\\|doc\\|lookfor\\|what\
+\\|whos?\\|cd\\|clear\\|load\\|save\\|helpdesk\\|helpwin\\)\\>"
+     1 font-lock-keyword-face)
    ;; disp of objects usually looks like this:
    '("^\\s-*\\(\\w+\\) with properties:" (1 font-lock-type-face))
    ;; object output - highlight property names after  'with properties:' indicator
