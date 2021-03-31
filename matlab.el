@@ -2100,7 +2100,9 @@ this line."
 		(= boc boc2))
 	   
 	    ;; Continued from non-continued line, push in just a little
-	    (setq tmp (+ ci-prev matlab-continuation-indent-level)))
+	    ;; Do explicit call to next-line-indentation b/c we've already computed the lvl1 context
+	    ;; on the beginning of command.
+	    (setq tmp (+ (matlab-next-line-indentation prev-lvl1) matlab-continuation-indent-level)))
 
 	   ;; CONTINUATION from a continued line, nothing special
 	   (t
@@ -2116,11 +2118,12 @@ this line."
 (defun matlab-next-line-indentation (lvl1)
   "Calculate the indentation for lines following this command line.
 See `matlab-calculate-indentation' for how the output of this fcn is used."
-  (let ((startpnt (point-at-eol))
+  (let ((startpnt (matlab-with-context-line lvl1
+		    (point-at-eol)))
 	) 
     (save-excursion
       (matlab-scan-beginning-of-command lvl1)
-	  
+      
       (back-to-indentation)
       (setq lvl1 (matlab-compute-line-context 1))
       (let ((cc (matlab-line-count-closed-blocks startpnt))
