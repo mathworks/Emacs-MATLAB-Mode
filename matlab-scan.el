@@ -804,7 +804,11 @@ This is true iff the previous line has an ellipsis."
     (beginning-of-line)
     (when (not (bobp))
       (forward-char -1)
-      (let* ((pps (syntax-ppss (point)))
+      ;; Ellipsis scan always resets at BOL, so call non-cached
+      ;; `parse-partial-sexp' instead of regular `syntax-ppss' which
+      ;; can be slow as it attempts to get a solid start from someplace
+      ;; potentially far away.
+      (let* ((pps (parse-partial-sexp (point-at-bol) (point-at-eol))) ;;(syntax-ppss (point)))
 	     (csc (nth 8 pps)))
 	;; Ellipsis start has a syntax of 11 (comment-start).
 	;; Other comments have high-bit flags, so don't == 11.

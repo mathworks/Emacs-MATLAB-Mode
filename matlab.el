@@ -1625,21 +1625,21 @@ Travells a cross continuations"
 	(forward-line -1)
 	(matlab-line-end-comment-column (matlab-compute-line-context 1))))))
 
-(defun matlab-line-count-open-blocks (&optional eol)
+(defun matlab-line-count-open-blocks (lvl1 end-lvl1)
   "Return a the number of unterminated block constructs.
 This is any block, such as if or for, that doesn't have an END on this line.
-Optional EOL indicates a virtual end of line."
-  (save-excursion
+Input LVL1 indicates the line we are searching.
+Input END-LVL1 indicates the line whose end we search until."
+  (matlab-with-context-line lvl1
     (let* ((v 0)
-	   (lvl (matlab-compute-line-context 1))
-	   (bound (or eol (save-excursion (matlab-line-end-of-code lvl))))
+	   (bound (matlab-line-end-of-code end-lvl1))
 	   (keyword nil))
       
-      (if (or (matlab-line-comment-p lvl)
-	      (matlab-line-empty-p lvl))
+      (if (or (matlab-line-comment-p lvl1)
+	      (matlab-line-empty-p lvl1))
 	  ;; If this line is comments or empty, no code to scan
 	  0
-	(back-to-indentation)
+	(goto-char (matlab-line-point lvl1))
 	(while (setq keyword
 		     (matlab-re-search-keyword-forward (matlab-keyword-regex 'indent) bound t))
 	  (if (or (and (eq (car keyword) 'mcos)
@@ -1657,14 +1657,15 @@ Optional EOL indicates a virtual end of line."
 		(setq v (1- v))))))
 	v))))
 
-(defun matlab-line-count-closed-blocks (&optional start)
+(defun matlab-line-count-closed-blocks (lvl1 bound-lvl1)
   "Return the number of closing block constructs on this line.
-Argument START is where to start searching from."
-  (save-excursion
-    (when start (goto-char start))
+Argument LVL1 is the line we'll start on (at the end).
+Argument BOUND-LVL1 is where to stop search backwards from."
+  (matlab-with-context-line lvl1
     (let ((v 0)
-	  (lvl1 (matlab-compute-line-context 1))
-	  (bound (save-excursion (matlab-scan-beginning-of-command))))
+	  ;;(lvl1 (matlab-compute-line-context 1))
+	  (bound (matlab-line-point bound-lvl1))
+	  )
       
       (if (matlab-line-comment-p lvl1)
 	  ;; If this is even vagely a comment line, then there is no
@@ -1672,20 +1673,20 @@ Argument START is where to start searching from."
 	  0
 	;; Else, lets scan.
 	;; lets only scan from the beginning of the comment
-	(goto-char start)
 	(matlab-line-end-of-code lvl1)
 
 	;; Count every END from our starting point till the beginning of the
 	;; command.  That count indicates unindent from the beginning of the
 	;; command which anchors the starting indent.
+	(goto-char (matlab-line-end-of-code lvl1))
 	(while (matlab-re-search-keyword-backward (matlab-keyword-regex 'end) bound t)
 	  (let ((startmove (match-end 0))
 		(nomove (point)))
 	    ;; Lets count these end constructs.
 	    (setq v (1+ v))
-	    (if (matlab--scan-block-backward bound) ;;(matlab-backward-sexp t t)
+	    (if (matlab--scan-block-backward bound)
 		(goto-char nomove)
-	      (setq v (1- v)))
+	      (setq v (1- v))) ;; If whole block, uncount the end
 	    ))
 	(if (<= v 0) 0 v)))))
 
@@ -2137,21 +2138,21 @@ See `matlab-calculate-indentation' for how the output of this fcn is used."
     (save-excursion
       (matlab-scan-beginning-of-command lvl1)
       
-      (back-to-indentation)
-      (setq lvl1 (matlab-compute-line-context 1))
-      (let ((cc (matlab-line-count-closed-blocks startpnt))
-	    (bc (matlab-line-count-open-blocks startpnt))
-	    (end (matlab-line-end-p lvl1))
-	    (mc (and (matlab-line-block-middle-p lvl1) 1))
-	    (ec (and (matlab-line-block-case-p lvl1) 1))
-	    (ci (current-indentation)))
+      ;;(back-to-indentation)
+      (let* ((boc-lvl1 (matlab-compute-line-context 1))
+	     (cc (matlab-line-count-closed-blocks lvl1 boc-lvl1))
+	     (bc (matlab-line-count-open-blocks boc-lvl1 lvl1))
+	     (end (matlab-line-end-p boc-lvl1))
+	     (mc (and (matlab-line-block-middle-p lvl1) 1))
+	     (ec (and (matlab-line-block-case-p lvl1) 1))
+	     (ci (current-indentation)))
 
 	;; When CC is positive, and END is false, or CC > 1, then the NEXT
 	;; line should have an indent that matches the context at the beginning
 	;; of the block of the last end.
 	(if (or (> cc 1) (and (= cc 1) end))
-	    (let* ((CTXT (matlab-with-context-line lvl1
-			   (matlab-line-end-of-code lvl1)
+	    (let* ((CTXT (matlab-with-context-line boc-lvl1
+			   (matlab-line-end-of-code boc-lvl1)
 			   (matlab-re-search-keyword-backward
 			    (matlab-keyword-regex 'end) (point-at-bol) t)
 			   (matlab-scan-block-start-context))))
