@@ -216,8 +216,21 @@ If the value is 'guess, then we guess if a file has end when
 	    (setq matlab-functions-have-end 'guess)
 	  (setq matlab-functions-have-end type))
       (setq matlab-functions-have-end nil)
-      ))
-  )
+      )
+    ;; Depending on the kind of end, lets set other variables.
+    (cond ((eq matlab-functions-have-end 'guess)
+	   ;;(setq matlab-syntax-support-command-dual t)
+	   )
+	  ((eq matlab-functions-have-end 'class)
+	   (setq matlab-syntax-support-command-dual nil)
+	   )
+	  (matlab-functions-have-end
+	   ;;(setq matlab-syntax-support-command-dual t)
+	   )
+	  (t
+	   ;;(setq matlab-syntax-support-command-dual nil)
+	   ))
+    ))
 
 (defvar matlab-last-script-type-guess nil
   "The last time we guessed the script type, what was it?")
