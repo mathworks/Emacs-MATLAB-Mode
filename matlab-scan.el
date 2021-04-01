@@ -194,9 +194,37 @@ and other simple states.
 Computes multiple styles of line by checking for multiple types of context
 in a single call using fastest methods."
   (save-excursion
-    (back-to-indentation)
-    (let* ((ppsend (save-excursion (syntax-ppss (point-at-eol))))
-	   (pps (syntax-ppss (point)))
+    ;; About use of `syntax-ppss' - This util has a 1 element cache,
+    ;; and can utilize the cache as it parses FORWARD only.  Tools
+    ;; like `back-to-indentation' also needs to propertize the buffer
+    ;; since that uses syntax elements to do it's work.  To make this
+    ;; fcn faster, we call `syntax-ppss' once on BOL, and then
+    ;; parse-partial-sexp for other locations as a way to boost the
+    ;; speed of calls to `syntax-ppss' that come later.
+
+    ;; Additional note: `back-to-indentation' used below calls
+    ;;     syntax-propertize.  Command dual needs to call
+    ;;     `syntax-ppss' which it does on bol By setting `syntax-ppss'
+    ;;     internal cache on bol, in cases where propertize needs to
+    ;;     be called, the cache returns immediatly during the
+    ;;     propertize, and needs to do no extra work.
+    (beginning-of-line)
+    (let* ((ppsbol (syntax-ppss (point))) ;; Use the cache
+	   (pps (progn (back-to-indentation)
+		       ;; Compute by hand - leaving cache alone.
+		       (parse-partial-sexp (point-at-bol)
+					   (point)
+					   nil nil
+					   ;; previous state
+					   ppsbol)))
+	   (ppsend (save-excursion
+		     ;; Starting @ indentation, parse forward to eol
+		     ;; and see where we are.
+		     ;; Compute by hand, leaving cache alone.
+		     (parse-partial-sexp (point) (point-at-eol)
+					 nil nil
+					 ;; Previous state
+					 pps)))
 	   (ltype 'empty)
 	   (stype nil)
 	   (pt (point))

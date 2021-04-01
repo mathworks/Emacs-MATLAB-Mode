@@ -222,7 +222,7 @@ If the value is 'guess, then we guess if a file has end when
 	   ;;(setq matlab-syntax-support-command-dual t)
 	   )
 	  ((eq matlab-functions-have-end 'class)
-	   (setq matlab-syntax-support-command-dual nil)
+	   ;;(setq matlab-syntax-support-command-dual nil)
 	   )
 	  (matlab-functions-have-end
 	   ;;(setq matlab-syntax-support-command-dual t)
