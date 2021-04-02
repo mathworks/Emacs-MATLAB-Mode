@@ -1718,37 +1718,35 @@ If there isn't one, then return nil, point otherwise."
 Unlike `indent-region-line-by-line', this function captures
 parsing state and re-uses that state along the way."
   (interactive)
-  (matlab-navigation-syntax
-    (save-excursion
-      (setq end (copy-marker end))
-      (goto-char start)
-      (let ((pr (when (and (not (minibufferp)) (not noprogress))
-                  (make-progress-reporter "MATLAB Indenting region..." (point) end)))
-	    (lvl2 nil)
-	    (lvl1 nil)
-	    )
-	(while (< (point) end)
-          (unless (and (bolp) (eolp))
-	    ;; This is where we indent each line
-	    (setq lvl1 (matlab-compute-line-context 1)
-		  lvl2 (matlab-compute-line-context 2 lvl1));; lvl2))
-	    (when (matlab--indent-line lvl2)
-	      ;; If the indent changed something, refresh this
-	      ;; context obj.
-	      ;;(matlab-refresh-line-context-lvl2 lvl2)
-	      ))
-          (forward-line 1)
-          (and pr (progress-reporter-update pr (point))))
-	(and pr (progress-reporter-done pr))
-	(move-marker end nil)))))
+  (save-excursion
+    (setq end (copy-marker end))
+    (goto-char start)
+    (let ((pr (when (and (not (minibufferp)) (not noprogress))
+                (make-progress-reporter "MATLAB Indenting region..." (point) end)))
+	  (lvl2 nil)
+	  (lvl1 nil)
+	  )
+      (while (< (point) end)
+        (unless (and (bolp) (eolp))
+	  ;; This is where we indent each line
+	  (setq lvl1 (matlab-compute-line-context 1)
+		lvl2 (matlab-compute-line-context 2 lvl1)) ;; lvl2))
+	  (when (matlab--indent-line lvl2)
+	    ;; If the indent changed something, refresh this
+	    ;; context obj.
+	    ;;(matlab-refresh-line-context-lvl2 lvl2)
+	    ))
+        (forward-line 1)
+        (and pr (progress-reporter-update pr (point))))
+      (and pr (progress-reporter-done pr))
+      (move-marker end nil))))
 
 
 (defun matlab-indent-line ()
   "Indent a line in `matlab-mode'."
   (interactive)
-  (matlab-navigation-syntax
-    (let ((lvl2 (matlab-compute-line-context 2)))
-      (matlab--indent-line lvl2))))
+  (let ((lvl2 (matlab-compute-line-context 2)))
+    (matlab--indent-line lvl2)))
 
 (defvar matlab--change-indentation-override #'matlab--change-indentation
   "Tests to override this to validate indent-region.")
@@ -2143,8 +2141,8 @@ See `matlab-calculate-indentation' for how the output of this fcn is used."
 	     (cc (matlab-line-count-closed-blocks lvl1 boc-lvl1))
 	     (bc (matlab-line-count-open-blocks boc-lvl1 lvl1))
 	     (end (matlab-line-end-p boc-lvl1))
-	     (mc (and (matlab-line-block-middle-p lvl1) 1))
-	     (ec (and (matlab-line-block-case-p lvl1) 1))
+	     (mc (and (matlab-line-block-middle-p boc-lvl1) 1))
+	     (ec (and (matlab-line-block-case-p boc-lvl1) 1))
 	     (ci (current-indentation)))
 
 	;; When CC is positive, and END is false, or CC > 1, then the NEXT

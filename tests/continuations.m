@@ -92,6 +92,30 @@ function continuations(a,b) %!!0
     ...   % Continuation by itself just before an end.
 end  %!!0
 
+function c=expression_cont(a,b)
+    
+    if (a > 0 && ... %!!4
+        b < 0)       %!!8
+
+        % comment one !!8
+        c=1;         %!!8
+    elseif (a < 0 && ... %!!4
+            b > 0)   %!!12
+        
+        % comment two !!8
+        c=2;         %!!8
+    end              %!!4
+    
+    switch a             %!!4
+      case 'ert'         %!!6
+        b = 1;           %!!8
+      case {'sim', ...   %!!6
+            'normalsim'} %!!12
+        b=2;             %!!8
+    end                  %!!4
+    
+end
+
 function a=odd_if_location(n) %!!0
     
     i=1; while i<10, if xfcn(i,n)==0, i=i+1;  %!!4
