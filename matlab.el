@@ -2073,20 +2073,17 @@ this line."
 	    (save-excursion
 	      (goto-char found-column)
 	      (let ((cc (current-column))
-		    (mi (assoc ?= matlab-maximum-indents)))
-		
+		    (mi (assoc ?= matlab-maximum-indents))
+		    (prev-indent (matlab--previous-line-indent-recommendation lvl2)))
+
 		(if (looking-at "\\.\\.\\.\\|$")
 		    ;; In this case, the user obviously wants the
 		    ;; indentation to be somewhere else.
-		    (setq tmp (+ (matlab--previous-line-indent-recommendation lvl2) (cdr (cdr mi))))
+		    (setq tmp (+ prev-indent (cdr (cdr mi))))
 		  ;; If the indent delta is greater than the max,
 		  ;; use the max + current
-		  (if (and mi (> (- cc (matlab--previous-line-indent-recommendation lvl2)) (if (listp (cdr mi))
-											       (car (cdr mi))
-											     (cdr mi))))
-		      (setq tmp (+ (matlab--previous-line-indent-recommendation lvl2) (if (listp (cdr mi))
-											  (cdr (cdr mi))
-											(cdr mi))))
+		  (if (and mi (> (- cc prev-indent) (if (listp (cdr mi)) (car (cdr mi)) (cdr mi))))
+		      (setq tmp (+ prev-indent (if (listp (cdr mi)) (cdr (cdr mi)) (cdr mi))))
 		    (setq tmp cc))))))
 	   
 	   ;; CONTINUATION with nothing special about it.
