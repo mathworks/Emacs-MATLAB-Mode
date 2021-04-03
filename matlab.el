@@ -1824,7 +1824,13 @@ line of code.  It then scans that line and recommends either:
     ;; on it's own context, like being a block open or continuation.
     (let ((prevcmd (matlab-previous-code-line lvl2)))
       (matlab-with-context-line prevcmd
-	(matlab-next-line-indentation prevcmd))))))
+	(cond
+	 ((and (matlab-line-empty-p prevcmd)
+	       (save-excursion (beginning-of-line) (bobp)))
+	  ;; Beginning of buffer - do no work, just return 0.
+	  0)
+	 (t
+	  (matlab-next-line-indentation prevcmd))))))))
   
 
 (defconst matlab-functions-have-end-should-be-true
