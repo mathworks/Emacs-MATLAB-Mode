@@ -141,6 +141,27 @@ function helptest()
         
 end
 
+function name_no_args
+%^  ^kw    ^fn
+end
+
+function retarg = ret_and_name_no_args % comment
+%^  ^kw  ^vn    ^df ^fn                  ^co
+end
+
+function retarg = args_have_cont (arg_1, ...
+                                  arg_2)
+%^                                ^vn
+end
+
+function [ retarg1, ...
+           retarg2, ...
+           retarg3 ] ...
+           = name_of_fcn (arg1)
+%^         ^df  ^fn       ^vn ^df
+    
+end
+
 classdef (Abstract) myclass < handle
 %^ ^kw      ^ty       ^fn   ^bi ^cn
 end

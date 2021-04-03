@@ -1036,38 +1036,48 @@ This matcher will handle a range of variable features."
      ))
   "Basic Expressions to highlight in MATLAB Files.")
 
-(defconst matlab-function-arguments
-  "\\(([^)]*)\\)?\\s-*\\([,;\n%]\\|$\\)")
+(defconst matlab-fl-opt-continuation "\\s<\\S>+\\s>")
+(defconst matlab-fl-opt-whitespace (concat "\\s-*\\(?:"
+					   matlab-fl-opt-continuation
+					   "\\)?\\s-*"))
+
+(defconst matlab-fl-fcn-key "^\\s-*function\\_>")
+(defconst matlab-fl-return-args "\\(\\[[^]]*\\]\\|\\sw+\\)")
+(defconst matlab-fl-fcn-name "\\(?:[sg]et\\.\\)?\\sw+")
+(defconst matlab-fl-fcn-args "\\(?:(\\|$\\|\\s<\\)" )
 
 (defconst matlab-function-font-lock-keywords
   (list
    ;; defining a function, a (possibly empty) list of assigned variables,
    ;; function name, and an optional (possibly empty) list of input variables
-   (list (concat "^\\s-*\\(function\\)\\_>[ \t\n.]*"
-		 "\\(\\[[^]]*\\]\\|\\sw+\\)[ \t\n.]*"
-		 "=[ \t\n.]*\\(\\(?:[sg]et\\.\\)?\\sw+\\)[ \t\n.]*"
-		 matlab-function-arguments)
-	 ;;'(1 font-lock-keyword-face append) - handled as keyword
-	 '(2 font-lock-variable-name-face append)
-	 '(3 font-lock-function-name-face prepend))
+   (list (concat matlab-fl-fcn-key matlab-fl-opt-whitespace
+		 matlab-fl-return-args matlab-fl-opt-whitespace
+		 "=" matlab-fl-opt-whitespace
+		 "\\(" matlab-fl-fcn-name "\\)" matlab-fl-opt-whitespace
+		 matlab-fl-fcn-args)
+	 '(1 font-lock-variable-name-face append)
+	 '(2 font-lock-function-name-face prepend))
    ;; defining a function, a function name, and an optional (possibly
    ;; empty) list of input variables
-   (list (concat "^\\s-*\\(function\\)[ \t\n.]+"
-		 "\\(\\(?:[sg]et\\.\\)?\\sw+\\)[ \t\n.]*"
-		 matlab-function-arguments)
-	 ;; '(1 font-lock-keyword-face append) - handled as keyword
-	 '(2 font-lock-function-name-face prepend))
+   (list (concat matlab-fl-fcn-key matlab-fl-opt-whitespace
+		 "\\(" matlab-fl-fcn-name "\\)" matlab-fl-opt-whitespace
+		 matlab-fl-fcn-args)
+	 '(1 font-lock-function-name-face prepend))
    ;; Anchor on the function keyword, highlight params
-   (list (concat "^\\s-*function\\>[ \t\n.]*"
-		 "\\(\\(\\[[^]]*\\]\\|\\sw+\\)[ \t\n.]*=[ \t\n.]*\\)?"
-		 "\\(?:[sg]et\\.\\)?\\sw+\\s-*(")
-	 '("\\s-*\\(\\sw+\\)\\s-*[,)]"
-	   (save-excursion
-	     (condition-case nil
-		 (matlab-scan-end-of-command)
-	       (error (point-at-eol))))
-	   nil
-	   (1 font-lock-variable-name-face)))
+   (list (concat matlab-fl-fcn-key matlab-fl-opt-whitespace
+		 "\\(" matlab-fl-return-args matlab-fl-opt-whitespace
+		 "=" matlab-fl-opt-whitespace
+		 "\\)?"
+		 matlab-fl-fcn-name matlab-fl-opt-whitespace
+		 "(")
+	 (list (concat matlab-fl-opt-whitespace "\\(\\sw+\\)"
+		       matlab-fl-opt-whitespace "[,)]")
+	       '(save-excursion
+		 (condition-case nil
+		     (matlab-scan-end-of-command)
+		   (error (point-at-eol))))
+	       nil
+	       '(1 font-lock-variable-name-face)))
    ;; ARGUMENTS have variables to highlight
    '(matlab-font-lock-args-keyword-match
      (matlab-font-lock-anchor-variable-match	 ;; matcher fcn
