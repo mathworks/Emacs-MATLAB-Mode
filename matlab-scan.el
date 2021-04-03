@@ -785,17 +785,22 @@ Optional PT, if non-nil, means return the point instead of column"
     
     (when (matlab-line-comment-p lvl1)
       ;; Try to get from lvl2 context
-      (let ((c-lvl1 (when lvl2 (matlab-previous-code-line lvl2))))
-	(unless c-lvl1
-	  ;; If not, compute it ourselves.
-	  (save-excursion
-	    (beginning-of-line)
-	    (forward-comment -100000)
-	    (setq c-lvl1 (matlab-compute-line-context 1))))
-	;; On previous code line - was it a declaration?
-	(when (matlab-line-declaration-p c-lvl1)
-	  (matlab-with-context-line c-lvl1
-	    (if pt (point) (current-indentation))))))))
+      (let ((c-lvl1 (when lvl2 (matlab-previous-code-line lvl2)))
+	    (boc-lvl1 nil))
+	(save-excursion
+	  (unless c-lvl1
+	    ;; If not, compute it ourselves.
+	    (save-excursion
+	      (beginning-of-line)
+	      (forward-comment -100000)
+	      (setq c-lvl1 (matlab-compute-line-context 1))))
+	  ;; On previous line, move to beginning of that command.
+	  (matlab-scan-beginning-of-command c-lvl1 'code-only)
+	  (setq boc-lvl1 (matlab-compute-line-context 1))
+	  ;; On previous code line - was it a declaration?
+	  (when (matlab-line-declaration-p boc-lvl1)
+	    (matlab-with-context-line boc-lvl1
+	      (if pt (point) (current-indentation)))))))))
 
 (defun matlab-scan-previous-line-ellipsis-p ()
   "Return the position of the previous line's continuation if there is one.
@@ -815,23 +820,32 @@ This is true iff the previous line has an ellipsis."
 	(when (and csc (= (car (syntax-after csc)) 11))
 	  csc)))))
 
-(defun matlab-scan-beginning-of-command (&optional lvl1)
+(defun matlab-scan-beginning-of-command (&optional lvl1 code-only)
   "Return point in buffer at the beginning of this command.
-This function walks up any enclosing parens, and skips
-backward over lines that include ellipsis."
+This function walks up any preceeding comments, enclosing parens, and skips
+backward over lines that include ellipsis.
+If optional CODE-ONLY is specified, it doesn't try to scan over
+preceeding comments."
   (unless lvl1 (setq lvl1 (matlab-compute-line-context 1)))
   ;; If we are in a block comment, just jump to the beginning, and
   ;; that's it.
-  (let ((bcs (matlab-line-block-comment-start lvl1)))
-    (when bcs
-      (goto-char bcs)
-      (setq lvl1 (matlab-compute-line-context 1)))
+  (let ((bcs nil))
+
+    (goto-char (matlab-line-point lvl1))
+    
+    (when (not code-only)
+      ;; Code only branch skips comments so the help-comment
+      ;; routine can also use this function.
+      (setq bcs (matlab-line-block-comment-start lvl1))
+      (when bcs
+	(goto-char bcs)
+	(setq lvl1 (matlab-compute-line-context 1)))
       
-    ;; If we are in a help comment, jump over that first.
-    (setq bcs (matlab-scan-comment-help-p lvl1 'point))
-    (when bcs
-      (goto-char bcs)
-      (setq lvl1 (matlab-compute-line-context 1)))
+      ;; If we are in a help comment, jump over that first.
+      (setq bcs (matlab-scan-comment-help-p lvl1 'point))
+      (when bcs
+	(goto-char bcs)
+	(setq lvl1 (matlab-compute-line-context 1))))
     
     ;; Now scan backward till we find the beginning.
     (let ((found nil))
@@ -1225,7 +1239,6 @@ Items 2 and 3 are likely the same but could be different."
 	   (lvl1-bgn (save-excursion (matlab-scan-beginning-of-command lvl1-match)
 				     (matlab-compute-line-context 1))))
       (list keyword column lvl1-match lvl1-bgn))))
-    
 
 
 ;;; Caching

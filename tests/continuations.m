@@ -92,7 +92,25 @@ function continuations(a,b) %!!0
     ...   % Continuation by itself just before an end.
 end  %!!0
 
+function [ a, ... !!0
+           b, ... !!11
+           c, ... !!11
+           d ] ... !!11
+           = continuations_in_return(opt)
+% H1 Comment Line !!0
+    
+    code(); %!! 4
+    
+end %!! 0
+
+function [ a, b ] = continuation_in_args(a,...
+                                         b) %!!41
+% H1 comment line !!0
+    
+end
+
 function c=expression_cont(a,b)
+% H1 line  !!0
     
     if (a > 0 && ... %!!4
         b < 0)       %!!8
