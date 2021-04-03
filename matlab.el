@@ -179,8 +179,8 @@ changed, and functions are indented based on `matlab-functions-have-end'."
                  (const :tag "MathWorks Standard"
                         MathWorks-Standard))
   )
-
 (make-variable-buffer-local 'matlab-indent-function-body)
+(put 'matlab-indent-function-body 'safe-local-variable #'symbolp)
 
 (defcustom matlab-functions-have-end 'guess
   "*If non-nil, functions-have-end minor mode is on by default.
@@ -190,6 +190,7 @@ If the value is 'guess, then we guess if a file has end when
   :type 'boolean)
 
 (make-variable-buffer-local 'matlab-functions-have-end)
+(put 'matlab-functions-have-end 'safe-local-variable #'symbolp)
 
 (defun matlab-toggle-functions-have-end ()
   "Toggle `matlab-functions-have-end-minor-mode'."
@@ -1635,70 +1636,35 @@ Travells a cross continuations"
 	(forward-line -1)
 	(matlab-line-end-comment-column (matlab-compute-line-context 1))))))
 
-(defun matlab-line-count-open-blocks (lvl1 end-lvl1)
-  "Return a the number of unterminated block constructs.
-This is any block, such as if or for, that doesn't have an END on this line.
-Input LVL1 indicates the line we are searching.
-Input END-LVL1 indicates the line whose end we search until."
-  (matlab-with-context-line lvl1
-    (let* ((v 0)
-	   (bound (matlab-line-end-of-code end-lvl1))
-	   (keyword nil))
-      
-      (if (or (matlab-line-comment-p lvl1)
-	      (matlab-line-empty-p lvl1))
-	  ;; If this line is comments or empty, no code to scan
-	  0
-	(goto-char (matlab-line-point lvl1))
-	(while (setq keyword
-		     (matlab-re-search-keyword-forward (matlab-keyword-regex 'indent) bound t))
-	  (if (or (and (eq (car keyword) 'mcos)
-		       (not (matlab--valid-mcos-keyword-point nil)))
-		  (and (eq (car keyword) 'args)
-		       (not (matlab--valid-arguments-keyword-point nil))))
-	      ;; Not valid, skip it.
-	      nil
-	    ;; Increment counter, move to end.
-	    (setq v (1+ v))
-	    (let ((p (point)))
-	      (forward-word -1)
-	      (if (matlab--scan-block-forward bound)
-		  (goto-char p)
-		(setq v (1- v))))))
-	v))))
+(defun matlab-line-count-block-change (&optional lvl1-start lvl1-end)
+  "Count the change in block depth across lines.
+Start at LVL1-START, and end at LVL1-END.  It is ok if these
+are the same line.
+A positive number means there were more block starts and ends.
+A negative number means there were more ends than starts.
+0 means no blocks, or that all blocks started also ended."
+  ;; TODO - delete this
+  (unless lvl1-start (setq lvl1-start (matlab-compute-line-context 1)
+			   lvl1-end lvl1-start))
 
-(defun matlab-line-count-closed-blocks (lvl1 bound-lvl1)
-  "Return the number of closing block constructs on this line.
-Argument LVL1 is the line we'll start on (at the end).
-Argument BOUND-LVL1 is where to stop search backwards from."
-  (matlab-with-context-line lvl1
-    (let ((v 0)
-	  ;;(lvl1 (matlab-compute-line-context 1))
-	  (bound (matlab-line-point bound-lvl1))
-	  )
-      
-      (if (matlab-line-comment-p lvl1)
-	  ;; If this is even vagely a comment line, then there is no
-	  ;; need to do any scanning.
-	  0
-	;; Else, lets scan.
-	;; lets only scan from the beginning of the comment
-	(matlab-line-end-of-code lvl1)
+  (if (or (matlab-line-comment-p lvl1-start)
+	  (matlab-line-empty-p lvl1-start))
+      ;; If we are starting on comments or empty, no code to scan
+      0
+    (matlab-with-context-line lvl1-start
+      (let ((depth 0)
+	    (bounds (matlab-line-end-of-code lvl1-end))
+	    (keyword nil))
+	;; Lets scan for keywords.
+	(goto-char (matlab-line-point lvl1-start))
+	(while (setq keyword (matlab--scan-next-keyword 'blocks bounds))
+	  (cond ((eq (car keyword) 'end)
+		 (setq depth (1- depth)))
+		(t
+		 (setq depth (1+ depth)))))
+	
+	depth))))
 
-	;; Count every END from our starting point till the beginning of the
-	;; command.  That count indicates unindent from the beginning of the
-	;; command which anchors the starting indent.
-	(goto-char (matlab-line-end-of-code lvl1))
-	(while (matlab-re-search-keyword-backward (matlab-keyword-regex 'end) bound t)
-	  (let ((startmove (match-end 0))
-		(nomove (point)))
-	    ;; Lets count these end constructs.
-	    (setq v (1+ v))
-	    (if (matlab--scan-block-backward bound)
-		(goto-char nomove)
-	      (setq v (1- v))) ;; If whole block, uncount the end
-	    ))
-	(if (<= v 0) 0 v)))))
 
 (defun matlab-function-called-at-point ()
   "Return a string representing the function called nearby point."
@@ -2152,19 +2118,20 @@ See `matlab-calculate-indentation' for how the output of this fcn is used."
     (save-excursion
       (matlab-scan-beginning-of-command lvl1)
       
-      ;;(back-to-indentation)
       (let* ((boc-lvl1 (matlab-compute-line-context 1))
-	     (cc (matlab-line-count-closed-blocks lvl1 boc-lvl1))
-	     (bc (matlab-line-count-open-blocks boc-lvl1 lvl1))
+	     (depthchange (matlab-line-count-block-change boc-lvl1 lvl1))
 	     (end (matlab-line-end-p boc-lvl1))
-	     (mc (and (matlab-line-block-middle-p boc-lvl1) 1))
-	     (ec (and (matlab-line-block-case-p boc-lvl1) 1))
-	     (ci (current-indentation)))
-
-	;; When CC is positive, and END is false, or CC > 1, then the NEXT
-	;; line should have an indent that matches the context at the beginning
-	;; of the block of the last end.
-	(if (or (> cc 1) (and (= cc 1) end))
+	     )
+	
+	;; When DEPTHCHANGE is negative, and END is false, or
+	;; DEPTHCHANGE < -1, then the NEXT line should have an indent
+	;; that matches the context at the beginning of the block of
+	;; the last end.
+	;;
+	;; If we don't do this, and a block-start is not the FIRST item
+	;; on a line, then there is no way for the following line to figure
+	;; out where it should be.
+	(if (or (< depthchange -1) (and (= depthchange -1) end))
 	    (let* ((CTXT (matlab-with-context-line boc-lvl1
 			   (matlab-line-end-of-code boc-lvl1)
 			   (matlab-re-search-keyword-backward
@@ -2172,43 +2139,24 @@ See `matlab-calculate-indentation' for how the output of this fcn is used."
 			   (matlab-scan-block-start-context))))
 	      (matlab-line-indentation (nth 3 CTXT)))
 
-	  ;; Old technique.
-	
-	  ;; When the current point is on a line with a function, the value of bc will
-	  ;; reflect the function in a block count iff if matlab-functions-have-end is
-	  ;; true.  However, if matlab-indent-function-body-p is false, there should be
-	  ;; no actual indentation, so bc needs to be decremented by 1.  Similarly, if
-	  ;; on a line with an end that closes a function, bc needs to be decremented
-	  ;; by 1 if matlab-functions-have-end is true and matlab-indent-function-body-p
-	  ;; is false.  However, just to be safe, indentation is not allowed to go
-	  ;; negative.  Thus:
-	  (if matlab-functions-have-end
-	      (if (and
-		   (not (matlab-indent-function-body-p))
-		   (or (matlab-line-declaration-p lvl1)
-		       (and (matlab-line-end-p lvl1)
-			    (save-excursion
-			      (matlab-backward-sexp t)
-			      (looking-at "function\\b")))))
-		  (if (> bc 0)
-		      (setq bc (1- bc))
-		    (if (>= ci matlab-indent-level)
-			(setq bc -1))))
-	    ;; Else, funtions don't have ends in this file.
-	    (if (and (matlab-indent-function-body-p)
-		     (matlab-line-declaration-p lvl1))
-		(setq bc (1+ bc))))
+	  ;; Indent recommendations not related to ENDS
+	  
+	  ;; If we are NOT indenting our functions and we are on
+	  ;; a declaration, then we should subtract 1 from the beginning count.
+	  ;; This fairly simple change removes a big chunk of the old code.
+	  (when (and (not (matlab-indent-function-body-p))
+		     (matlab-line-declaration-p boc-lvl1))
+	    (setq depthchange (1- depthchange)))
+	  
 	  ;; Remove 1 from the close count if there is an END on the beginning
 	  ;; of this line, since in that case, the unindent has already happened.
-	  (when end (setq cc (1- cc)))
+	  (when end (setq depthchange (1+ depthchange)))
+	  
 	  ;; Calculate the suggested indentation.
-	  (+ ci
-	     (* matlab-indent-level bc)
-	     (* matlab-indent-level (or mc 0))
-	     (* matlab-indent-level (- cc))
-	     (* (if (listp matlab-case-indent-level)
-		    (cdr matlab-case-indent-level) matlab-case-indent-level)
-		(or ec 0))
+	  (+ (current-indentation)
+	     (* matlab-indent-level depthchange)
+	     (* matlab-indent-level (if (matlab-line-block-middle-p boc-lvl1) 1 0))
+	     (* (cdr matlab-case-indent-level) (if (matlab-line-block-case-p boc-lvl1) 1 0))
 	     ))))))
 
 ;;; The return key ============================================================

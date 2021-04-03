@@ -102,7 +102,7 @@
 	    0)
      ))
 
-(defvar met-end-detect-files '("empty.m" "stringtest.m" "mfuncnoend.m" "mfuncnoendblock.m" "mfuncends.m" "mclass.m" "mfuncspacey.m" "mfuncnoendindent.m" )
+(defvar met-end-detect-files '("empty.m" "stringtest.m" "mfuncnoend.m" "mfuncnoendblock.m" "mfuncends.m" "mclass.m" "mfuncspacey.m" "mfuncnoendindent.m" "mfuncnofuncindent.m")
   "List of files for running end detection tests on.")
 
 (defvar metest-end-detect-test (cons "END detection" met-end-detect-files))
@@ -324,7 +324,7 @@
       (list cnt "test")))
 
 
-(defvar met-indents-files '("indents.m" "continuations.m" "mclass.m" "blocks.m" "mfuncends.m" "mfuncnoendblock.m" "mclass_cont.m")
+(defvar met-indents-files '("indents.m" "continuations.m" "mclass.m" "blocks.m" "mfuncends.m" "mfuncnoendblock.m" "mclass_cont.m" "mfuncnofuncindent.m")
   "List of files for running syntactic indentation tests.")
 
 (defun metest-indents-randomize-files ()
