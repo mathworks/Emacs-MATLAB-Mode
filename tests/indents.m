@@ -194,6 +194,16 @@ function out = array_constant_decls()
         fcn3.finalize                                       % the single quote used to break [] scanning
           ];
     
+    % This long fcn name last symbol starts with 'get' which
+    % used to confuse and move to indent past 1st arg.
+    if qesimcheck.utils.GetYesNoAnswer('Do ',... !!4
+                                       'n',...  !!39
+                                       'once') %!!39
+        code();  %!!8
+    end  %!!4
+    
+    
+    
     % !!4
     out = { A     %!!4
             Blong %!!12

@@ -122,7 +122,7 @@ should be ok."
   :type 'sexp)
 
 (defcustom matlab-indent-past-arg1-functions
-  "[sg]et\\(_param\\)?\\|waitfor\\|notify"
+  "\\_<\\([sg]et\\(_param\\)?\\|waitfor\\|notify\\)\\_>"
   "*Regex describing functions whose first arg is special.
 This specialness means that all following parameters which appear on
 continued lines should appear indented to line up with the second
@@ -1100,7 +1100,7 @@ This matcher will handle a range of variable features."
    '("\\_<\\(case\\|switch\\)\\_>\\s-+\\({[^}\n]+}\\|[^,%\n]+\\)"
      (2 font-lock-reference-face))
     ;; set_param and waitfor have input variables that can be highlighted.
-    (list (concat "\\_<" matlab-indent-past-arg1-functions "\\_>\\s-*")
+    (list (concat matlab-indent-past-arg1-functions "\\s-*")
 	  '("(\\s-*\\(\\w+\\)\\s-*\\(,\\|)\\)" nil  nil
 	    (1 font-lock-variable-name-face)))
    )
