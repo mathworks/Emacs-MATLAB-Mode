@@ -491,6 +491,7 @@ Return nil for empty and comment only lines."
   )
 
 ;; Declarations and Names
+(defvar matlab-fl-opt-whitespace)
 (defun matlab-line-declaration-name (&optional lvl1)
   "Return string name of a declaration on the line.
 For functions, this is the name of the function.
@@ -511,9 +512,15 @@ If the current line is not a declaration, return nil."
 	   ((string= (matlab-line-first-word-text lvl1) "function")
 	    (forward-word 1)
 	    (skip-syntax-forward " ")
-	    (when (looking-at "\\(\\[[^]]+]\\|\\w+\\)\\s-*=")
+	    (forward-comment 10)
+	    (when (looking-at (concat
+			       "\\(\\[[^]]+]\\|\\w+\\)"
+			       matlab-fl-opt-whitespace
+			       "="))
 	      (goto-char (match-end 0))
-	      (skip-syntax-forward " "))
+	      (skip-syntax-forward " ")
+	      (forward-comment 10)
+	      )
 	    (setq type 'function
 		  start (point)
 		  end (save-excursion
@@ -524,9 +531,12 @@ If the current line is not a declaration, return nil."
 	   ((string= (matlab-line-first-word-text lvl1) "classdef")
 	    (forward-word 1)
 	    (skip-syntax-forward " ")
+	    (forward-comment 10)
 	    (when (looking-at "([^)]+)")
 	      (goto-char (match-end 0))
-	      (skip-syntax-forward " "))	       
+	      (skip-syntax-forward " ")
+	      (forward-comment 10)
+	      )
 	    (setq type 'classdef
 		  start (point)
 		  end (save-excursion
