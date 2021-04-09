@@ -97,8 +97,32 @@ classdef blocks < handle
         
         %>>21
         function enumeration(~)%!!8
+%^                   ^fn
         end %<<21
 
+        function y = multiple_arg_blocks(a, b, varargin) %!!8
+           
+            arguments %!!12
+%^            ^kw
+                a uint32  %!!16
+%^              ^vn  ^ty
+                b uint32  %!!16
+%^              ^vn  ^ty
+            end %!!12
+%^            ^kw
+            
+            arguments (Repeating)  %!!12
+%^            ^kw         ^ty
+                varargin  %!!16
+%^                ^vn
+            end %!!12
+%^            ^kw
+            
+            y = a+b+length(varargin);   %!!12
+        
+        end
+        
+        
         %>>22
         function usestuff(obj)%!!8
         % Try using the methods of this object

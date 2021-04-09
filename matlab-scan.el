@@ -1015,7 +1015,14 @@ Assume basic keyword checks have already been done."
 				(matlab-scan-beginning-of-command)
 				(and (matlab--valid-keyword-point)
 				     (matlab--mk-keyword-node))))))
-       (string= (nth 1 parent) "function")))))
+       (and parent
+	    (or (string= (nth 1 parent) "function")
+		;; If not a function, it might be an and, but that end will need to be
+		;; reverse tracked to see if it belongs to valid argument block.
+		(string= (nth 1 parent) "end")
+		;; TODO: be more rigid in this detection.
+		))
+       ))))
 
 (defun matlab--scan-derive-block-state (providedstate filter)
   "Return a block state for current point.
