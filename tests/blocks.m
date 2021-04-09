@@ -121,6 +121,19 @@ classdef blocks < handle
             y = a+b+length(varargin);   %!!12
         
         end
+
+        function linLog(x,y,scale)
+            arguments(Repeating) %!!12
+                x (1,:) double
+                y (1,:) double
+            end %!!12
+            arguments  %!!12
+                scale.Plottype(1,1) string   %!!16
+%^               ^vn     ^vn   ^ty   ^ty
+            end  %!!12
+            
+            sprintf('%d %d %s\n', x, y, scale);
+        end
         
         
         %>>22

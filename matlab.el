@@ -976,7 +976,7 @@ color support."
 This matcher will handle a range of variable features."
   (when (member (nth 1 matlab-fl-anchor-keyword)
 		'("properties" "events" "arguments"))
-    (let* ((match (re-search-forward "\\(?:^\\|[,;]\\)\\s-+\\(\\w+\\)\\_>" ml-fl-anchor-limit t))
+    (let* ((match (re-search-forward "\\(?:^\\|[,;]\\)\\s-+\\(\\(?:\\w+\\|\\.\\)+\\)\\_>" ml-fl-anchor-limit t))
 	   ;; Save this match so we can do a 2nd anchored search for a data type.
 	   (md1 (list (match-beginning 1) (match-end 1)))
 	   (tm (looking-at
