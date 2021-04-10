@@ -577,13 +577,6 @@ point, but it will be restored for them."
      ["Spell check strings and comments" matlab-ispell-strings-and-comments t]
      ["Quiesce source" matlab-mode-vf-quiesce-buffer t]
      )
-    ("Navigate"
-     ["Beginning of Command" matlab-beginning-of-command t]
-     ["End of Command" matlab-end-of-command t]
-     ["Forward Block" matlab-forward-sexp t]
-     ["Backward Block" matlab-backward-sexp t]
-     ["Beginning of Function" matlab-beginning-of-defun t]
-     ["End of Function" matlab-end-of-defun t])
     ("Format"
      ["Justify Line" matlab-justify-line t]
      ["Fill Region" matlab-fill-region t]
@@ -1338,6 +1331,10 @@ All Key Bindings:
   ;; Sexp's and Defuns
   (make-local-variable 'forward-sexp-function)
   (setq forward-sexp-function 'matlab-forward-sexp-fcn)
+  (make-local-variable 'beginning-of-defun-function)
+  (setq beginning-of-defun-function 'matlab-beginning-of-defun)
+  (make-local-variable 'end-of-defun-function)
+  (setq end-of-defun-function 'matlab-skip-over-defun)
   (make-local-variable 'add-log-current-defun-function)
   (setq add-log-current-defun-function 'matlab-current-defun)
 
@@ -1585,32 +1582,82 @@ a valid context."
       (setq p (point)))
     (goto-char p)))
 
-(defun matlab-beginning-of-defun ()
-  "Go to the beginning of the current function."
-  (interactive)
-  (if (eq (matlab-on-keyword-p) 'end)
-      (progn
-	;; If we are ON an end an it matches a decl,
-	;; that is probably what was indented.
-	(matlab--scan-block-backward)
-	(if (eq (matlab-on-keyword-p) 'decl)
-	    nil ; done
-	  (matlab--scan-block-backward-up-until 'decl)))
-    ;; else, just do a scan.
-    (matlab--scan-block-backward-up-until 'decl)))
+(defun matlab-beginning-of-defun (&optional arg)
+  "Go to the beginning of the current function.
+With optional ARG, go backward that many defuns."
+  (interactive "p")
+  (unless arg (setq arg 1))
+  (let ((ans nil))
+    ;; If ARG is positive, move BACKWARD that many defuns.
+    (while (> arg 0)
+      (setq ans (matlab--beginning-of-defun-raw))
+      (setq arg (1- arg)))
+    ;; If ARG is negative, move FORWARD that many defun
+    (while (< arg 0)
+      (if (eq (matlab-on-keyword-p) 'decl)
+	  (setq ans (not (matlab--scan-block-forward)))
+	;; Else, just look for stuff and hope for the best.
+	(setq ans (matlab--scan-next-keyword 'decl (point-max)))
+	)
+      (setq arg (1+ arg)))
+    
+    ans))
 
-(defun matlab-end-of-defun ()
+(defun matlab-skip-over-defun ()
+  "Assigned to `end-of-defun-function' for matlab mode.
+Assume point is on a defun, and if so, skip to the end."
+  (skip-syntax-forward " >")
+  (if (eq (matlab-on-keyword-p) 'decl)
+      (matlab--scan-block-forward)
+    ;; Else, bad condition.  Maybe we're moving up from
+    ;; inside a nested function?  If so, bounce up
+    ;; and try again.
+    (matlab-end-of-defun 1)))
+
+
+(defun matlab-end-of-defun (&optional arg)
   "Go to the end of the current function."
-  (interactive)
-  (when (not (eq (matlab-on-keyword-p) 'decl))
-    (matlab--scan-block-backward-up-until 'decl))
-  (matlab--scan-block-forward))
+  (interactive "p")
+  (unless arg (setq arg 1))
+  (let ((ans nil))
+    (while (> arg 0)
+      (matlab-end-of-string-or-comment t)
+      (skip-syntax-forward " ")
+      (when (not (eq (matlab-on-keyword-p) 'decl))
+	(matlab--scan-block-backward-up-until 'decl))
+      (skip-syntax-forward " ")
+      (setq ans
+	    (if (eq (matlab-on-keyword-p) 'decl)
+		(not (matlab--scan-block-forward))
+	      nil))
+      (setq arg (1- arg)))
+    ans))
+
+(defun matlab--beginning-of-defun-raw ()
+  "Move to the beginning of defun cursor is in.
+Move up and backwards one defun, our out of current defun.
+Accounts for nested functions."
+  ;; Get out of comments.
+  (matlab-beginning-of-string-or-comment t)
+  ;; back over whitespace - try to find what we are near.
+  (skip-syntax-backward " >")
+  ;; Do scanning 
+  (if (not (eq (matlab-on-keyword-p) 'end))
+      ;; No end, scan up until we find the declaration we're in.
+      (matlab--scan-block-backward-up-until 'decl)
+    ;; Else, nav backward over the end we are at.
+    (matlab--scan-block-backward)
+    (if (eq (matlab-on-keyword-p) 'decl)
+	t		; done
+      ;; If that end wasn't a decl, scan upward.
+      (matlab--scan-block-backward-up-until 'decl))))
 
 (defun matlab-current-defun ()
   "Return the name of the current function."
   (save-excursion
-    (matlab-beginning-of-defun)
+    (matlab--beginning-of-defun-raw)
     (nth 1 (matlab-line-declaration-name))))
+
 
 (defun matlab-beginning-of-command ()
   "Go to the beginning of an M command.
@@ -3142,7 +3189,9 @@ desired.  Optional argument FAST is not used."
 	   (lvl1msg (matlab-describe-line-indent-context lvl1 t))
 	   (indent nil)
 	   (fullindent (matlab--calc-indent lvl2 'indent))
-	   (nexti (matlab-next-line-indentation nil)))
+	   (nexti (matlab-next-line-indentation lvl1))
+	   (defn (matlab-current-defun))
+	   )
       (setq msg (concat msg
 			"Line Syntax: " lvl1msg
 			"  | Preferred Indents: This: " (int-to-string (nth 1 indent))
@@ -3154,6 +3203,9 @@ desired.  Optional argument FAST is not used."
 	(setq msg (concat msg " w/cont")))
       (when (matlab-line-end-comment-point lvl1)
 	(setq msg (concat msg " w/comm")))
+      (when defn
+	(setq msg (concat msg "  Defun: " defn)))
+
       (message "%s" msg))))
 
 

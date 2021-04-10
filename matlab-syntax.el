@@ -448,31 +448,38 @@ bounds of the string or comment the cursor is in"
   "If the cursor is in a string or comment, move to the beginning.
 Returns non-nil if the cursor moved."
   (let* ((pps (syntax-ppss (point))))
-    (when (nth 8 pps)
-      (goto-char (nth 8 pps))
-      (when all-comments (forward-comment -100000))
-      t)))
+    (prog1
+	(when (nth 8 pps)
+	  (goto-char (nth 8 pps))
+	  t)
+      (when all-comments (forward-comment -100000)))))
 
-(defsubst matlab-end-of-string-or-comment (&optional all-comments)
+(defun matlab-end-of-string-or-comment (&optional all-comments)
   "If the cursor is in a string or comment, move to the end.
 If optional ALL-COMMENTS is non-nil, then also move over all
 adjacent comments.
 Returns non-nil if the cursor moved."
   (let* ((pps (syntax-ppss (point)))
 	 (start (point)))
-    (when (nth 8 pps)
-      ;; syntax-ppss doesn't have the end, so go to the front
-      ;; and then skip forward.
-      (goto-char (nth 8 pps))
-      (if (nth 3 pps)
-	  (goto-char (scan-sexps (point) 1))
-	(forward-comment (if all-comments 100000 1)))
-      ;; If the buffer is malformed, we might end up before starting pt.
-      ;; so error.
-      (when (< (point) start)
-	(goto-char start)
-	(error "Error navitaging syntax."))
-      t)))
+    (if (nth 8 pps)
+	(progn
+	  ;; syntax-ppss doesn't have the end, so go to the front
+	  ;; and then skip forward.
+	  (goto-char (nth 8 pps))
+	  (if (nth 3 pps)
+	      (goto-char (scan-sexps (point) 1))
+	    (forward-comment (if all-comments 100000 1)))
+	  ;; If the buffer is malformed, we might end up before starting pt.
+	  ;; so error.
+	  (when (< (point) start)
+	    (goto-char start)
+	    (error "Error navitaging syntax."))
+	  t)
+      ;; else not in comment, but still skip 'all-comments' if requested.
+      (not (eq (point)
+	       (progn (when all-comments (forward-comment 100000))
+		      (point))))
+      )))
 
 ;;; Navigating Lists
 ;;
