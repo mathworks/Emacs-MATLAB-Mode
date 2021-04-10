@@ -257,6 +257,7 @@
 (defun tlc-return ()
   "Handle carriage return in `tlc-mode'."
   (interactive)
+  (delete-horizontal-space)
   (newline)
   (tlc-indent))
 
