@@ -553,12 +553,14 @@ This could mean it is:
 ;; Left over old APIs.  Delete these someday.
 (defsubst matlab-move-simple-sexp-backward-internal (count)
   "Move backward COUNT number of MATLAB sexps."
-  (forward-sexp (- count)))
+  (let ((forward-sexp-function nil))
+    (forward-sexp (- count))))
 
 (defsubst matlab-move-simple-sexp-internal(count)
   "Move over one MATLAB sexp COUNT times.
 If COUNT is negative, travel backward."
-  (forward-sexp count))
+  (let ((forward-sexp-function nil))
+    (forward-sexp count)))
 
 (provide 'matlab-syntax)
 

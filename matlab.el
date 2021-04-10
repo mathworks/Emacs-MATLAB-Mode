@@ -507,11 +507,6 @@ point, but it will be restored for them."
     ;; Navigation Commands
     (define-key km [(meta a)] 'matlab-beginning-of-command)
     (define-key km [(meta e)] 'matlab-end-of-command)
-    (define-key km [(meta control f)] 'matlab-forward-sexp)
-    (define-key km [(meta control b)] 'matlab-backward-sexp)
-    (define-key km [(meta control q)] 'matlab-indent-sexp)
-    (define-key km [(meta control a)] 'matlab-beginning-of-defun)
-    (define-key km [(meta control e)] 'matlab-end-of-defun)
     ;; Insert, Fill stuff
     (define-key km [(control c) (control c)] 'matlab-insert-map-fcn)
     (define-key km [(control c) (control f)] 'matlab-fill-comment-line)
@@ -1279,10 +1274,6 @@ based on the local syntax.
 Convenient navigation commands are:
  \\[matlab-beginning-of-command]   - Move to the beginning of a command.
  \\[matlab-end-of-command]   - Move to the end of a command.
- \\[matlab-beginning-of-defun] - Move to the beginning of a function.
- \\[matlab-end-of-defun] - Move do the end of a function.
- \\[matlab-forward-sexp] - Move forward over a syntactic block of code.
- \\[matlab-backward-sexp] - Move backwards over a syntactic block of code.
 
 Convenient template insertion commands:
  \\[tempo-template-matlab-function] - Insert a function definition.
@@ -1341,15 +1332,16 @@ All Key Bindings:
   (setq comment-column matlab-comment-column)
   (make-local-variable 'comment-indent-function)
   (setq comment-indent-function (lambda () nil)) ;; always use indent-according-to-mode
-
   (make-local-variable 'electric-indent-functions)
   (setq electric-indent-functions 'matlab-electric-indent-function)
-  
+
+  ;; Sexp's and Defuns
+  (make-local-variable 'forward-sexp-function)
+  (setq forward-sexp-function 'matlab-forward-sexp-fcn)
   (make-local-variable 'add-log-current-defun-function)
   (setq add-log-current-defun-function 'matlab-current-defun)
-  ;; Emacs 20 supports this variable.
-  ;; This lets users turn auto-fill on and off and still get the right
-  ;; fill function.
+
+  ;; Auto-Fill and Friends
   (make-local-variable 'normal-auto-fill-function)
   (setq normal-auto-fill-function 'matlab-auto-fill)
   (make-local-variable 'fill-column)
@@ -1485,7 +1477,6 @@ a block is not terminated.")
 If optional AUTOEND, then pretend we are at an end.
 If optional NOERROR, then we return t on success, and nil on failure.
 This assumes that expressions do not cross \"function\" at the left margin."
-  (interactive "P")
   (let ((p (point))
 	(returnme t)
 	keyword)
@@ -1534,13 +1525,27 @@ This assumes that expressions do not cross \"function\" at the left margin."
     (goto-char p)
     returnme))
 
+(defun matlab-forward-sexp-fcn (&optional arg)
+  "Function used as `forward-sexp-function' for MATLAB mode.
+Adapt to use `matlab-forward-sexp' or `matlab-backward-sexp'
+depending on value of 'arg'."
+  ;; Move forward on positive arg.
+  (while (> arg 0)
+    (matlab-forward-sexp)
+    (setq arg (1- arg)))
+  ;; Or maybe move backward on negative args.
+  (while (< arg 0)
+    (matlab-backward-sexp)
+    (setq arg (1+ arg)))
+  )
+  
+
 (defun matlab-forward-sexp (&optional autostart parentblock)
   "Go forward one balanced set of MATLAB expressions.
 If AUTOSTART is non-nil, assume we are already inside a block, and navigate
 forward until we exit that block.
 PARENTBLOCK is used when recursing to validate block starts as being in
 a valid context."
-  (interactive "P")
   (let (p keyword)  ;; go to here if no error.
     (save-excursion ;; Don't move if there is an error
       ;; skip over preceding whitespace
@@ -1579,11 +1584,6 @@ a valid context."
 	)
       (setq p (point)))
     (goto-char p)))
-
-(defun matlab-indent-sexp ()
-  "Indent the syntactic block starting at point."
-  (interactive)
-  (indent-region (point) (save-excursion (matlab-forward-sexp) (point)) nil))
 
 (defun matlab-beginning-of-defun ()
   "Go to the beginning of the current function."
