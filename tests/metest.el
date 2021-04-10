@@ -176,13 +176,14 @@
 		 (pt  (match-end 1))
 		 (mc  (match-string-no-properties 1))
 		 (fnt (get-text-property pt 'face))
-		 (bc  (metest-condition-case-error-msg (matlab-block-comment-bounds)))
+		 (lv1 (matlab-compute-line-context 1))
+		 (bc  (metest-condition-case-error-msg (matlab-line-block-comment-start lv1)))
 		 (qd  (metest-condition-case-error-msg (matlab-cursor-comment-string-context)))
 		 )
 	    (goto-char pt)
 	    
 	    ;; Test 1 - what are we?
-	    (unless (or (and (string= "b" mc) bc)
+	    (unless (or (and (string= "b" mc) (and bc (eq 'comment qd)))
 			(and (string= "v" mc) (eq 'charvector qd))
 			(and (string= "V" mc) (eq 'charvector qd))
 			(and (string= "s" mc) (eq 'string qd))

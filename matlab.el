@@ -504,17 +504,34 @@ point, but it will be restored for them."
 ;; mode map
 (defvar matlab-mode-map
   (let ((km (make-sparse-keymap)))
-    (define-key km [return] 'matlab-return)
-    (define-key km "%" 'matlab-electric-comment)
-    (define-key km "}" 'matlab-electric-block-comment)
-    (define-key km "{" 'matlab-electric-block-comment)
-    (define-key km "\C-c;" 'matlab-comment-region)
-    (define-key km "\C-c:" 'matlab-uncomment-region)
-    (define-key km [(control c) return] 'matlab-comment-return)
+    ;; Navigation Commands
+    (define-key km [(meta a)] 'matlab-beginning-of-command)
+    (define-key km [(meta e)] 'matlab-end-of-command)
+    (define-key km [(meta control f)] 'matlab-forward-sexp)
+    (define-key km [(meta control b)] 'matlab-backward-sexp)
+    (define-key km [(meta control q)] 'matlab-indent-sexp)
+    (define-key km [(meta control a)] 'matlab-beginning-of-defun)
+    (define-key km [(meta control e)] 'matlab-end-of-defun)
+    ;; Insert, Fill stuff
     (define-key km [(control c) (control c)] 'matlab-insert-map-fcn)
     (define-key km [(control c) (control f)] 'matlab-fill-comment-line)
     (define-key km [(control c) (control j)] 'matlab-justify-line)
     (define-key km [(control c) (control q)] 'matlab-fill-region)
+    ;; Comment Stuff
+    (define-key km "%" 'matlab-electric-comment)
+    (define-key km "^" 'matlab-electric-comment)
+    (define-key km "}" 'matlab-electric-block-comment)
+    (define-key km "{" 'matlab-electric-block-comment)
+    (define-key km "\C-c;" 'matlab-comment-region)
+    (define-key km "\C-c:" 'matlab-uncomment-region)
+    (define-key km [(meta \;)] 'matlab-comment)
+    (define-key km [(meta j)] 'matlab-comment-line-break-function)
+    (define-key km [(control c) return] 'matlab-comment-return)
+    (substitute-key-definition 'comment-region 'matlab-comment-region
+			       km global-map) ;torkel
+    ;; Completion
+    (define-key km "\M-\t" 'matlab-complete-symbol)
+    ;; Connecting to MATLAB Shell
     (define-key km [(control c) (control s)] 'matlab-shell-save-and-go)
     (define-key km [(control c) (control r)] 'matlab-shell-run-region)
     (define-key km [(meta control return)] 'matlab-shell-run-cell)
@@ -522,28 +539,12 @@ point, but it will be restored for them."
     (define-key km [(control c) (control t)] 'matlab-show-line-info)
     (define-key km [(control c) ?. ] 'matlab-shell-locate-fcn)
     (define-key km [(control h) (control m)] matlab-help-map)
-    (define-key km [(control j)] 'matlab-linefeed)
-    (define-key km "\M-\r" 'newline)
-    (define-key km [(meta \;)] 'matlab-comment)
-    (define-key km [(meta a)] 'matlab-beginning-of-command)
-    (define-key km [(meta e)] 'matlab-end-of-command)
-    (define-key km [(meta j)] 'matlab-comment-line-break-function)
     (define-key km [(meta s)] 'matlab-show-matlab-shell-buffer)
-    (define-key km "\M-\t" 'matlab-complete-symbol)
-    (define-key km [(meta control f)] 'matlab-forward-sexp)
-    (define-key km [(meta control b)] 'matlab-backward-sexp)
-    (define-key km [(meta control q)] 'matlab-indent-sexp)
-    (define-key km [(meta control a)] 'matlab-beginning-of-defun)
-    (define-key km [(meta control e)] 'matlab-end-of-defun)
-    (if (string-match "XEmacs" emacs-version)
-	(define-key km [(control meta button1)] 'matlab-find-file-click)
-      (define-key km [(control meta mouse-2)] 'matlab-find-file-click))
-
+    (define-key km [(control meta mouse-2)] 'matlab-find-file-click)
+    ;; Debugger interconnect
     (substitute-key-definition 'read-only-mode 'matlab-toggle-read-only
 			       km global-map)
 
-    (substitute-key-definition 'comment-region 'matlab-comment-region
-			       km global-map) ;torkel
     km)
   "The keymap used in `matlab-mode'.")
 
@@ -1306,7 +1307,6 @@ Variables:
   `fill-column'			Column used in auto-fill.
   `matlab-indent-function-body' If non-nil, indents body of MATLAB functions.
   `matlab-functions-have-end'	If non-nil, MATLAB functions terminate with end.
-  `matlab-return-function'	Customize RET handling with this function.
   `matlab-fill-code'            Non-nil, auto-fill code in auto-fill-mode.
   `matlab-fill-strings'         Non-nil, auto-fill strings in auto-fill-mode.
   `matlab-verify-on-save-flag'  Non-nil, enable code checks on save.
@@ -1340,8 +1340,11 @@ All Key Bindings:
   (make-local-variable 'comment-column)
   (setq comment-column matlab-comment-column)
   (make-local-variable 'comment-indent-function)
-  (setq comment-indent-function 'matlab-comment-indent)
+  (setq comment-indent-function (lambda () nil)) ;; always use indent-according-to-mode
 
+  (make-local-variable 'electric-indent-functions)
+  (setq electric-indent-functions 'matlab-electric-indent-function)
+  
   (make-local-variable 'add-log-current-defun-function)
   (setq add-log-current-defun-function 'matlab-current-defun)
   ;; Emacs 20 supports this variable.
@@ -1372,7 +1375,7 @@ All Key Bindings:
 			      matlab-file-gaudy-font-lock-keywords
 			      matlab-file-really-gaudy-font-lock-keywords
 			      )
-			     nil ; matlab-syntax supports comments and strings.
+			     nil ; use syntax table comments/strings
 			     nil ; keywords are case sensitive.
 			     ;; This puts _ as a word constituent,
 			     ;; simplifying our keywords significantly
@@ -1380,6 +1383,7 @@ All Key Bindings:
   (setq font-lock-multiline 'undecided)
   (add-to-list 'font-lock-extend-region-functions #'matlab-font-lock-extend-region t)
 
+  ;; Highilght parens OR if/end type blocks
   (make-local-variable 'show-paren-data-function)
   (setq show-paren-data-function 'matlab-show-paren-or-block)
   
@@ -1499,7 +1503,7 @@ This assumes that expressions do not cross \"function\" at the left margin."
        ;; No auto-end ....
        
        ;; End of a block comment
-       ((matlab-ltype-block-comment-end)
+       ((eq (matlab-line-comment-style (matlab-compute-line-context 1)) 'block-end)
 	(beginning-of-line)
 	(matlab-beginning-of-string-or-comment))
 
@@ -2155,73 +2159,21 @@ See `matlab-calculate-indentation' for how the output of this fcn is used."
 	     (* matlab-indent-level (if (matlab-line-block-middle-p boc-lvl1) 1 0))
 	     (* (cdr matlab-case-indent-level) (if (matlab-line-block-case-p boc-lvl1) 1 0))
 	     ))))))
-
-;;; The return key ============================================================
 
-(defcustom matlab-return-function 'matlab-indent-end-before-ret
-  "Function to handle return key.
-Must be one of:
-    'matlab-plain-ret
-    'matlab-indent-after-ret
-    'matlab-indent-end-before-ret
-    'matlab-indent-before-ret"
-  :group 'matlab
-  :type '(choice (function-item matlab-plain-ret)
-		 (function-item matlab-indent-after-ret)
-		 (function-item matlab-indent-end-before-ret)
-		 (function-item matlab-indent-before-ret)))
-
-(defun matlab-return ()
-  "Handle carriage return in `matlab-mode'."
-  (interactive)
-  (matlab-semicolon-on-return)
-  (funcall matlab-return-function))
-
-(defun matlab-plain-ret ()
-  "Vanilla new line."
-  (interactive)
-  (newline))
-
-(defun matlab-indent-after-ret ()
-  "Indent after new line."
-  (interactive)
-  (newline)
-  (matlab-indent-line))
-
-(defun matlab-indent-end-before-ret ()
-  "Indent line if block end, start new line, and indent again."
-  (interactive)
-  (let ((lvl1 (matlab-compute-line-context 1)))
-    (when (or (matlab-line-end-p lvl1)
-	      (matlab-line-block-case-p lvl1)
-	      (matlab-line-block-middle-p lvl1)
-	      (matlab-line-declaration-p lvl1))
-      (matlab-indent-line)))
-  (newline)
-  (matlab-indent-line))
-
-(defvar matlab-quiesce-nosemi-regexp) ;; quiet compiler warning (var is defined below)
-(defun matlab-semicolon-on-return ()
-  "If needed, add a semicolon at point automatically."
-  (if matlab-return-add-semicolon
-      (when (matlab-line-end-of-code-needs-semicolon-p)
-	(insert ";")
-	(end-of-line))))
-
-(defun matlab-indent-before-ret ()
-  "Indent line, start new line, and indent again."
-  (interactive)
-  (matlab-indent-line)
-  (newline)
-  (matlab-indent-line))
-
-(defun matlab-linefeed ()
-  "Handle line feed in `matlab-mode'.
-Has effect of `matlab-return' with (not matlab-indent-before-return)."
-  (interactive)
-  (matlab-indent-line)
-  (newline)
-  (matlab-indent-line))
+(defun matlab-electric-indent-function (char)
+  "Return t if `electric-indent-mode' should indent after CHAR is inserted.
+Return nil otherwise.
+This function recommends indenting after special keywords that typically cause indentation
+changes so the code fixes itself up."
+  (cond ((eq char ?e)
+	 (let ((lvl1 (matlab-compute-line-context 1)))
+	   (or (matlab-line-block-middle-p lvl1)
+	       (matlab-line-block-case-p lvl1))))
+	((eq char ?d)
+	 (let ((lvl1 (matlab-compute-line-context 1)))
+	   (matlab-line-end-p lvl1)))
+	(t
+	 nil)))
 
 
 ;;; Comment management========================================================
@@ -2237,53 +2189,29 @@ Has effect of `matlab-return' with (not matlab-indent-before-return)."
 Argument ARG specifies how many %s to insert."
   (interactive "P")
   (self-insert-command (or arg 1))
-  (matlab-indent-line)
-  (skip-chars-forward "%"))
+  (when (or (eq last-command-event ?%)
+	    (and (eq last-command-event ?^) ;; ignore comments move quick back to col0
+		 (matlab-line-comment-p (matlab-compute-line-context 1))
+		 (eq (char-before (1- (point))) ?%)
+		 ))
+    (matlab-indent-line)
+    (skip-chars-forward "%^")))
 
 (defun matlab-electric-block-comment (arg)
   "Indent line and insert block comment end character.
 Argument ARG specifies how many %s to insert."
   (interactive "P")
   (self-insert-command (or arg 1))
-  (let ((bc (save-excursion (beginning-of-line) (matlab-block-comment-bounds))))
+  (let* ((lvl1 (matlab-compute-line-context 1))
+	 (bc (matlab-line-block-comment-start lvl1)))
 
-    (cond ((matlab-ltype-block-comment-start)
-
-	 ;; Starting block comment.  Check if we are already in a block
-	 ;; comment, and blink it if a problem.
-	 (let ((bcwrapped (save-excursion
-			    (beginning-of-line)
-			    (matlab-block-comment-bounds))))
-
-	   ;; Regardless, indent our line
+    (cond ((eq (matlab-line-comment-style lvl1) 'block-start)
 	   (matlab-indent-line)
-
-	   (when bcwrapped
-	     (save-excursion
-	       (goto-char (car bcwrapped))
-	       (skip-chars-forward "%{")
-	       (message "Nested block comment start %%{")
-	       (pulse-momentary-highlight-region (car bcwrapped) (point))))
-	   ))
-
-	  ;;ELSE, maybe end of block comment
-	  ((and bc (matlab-ltype-block-comment-end))
-	   (progn
-	     (matlab-indent-line)
-	     ;; The above sometimes puts the cursor on the %, not after it.
-	     (skip-chars-forward "%}")
-	     (pulse-momentary-highlight-region (car bc) (cdr bc)))
 	   )
-
-	  ;; Else, not in a comment - which means we don't have
-	  ((and (not bc) (save-excursion
-			   (skip-chars-backward "%{")
-			   (looking-at "%{")))
-	   (message "Block comment end has no matching %%{")
-	   (save-excursion
-	     (beginning-of-line)
-	     (when (re-search-backward matlab-block-comment-end-re nil t)
-	       (pulse-momentary-highlight-region (match-beginning 0) (match-end 0))))
+	  ;;ELSE, maybe end of block comment
+	  ((eq (matlab-line-comment-style lvl1) 'block-end)
+	   (matlab-indent-line)
+	   (when bc (pulse-momentary-highlight-region bc (point)))
 	   )
 	  )))
 
@@ -2331,16 +2259,14 @@ Argument ARG specifies how many %s to insert."
 Optional argument SOFT indicates that the newline is soft, and not hard."
   (interactive)
   (if (not (matlab-cursor-in-comment))
-      (matlab-return)
+      (progn (newline);;(matlab-return)
+	     (matlab-indent-line))
     ;; Will the below fn work in old emacsen?
     (if soft (insert-and-inherit ?\n) (newline 1))
     (insert "% ")
     (matlab-indent-line)
-    (end-of-line)))
-
-(defun matlab-comment-indent ()
-  "Indent a comment line in `matlab-mode'."
-  (matlab--calc-indent))
+    (back-to-indentation)
+    (skip-chars-forward "% ")))
 
 (defun matlab-comment-region (beg-region end-region arg)
   "Comments every line in the region.

@@ -473,58 +473,6 @@ Returns non-nil if the cursor moved."
 	(goto-char start)
 	(error "Error navitaging syntax."))
       t)))
-  
-;;; Block Comment handling
-;;
-;; Old version block comments were handled in a special way.
-;; Can we simplify with syntax tables?
-(defconst matlab-block-comment-start-re "^\\s-*%{\\s-*$"
-  "Regexp that matches the beginning of a block comment.
-Block comment indicators must be on a line by themselves.")
-
-(defconst matlab-block-comment-end-re "^\\s-*%}\\s-*$"
-  "Regexp that matches the end of a block comment.
-Block comment indicators must be on a line by themselves.")
-
-(defun matlab-ltype-block-comment-start ()
-  "Return non-nil if the current line is a block comment start."
-  (save-excursion
-    (beginning-of-line)
-    (looking-at matlab-block-comment-start-re)))
-
-(defun matlab-ltype-block-comment-end ()
-  "Return non-nil if the current line is a block comment end."
-  (save-excursion
-    (beginning-of-line)
-    (looking-at matlab-block-comment-end-re)))
-
-(defun matlab-block-comment-bounds (&optional linebounds)
-  "Return start and end positions of block comment if we are in one.
-Optional LINEBOUNDS specifies if returned limits are line based instead
-of character based."
-  (let* ((pps (syntax-ppss (point)))
-	 (origin (point))
-	 (start (nth 8 pps))
-	 (end 0))
-    ;; 4 is comment flag.  7 is '2' if block comment
-    (when (and (nth 4 pps) (eq (nth 7 pps) 2))
-      (save-excursion
-	(goto-char start)
-	(forward-comment 1)
-	(setq end (point)))
-      (when (< end origin)
-	(goto-char origin)
-	(error "Error navitaging block comment syntax."))
-      (if linebounds
-	  ;; Bounds expanded to beginning/end of the line
-	  (cons (save-excursion
-		  (goto-char start)
-		  (point-at-bol))
-		(save-excursion
-		  (goto-char end)
-		  (point-at-eol)))
-	;; Just the bounds
-	(cons start end)))))
 
 ;;; Navigating Lists
 ;;
