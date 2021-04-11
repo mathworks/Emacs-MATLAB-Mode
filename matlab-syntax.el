@@ -446,11 +446,12 @@ bounds of the string or comment the cursor is in"
 
 (defsubst matlab-beginning-of-string-or-comment (&optional all-comments)
   "If the cursor is in a string or comment, move to the beginning.
-Returns non-nil if the cursor moved."
+Returns non-nil if the cursor is in a comment."
   (let* ((pps (syntax-ppss (point))))
     (prog1
 	(when (nth 8 pps)
 	  (goto-char (nth 8 pps))
+	  
 	  t)
       (when all-comments (forward-comment -100000)))))
 
@@ -476,9 +477,9 @@ Returns non-nil if the cursor moved."
 	    (error "Error navitaging syntax."))
 	  t)
       ;; else not in comment, but still skip 'all-comments' if requested.
-      (not (eq (point)
-	       (progn (when all-comments (forward-comment 100000))
-		      (point))))
+      (when (and all-comments (looking-at "\\s-*\\s<"))
+	(forward-comment 100000)
+	t)
       )))
 
 ;;; Navigating Lists

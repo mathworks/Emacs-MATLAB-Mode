@@ -1019,8 +1019,13 @@ Assume basic keyword checks have already been done."
 	    (or (string= (nth 1 parent) "function")
 		;; If not a function, it might be an and, but that end will need to be
 		;; reverse tracked to see if it belongs to valid argument block.
-		(string= (nth 1 parent) "end")
-		;; TODO: be more rigid in this detection.
+		(and (string= (nth 1 parent) "end")
+		     (save-excursion
+		       (goto-char (nth 2 parent))
+		       (matlab--scan-block-backward)
+		       (let ((prevblock (matlab--mk-keyword-node)))
+		     	 (string= (nth 1 prevblock) "arguments")))
+		     )
 		))
        ))))
 
@@ -1200,7 +1205,10 @@ then skip and keep searching."
 	;; Check for simple cases that are invalid for keywords
 	;; for strings, comments, and lists, skip to the end of them
 	;; to not waste time searching for keywords inside.
-	(cond ((matlab-end-of-string-or-comment t)
+	(cond ((matlab-end-of-string-or-comment)
+	       ;; Test is only IF in a comment.  Also skip other comments
+	       ;; once we know we were in a comment.
+	       (matlab-end-of-string-or-comment t)
 	       (setq ans nil))
 	      ((matlab-in-list-p)
 	       (condition-case nil
@@ -1228,7 +1236,8 @@ then skip and keep searching."
 	;; Check for simple cases that are invalid for keywords
 	;; for strings, comments, and lists, skip to the end of them
 	;; to not waste time searching for keywords inside.
-	(cond ((matlab-beginning-of-string-or-comment t)
+	(cond ((matlab-beginning-of-string-or-comment)
+	       (matlab-beginning-of-string-or-comment t)
 	       (setq ans nil))
 	      ((matlab-beginning-of-outer-list)
 	       (setq ans nil))

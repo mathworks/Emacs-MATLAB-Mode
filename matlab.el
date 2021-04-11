@@ -287,12 +287,16 @@ If the value is t, then return that."
 		 (goto-char (point-min))
 		 (matlab-find-code-line)
 		 (let ((matlab-functions-have-end t)) ;; pretend we have ends
-		   (beginning-of-line)
-		   (condition-case nil
-		       ;; Try to navigate.  If success, then t
-		       (progn (matlab-forward-sexp) t)
-		     ;; On failure, then no ends.
-		     (error nil))
+		   (back-to-indentation)
+		   (if (eq (matlab-on-keyword-p) 'decl)
+		       ;; If block scaning returns state, then that means
+		       ;; there is a missing end, so value is nil.
+		       ;; If it returns empty, then there is a matching end.
+		       (if (matlab--scan-block-forward)
+			   nil
+			 t)
+		     ;; Not on a decl, therefore just say nil, since block scanning would fail.
+		     nil)
 		   ))))
 	)
     ;; Else, just return the default.
