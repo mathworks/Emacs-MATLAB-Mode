@@ -836,7 +836,7 @@ Argument LIMIT is the maximum distance to search."
     "plot" "plot3" "semilogx" "semilogy" "loglog" "scatter" "scatter3" "stackedplot"
     "area" "errorbar" "bubblechart" "bubblechart3" "swarmchart" "swarmchart3" "spy"
     "histogram" "histogram2" "wordcloud" "bubblecloud" "heatmap" "parallelplot"
-    "bar" "barh" "bar3" "bar3h" "stem" "stair" "quiver" "quiver3" "stem3"
+    "bar" "barh" "bar3" "bar3h" "stem" "stairs" "quiver" "quiver3" "stem3"
     "contour" "contourf" "contour3" "contourslice" "fcontour"
     ;; 3D
     "surf" "surfc" "surfl" "ribbon" "pcolor" "mesh" "meshc" "meshz" "waterfall"
@@ -1737,9 +1737,11 @@ A negative number means there were more ends than starts.
   "Place the cursor on the beginning of a valid comment on this line.
 If there isn't one, then return nil, point otherwise."
   (interactive)
-  (let ((lvl1 (matlab-compute-line-context 1)))
-    (goto-char (or (matlab-line-end-comment-point lvl1)
-		   (point)))))
+  (let* ((lvl1 (matlab-compute-line-context 1))
+	 (comm (matlab-line-end-comment-point lvl1)))
+    (if comm
+	(goto-char comm)
+      nil)))
 
 ;;; Indent functions ==========================================================
 ;;

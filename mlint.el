@@ -813,10 +813,14 @@ Highlight problems and/or cross-function variables."
     (if (not n)
 	(message "No warning at point.")
       (let ((col (matlab-comment-on-line)))
-	(or col (end-of-line))
-	(insert " %#ok")
-	;; Add spaces if there was a comment.
-	(when col (insert "  ")))
+	(if col
+	    (progn
+	      (goto-char col)
+	      (skip-chars-forward "% ")
+	      (insert "#ok "))
+	  (end-of-line)
+	  (insert " %#ok"))
+	)
       ;; This causes inconsistencies.
       ;; (linemark-delete n)
       ))
