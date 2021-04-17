@@ -194,6 +194,7 @@ be cause for being turned off in a buffer."
     ( ENDCT2 . mlint-lm-missing-end )
     ( FNDEF . mlint-lm-function-name )
     ( MCFIL . mlint-lm-function-name )
+    ( MCSCC . mlint-lm-function-name )
     )
   "List of warning IDs and auto-fix functions.
 If the CAR of an association matches an error id then the linemark entry
@@ -562,7 +563,8 @@ Optional argument FIELDS are the initialization arguments."
 Optional arguments FIELDS are the initialization arguments."
   (let* ((warn (oref this warning))
 	 (junk (or (string-match "file name: '\\([a-zA-z][a-zA-z0-9]+\\)'" warn)
-		   (string-match "do not agree: '\\([a-zA-z][a-zA-z0-9]+\\)'" warn))
+		   (string-match "do not agree: '\\([a-zA-z][a-zA-z0-9]+\\)'" warn)
+		   (string-match "of the subclass '\\([a-zA-z][a-zA-z0-9]+\\)'" warn))
 		   )
 	 (newfcn (when junk (match-string 1 warn))))
     (oset this new-text newfcn)
