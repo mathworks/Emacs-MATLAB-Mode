@@ -188,6 +188,7 @@ be cause for being turned off in a buffer."
     ( NOPRT . mlint-lm-quiet )
     ( NOSEM . mlint-lm-delete-focus )
     ( NOCOM . mlint-lm-delete-focus )
+    ( MSNU  . mlint-lm-delete-focus )
     ( ST2NM . mlint-lm-str2num )
     ( FDEPR . mlint-lm-entry-deprecated )
     ( ENDCT . mlint-lm-missing-end )
@@ -502,6 +503,8 @@ Subclasses fulfill the duty of actually fixing the code."
 	   )
       (goto-char s)
       (delete-region (point) e)
+      ;; If this happened to be at end of line, just delete all left over whitespace.
+      (when (looking-at "\\s-*$") (delete-horizontal-space))
       (point)
       ))
   )
