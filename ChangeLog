@@ -1,3 +1,8 @@
+2021-05-04  Uwe Brauer  <oub@mat.ucm.es>
+
+	* toolbox/emacsrunregion.m (emacsrunregion):
+          Apply a patch provided by Julien Claisse: trump support
+
 2021-02-25 John Ciolfi ciolfi@mathworks.com
 	* tlc.el (new version 1.3): revamped implementation
 	1. Make tlc indent by 4 spaces. Previously we were indenting by 2 spaces

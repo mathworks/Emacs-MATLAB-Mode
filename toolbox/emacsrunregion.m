@@ -2,6 +2,12 @@ function emacsrunregion(file, startchar, endchar)
 % Run code from FILE between STARTCHAR and ENDCHAR.
 % Command sent by Emacs for run-cell & run-region functionality.
 
+    % Filter out emacs tramp file path prefix
+    trampMatch = regexp(file, {'/*:',':/'});
+    if (~isempty(trampMatch{1}))
+        file = file((trampMatch{2}+1):end);
+    end
+
     if ~exist(file,'file')
         error('You must save your region into a file accessible by MATLAB process.');
     end
