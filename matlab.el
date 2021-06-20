@@ -11,7 +11,7 @@
   "Current version of MATLAB(R) mode.")
 
 ;;
-;; Copyright (C) 1997-2020 Eric M. Ludlam
+;; Copyright (C) 1997-2021 Eric M. Ludlam
 ;; Copyright (C) 1991-1997 Matthew R. Wette
 ;;
 ;; This program is free software; you can redistribute it and/or modify
@@ -1340,7 +1340,7 @@ All Key Bindings:
   (make-local-variable 'end-of-defun-function)
   (setq end-of-defun-function 'matlab-skip-over-defun)
   (make-local-variable 'add-log-current-defun-function)
-  (setq add-log-current-defun-function 'matlab-current-defun)
+  (setq add-log-current-defun-function 'matlab-add-log-current-defun)
 
   ;; Auto-Fill and Friends
   (make-local-variable 'normal-auto-fill-function)
@@ -1655,6 +1655,31 @@ Accounts for nested functions."
 	t		; done
       ;; If that end wasn't a decl, scan upward.
       (matlab--scan-block-backward-up-until 'decl))))
+
+(defun matlab-add-log-current-defun ()
+  "Return a text string represneting the current block.
+Tries to return the current defun.  If not, look for a
+cell block with a name."
+  (or (matlab-current-defun) (matlab-current-cell)))
+
+(defun matlab-current-cell ()
+  "Return the name of the current cell.
+The name is any text after the %% and any whitespace."
+  (save-excursion
+    (forward-page -1)
+    (let ((lvl1 (matlab-compute-line-context 1))
+	  start)
+      (when (and (matlab-line-comment-p lvl1)
+		 (eq (matlab-line-comment-style lvl1) 'cell-start))
+	;; We are in a cell start, get the content
+	(goto-char (matlab-line-point lvl1))
+	(skip-chars-forward "% \t.,*" (point-at-eol))
+	(setq start (point))
+	(end-of-line 1)
+	(skip-chars-backward " \t*" start)
+	(buffer-substring-no-properties start (point))
+	))
+    ))
 
 (defun matlab-current-defun ()
   "Return the name of the current function."

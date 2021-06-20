@@ -367,8 +367,6 @@ Safe to use in `matlab-mode-hook'."
   (setq paragraph-separate paragraph-start)
   (make-local-variable 'paragraph-ignore-fill-prefix)
   (setq paragraph-ignore-fill-prefix t)
-  (make-local-variable 'page-delimiter)
-  (setq page-delimiter "^\\(\f\\|%%\\(\\s-\\|\n\\)\\)")
   
   ;; Font lock
   (make-local-variable 'font-lock-syntactic-face-function)
