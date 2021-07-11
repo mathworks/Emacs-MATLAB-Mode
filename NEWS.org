@@ -1,5 +1,141 @@
 * Changes and New Features in matlab-emacs
 
+** New in 5.0
+
+*** Syntax tables / Strings and Comments / Font lock
+
+   Command and String syntax handling is now managed using syntax-table customization
+
+   This results in:
+     * More flavors of syntax highlighting around commands and strings, including all of:
+        * strings, unterminated strings, commanddual strings
+        * comments, cellbreak comments, pragma comments, ignored comments, ellipssis
+     * Accurate differentiation between 'char arrays' and "strings" and quoted charts.
+     * Performance improvements for comment/string parsing.
+
+   There is a new shorter 'ignore' comment type that starts with:  %^
+
+   In addition, font lock of keywords is now more robust, with keywords not being
+   highlighted when they are not being used in the correct scope.
+
+*** Syntactic block navigation
+
+   With proper syntax table support now available, built-in emacs commands that depend on
+   sexp now work, such as:
+   * up-list
+   * forward-sexp
+   * kill-sexp
+   * mark-sexp
+
+   In addition, commands that work with defuns now all work correctly, such as:
+   * mark-defun
+   * narrow-to-defun
+
+   All custom commands that used to implement these syntax behaviors have been removed, or
+   had their bindings removed, including:
+   * matlab-beginning-of-command
+   * matlab-end-of-command
+   * matlab-forward-sexp
+   * matlab-backward-sexp
+   * matlab-indent-sexp
+   * matlab-beginning-of-defun
+   * matlab-end-of-defn
+
+  In addition syntactic block navigation is faster, where very large files can now be navigated
+  in fractions of a second that used to take a few minutes.
+
+*** Support for block validation
+
+  Block navigation now does validation, for example, 'property' keywords should only occur
+  inside a classdef, and 'arguments' keywords should only occur inside a function.
+
+  This means that you can now have variables and functions named 'property' and
+  'arguments' of those words occur outside valid locations.
+
+*** Indentation
+
+  Indentation performance is greatly improved.  Based on our tests, large files that used
+  to take 10 minutes to indent will now complete in just 1 or 2 seconds.
+
+  Several new indentation features exist, such as:
+  * correct indentation of arguemnts blocks
+  * improved indentation of function argument lists that span multiple lines.
+  * improved indentation around block comments
+  * improved indentation accuracy in classdef, property, method blocks.
+  * more accurate indentation of continuations
+  
+  Some indentation features were removed, such as:
+  * Max indent distance support inside function call args
+  * Max indent distance support inside switch statements
+  * Line-up rules inside ( ), [ ], and { } have changed subtly dependeing on
+    context after the opening (, [, or {.
+
+  Specialty indentation commands have been removed:
+  * matlab-indent-sexp
+
+  Electric indentation has been added to block keywords such as end, else, case, etc.
+
+  Lots of bug fixes and general improvements for handling edge cases.
+
+*** matlab-return & friends removed
+
+  The 'matlab-return' and related functions have all been removed.  Features of these
+  commands are now part of Emacs' built in handling for RETURN and no longer need to be
+  part of matlab mode.
+
+*** File type detection
+
+  File type detection has been improved.  Previously matlab mode detected if functions had
+  ends, and if functions were indented.  It now detects more cases, and displays results
+  in the status line.
+
+  The list of detectable features are:
+  * function  (with no end)
+  * function .. end
+  * classdef .. end
+  * scripts
+  * empty files
+
+  Functions with ends also detect if function bodies are indented.  Other kinds of
+  functions will always indent.
+
+  The check for the type of file is also auto-re-detected on save, so if you change the
+  type of file while editing, it will automatically adjust.
+
+*** Auto verify changes
+
+  Auto verify on save has been updated.
+
+  1. verify classname added - this will fix class names for you
+  2. verify add ends - this now asks questions less often, or not at all.
+     In addition, it has a more robust algorithm for adding ends.
+
+*** mlint support questions
+
+  mlint mode now supports many more auto fix behaviors, including:
+  * missing ends - with nicer guess for where the end goes.
+  * function name - auto fix function, class, and method names.
+
+  Plus several minor bug fixes.
+
+*** Support for older Emacsen
+
+  Support for Emacs older than Emacs 24 has been dropped.  Many of the special
+  compatability layers needed to change, and the new code has not been tested against
+  older versions of Emacs.  As a result, many compatability layers were removed.
+
+*** Test suite improvements
+
+   The test suite that is part of matlab-emacs project has many more test points, and has
+   added support for testing font lock, performance, and other features.
+
+*** matlab-emacs maintenance mode
+
+There is now a support file 'matlab-maint' that simplifies the task of building and
+testing matlab-mode during development.  Consider using this library if you intend to
+develop matlab-mode.
+
+
 ** News in 4.0
 
 *** Debugging 
@@ -56,7 +192,7 @@ You have the following capabilities when in a MATLAB M-file:
   more responsive. For example, in matlab-shell, Emacs is more
   responsive when processing long output lines from MATLAB.
 
-*** Bug fixex 
+*** Bug fixes
 - There are a number of bug fixes.
 
 *** Quotes
