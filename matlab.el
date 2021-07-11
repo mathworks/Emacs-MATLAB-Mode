@@ -1094,7 +1094,7 @@ This matcher will handle a range of variable features."
      (2 font-lock-reference-face))
     ;; set_param and waitfor have input variables that can be highlighted.
     (list (concat matlab-indent-past-arg1-functions "\\s-*")
-	  '("(\\s-*\\(\\(?:\\w\\|.\\)\\)\\s-*\\(,\\|)\\)" nil  nil
+	  '("(\\s-*\\(\\(?:\\w\\|\\.\\)+\\)\\s-*\\(,\\|)\\)" nil  nil
 	    (1 font-lock-variable-name-face)))
    )
   "List of font lock keywords for stuff in functions.")
