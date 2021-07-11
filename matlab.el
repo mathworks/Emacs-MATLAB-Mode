@@ -589,8 +589,7 @@ point, but it will be restored for them."
      ["Join Comment" matlab-join-comment-lines
       (save-excursion (matlab-comment-on-line))]
      ["Comment Region" matlab-comment-region t]
-     ["Uncomment Region" matlab-uncomment-region t]
-     ["Indent Syntactic Block" matlab-indent-sexp])
+     ["Uncomment Region" matlab-uncomment-region t])
     ("Debug"
      ["Edit File (toggle read-only)" matlab-shell-gud-mode-edit
       :help "Exit MATLAB debug minor mode to edit without exiting MATLAB's K>> prompt."
@@ -1095,7 +1094,7 @@ This matcher will handle a range of variable features."
      (2 font-lock-reference-face))
     ;; set_param and waitfor have input variables that can be highlighted.
     (list (concat matlab-indent-past-arg1-functions "\\s-*")
-	  '("(\\s-*\\(\\w+\\)\\s-*\\(,\\|)\\)" nil  nil
+	  '("(\\s-*\\(\\(?:\\w\\|.\\)\\)\\s-*\\(,\\|)\\)" nil  nil
 	    (1 font-lock-variable-name-face)))
    )
   "List of font lock keywords for stuff in functions.")
@@ -1266,7 +1265,6 @@ Convenient editing commands are:
  \\[matlab-fill-region] - Fill code and comments in region.
  \\[matlab-complete-symbol]   - Symbol completion of matlab symbols\
 based on the local syntax.
- \\[matlab-indent-sexp] - Indent syntactic block of code.
 
 Convenient navigation commands are:
  \\[matlab-beginning-of-command]   - Move to the beginning of a command.
@@ -2044,7 +2042,7 @@ this line."
 	     ;; if first arg is a SIMPLE EXPR.
 	     (matlab-navigation-syntax
 	       (goto-char parenpt)
-	       (looking-at "(\\s-*\\w+\\s-*,")
+	       (looking-at "(\\s-*\\(?:\\w\\|\\.\\)+\\s-*,")
 	       (setq found-column (match-end 0)))
 	     (save-excursion
 	       (goto-char found-column) ; move to comma
