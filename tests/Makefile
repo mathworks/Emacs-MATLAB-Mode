@@ -20,8 +20,11 @@ VERSION=4.0
 DISTDIR=$(top)matlab-emacs-$(VERSION)/tests
 
 
-
+ifdef OS # No MATLAB shell tests on windows.
+all: tests matlab modetests
+else # The OS variable is only defined on windows, so linux systems can run shell tests.
 all: tests matlab modetests shelltests
+endif
 
 .PHONY: modetests
 modetests: metest.elc

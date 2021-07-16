@@ -77,7 +77,9 @@
   "Insert and END block based on the current syntax.
 Optional argument REINDENT indicates if the specified block should be re-indented."
   (interactive "P")
-  (if (not (matlab-ltype-empty)) (progn (end-of-line) (insert "\n")))
+  (when (not (matlab-line-empty-p (matlab-compute-line-context 1)))
+    (end-of-line) (insert "\n"))
+  
   (let ((valid t) (begin nil))
     (save-excursion
       (condition-case nil
@@ -172,7 +174,8 @@ Optional argument REINDENT indicates if the specified block should be re-indente
 	(error (setq valid nil))))
     (if (not valid)
 	(error "Not in a switch statement")))
-  (if (not (matlab-ltype-empty)) (progn (end-of-line) (insert "\n")))
+  (when (not (matlab-line-empty-p (matlab-compute-line-context 1)))
+    (end-of-line) (insert "\n"))
   (indent-to 0)
   (insert "case ")
   (matlab-indent-line))
@@ -234,14 +237,16 @@ the region.  BEGIN and END mark the region to be stringified."
   "Spell check valid strings in region with Ispell.
 Argument BEGIN and END mark the region boundary."
   (interactive "r")
+  (error "This function needs to be reimplemented.")
   (require 'ispell)
   (save-excursion
     (goto-char begin)
     ;; Here we use the font lock function for finding strings.
     ;; Its cheap, fast, and accurate.
     ;; NOTE: This now also does comments
-    (while (and (matlab-font-lock-allstring-comment-match-normal end)
-		(ispell-region (match-beginning 0) (match-end 0))))))
+    ;;(while (and (matlab-font-lock-allstring-comment-match-normal end)
+    ;;	(ispell-region (match-beginning 0) (match-end 0))))
+    ))
 
 (defun matlab-ispell-strings-and-comments ()
   "Spell check valid strings in the current buffer with Ispell.

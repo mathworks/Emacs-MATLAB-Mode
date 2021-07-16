@@ -204,10 +204,27 @@ If multiple prompts are seen together, only call this once.")
 ;;; Font Lock
 ;;
 ;; Extra font lock keywords for the MATLAB shell.
-(defvar matlab-shell-font-lock-keywords
+(defconst matlab-shell-font-lock-keywords
+  (list
+   ;; How about Errors?
+   '("^\\(Error in\\|Syntax error in\\)\\s-+==>\\s-+\\(.+\\)$"
+     (1 font-lock-comment-face) (2 font-lock-string-face))
+   ;; and line numbers
+   '("^\\(\\(On \\)?line [0-9]+\\)" 1 font-lock-comment-face)
+   ;; User beep things
+   '("\\(\\?\\?\\?[^\n]+\\)" 1 font-lock-comment-face)
+   )
+  "Additional keywords used by MATLAB when reporting errors in interactive\
+mode.")
+
+(defconst matlab-shell-font-lock-keywords-1
+  (append matlab-basic-font-lock-keywords
+	  matlab-shell-font-lock-keywords)
+  "Keyword symbol used for basic font-lock for MATLAB shell.")
+
+(defconst matlab-shell-object-output-font-lock-keywords
   (list
    ;; Startup notices
-   ;; Various notices
    '(" M A T L A B " 0 'underline)
    '("All Rights Reserved" 0 'italic)
    '("\\(\\(?:(c)\\)?\\s-+Copyright[^\n]+\\)" 1 font-lock-comment-face)
@@ -218,33 +235,38 @@ If multiple prompts are seen together, only call this once.")
    '("^To get started, type doc.$" 0 font-lock-comment-face prepend)
    '("For product information, [^\n]+" 0 font-lock-comment-face)
 
-   ;; How about Errors?
-   '("^\\(Error in\\|Syntax error in\\)\\s-+==>\\s-+\\(.+\\)$"
-     (1 font-lock-comment-face) (2 font-lock-string-face))
-   ;; and line numbers
-   '("^\\(\\(On \\)?line [0-9]+\\)" 1 font-lock-comment-face)
-   ;; User beep things
-   '("\\(\\?\\?\\?[^\n]+\\)" 1 font-lock-comment-face)
    ;; Useful user commands, but not useful programming constructs
    '("\\<\\(demo\\|whatsnew\\|info\\|subscribe\\|help\\|doc\\|lookfor\\|what\
 \\|whos?\\|cd\\|clear\\|load\\|save\\|helpdesk\\|helpwin\\)\\>"
      1 font-lock-keyword-face)
+   ;; disp of objects usually looks like this:
+   '("^\\s-*\\(\\w+\\) with properties:" (1 font-lock-type-face))
+   ;; object output - highlight property names after  'with properties:' indicator
+   ;; NOTE: Normally a block like this would require us to use `font-lock-multiline' feature
+   ;;       but since this is shell output, and not a thing you edit, we can skip it and rely
+   ;;       on matlab-shell dumping the text as a unit.
+   '("^\\s-*\\(\\w+ with properties:\\)\n\\s-*\n"
+     ("^\\s-*\\(\\w+\\):[^\n]+$" ;; match the property before the :
+      ;; Extend search region across lines.
+      (save-excursion (re-search-forward "\n\\s-*\n" nil t)
+		      (beginning-of-line)
+		      (point))
+      nil
+      (1 font-lock-variable-name-face)))
+   '("[[{]\\([0-9]+\\(?:x[0-9]+\\)+ \\w+\\)[]}]" (1 font-lock-comment-face))
    )
-  "Additional keywords used by MATLAB when reporting errors in interactive\
-mode.")
+  "Highlight various extra outputs that are typical for MATLAB.")
 
-(defvar matlab-shell-font-lock-keywords-1
-  (append matlab-font-lock-keywords matlab-shell-font-lock-keywords)
-  "Keyword symbol used for font-lock mode.")
+(defconst matlab-shell-font-lock-keywords-2
+  (append matlab-shell-font-lock-keywords-1
+	  matlab-function-font-lock-keywords
+	  matlab-shell-object-output-font-lock-keywords)
+  "Keyword symbol used for gaudy font-lock for MATLAB shell.")
 
-(defvar matlab-shell-font-lock-keywords-2
-  (append matlab-shell-font-lock-keywords-1 matlab-gaudy-font-lock-keywords)
-  "Keyword symbol used for gaudy font-lock symbols.")
-
-(defvar matlab-shell-font-lock-keywords-3
+(defconst matlab-shell-font-lock-keywords-3
   (append matlab-shell-font-lock-keywords-2
 	  matlab-really-gaudy-font-lock-keywords)
-  "Keyword symbol used for really gaudy font-lock symbols.")
+  "Keyword symbol used for really gaudy font-lock for MATLAB shell.")
 
 ;;; ROOT
 ;;
@@ -1575,16 +1597,9 @@ Snatched and hacked from dired-x.el"
 	    (search-forward-regexp comint-prompt-regexp)
 	    (buffer-substring (point) (matlab-point-at-eol)))))
     (save-excursion
-      ;; In matlab buffer, find all the text for a command.
-      ;; so back over until there is no more continuation.
-      (while (save-excursion (forward-line -1) (matlab-lattr-cont))
-	(forward-line -1))
-      ;; Go forward till there is no continuation
-      (beginning-of-line)
-      (let ((start (point)))
-	(while (matlab-lattr-cont) (forward-line 1))
-	(end-of-line)
-	(buffer-substring start (point))))))
+      (buffer-substring-no-properties
+       (matlab-scan-beginning-of-command)
+       (matlab-scan-end-of-command)))))
 
 (defun matlab-non-empty-lines-in-string (str)
   "Return number of non-empty lines in STR."
@@ -2164,7 +2179,13 @@ Similar to  `comint-send-input'."
 		))
       
 	  ;; If not changing dir, maybe we need to use 'run' command instead?
-	  (let ((cmd (concat "run('" dir fn-name "')")))
+	  (let* ((match 0)
+		 (tmp (while (setq match (string-match "'" param match))
+			(setq param (replace-match "''" t t param))
+			(setq match (+ 2 match))))
+		 (cmd (concat "emacsrun('" dir fn-name "'"
+			      (if (string= param "") "" (concat ", '" param "'"))
+			      ")")))
 	    (matlab-shell-send-command cmd)))
 	))))
 
@@ -2175,20 +2196,22 @@ Similar to  `comint-send-input'."
 (defun matlab-shell-run-cell ()
   "Run the cell the cursor is in."
   (interactive)
-  (let ((start (save-excursion (forward-page -1)
-			       (if (looking-at "function")
-				   (error "You are not in a cell.  Try `matlab-shell-save-and-go' instead"))
-			       (when (matlab-ltype-comm)
-				 ;; Skip over starting comment from the current cell.
-				 (matlab-end-of-command 1)
-				 (end-of-line)
-				 (forward-char 1))
-			       (point)))
-	(end (save-excursion (forward-page 1)
-			     (when (matlab-ltype-comm)
-			       (beginning-of-line)
-			       (forward-char -1))
-			     (point))))
+  (let ((start (save-excursion
+		 (forward-page -1)
+		 (if (looking-at "function")
+		     (error "You are not in a cell.  Try `matlab-shell-save-and-go' instead"))
+		 (when (matlab-line-comment-p (matlab-compute-line-context 1))
+		   ;; Skip over starting comment from the current cell.
+		   (matlab-end-of-command)
+		   (end-of-line)
+		   (forward-char 1))
+		 (point)))
+	(end (save-excursion
+	       (forward-page 1)
+	       (when (matlab-line-comment-p (matlab-compute-line-context 1))
+		 (beginning-of-line)
+		 (forward-char -1))
+	       (point))))
     (matlab-shell-run-region start end t)))
 
 (defun matlab-shell-run-region-or-line ()

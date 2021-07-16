@@ -150,6 +150,11 @@ REGEXP defaults to \"[ \\t\\n\\r]+\"."
       out))
   )
 
+;; OBARRAYS
+(if (fboundp 'obarray-make)
+    (defalias 'matlab-obarray-make 'obarray-make)
+  (defun matlab-obarray-make (sz) (make-vector sz 0)))
+
 ;; Finding executables
 (defun matlab-find-executable-directory (program)
   "Find the executable PROGRAM on the exec path, following any links.

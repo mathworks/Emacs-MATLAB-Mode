@@ -1,6 +1,8 @@
 %% Tests for char vector and string handling.
 %
 %  #c#
+%
+% %%%script script script
 
 %% Basic strings
 
@@ -13,8 +15,8 @@ stringscalar = "string scalar #s#";
 % Comment with 'character vector #c#' in it.
 % Comment with "string scalar #c#" in it.
 
-charvi = 'char vector incomplete #v#
-stringi = "string scalar incomplete #s#
+charvi = 'char vector incomplete #V#
+stringi = "string scalar incomplete #S#
 
 % Comment with 'char vector incomplete #c#
 % Comment with "string scalar incomplete #c#
@@ -27,16 +29,16 @@ stringcv = "string scalar with 'char vec #s#' in it";
 chard = 'char vector with '' in it #v#';
 stringd = "string scalar with "" in it #s#";
 
-chardi = 'incomplete char vector with '' in it #v#
-stringdi = "incomplete string scalar with "" in it #s#
+chardi = 'incomplete char vector with '' in it #V#
+stringdi = "incomplete string scalar with "" in it #S#
 
 %% Strings with Comments
 
 charvc = 'char vector with % comment char #v#';
 stringc = "string scalar with % comment char #s#";
 
-charvci = 'incomplete char vector with % comment char #v#
-stringci = "incomplete string scalar with % comment char #s#
+charvci = 'incomplete char vector with % comment char #V#
+stringci = "incomplete string scalar with % comment char #S#
 
 charvbc = 'char vector with %{ comment char #v# %} ';
 stringbc = "string scalar with %{ comment char #s# %} ";
@@ -69,19 +71,24 @@ icell_in_strs2_nested = { 'charv  innercell " #v# }' "strinc  innercel ' #s# }" 
 %% Elipsis as comment
 
 fun_call(); ...  This is a comment after an elipsis #e#
-fun_call(); ...  'charvec in elipsis comment #e#'
-fun_call(); ...  "string in elipsis comment #e#"
-fun_call(); ...  % comment after an elipsis is still elipsis #e#
 
+fun_call(); ...  'charvec in elipsis comment #e#'
+
+fun_call(); ...  "string in elipsis comment #e#"
+
+fun_call(); ...  % comment after an elipsis is still elipsis #e#
+    
 %% Elipsis and strings and other comments
 
 Ecv = 'string with ... in #v# it';
 Es = "string with ... in #s# it";
 % Comment with ... in it #c#
+eecv = '...'; % string with only ellipsis in it #c#
+ees = "..."; % string with only ellipsis in it #c#
 
-x = [ 'foo bar',newline,...
-     '  ''-goo'', ... #v#',newline,...
-     '  ''-bar'', ... #v#',newline];
+x = [ 'foo bar', newline, ... #e#
+      '  ''-goo'', ... #v#', newline, ... #e#
+      '  ''-bar'', ... #v#', newline ];
 
 func_call1('function with charvec', ... #e#
            'after ellipsis charvec with ellipsis ... #v#');
@@ -141,7 +148,7 @@ else
     Cs = "not unreachable #s#";
 end
 
-%% Block Comments #c#
+%% Block Comments #C#
 
 %{
   
@@ -154,4 +161,34 @@ end
 
 not_commented();
 
+%{ just a regular comment #c# %} should_be_comment #c#
+
 % Normal comment #c#
+
+%% Ignored Comments #C#
+
+% $$$ This comment is ignored by indentation engine.  #i#
+
+%^ This comment is igored too, used in tests for font lock.  #i#
+
+
+%% Command line dual #C#
+% Note: stuff after a symbol<space> treated as string
+
+disp  _this is string input to function #d#_
+disp  _this is also string input to a function #d#_
+
+regularcode;  #r#
+
+% Note: Case sensitivity of cmd dual functions
+DISP _regular code even though ML would treat as cmd dual #r#_
+
+%{
+%  Local Variables:
+%  matlab-syntax-support-command-dual: t
+%  matlab-show-mlint-warnings: nil
+%  End:
+%}
+
+
+%% END

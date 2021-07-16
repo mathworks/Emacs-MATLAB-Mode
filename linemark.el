@@ -275,7 +275,12 @@ Call the new entrie's activate method."
       (oset new-entry face (or face (oref g face)))
       (oset g marks (cons new-entry (oref g marks)))
       (if (oref g active)
-	    (linemark-display new-entry t))
+	  (condition-case nil
+	      ;; Somewhere in the eieio framework this can throw 'end of buffer' error
+	      ;; after the display function exits.  Not sure where that is, but this
+	      ;; condition-case can capture it and allow things to keep going.
+	      (linemark-display new-entry t)
+	    (error nil)))
       new-entry)
     ))
 
@@ -356,7 +361,12 @@ Call the new entrie's activate method."
 
 (defun linemark-find-file-hook ()
   "Activate all marks which can benifit from this new buffer."
-  (mapcar (lambda (g) (linemark-display g t)) linemark-groups))
+  (mapcar (lambda (g) (condition-case nil
+			  ;; See comment in linemark-add-entry for
+			  ;; reasoning on this condition-case.
+			  (linemark-display g t)
+			(error nil)))
+	    linemark-groups))
 
 (defun linemark-kill-buffer-hook ()
   "Deactivate all entries in the current buffer."

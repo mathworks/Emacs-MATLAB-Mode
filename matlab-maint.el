@@ -24,6 +24,8 @@
 (require 'matlab)
 (require 'matlab-shell)
 (require 'matlab-netshell)
+(require 'semantic/symref)
+(require 'semantic/symref/list)
 
 ;;; Code:
 
@@ -31,8 +33,14 @@
 ;;
 (defvar matlab-maint-mode-map
   (let ((km (make-sparse-keymap)))
+    ;; compile debug cycle
     (define-key km [f8] 'matlab-maint-run-tests)
     (define-key km [f9] 'matlab-maint-compile-matlab-emacs)
+    (define-key km [f10] 'matlab-maint-reload-mode)
+    ;; coding
+    (define-key km [f7] 'matlab-maint-symref-this)
+    ;; matlab
+    (define-key km [f5] 'matlab-maint-show-info)
     km)
   "Keymap used by matlab mode maintainers.")
 
@@ -67,7 +75,35 @@
 	(matlab-maint-minor-mode 1))))
   )
 
-;;; Commands
+;;; Testing stuff in M buffers
+;;
+(defun matlab-maint-show-info ()
+  "Show info about line in current matlab buffer."
+  (interactive)
+  (when (eq major-mode 'matlab-mode)
+    (matlab-show-line-info)
+    ))
+
+;;; HACKING ELISP
+;;
+
+(defun matlab-maint-symref-this ()
+  "Open a symref buffer on symbol under cursor."
+  (interactive)
+  (save-buffer)
+  (semantic-fetch-tags)
+  (let ((ct (semantic-current-tag)))
+    ;; Must have a tag...
+    (when (not ct) (error "Place cursor inside tag to be searched for"))
+    ;; Gather results and tags
+    (message "Gathering References for %s.." (semantic-tag-name ct))
+    (let* ((name (semantic-tag-name ct))
+           (res (semantic-symref-find-references-by-name name)))
+      (semantic-symref-produce-list-on-results res name)
+      (semantic-symref-list-expand-all) )))
+
+
+;;; COMPILE AND TEST
 ;;
 ;; Helpful commands for maintainers.
 (defcustom matlab-maint-compile-opts '("emacs" "emacs24" "emacs25" "emacs26")
@@ -112,6 +148,8 @@
   "Run the tests for matlab mode.
 With universal ARG, ask for the code to be run with output tracking turned on."
   (interactive "P")
+  (when (buffer-file-name)
+    (save-buffer))
   (save-excursion
     (matlab-maint-set-buffer-to "tests/Makefile")
     (if (or arg matlab-shell-io-testing)
@@ -123,6 +161,21 @@ With universal ARG, ask for the code to be run with output tracking turned on."
   (delete-other-windows)
   (goto-char (point-max)))
 
+(defun matlab-maint-reload-mode ()
+  "Reload matlab mode, and refresh displayed ML buffers modes."
+  (interactive)
+  (load-library "matlab-syntax")
+  (load-library "matlab-scan")
+  (load-library "matlab")
+  (mapc (lambda (b) (with-current-buffer b
+		      (when (eq major-mode 'matlab-mode)
+			(message "Updating matlab mode in %S" b)
+			(matlab-mode))))
+	(buffer-list (selected-frame)))
+  (message "loading done")
+  )
+;;; MATLAB SHELL tools
+;;
 
 (defun matlab-maint-set-buffer-to (file)
   "Set the current buffer to FILE found in matlab-mode's source.

@@ -206,7 +206,7 @@ Return argument is:
       (while (re-search-forward semantic-matlab-match-methods-block-re nil end)
 	(save-excursion ;; find end of properties block
 	  (goto-char (match-beginning 0))
-	  (matlab-forward-sexp nil nil)
+	  (matlab-forward-sexp nil)
 	  (setq tmpend (point)))
 
 	(setq attrs (semantic-matlab-parse-attributes-and-move))
@@ -239,7 +239,7 @@ Return argument is:
 	  (setq attrs (semantic-matlab-parse-attributes-and-move))
 
 	  (save-excursion ;; find end of properties block
-	    (matlab-forward-sexp nil t)
+	    (matlab-forward-sexp t)
 	    (beginning-of-line)
 	    (setq tmpend (point)))
 

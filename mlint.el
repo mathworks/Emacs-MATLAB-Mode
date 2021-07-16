@@ -188,8 +188,14 @@ be cause for being turned off in a buffer."
     ( NOPRT . mlint-lm-quiet )
     ( NOSEM . mlint-lm-delete-focus )
     ( NOCOM . mlint-lm-delete-focus )
+    ( MSNU  . mlint-lm-delete-focus )
     ( ST2NM . mlint-lm-str2num )
     ( FDEPR . mlint-lm-entry-deprecated )
+    ( ENDCT . mlint-lm-missing-end )
+    ( ENDCT2 . mlint-lm-missing-end )
+    ( FNDEF . mlint-lm-function-name )
+    ( MCFIL . mlint-lm-function-name )
+    ( MCSCC . mlint-lm-function-name )
     )
   "List of warning IDs and auto-fix functions.
 If the CAR of an association matches an error id then the linemark entry
@@ -468,7 +474,7 @@ ACTIVE-P if it should be made visible."
   "Return non-nil if entry E can be automatically fixed."
   (oref-default e fixable-p))
 
-(cl-defmethod mlint-fix-entry :AFTER ((e mlint-lm-entry))
+(cl-defmethod mlint-fix-entry :after ((e mlint-lm-entry))
   "Stuff to do after a warning is considered fixed.
 Subclasses fulfill the duty of actually fixing the code."
   (linemark-display e nil)
@@ -497,6 +503,8 @@ Subclasses fulfill the duty of actually fixing the code."
 	   )
       (goto-char s)
       (delete-region (point) e)
+      ;; If this happened to be at end of line, just delete all left over whitespace.
+      (when (looking-at "\\s-*$") (delete-horizontal-space))
       (point)
       ))
   )
@@ -508,13 +516,13 @@ Subclasses fulfill the duty of actually fixing the code."
   "Class which can replace the focus area."
   :abstract t)
 
-(cl-defmethod initialize-instance :AFTER ((this mlint-lm-replace-focus)
+(cl-defmethod initialize-instance :after ((this mlint-lm-replace-focus)
 					  &rest fields)
   "Calculate the new fix description for THIS.
 Optional argument FIELDS are the initialization arguments."
   ;; After basic initialization, update the fix description.
   (oset this fix-description
-	(concat (oref-default mlint-lm-replace-focus fix-description)
+	(concat (oref-default this fix-description)
 		(oref this new-text))))
 
 (cl-defmethod mlint-fix-entry ((ent mlint-lm-replace-focus))
@@ -533,7 +541,7 @@ Optional argument FIELDS are the initialization arguments."
   "Entry for anything that is deprecated.
 Extracts the replacement for the deprecated symbol from the warning message.")
 
-(cl-defmethod initialize-instance :AFTER ((this mlint-lm-entry-deprecated)
+(cl-defmethod initialize-instance :after ((this mlint-lm-entry-deprecated)
 				       &rest fields)
   "Calculate the 'new text' for THIS instance.
 Optional argument FIELDS are the initialization arguments."
@@ -544,10 +552,33 @@ Optional argument FIELDS are the initialization arguments."
     (oset this new-text newfcn)
     ;; After basic initialization, update the fix description.
     (oset this fix-description
-	  (concat (oref-default mlint-lm-replace-focus fix-description)
+	  (concat (oref-default this fix-description)
 		  newfcn))
     ))
 
+(defclass mlint-lm-function-name (mlint-lm-replace-focus)
+  ()
+  "When function name is missmatched with the file name."
+  )
+
+(cl-defmethod initialize-instance :after ((this mlint-lm-function-name) &rest fields)
+  "Compute the 'new text' for THIS to be the file name from the message.
+Optional arguments FIELDS are the initialization arguments."
+  (let* ((warn (oref this warning))
+	 (junk (or (string-match "file name: '\\([a-zA-z][a-zA-z0-9]+\\)'" warn)
+		   (string-match "do not agree: '\\([a-zA-z][a-zA-z0-9]+\\)'" warn)
+		   (string-match "of the subclass '\\([a-zA-z][a-zA-z0-9]+\\)'" warn))
+		   )
+	 (newfcn (when junk (match-string 1 warn))))
+    (oset this new-text newfcn)
+    ;; After basic initialization, update the fix description.
+    (oset this fix-description
+	  (concat (oref-default this fix-description)
+		  newfcn))
+    ))
+
+;;; Custom auto-fix entries
+;;
 (defclass mlint-lm-entry-logicals (mlint-lm-entry)
   ((fixable-p :initform t)
    (fix-description :initform "perform a replacement.")
@@ -599,6 +630,53 @@ Optional argument FIELDS are the initialization arguments."
     (matlab-end-of-command)
     (insert ";"))
   )
+
+(defclass mlint-lm-missing-end (mlint-lm-entry)
+  ((fixable-p :initform t)
+   (fix-description :initform "Add matching end for this line."))
+  "Missing end with guess as to where it might go."
+  )
+
+(cl-defmethod mlint-fix-entry ((ent mlint-lm-missing-end))
+  "Add semi-colon to end of this line."
+  (save-excursion
+    (let* ((msg (oref ent warning))
+	   line blockname)
+      ;; Extract info about this.
+      (when (string-match "(after line \\([0-9]+\\))" msg)
+	(setq line (match-string 1 msg)))
+      (when (string-match "possibly matching \\([A-Z]+\\)\\." msg)
+	(setq blockname (match-string 1 msg)))
+
+      ;; Did we get the right kind of warning
+      (if line
+	  ;; We have a line number, just go for it there.
+	  (progn
+	    (mlint-goto-line (string-to-number line))
+	    ;; add the end and indent
+	    (indent-region (point) (save-excursion (insert "end\n") (point)))
+	    )
+	(if (and blockname (string= blockname "FUNCTION"))
+	    ;; It is a function, but no line number.  Let's guess where this end
+	    ;; should go.
+	    (save-excursion
+	      (mlint-goto-line (oref ent line)) ;; go to the fcn
+	      (end-of-line)
+	      (if (re-search-forward "^function " nil t)
+		  (progn
+		    (beginning-of-line)
+		    ;; skip over comments that might be headers to the found function.
+		    (matlab-previous-command-begin
+		     (matlab-compute-line-context 2)) ;;(matlab-find-prev-code-line)
+		    (forward-line 1)
+		    (save-excursion (insert "end\n\n"))
+		    (matlab-indent-line))
+		(goto-char (point-max))
+		(save-excursion (insert "\nend\n\n"))
+		(matlab-indent-line))))
+	      )
+	  ))
+      )
 
 ;;; User functions
 ;;
@@ -740,10 +818,14 @@ Highlight problems and/or cross-function variables."
     (if (not n)
 	(message "No warning at point.")
       (let ((col (matlab-comment-on-line)))
-	(or col (end-of-line))
-	(insert " %#ok")
-	;; Add spaces if there was a comment.
-	(when col (insert "  ")))
+	(if col
+	    (progn
+	      (goto-char col)
+	      (skip-chars-forward "% ")
+	      (insert "#ok "))
+	  (end-of-line)
+	  (insert " %#ok"))
+	)
       ;; This causes inconsistencies.
       ;; (linemark-delete n)
       ))

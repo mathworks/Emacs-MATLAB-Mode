@@ -30,7 +30,21 @@
 ;; and this can be loaded optionally.
 
 ;;; Code:
+(require 'cl-macs)
 (require 'matlab)
+(require 'matlab-shell)
+
+(defun matlab-uniquify-list (lst)
+  "Return a list that is a subset of LST where all elements are unique."
+  (if (fboundp 'cl-remove-duplicates)
+      (cl-remove-duplicates lst :test 'string= :from-end t)
+    ;; Else, do it by hand.
+    (let ((nlst nil))
+      (while lst
+	(if (and (car lst) (not (member (car lst) nlst)))
+	    (setq nlst (cons (car lst) nlst)))
+	(setq lst (cdr lst)))
+      (nreverse nlst))))
 
 ;;; Customizations ===========================================================
 ;;
@@ -181,9 +195,32 @@ This list still needs lots of help.")
 	     tl (cdr tl)))
      r))
 
+(defun matlab-lattr-semantics (&optional prefix)
+  "Return the semantics of the current position.
+Values are nil 'solo, 'value, and 'boolean.  Boolean is a subset of
+value.  nil means there is no semantic content (ie, string or comment.)
+If optional PREFIX, then return 'solo if that is the only thing on the
+line."
+  (cond
+   ((or (matlab-line-empty-p (matlab-compute-line-context 1))
+	(and prefix (save-excursion
+		      (beginning-of-line)
+		      (looking-at (concat "\\s-*" prefix "\\s-*$")))))
+    'solo)
+   ((save-excursion
+      (matlab-beginning-of-command)
+      (looking-at "\\s-*\\(if\\|elseif\\|while\\)\\>"))
+    'boolean)
+   ((save-excursion
+      (matlab-beginning-of-command)
+      (looking-at (concat "\\s-*\\(" (matlab-property-function)
+			  "\\)\\>")))
+    'property)
+   (t
+    'value)))
+
 ;;; Completion Framework ===================================================
 ;;
-
 (defun matlab-find-recent-variable-list (prefix)
   "Return a list of most recent variables starting with PREFIX as a string.
 Reverse searches for the following are done first:
@@ -211,28 +248,28 @@ If the list is empty, then searches continue backwards through the code."
 		 (nreverse lst)))
 	     (save-excursion
 	       (let ((lst nil))
-		 (while (and (re-search-backward
-			      (concat "\\<\\(" matlab-block-beg-pre-no-if
-				      "\\)\\s-+(?\\s-*\\(" prefix
-				      "\\w+\\)\\>")
-			      bounds t)
-			     (< (length lst) 10))
-		   (setq lst (cons (match-string 2) lst)))
+		 (while (and
+			 (< (length lst) 10)
+			 (matlab-re-search-keyword-backward (matlab-keyword-regex 'ctrl) bounds t))
+		   (when (looking-at (concat "\\w+\\s-+(?\\(" prefix "\\w+\\)\\_>"))
+		     (setq lst (cons (match-string 1) lst))))
 		 (nreverse lst)))
 	     (save-excursion
-	       (if (re-search-backward "^\\s-*global\\s-+" bounds t)
-		   (let ((lst nil) m e)
+	       (let ((lst nil) m e)
+		 (while (matlab-re-search-keyword-backward
+			 (matlab-keyword-regex 'vardecl) bounds t)
+		   (save-excursion
 		     (goto-char (match-end 0))
-		     (while (looking-at "\\(\\w+\\)\\([ \t]+\\|$\\)")
+		     (while (looking-at "\\s-*\\(\\w+\\)\\([ \t]+\\|$\\)")
 		       (setq m (match-string 1)
 			     e (match-end 0))
 		       (if (equal 0 (string-match prefix m))
 			   (setq lst (cons m lst)))
-		       (goto-char e))
-		     (nreverse lst))))
+		       (goto-char e))))
+		 (nreverse lst)))
 	     (save-excursion
 	       (if (and (re-search-backward "^\\s-*function\\>" bounds t)
-			(re-search-forward "\\<\\(\\w+\\)("
+			(re-search-forward "\\_<\\(\\w+\\)\\s-*("
 					   (matlab-point-at-eol) t))
 		   (let ((lst nil) m e)
 		     (while (looking-at "\\(\\w+\\)\\s-*[,)]\\s-*")
@@ -278,7 +315,7 @@ In NEXT is non-nil, than continue through the list of elements."
 	      (let ((lst nil))
 		(while (re-search-forward "^\\s-*function\\>" nil t)
 		  (if (re-search-forward
-		       (concat "\\(" prefix "\\w+\\)\\s-*\\($\\|(\\)")
+		       (concat "\\_<\\(" prefix "\\w+\\)\\s-*\\($\\|(\\)")
 		       (matlab-point-at-eol) t)
 		      (setq lst (cons (match-string 1) lst))))
 		(nreverse lst)))
@@ -426,7 +463,33 @@ Use `completion-in-region' to support the completion behavior."
       (completion-in-region common-substr-start-pt common-substr-end-pt completions)
       ))
   )
-  
+
+(defun matlab--complete-compute-search-functions (semantics)
+  "Return the search functions for context specified by SEMATNICS."
+  (cond ((eq semantics 'solo)
+	 '(matlab-solo-completions
+	   matlab-find-user-functions
+	   matlab-find-recent-variable))
+	((eq semantics 'boolean)
+	 '(matlab-find-recent-variable
+	   matlab-boolean-completions
+	   matlab-find-user-functions
+	   matlab-value-completions))
+	((eq semantics 'value)
+	 '(matlab-find-recent-variable
+	   matlab-find-user-functions
+	   matlab-value-completions
+	   matlab-boolean-completions))
+	((eq semantics 'property)
+	 '(matlab-property-completions
+	   matlab-find-user-functions
+	   matlab-find-recent-variable
+	   matlab-value-completions))
+	(t '(matlab-find-recent-variable
+	     matlab-find-user-functions
+	     matlab-value-completions
+	     matlab-boolean-completions))))
+
 (defun matlab-complete-symbol-local (&optional arg)
   "Complete a partially typed symbol in a MATLAB mode buffer.
 If the previously entered command was also `matlab-complete-symbol'
@@ -459,29 +522,7 @@ to change it temporarily."
 	  (setq matlab-last-prefix prefix
 		matlab-last-semantic sem
 		matlab-completion-search-state
-		(cond ((eq sem 'solo)
-		       '(matlab-solo-completions
-			 matlab-find-user-functions
-			 matlab-find-recent-variable))
-		      ((eq sem 'boolean)
-		       '(matlab-find-recent-variable
-			 matlab-boolean-completions
-			 matlab-find-user-functions
-			 matlab-value-completions))
-		      ((eq sem 'value)
-		       '(matlab-find-recent-variable
-			 matlab-find-user-functions
-			 matlab-value-completions
-			 matlab-boolean-completions))
-		      ((eq sem 'property)
-		       '(matlab-property-completions
-			 matlab-find-user-functions
-			 matlab-find-recent-variable
-			 matlab-value-completions))
-		      (t '(matlab-find-recent-variable
-			   matlab-find-user-functions
-			   matlab-value-completions
-			   matlab-boolean-completions)))))
+		(matlab--complete-compute-search-functions sem)))
       (cond
        ((eq matlab-completion-technique 'increment)
 	(let ((r nil) (donext (eq last-command 'matlab-complete-symbol)))
