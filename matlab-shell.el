@@ -2413,13 +2413,12 @@ Return the name of the temporary file."
       (goto-char (point-min))
       (dolist (F functions)
 	(save-excursion
-	  (when (re-search-forward (semantic-tag-name F) nil t)
-	    ;; Found, copy it in.
-	    (let ((ft (matlab-semantic-tag-text F orig)))
-	      (goto-char (point-max))
-	      (insert "% Copy of " (semantic-tag-name F) "\n\n")
-	      (insert ft)
-	      (insert "\n%%\n"))))
+	  ;; Copy all local functions to script.
+	  (let ((ft (matlab-semantic-tag-text F orig)))
+	    (goto-char (point-max))
+	    (insert "% Copy of " (semantic-tag-name F) "\n\n")
+	    (insert ft)
+	    (insert "\n%%\n")))
 	)
 
       ;; Save buffer, and setup ability to run this new script.

@@ -1,3 +1,9 @@
+2021-07-26  Uwe Brauer  <oub@mat.ucm.es>
+
+	* matlab-shell.el (matlab-shell-region->script): 676 apply patch provided by
+	  Karthik Chikmagalur <karthikchikmagalur@gmail.com>:
+	  Copy all local functions to script.
+
 2021-05-04  Uwe Brauer  <oub@mat.ucm.es>
 
 	* toolbox/emacsrunregion.m (emacsrunregion):
