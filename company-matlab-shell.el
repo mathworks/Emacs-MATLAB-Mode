@@ -1,4 +1,4 @@
-;;; company-matlab-shell.el --- a matlab-shell-mode completion back-end for AUCTeX
+;;; company-matlab-shell.el --- a matlab-shell-mode completion back-end for Matlab
 ;;
 ;; Copyright (C) 2016,2017,2019 Eric Ludlam
 ;; Copyright (C) 2009 David Engster
