@@ -1,0 +1,26 @@
+diff --git a/matlab.el b/matlab.el
+--- a/matlab.el
++++ b/matlab.el
+@@ -4031,7 +4031,7 @@
+   "Keymap used in MATLAB mode to provide a menu.")
+ 
+ (defun matlab-frame-init ()
+-  "Initialize Emacs 19+ menu system."
++  "Initialize Emacs menu system."
+   (interactive)
+   ;; make a menu keymap
+   (easy-menu-define
+@@ -4039,7 +4039,12 @@
+    matlab-mode-map
+    "MATLAB menu"
+    '("MATLAB"
+-     ["Start MATLAB" matlab-shell (not (matlab-with-emacs-link)) ]
++     ["Start MATLAB" matlab-shell
++      :active (not (or (matlab-with-emacs-link) (matlab-shell-active-p)))
++      :visible (not (matlab-shell-active-p)) ]
++     ["Switch to MATLAB" matlab-shell
++      :active (and (not (matlab-with-emacs-link)) (matlab-shell-active-p))
++      :visible (matlab-shell-active-p) ]
+      ["Save and go" matlab-shell-save-and-go t]
+      ["Run Region" matlab-shell-run-region t]
+      ["Run Cell" matlab-shell-run-cell t]

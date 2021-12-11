@@ -1,0 +1,48 @@
+diff --git a/README.org b/README.org
+--- a/README.org
++++ b/README.org
+@@ -1,20 +1,20 @@
+ * Matlab-emacs Project:
+ 
++   #+BEGIN_SRC elisp
+   ;; Replace path below to be where your matlab.el file is.
+   (add-to-list 'load-path "~/path/to/matlab-emacs")
+   (load-library "matlab-load")
+ 
+   ;; Enable CEDET feature support for MATLAB code. (Optional)
+   ;; (matlab-cedet-setup)
++   #+END_SRC
+ 
+ ** MELPA
+ 
++   #+BEGIN_SRC elisp
+ (add-to-list 'package-archives
+              '("melpa" . "http://melpa.org/packages/") t)
+-
+-And then run 
+-M-x
+-package-list-packages
++   #+END_SRC
+ 
+ 
+ 
+@@ -68,8 +68,9 @@
+ 
+    You need a git client on your machine. Then just run
+ 
+-
++   #+BEGIN_SRC shell
+    git clone git://git.code.sf.net/p/matlab-emacs/src matlab-emacs-src
++   #+END_SRC
+ 
+    If you do not have a GIT client on your machine, you can use the
+    MATLAB script dl_emacs_support.m to download a fresh copy of the
+@@ -80,4 +81,8 @@
+ ** Dependencies
+ 
+    MATLAB-Emacs can use the CEDET suite for the following items:
++     If you do want to use CEDET, add the following to your .emacs file:
++     #+BEGIN_SRC elisp
++    (matlab-cedet-setup)
++     #+END_SRC
+ 

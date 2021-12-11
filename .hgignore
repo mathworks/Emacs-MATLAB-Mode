@@ -18,7 +18,6 @@ syntax: glob
 *.ods
 *.odt
 *.out
-*.patch
 *.snm
 *.synctex.gz
 *.tdo
@@ -28,7 +27,7 @@ syntax: glob
 *.xlsx
 
 
-copyright.org
+
 toolbox/emacsrunregion_mtl2.m
 auto/**
 RCS-old/**

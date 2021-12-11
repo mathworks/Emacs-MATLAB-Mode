@@ -1,0 +1,32 @@
+diff --git a/matlab.el b/matlab.el
+--- a/matlab.el
++++ b/matlab.el
+@@ -4531,7 +4531,7 @@
+ ;; Warning: In <filename> at line # <stuff>
+ (defvar gud-matlab-error-regexp
+   (concat "\\(Error \\(?:in\\|using\\) ==>\\|Syntax error in ==>\\|In\\) "
+-	  "\\([-@.a-zA-Z_0-9/ \\\\:]+\\)\\(?:>[^ ]+\\).*[\n ]\\(?:On\\|at\\)\\(?: line\\)? "
++	  "\\([-@.a-zA-Z_0-9/ \\\\:]+\\)\\(?:>[^ ]+\\)?.*[\n ]\\(?:On\\|at\\)\\(?: line\\)? "
+ 	  "\\([0-9]+\\) ?")
+   "Regular expression finding where an error occurred.")
+ 
+@@ -4954,6 +4954,10 @@
+  		     (setq str (concat (substring str 0 (match-beginning 0))
+  				       "\n"
+  				       (substring str (match-end 0)))))
++		   ;; HACK FOR NOSHOW
++		   (while (string-match "\n" str)
++		     (setq str (replace-match ", " t t str)))
++		   (setq str (concat str "\n"))
+  		   str))
+  	(msbn nil)
+  	(lastcmd)
+@@ -5283,7 +5287,7 @@
+                      (match-beginning 2) (match-end 2)))
+                 (el (buffer-substring-no-properties
+                      (match-beginning 3) (match-end 3))))
+-            (matlab-find-other-window-file-line-column ef el 0)))))))
++            (matlab-find-other-window-file-line-column ef el "0")))))))
+ 
+ (defun matlab-shell-html-click (e)
+   "Go to the error at the location of event E."

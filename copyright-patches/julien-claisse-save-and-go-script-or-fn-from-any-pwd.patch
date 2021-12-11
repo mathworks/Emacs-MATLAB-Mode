@@ -1,0 +1,17 @@
+diff --git a/matlab-shell.el b/matlab-shell.el
+index b2943d8..d7b063c 100644
+--- a/matlab-shell.el
++++ b/matlab-shell.el
+@@ -2163,8 +2163,10 @@ Similar to  `comint-send-input'."
+ 		(matlab-shell-send-string (concat cmd "\n"))
+ 		))
+       
+-	  ;; If not changing dir, maybe we need to use 'run' command instead?
+-	  (let ((cmd (concat "run('" dir fn-name "')")))
++	  ;; If not changing dir, maybe we need to use addpath command before
++	  (let ((cmd (concat "addpath('" dir "')")))
++	    (matlab-shell-send-command cmd))
++	  (let ((cmd (concat fn-name param)))
+ 	    (matlab-shell-send-command cmd)))
+ 	))))
+ 

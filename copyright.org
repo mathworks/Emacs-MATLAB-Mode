@@ -1,0 +1,45 @@
+* Patches: checked so far
+
+
+
+| <7>             |                         | <10>                             | <15>                                               | <10>                 |              |
+| length of patch | sign                    | patch-name                       | author                                             | File                 | Reason       |
+|-----------------+-------------------------+----------------------------------+----------------------------------------------------+----------------------+--------------|
+| 18 lines        | yes                     | odd-andersen.patch               | Odd Andersen <odd.andersen@gmail.com>              | dbhotlink.m          |              |
+|                 | no                      | fritz.patched                    | Fritz de silvia                                    | README.org           | removed      |
+| 10 lines        | no                      | anonymous-matlab-emacs.patch     | anonymous                                          | matlab.el            | too short    |
+| 4               | no                      | kartnik-copy-all-functions.patch | Karthik Chikmagalur <karthikchikmagalur@gmail.com> | matlab-shell.el      | not used     |
+|                 | no                      | eric.w.patch                     | Eric W                                             | matlab.el            | code deleted |
+| 7 lines         | no                      | Joe-vornehm.patch                | Joe Vornehm                                        | ~dl_emacs_support.m~ | too short    |
+| 7 lines         | no                      | rudiger-sonderfeld.patch         | Rudiger Sonderfeld                                 | matlab.el            | too short    |
+| 4 lines         | no                      | julien-claisse.patch             | Julien Claisse                                     |                      |              |
+| 2 lines         | no                      | kausal-modi.patch                | Kausal Mod                                         |                      |              |
+| 18 lines        | yes Eric L please check | nates-chodosh-patch.patch        | Nates Chodosh                                      | matlab-shell.el      | ??????       |
+| 12 lines        | NO                      | Thibault-Marin.patch             | Thibault-Marin-thibault.marin.us@ieee.org.patch    |                      |              |
+
+
+
+
+
+
+* Problem 
+
+2011-10-05  zappo  <zappo@eludlam-deb6-64>
+
+	* matlab.el (matlab-ltype-endfunction-comm):
+	If the endfunction comment occurs on
+	a line, but the next bit of code isn't part of an enclosing fcn, then no.
+	(matlab-shell-mode): Patch from Eli Merriam;
+	make comint-input-filter-functions buffer local.
+	Add matlab-shell-render-html-txt-format hook to comint.
+	(matlab-txt-format-beg, matlab-txt-format-end): New
+	(matlab-shell-render-html-txt-format): New.
+	(matlab-shell-last-anchor-as-frame): New.
+	(matlab-shell-render-errors-as-anchor): Use last anchor var above.
+	Note: Not used for any logic yet. ;(
+	(matlab-shell-previous-matching-input-from-input): patch; Mark Histed
+	Force cursor to eol.
+	(matlab-shell-run-region): Force displayed buffer to recycled visible buffers.
+
+| Mark histed | where is the commit  |
+| Eli Merriam | where is the commit  |

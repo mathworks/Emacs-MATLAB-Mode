@@ -1,0 +1,85 @@
+From 7c341c901331caa874eaf9227fa1dfa1ab06a2ba Mon Sep 17 00:00:00 2001
+From: Nate Chodosh <nchodosh@gmail.com>
+Date: Wed, 24 Jan 2018 22:39:50 -0500
+Subject: [PATCH] Added completion when editing the middle of a line
+
+---
+ company-matlab-shell.el | 38 +++++++++++++++++++++++---------------
+ matlab.el               | 10 +++++-----
+ 2 files changed, 28 insertions(+), 20 deletions(-)
+
+diff --git a/company-matlab-shell.el b/company-matlab-shell.el
+index 07c3a0c..fdba8e2 100755
+--- a/company-matlab-shell.el
++++ b/company-matlab-shell.el
+@@ -33,21 +33,29 @@ performed at the current point."
+   (when (eq major-mode 'matlab-shell-mode)
+     (if (not (matlab-on-prompt-p))
+         'stop  ;; tell company can't complete when point is not in the prompt
+-      (let* ((buf-name (buffer-name (current-buffer)))
+-             (ci (matlab-shell-get-completion-info))
+-             (common-substr (cdr (assoc 'common-substr ci)))
+-             (did-completion (cdr (assoc 'did-completion ci))))
+-        ;; If did-completion, then matlab-shell-get-completion-info updated the
+-        ;; *MATLAB* buffer by deleting text and calling (insert replacement-text), and
+-        ;; we have no more completion info.
+-        (if did-completion
+-            ;; Tell company to abort completion. This causes "Cannot complete at point" and
+-            ;; there doesn't seem to be a way to protect against this message.
+-            nil                 
+-          (puthash buf-name ci company-matlab-shell--ci)
+-          ;; command to be completed
+-          common-substr
+-          )))))
++      (let ((lastcmd (buffer-substring (point) (matlab-point-at-eol))))
++	;; kill the rest of the line since completion only works at the end of the line
++	(delete-region (point) (matlab-point-at-eol)) 
++	(let* ((buf-name (buffer-name (current-buffer)))
++	       (ci (matlab-shell-get-completion-info))
++	       (common-substr (cdr (assoc 'common-substr ci)))
++	       (did-completion (cdr (assoc 'did-completion ci))))
++	  ;; restore the killed part of the line
++	  (let ((orig-pt (point)))
++	    (insert-string lastcmd)
++	    (goto-char orig-pt))
++	  
++	  ;; If did-completion, then matlab-shell-get-completion-info updated the
++	  ;; *MATLAB* buffer by deleting text and calling (insert replacement-text), and
++	  ;; we have no more completion info.
++	  (if did-completion
++	      ;; Tell company to abort completion. This causes "Cannot complete at point" and
++	      ;; there doesn't seem to be a way to protect against this message.
++	      nil
++	    (puthash buf-name ci company-matlab-shell--ci)
++	    ;; command to be completed
++	    common-substr
++	    ))))))
+ 
+ 
+ (defun company-matlab-shell-get-completions ()
+diff --git a/matlab.el b/matlab.el
+index 4657fad..6d9dd2a 100644
+--- a/matlab.el
++++ b/matlab.el
+@@ -5705,13 +5705,13 @@ indication that it ran."
+           (comint-simple-send (get-buffer-process (current-buffer)) command)
+           ;; Wait for the command to finish, by looking for new prompt.
+           (goto-char (point-max))
+-          ;; Turn on C-g by setting inhibit-quit to nil. This is needed to prevent message:
++          ;; Turn on C-g by using wiht-local-quit. This is needed to prevent message:
+           ;;  "Blocking call to accept-process-output with quit inhibited!! [115 times]"
+           ;; when using `company-matlab-shell' for TAB completions.
+-          (let ((inhibit-quit nil))
+-            (while (or (>= (+ pos (string-width command)) (point)) (not (matlab-on-empty-prompt-p)))
+-              (accept-process-output (get-buffer-process (current-buffer)))
+-              (goto-char (point-max))))
++          (with-local-quit
++	    (while (or (>= (+ pos (string-width command)) (point)) (not (matlab-on-empty-prompt-p)))
++	      (accept-process-output (get-buffer-process (current-buffer)))
++	      (goto-char (point-max))))
+ 
+           ;; Get result of command into str
+           (goto-char pos)
+-- 
+2.7.4
+

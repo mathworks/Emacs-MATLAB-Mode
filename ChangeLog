@@ -1,3 +1,9 @@
+2021-12-11  Uwe Brauer  <oub@mat.ucm.es>
+
+	* copyright.org (Patches: checked so far): 678 New file, that
+	contains a list of patches and whether the author's signature
+	might be needed.
+
 2021-11-22  Uwe Brauer  <oub@mat.ucm.es>
 
 	* company-matlab-shell.el: 677 correct a silly typo
