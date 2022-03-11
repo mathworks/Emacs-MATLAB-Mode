@@ -31,7 +31,7 @@
 (require 'server)
 
 (eval-and-compile
-  (require 'gud)
+  (require 'mlgud)
   (require 'shell)
   )
 
@@ -563,7 +563,7 @@ Try C-h f matlab-shell RET"))
 ;;; PROCESS FILTERS & SENTINEL
 ;;
 ;; These are wrappers around the GUD filters so we can pre and post process
-;; decisions by comint and gud.
+;; decisions by comint and mlgud.
 (defvar matlab-shell-capturetext-start-text "<EMACSCAP>"
   "Text used as simple signal for text that should be captured.")
 (defvar matlab-shell-capturetext-end-text "</EMACSCAP>"
@@ -635,7 +635,7 @@ STRING is the recent output from PROC to be filtered."
 	    matlab-shell-flush-accumulation-buffer nil))
 
     (with-current-buffer buff
-      (gud-filter proc string))
+      (mlgud-filter proc string))
     
     ;; In case things get switched around on us
     (with-current-buffer buff
@@ -656,7 +656,7 @@ PROC is the function which experienced a change in state.
 STRING is a description of what happened."
   (let ((buff (process-buffer proc)))
     (with-current-buffer buff
-      (gud-sentinel proc string))))
+      (mlgud-sentinel proc string))))
 
 ;;; COMINT support fcns
 ;;
@@ -1933,8 +1933,8 @@ If DEBUG is non-nil, then setup GUD debugging features."
     (goto-char (point-min))
     (forward-line (1- (string-to-number el)))
     (when debug
-      (setq gud-last-frame (cons (buffer-file-name) (string-to-number el)))
-      (gud-display-frame))
+      (setq mlgud-last-frame (cons (buffer-file-name) (string-to-number el)))
+      (mlgud-display-frame))
     (setq ec (string-to-number ec))
     (if (> ec 0) (forward-char (1- ec)))))
 
@@ -1953,7 +1953,7 @@ If DEBUG is non-nil, then setup GUD debugging features."
            (matlab-find-other-window-file-line-column ef el ec debug)))
         ((string-match "^matlab:*\\(.*\\)$" url)
          (process-send-string
-          (get-buffer-process gud-comint-buffer)
+          (get-buffer-process mlgud-comint-buffer)
           (concat (substring url (match-beginning 1) (match-end 1)) "\n")))))
 
 (defun matlab-shell-last-error ()
@@ -2413,12 +2413,13 @@ Return the name of the temporary file."
       (goto-char (point-min))
       (dolist (F functions)
 	(save-excursion
-	  ;; Copy all local functions to script.
-	  (let ((ft (matlab-semantic-tag-text F orig)))
-	    (goto-char (point-max))
-	    (insert "% Copy of " (semantic-tag-name F) "\n\n")
-	    (insert ft)
-	    (insert "\n%%\n")))
+	  (when (re-search-forward (semantic-tag-name F) nil t)
+	    ;; Found, copy it in.
+	    (let ((ft (matlab-semantic-tag-text F orig)))
+	      (goto-char (point-max))
+	      (insert "% Copy of " (semantic-tag-name F) "\n\n")
+	      (insert ft)
+	      (insert "\n%%\n"))))
 	)
 
       ;; Save buffer, and setup ability to run this new script.
@@ -2460,31 +2461,31 @@ Argument FNAME specifies if we should echo the region to the command line."
 
 ;;; matlab-shell.el ends here
 
-;; LocalWords:  el Ludlam zappo compat comint gud Slience defcustom el cb
+;; LocalWords:  el Ludlam zappo compat comint mlgud Slience defcustom el cb
 ;; LocalWords:  nodesktop defface autostart netshell emacsclient errorscanning
 ;; LocalWords:  cco defun setq Keymaps keymap kbd featurep fboundp subprocess
 ;; LocalWords:  online EDU postoutput progn subjob eol mlfile emacsinit msbn pc
 ;; LocalWords:  Thx Chappaz windowid dirtrackp dbhot erroexamples Ludlam zappo
-;; LocalWords:  compat comint gud Slience defcustom nodesktop defface emacscd
+;; LocalWords:  compat comint mlgud Slience defcustom nodesktop defface emacscd
 ;; LocalWords:  autostart netshell emacsclient errorscanning cco defun setq el
 ;; LocalWords:  Keymaps keymap kbd featurep fboundp subprocess online EDU
 ;; LocalWords:  postoutput progn subjob eol mlfile emacsinit msbn pc Thx Ludlam
 ;; LocalWords:  Chappaz windowid dirtrackp dbhot erroexamples cdr ENDPT dolist
 ;; LocalWords:  overlaystack mref deref errortext ERRORTXT Missmatched zappo
-;; LocalWords:  shellerror dbhotlink realfname aset buf noselect tcp auth ef
-;; LocalWords:  dbhotlinks compat comint gud Slience defcustom capturetext
+;; LocalWords:  shellerror dbhotlink realfname aset buf noselect auth ef
+;; LocalWords:  dbhotlinks compat comint mlgud Slience defcustom capturetext
 ;; LocalWords:  nodesktop defface autostart netshell emacsclient errorscanning
 ;; LocalWords:  cco defun setq Keymaps keymap kbd featurep fboundp subprocess
 ;; LocalWords:  online EDU postoutput progn subjob eol mlfile emacsinit msbn pc
 ;; LocalWords:  Thx Chappaz windowid dirtrackp dbhot erroexamples cdr ENDPT
 ;; LocalWords:  dolist overlaystack mref deref errortext ERRORTXT Missmatched
-;; LocalWords:  shellerror dbhotlink realfname aset buf noselect tcp auth ef
+;; LocalWords:  shellerror dbhotlink realfname aset buf noselect auth ef
 ;; LocalWords:  dbhotlinks dbhlcmd endprompt mello pmark memq promptend
 ;; LocalWords:  numchars integerp emacsdocomplete mycmd ba nreverse EMACSCAP
 ;; LocalWords:  emacsdocompletion subfield fil byteswap stringp cbuff mapcar bw
 ;; LocalWords:  FCN's alist BUILTINFLAG dired bol bobp numberp lattr princ
 ;; LocalWords:  minibuffer fn matlabregex stackexchange doesnt lastcmd Emacsen
-;; LocalWords:  notimeout stacktop eltest testme localfcn LF mlx meth fileref
+;; LocalWords:  notimeout stacktop eltest testme localfcn LF meth fileref
 ;; LocalWords:  funcall ec basec sk ignoredups boundp nondirectory edir sexp iq
 ;; LocalWords:  Fixup mapc ltype noshow emacsrunregion cnt commandline elipsis
 ;; LocalWords:  newf bss fname nt initcmd nsa ecc ecca clientcmd buffname

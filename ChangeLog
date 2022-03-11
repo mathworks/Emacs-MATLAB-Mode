@@ -1,3 +1,16 @@
+2022-03-11  John Ciolfi <ciolfi@mathworks.com>
+
+	* matlab-netshell.el, matlab-shell-gud.el, matlab-shell.el, matlab.el, mlgud.el
+	Fix conflict between matlab-shell debugging and C++ (or other language) debugging.
+	- matlab-shell debugging previously leveraged gud.el for debugging of *.m files.
+	- C++ debugging also leverages gud.el for debugging.
+	- Only one instance of a gud.el debugger can be active. If you run two, say
+	  *.m debugging and C++ debugging. Then you get odd errors such as the
+	  ebbreak not being recognized by gdb.
+	To fix these issue, I copied gud.el and made a new namespace "mlgud". I also
+	removed a lot of unused code from mlgud.el, though there's still more that can
+	be removed. Now one can debug *.m files and *.cpp files in one Emacs session.
+
 2021-11-22  Uwe Brauer  <oub@mat.ucm.es>
 
 	* company-matlab-shell.el: 677 correct a silly typo

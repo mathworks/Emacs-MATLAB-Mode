@@ -594,25 +594,25 @@ point, but it will be restored for them."
      ["Edit File (toggle read-only)" matlab-shell-gud-mode-edit
       :help "Exit MATLAB debug minor mode to edit without exiting MATLAB's K>> prompt."
       :visible gud-matlab-debug-active ]
-     ["Add Breakpoint (ebstop in FILE at point)" gud-break
+     ["Add Breakpoint (ebstop in FILE at point)" mlgud-break
       :active (matlab-shell-active-p)
       :help "When MATLAB debugger is active, set break point at current M-file point"]
-     ["Remove Breakpoint (ebclear in FILE at point)" gud-remove
+     ["Remove Breakpoint (ebclear in FILE at point)" mlgud-remove
       :active (matlab-shell-active-p)
-      :help "Show all active breakpoints in a separate buffer." ]
-     ["List Breakpoints (ebstatus)" gud-list-breakpoints
+      :help "When MATLAB debugger is active, remove break point in FILE at point." ]
+     ["List Breakpoints (ebstatus)" mlgud-list-breakpoints
       :active (matlab-shell-active-p)
       :help "List active breakpoints."]
-     ["Step (dbstep in)" gud-step
+     ["Step (dbstep in)" mlgud-step
       :active gud-matlab-debug-active
       :help "When MATLAB debugger is active, step into line"]
-     ["Next (dbstep)" gud-next
+     ["Next (dbstep)" mlgud-next
       :active gud-matlab-debug-active
       :help "When MATLAB debugger is active, step one line"]
-     ["Finish function  (dbstep out)" gud-finish
+     ["Finish function  (dbstep out)" mlgud-finish
       :active gud-matlab-debug-active
       :help "When MATLAB debugger is active, run to end of function"]
-     ["Continue (dbcont)" gud-cont
+     ["Continue (dbcont)" mlgud-cont
       :active gud-matlab-debug-active
       :help "When MATLAB debugger is active, run to next break point or finish"]
      ["Evaluate Expression" matlab-shell-gud-show-symbol-value
@@ -621,14 +621,14 @@ point, but it will be restored for them."
      ["Show Stack" mlg-show-stack
       :active gud-matlab-debug-active
       :help "When MATLAB debugger is active, show the stack in a buffer."]
-;;;  Advertise these more if we can get them working w/ gud's frame show.
-;;;      ["Up Call Stack (dbup)" gud-up
+;;;  Advertise these more if we can get them working w/ mlgud's frame show.
+;;;      ["Up Call Stack (dbup)" mlgud-up
 ;;;       :active gud-matlab-debug-active
 ;;;       :help "When MATLAB debugger is active and at break point, go up a frame"]
-;;;      ["Down Call Stack (dbdown)" gud-down
+;;;      ["Down Call Stack (dbdown)" mlgud-down
 ;;;       :active gud-matlab-debug-active
 ;;;       :help "When MATLAB debugger is active and at break point, go down a frame"]
-     ["Quit debugging (dbquit)" gud-stop-subjob
+     ["Quit debugging (dbquit)" mlgud-stop-subjob
       :active gud-matlab-debug-active
       :help "When MATLAB debugger is active, stop debugging"]
      )
@@ -3243,10 +3243,10 @@ desired.  Optional argument FAST is not used."
 ;;; matlab.el ends here
 
 ;; LocalWords:  el Wette mwette caltech edu Ludlam eludlam defconst online mfiles ebstop ebclear
-;; LocalWords:  compat easymenu defcustom CASEINDENT COMMANDINDENT sexp defun ebstatus mlg gud's
+;; LocalWords:  compat easymenu defcustom CASEINDENT COMMANDINDENT sexp defun ebstatus mlg mlgud's
 ;; LocalWords:  mmode setq progn sg Fns Alist elipsis vf functionname vers subjob flb fle elisp
 ;; LocalWords:  minibuffer featurep fboundp facep zmacs defface cellbreak bcend lastcompute noblock
-;; LocalWords:  cellbreaks overline keymap torkel ispell gud allstring strchar decl lcbounds setcar
+;; LocalWords:  cellbreaks overline keymap torkel ispell mlgud allstring strchar decl lcbounds setcar
 ;; LocalWords:  bs eu bc ec searchlim eol charvec Matchers ltype cdr if'd setcdr bcwrapped
 ;; LocalWords:  uicontext setcolor mld keywordlist mapconcat pragmas Classdefs
 ;; LocalWords:  dem Za Imenu imenu alist prog reindent unindent boundp fn
