@@ -1,6 +1,11 @@
 2022-04-12  Uwe Brauer  <oub@mat.ucm.es>
 
-	* matlab-syntax.el (matlab--transpose-syntax): Apply patch
+	* matlab-load.el (matlab-mode): Add the load file to the
+	repository, for the MELPA archive.
+
+2022-04-12  Uwe Brauer  <oub@mat.ucm.es>
+
+	* matlab-syntax.el (matlab--transpose-syntax): 680 Apply patch
 	provided by Eric Ludlam to fix a transpose syntax problem
 
 2022-03-11  John Ciolfi <ciolfi@mathworks.com>
