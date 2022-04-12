@@ -229,7 +229,7 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
 			"\\s-+\\(\\s$\\|\\w\\|\\s_\\)")))
       (goto-char (match-beginning 2)))))
 
-(matlab--syntax-symbol matlab--transpose-syntax '(3 . nil) ;; 3 = symbol
+(matlab--syntax-symbol matlab--transpose-syntax '(1 . nil) ;; 3 = symbol, 1 = punctuation
   "Treat ' as non-string when used as transpose.")
 
 (matlab--syntax-symbol matlab--quoted-string-syntax '(9 . nil) ;; 9 = escape in a string

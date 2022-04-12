@@ -1,3 +1,8 @@
+2022-04-12  Uwe Brauer  <oub@mat.ucm.es>
+
+	* matlab-syntax.el (matlab--transpose-syntax): Apply patch
+	provided by Eric Ludlam to fix a transpose syntax problem
+
 2022-03-11  John Ciolfi <ciolfi@mathworks.com>
 
 	* matlab-netshell.el, matlab-shell-gud.el, matlab-shell.el, matlab.el, mlgud.el
