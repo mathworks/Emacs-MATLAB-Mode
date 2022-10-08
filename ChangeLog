@@ -1,3 +1,9 @@
+2022-10-08 18:19  Uwe Brauer  <oub@mat.ucm.es>
+
+	* matlab.el (matlab-mode): Apply patch provided my Eric Ludlam:
+	delete the line  (kill-all-local-variables) in the matlab-mode function.
+
+
 2022-04-12  Uwe Brauer  <oub@mat.ucm.es>
 
 	* matlab-load.el (matlab-mode): Add the load file to the

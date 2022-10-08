@@ -1303,7 +1303,6 @@ All Key Bindings:
 \\{matlab-mode-map}"
   :after-hook (matlab-mode-init-mlint-if-needed)
 
-  (kill-all-local-variables)
   (use-local-map matlab-mode-map)
   (setq major-mode 'matlab-mode)
   (setq mode-name "MATLAB")
