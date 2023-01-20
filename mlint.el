@@ -56,17 +56,25 @@ Return the MATLABROOT for the 'matlab-shell-command'.
 
 ;;; Code:
 (defvar mlint-platform
-  ;;     MATLABROOT/bin/util/arch.sh (or arch.bat)
+  ;; See
+  ;;   >> lower(computer)
+  ;;   MATLABROOT/bin/util/arch.sh (or arch.bat)
   (cond ((eq system-type 'darwin)
-	 (if (string-match "i386" system-configuration)
-	     (let ((mt (getenv "MACHTYPE")))
-	       (if (and (stringp mt) (string= "x86_32" mt))
-		   ;; This hack is bad since an Emacs started from
-		   ;; the doc doesn't have this variable, thus by defaulting
-		   ;; to checking the 32 bit (not common anymore) version,
-		   ;; we'll get the right answer most of the time.
-		   "maci" "maci64"))
-	   "mac"))
+         (cond
+          ((string-match "^arm" system-configuration) ;; e.g. arm-apple-darwin20.3.0
+           "maca64")
+          ((string-match "^x86_64" system-configuration)
+           "maci64")
+	  ((string-match "^i386" system-configuration)
+	   (let ((mt (getenv "MACHTYPE")))
+	     (if (and (stringp mt) (string= "x86_32" mt))
+		 ;; This hack is bad since an Emacs started from
+		 ;; the doc doesn't have this variable, thus by defaulting
+		 ;; to checking the 32 bit (not common anymore) version,
+		 ;; we'll get the right answer most of the time.
+		 "maci" "maci64")))
+          (t
+	   "mac")))
 	((eq system-type 'gnu/linux)
 	 (cond ((string-match "64\\|i686" system-configuration)
 		"glnxa64")
@@ -83,7 +91,7 @@ Return the MATLABROOT for the 'matlab-shell-command'.
 	       "win64"
 	     "win32")))
 	(t "unknown"))
-  "Platform we are running mlint on.")
+  "MATLAB platform we are running mlint on. See >> lower(computer).")
 
 (defcustom mlint-calculate-cyclic-complexity-flag nil
   "*Non-nil means to collect cyclic complexity values."
