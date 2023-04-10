@@ -1,0 +1,33 @@
+/*
+ *   Used by ../*.org via 
+ *     #+HTML_HEAD_EXTRA: <link rel="stylesheet" type="text/css" href="css/styles.css"/>
+ */
+
+body {
+    font-size: 11pt;
+    text-align: left;
+    line-height:1.2em;
+}
+
+h1 {font-size: 14pt;}
+
+.title {
+    padding-bottom: 7px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #222;
+}
+
+h2 {
+    font-size: 12pt;
+    padding-bottom: 4px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    border-bottom: 1px solid #DDD;
+}
+
+h3 {font-size: 11pt; color: #0000ff;}
+h4 {font-size: 9pt; color: #a34d32;}
+
+a {text-decoration: none; color: #537d7b}
+a:visited {text-decoration: none; color: #98855b}
+a:hover {text-decoration: underline; color: #a34d32}
