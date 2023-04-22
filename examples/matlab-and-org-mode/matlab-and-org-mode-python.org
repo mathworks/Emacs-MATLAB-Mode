@@ -1,0 +1,48 @@
+* Start the python engine
+
+Run
+#+begin_src 
+/usr/bin/python3
+in the python prompt:
+import matlab.engine
+eng = matlab.engine.start_matlab()
+the eng command needs some time to run. 
+When finished run now 
+eng.quit()
+#+end_src
+
+#+BEGIN_SRC emacs-lisp
+(setq org-confirm-babel-evaluate nil)   ;don't prompt me to confirm everytime I want to evaluate a block
+;;; display/update images in the buffer after I evaluate
+(add-hook 'org-babel-after-execute-hook 'org-display-inline-images 'append)
+    
+(add-to-list 'org-src-lang-modes '("matlab" . matlab))
+(setq python-shell-interpreter "python3")
+;; set default headers for convenience
+(setq org-babel-default-header-args:matlab
+      '((:results . "output replace")
+	(:session . "matlab")
+	(:kernel . "matlab")
+	(:exports . "code")
+	(:cache .   "no")
+	(:noweb . "no")
+	(:hlines . "no")
+	(:tangle . "no")))
+(defalias 'org-babel-execute:matlab 'org-babel-execute:ipython)
+(defalias 'org-babel-prep-session:matlab 'org-babel-prep-session:ipython)
+(defalias 'org-babel-matlab-initiate-session 'org-babel-ipython-initiate-session)
+#+END_SRC
+#+RESULTS:
+: org-babel-matlab-initiate-session
+Then use the following example
+
+#+begin_src matlab :results output latex :exports results  :eval never-export :wrap latex
+x = [1, 2, 3, 4, 5];
+fprintf('|%d', x)
+#+end_src
+
+#+RESULTS:
+#+begin_latex
+|1|2|3|4|5
+#+end_latex
+
