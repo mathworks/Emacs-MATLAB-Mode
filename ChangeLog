@@ -1,3 +1,7 @@
+2023-04-24 14:47  Uwe Brauer  <oub@mat.ucm.es>
+
+	* matlab.el (matlab-mode): Apply patch provided by Peter Mao <peter.mao@gmail.com>
+
 2022-10-08 18:19  Uwe Brauer  <oub@mat.ucm.es>
 
 	* matlab.el (matlab-mode): Apply patch provided my Eric Ludlam:

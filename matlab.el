@@ -11,7 +11,7 @@
   "Current version of MATLAB(R) mode.")
 
 ;;
-;; Copyright (C) 1997-2021 Eric M. Ludlam
+;; Copyright (C) 1997-2022 Eric M. Ludlam
 ;; Copyright (C) 1991-1997 Matthew R. Wette
 ;;
 ;; This program is free software; you can redistribute it and/or modify
@@ -1385,6 +1385,14 @@ All Key Bindings:
   ;; Highlight parens OR if/end type blocks
   (make-local-variable 'show-paren-data-function)
   (setq show-paren-data-function 'matlab-show-paren-or-block)
+
+  ;; Electric pair mode needs customization around transpose
+  (make-local-variable 'electric-pair-inhibit-predicate)
+  (setq electric-pair-inhibit-predicate 'matlab-electric-pair-inhibit-predicate)
+
+  ;; Electric pair mode - handle ' as string delimiter correctly
+  (make-local-variable 'electric-pair-pairs)
+  (setq electric-pair-pairs '((39 . 39)))
 
   ;; If first function is terminated with an end statement, then functions have
   ;; ends.
@@ -2924,6 +2932,19 @@ Returns a list: \(HERE-BEG HERE-END THERE-BEG THERE-END MISMATCH)"
               nil
             (list here-beg here-end there-beg there-end mismatch) ))))))
 
+
+;;; Electric pair mode ============================================
+
+(defun matlab-electric-pair-inhibit-predicate (char)
+  "Return non-nil if `electric-pair-mode' should not pair this char."
+  (or (funcall 'electric-pair-default-inhibit char)
+      (cond
+       ((and (eq char ?')
+             (progn (forward-char -1)
+                    (looking-at "\\w\\|\\s_\\|\\.")))
+        t)
+       ))
+  )
 
 ;;; M Code verification ============================================
 
