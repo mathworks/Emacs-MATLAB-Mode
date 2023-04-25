@@ -56,6 +56,9 @@
 (require 'easymenu)
 (require 'derived)
 
+(eval-when-compile
+  (require 'elec-pair))
+
 
 ;;; User-changeable variables =================================================
 ;;
@@ -3275,7 +3278,7 @@ desired.  Optional argument FAST is not used."
 
 ;;; matlab.el ends here
 
-;; LocalWords:  Wette mwette edu Ludlam eludlam defconst compat easymenu defcustom mfiles objc
+;; LocalWords:  Wette mwette edu Ludlam eludlam defconst compat easymenu defcustom mfiles objc elec
 ;; LocalWords:  CASEINDENT COMMANDINDENT sexp sg Fns Alist symbolp defun mmode setq decl memq progn
 ;; LocalWords:  elipsis vf functionname booleanp keymap torkel fboundp gud ebstop mlgud ebclear
 ;; LocalWords:  ebstatus mlg mlgud's subjob featurep defface commanddual cellbreak cellbreaks cdr
