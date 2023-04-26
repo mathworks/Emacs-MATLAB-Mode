@@ -35,7 +35,7 @@
   (require 'shell)
   )
 
-;; Slience warnings from company.el
+;; Silence warnings from company.el
 (declare-function company-mode "company")
 (defvar company-idle-delay)
 (defvar company-mode)
@@ -776,8 +776,8 @@ Argument STR is the text for the anchor."
 ;; The regular expression covers to forms in tests/erroexamples.shell.m
 ;;
 (defvar matlab-shell-error-anchor-expression
-  (concat "^\\s-*\\(\\(Error \\(in\\|using\\)\\s-+\\|Syntax error in \\)\\(?:==> \\)?\\|"
-	  "In\\s-+\\(?:workspace belonging to\\s-+\\)?\\|Error:\\s-+File:\\s-+\\|Warning:\\s-+[^\n]+\n\\)")
+  (concat "^>?\\s-*\\(\\(Error \\(in\\|using\\)\\s-+\\|Syntax error in \\)\\(?:==> \\)?\\|"
+          "In\\s-+\\(?:workspace belonging to\\s-+\\)?\\|Error:\\s-+File:\\s-+\\|Warning:\\s-+[^\n]+\n\\)")
   
   "Expressions used to find errors in MATLAB process output.
 This variable contains the anchor, or starting text before
@@ -921,7 +921,7 @@ STR is provided by COMINT but is unused."
 	;; Then scan for the beginning, and start there.  As we delete text, locations will move,
 	;; so move downward after this.
 	(if (not (re-search-backward (regexp-quote matlab-shell-errortext-start-text) nil t))
-	    (error "Missmatched error text tokens from MATLAB")
+	    (error "Mismatched error text tokens from MATLAB")
 	  
 	  ;; Save off where we start, and delete the indicator.
 	  (setq start (match-beginning 0))
@@ -1043,7 +1043,7 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
   "Process text found between <EMACSCAP> and </EMAACSCAP>.
 Text is found in `matlab-shell-wrapper-filter', and then this
 function is called before removing text from the output stream.
-This function detects the type of ouptut (an eval, or output to buffer)
+This function detects the type of output (an eval, or output to buffer)
 and then processes it."
   (let ((start nil) (end nil) (buffname "*MATLAB Output*")
 	(text nil)
@@ -1360,7 +1360,7 @@ No completions are provided anywhere else in the buffer."
 ;;   >> set(h,'<TAB>                 Should display a long list
 ;;      type P<TAB>                  Should narrow to Parent, Position, ...
 ;;
-;;   >> !touch file.ext              Assuming no other fil* names in current directory.
+;;   >> !touch file.ext              Assuming no other file.* names in current directory.
 ;;   >> !mv file.<TAB>               Should complete to file.ext
 ;;   >> !mv file.ext<TAB>            Should do nothing
 ;;
@@ -2461,32 +2461,15 @@ Argument FNAME specifies if we should echo the region to the command line."
 
 ;;; matlab-shell.el ends here
 
-;; LocalWords:  el Ludlam zappo compat comint mlgud Slience defcustom el cb
-;; LocalWords:  nodesktop defface autostart netshell emacsclient errorscanning
-;; LocalWords:  cco defun setq Keymaps keymap kbd featurep fboundp subprocess
-;; LocalWords:  online EDU postoutput progn subjob eol mlfile emacsinit msbn pc
-;; LocalWords:  Thx Chappaz windowid dirtrackp dbhot erroexamples Ludlam zappo
-;; LocalWords:  compat comint mlgud Slience defcustom nodesktop defface emacscd
-;; LocalWords:  autostart netshell emacsclient errorscanning cco defun setq el
-;; LocalWords:  Keymaps keymap kbd featurep fboundp subprocess online EDU
-;; LocalWords:  postoutput progn subjob eol mlfile emacsinit msbn pc Thx Ludlam
-;; LocalWords:  Chappaz windowid dirtrackp dbhot erroexamples cdr ENDPT dolist
-;; LocalWords:  overlaystack mref deref errortext ERRORTXT Missmatched zappo
-;; LocalWords:  shellerror dbhotlink realfname aset buf noselect auth ef
-;; LocalWords:  dbhotlinks compat comint mlgud Slience defcustom capturetext
-;; LocalWords:  nodesktop defface autostart netshell emacsclient errorscanning
-;; LocalWords:  cco defun setq Keymaps keymap kbd featurep fboundp subprocess
-;; LocalWords:  online EDU postoutput progn subjob eol mlfile emacsinit msbn pc
-;; LocalWords:  Thx Chappaz windowid dirtrackp dbhot erroexamples cdr ENDPT
-;; LocalWords:  dolist overlaystack mref deref errortext ERRORTXT Missmatched
-;; LocalWords:  shellerror dbhotlink realfname aset buf noselect auth ef
-;; LocalWords:  dbhotlinks dbhlcmd endprompt mello pmark memq promptend
-;; LocalWords:  numchars integerp emacsdocomplete mycmd ba nreverse EMACSCAP
-;; LocalWords:  emacsdocompletion subfield fil byteswap stringp cbuff mapcar bw
-;; LocalWords:  FCN's alist BUILTINFLAG dired bol bobp numberp lattr princ
-;; LocalWords:  minibuffer fn matlabregex stackexchange doesnt lastcmd Emacsen
-;; LocalWords:  notimeout stacktop eltest testme localfcn LF meth fileref
-;; LocalWords:  funcall ec basec sk ignoredups boundp nondirectory edir sexp iq
-;; LocalWords:  Fixup mapc ltype noshow emacsrunregion cnt commandline elipsis
-;; LocalWords:  newf bss fname nt initcmd nsa ecc ecca clientcmd buffname
-;; LocalWords:  insertbuff bufflist evalforms
+;; LocalWords:  Ludlam zappo compat comint mlgud gud defcustom nodesktop defface netshell
+;; LocalWords:  emacsclient commandline emacsrunregion errorscanning cco defconst defun setq Keymaps
+;; LocalWords:  keymap subjob kbd emacscd featurep fboundp EDU msbn pc Thx Chappaz windowid
+;; LocalWords:  postoutput capturetext EMACSCAP captext STARTCAP progn eol dbhot erroexamples cdr
+;; LocalWords:  ENDPT dolist overlaystack mref deref errortext ERRORTXT shellerror Emacsen iq nt
+;; LocalWords:  auth mlfile emacsinit initcmd nsa ecc ecca clientcmd EMAACSCAP buffname showbuff
+;; LocalWords:  evalforms Histed pmark memq promptend numchars integerp emacsdocomplete mycmd ba
+;; LocalWords:  nreverse emacsdocompletion byteswap stringp cbuff mapcar bw FCN's alist
+;; LocalWords:  BUILTINFLAG dired bol bobp numberp princ minibuffer fn matlabregex lastcmd notimeout
+;; LocalWords:  stacktop eltest testme localfcn LF fileref funcall ef ec basec sk nondirectory
+;; LocalWords:  ignoredups boundp edir sexp Fixup mapc emacsrun noshow cnt elipsis newf bss noselect
+;; LocalWords:  fname
