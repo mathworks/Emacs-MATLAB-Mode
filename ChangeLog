@@ -1,3 +1,25 @@
+2023-07-12  Uwe Brauer  <oub@mat.ucm.es>
+
+	* cedet-matlab.el: update to GPL3+
+
+	* company-matlab-shell.el: ditto
+
+	* company-matlab-shell.el: ditto
+
+	* dl_emacs_support.m: ditto
+
+	* linemark.el: ditto
+
+	* matlab-publish.el: ditto
+
+	* matlab.el: ditto
+
+	* mlint.el: Ditto
+
+	* semantic-matlab.el: Ditto
+
+	* semanticdb-matlab.el: ditto
+
 2023-04-24 14:47  Uwe Brauer  <oub@mat.ucm.es>
 
 	* matlab.el (matlab-mode): Apply patch provided by Peter Mao <peter.mao@gmail.com>
