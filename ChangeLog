@@ -1,3 +1,7 @@
+2023-07-12 22:14  Uwe Brauer  <oub@mat.ucm.es>
+
+	* COPYING: add GPL3+ License
+
 2023-07-12  Uwe Brauer  <oub@mat.ucm.es>
 
 	* cedet-matlab.el: update to GPL3+
