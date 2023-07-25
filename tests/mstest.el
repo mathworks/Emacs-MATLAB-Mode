@@ -1,6 +1,6 @@
 ;;; mstest.el --- MATLAB Shell test suite
 ;;
-;; Copyright (C) 2019 Eric Ludlam
+;; Copyright (C) 2019-23 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <zappo@ballista>
 ;;
