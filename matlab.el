@@ -1708,7 +1708,7 @@ The name is any text after the %% and any whitespace."
 (defun matlab-beginning-of-command ()
   "Go to the beginning of an M command.
 Travels across continuations."
-  (interactive "P")
+  (interactive)
   (matlab-scan-beginning-of-command))
 
 (defun matlab-end-of-command ()
@@ -1792,7 +1792,7 @@ If there isn't one, then return nil, point otherwise."
   "Indent the region between START And END for MATLAB mode.
 Unlike `indent-region-line-by-line', this function captures
 parsing state and re-uses that state along the way."
-  (interactive)
+  (interactive "r")
   (save-excursion
     (setq end (copy-marker end))
     (goto-char start)
@@ -2400,19 +2400,28 @@ Argument BEG and END indicate the region to uncomment."
 (defun matlab-set-comm-fill-prefix ()
   "Set the `fill-prefix' for the current (comment) line."
   (interactive)
-  (if (matlab-line-comment-p (matlab-compute-line-context 1))
-      (setq fill-prefix
-            (save-excursion
-              (beginning-of-line)
-              (let ((e (matlab-point-at-eol))
-                    (pf nil))
-                (while (and (re-search-forward "%+[ \t]*\\($$$ \\|\\* \\)?" e t)
-                            (matlab-cursor-in-string)))
-                (setq pf (match-string 0))
-                (when (string-match "%\\s-*\\* " pf)
-                  (setq pf (concat "%" (make-string (1- (length pf)) ?  ))))
-                (concat (make-string (- (current-column) (length pf)) ? )
-                        pf))))))
+  (let ((ctxt (matlab-compute-line-context 1)))
+    (if (matlab-line-comment-p ctxt)
+	(setq fill-prefix
+	      (save-excursion
+		(beginning-of-line)
+		(let ((e (matlab-point-at-eol))
+		      (pf nil))
+		  (while (and (re-search-forward "%+[ \t]*\\($$$ \\|\\* \\)?" e t)
+			      (matlab-cursor-in-string)))
+		  (setq pf (match-string 0))
+		  (when (string-match "%\\s-*\\* " pf)
+		    (setq pf (concat "%" (make-string (1- (length pf)) ?  ))))
+		  (concat (make-string (- (current-column) (length pf)) ? )
+			  pf))))
+      ;; Not a comment line, but maybe a comment at end of a line?  If
+      ;; so make next comment line up with the end of line comment
+      ;; column the way aoto fill does.
+      (let ((cstart (matlab-line-end-comment-column ctxt)))
+	(if cstart
+	    (setq fill-prefix
+		  (concat (make-string cstart ? ) "% "))
+	  )) )))
 
 (defun matlab-set-comm-fill-prefix-post-code ()
   "Set the `fill-prefix' for the current post-code comment line."
@@ -2564,7 +2573,7 @@ filling which will automatically insert `...' and the end of a line."
          ((or (matlab-line-comment-p lvl1)
               (and (save-excursion (move-to-column fill-column)
                                    (matlab-cursor-in-comment))
-                   (matlab-line-comment-p lvl1)))
+                   (matlab-line-end-comment-column lvl1)))
           ;; If the whole line is a comment, do this.
           (matlab-set-comm-fill-prefix) (do-auto-fill)
           (matlab-reset-fill-prefix))
@@ -2674,34 +2683,11 @@ With optional argument, JUSTIFY the comment as well."
   (interactive)
   (if (not (matlab-comment-on-line))
       (error "No comment to fill"))
-  (beginning-of-line)
-  ;; First, find the beginning of this comment...
-  (while (and (looking-at matlab-cline-start-skip)
-              (not (bobp)))
-    (forward-line -1)
-    (beginning-of-line))
-  (if (not (looking-at matlab-cline-start-skip))
-      (forward-line 1))
-  ;; Now scan to the end of this comment so we have our outer bounds,
-  ;; and narrow to that region.
-  (save-restriction
-    (narrow-to-region (point)
-                      (save-excursion
-                        (while (and (looking-at matlab-cline-start-skip)
-                                    (not (save-excursion (end-of-line) (eobp))))
-                          (forward-line 1)
-                          (beginning-of-line))
-                        (if (not (looking-at matlab-cline-start-skip))
-                            (forward-line -1))
-                        (end-of-line)
-                        (point)))
-    ;; Find the fill prefix...
-    (matlab-comment-on-line)
-    (looking-at "%[ \t]*")
-    (let ((fill-prefix (concat (make-string (current-column) ? )
-                               (match-string 0))))
-      (fill-region (point-min) (point-max) justify))))
+  ;; Set the fill prefix
+  (matlab-set-comm-fill-prefix)
+  (fill-paragraph justify))
 
+  
 (defun matlab-justify-line ()
   "Delete space on end of line and justify."
   (interactive)
@@ -2715,6 +2701,8 @@ With optional argument, JUSTIFY the comment as well."
 Paragraphs are always assumed to be in a comment.
 ARG is passed to `fill-paragraph' and will justify the text."
   (interactive "P")
+
+  ;;; comment Filling
   (cond ((or (matlab-line-comment-p (matlab-compute-line-context 1))
              (and (matlab-cursor-in-comment)
                   (not (matlab-line-ellipsis-p (matlab-compute-line-context 1)))))
@@ -2724,19 +2712,24 @@ ARG is passed to `fill-paragraph' and will justify the text."
          (let ((paragraph-separate "%%\\|%[a-zA-Z]\\|%[ \t]*$\\|[ \t]*$")
                (paragraph-start "%[a-zA-Z]\\|%[ \t]*$\\|[ \t]*$\\|%\\s-*\\*")
                (paragraph-ignore-fill-prefix nil)
-               (start (save-excursion (matlab-scan-beginning-of-command)
+               (start (save-excursion (matlab-beginning-of-string-or-comment t)
                                       (if (looking-at "%%")
                                           (progn (end-of-line)
                                                  (forward-char 1)))
                                       (point-at-bol)))
-               (end (save-excursion (matlab-scan-end-of-command)))
+               (end (save-excursion (matlab-end-of-string-or-comment t)
+                                    (point)))
                (fill-prefix nil))
-           (matlab-set-comm-fill-prefix)
+	   (save-excursion
+	     (goto-char start)
+	     (matlab-set-comm-fill-prefix))
            (save-restriction
              ;; Ben North fixed to handle comment at the end of
              ;; a buffer.
              (narrow-to-region start (min (point-max) (+ end 1)))
-             (fill-paragraph arg))))
+             (fill-comment-paragraph arg))))
+
+        ;;; Command filling
         ((let ((lvl  (matlab-compute-line-context 1)))
            (not (or (matlab-line-comment-p lvl) (matlab-line-empty-p lvl))))
          ;; Ok, lets get the outer bounds of this command, then
@@ -2785,6 +2778,7 @@ ARG is passed to `fill-paragraph' and will justify the text."
            (if arg (save-excursion
                      (forward-line -1)
                      (matlab-justify-line)))))
+        
         (t
          (message "Paragraph Fill not supported in this context."))))
 
