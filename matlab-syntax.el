@@ -451,7 +451,11 @@ Returns non-nil if the cursor is in a comment."
 	  (goto-char (nth 8 pps))
 	  
 	  t)
-      (when all-comments (forward-comment -100000)))))
+      (when all-comments
+	(prog1
+	    (forward-comment -100000)
+	  (skip-chars-forward " \t\n\r"))))))
+
 
 (defun matlab-end-of-string-or-comment (&optional all-comments)
   "If the cursor is in a string or comment, move to the end.
@@ -467,7 +471,8 @@ Returns non-nil if the cursor moved."
 	  (goto-char (nth 8 pps))
 	  (if (nth 3 pps)
 	      (goto-char (scan-sexps (point) 1))
-	    (forward-comment (if all-comments 100000 1)))
+	    (forward-comment (if all-comments 100000 1))
+	    (skip-chars-backward " \t\n\r"))
 	  ;; If the buffer is malformed, we might end up before starting pt.
 	  ;; so error.
 	  (when (< (point) start)
@@ -477,6 +482,7 @@ Returns non-nil if the cursor moved."
       ;; else not in comment, but still skip 'all-comments' if requested.
       (when (and all-comments (looking-at "\\s-*\\s<"))
 	(forward-comment 100000)
+	(skip-chars-backward " \t\n\r")
 	t)
       )))
 
