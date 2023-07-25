@@ -229,7 +229,8 @@ If BUFFER is nil, use the current buffer."
           (message "Unable to mlint, %s doesn't exist" mlint-program)
           (sit-for 2)
           nil)
-      (let* ((fn (buffer-file-name (current-buffer)))
+      (let* ((fn (file-name-nondirectory (buffer-file-name (current-buffer))))
+	     (dd default-directory)
 	     (buffer-mlint-program mlint-program)
              (dd default-directory)
              (show-mlint-warnings matlab-show-mlint-warnings)
@@ -253,6 +254,8 @@ If BUFFER is nil, use the current buffer."
 	  (erase-buffer)
 	  (when mlint-verbose (message "Running mlint..."))
 
+	  (setq default-directory dd)
+	  
 	  (apply 'call-process buffer-mlint-program nil (current-buffer) nil
 	         (append flags (list fn)))
 
