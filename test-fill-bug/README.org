@@ -1,0 +1,86 @@
+* Steps for the test.
+** Test 1 
+Using
+the line 
+#+begin_src
+    ev = 0;                                                       %% el número de evaluaciones al inicio es cero, pues no ha habido ninguna iteración
+
+#+end_src
+
+
+
+    1) matlab-fill-comment-line   
+    2) matlab-fill-paragraph
+    3) matlab-fill-region
+*** matlab-fill-comment-line
+Result
+#+begin_src
+    ev = 0;                                                       %% el
+                                                                  % número
+                                                                  % de
+                                                                  % evaluaciones
+                                                                  % al
+                                                                  % inicio
+                                                                  % es
+                                                                  % cero,
+                                                                  % pues
+                                                                  % no
+                                                                  % ha
+                                                                  % habido
+                                                                  % ninguna
+                                                                  % iteración
+
+#+end_src
+
+Changing the comment prefix from %% to % did not help
+*** matlab-fill-paragraph
+   same result
+*** matlab-fill-region
+   same result
+** Test 2
+
+Using
+#+begin_src
+        while diff > TOL && k <= nmax                             % por una parte se condiciona al while con un valor de tolerancia para el error diff, error de una iteración (de la iteración simple), y, por otra parte, se toma un numero máximo de iteraciones porque puede perfectamente el error de iteración no ser menor que la tolerancia, provocando un bucle infinito
+
+#+end_src
+
+But now setting fill-column to 100
+***  matlab-fill-comment-line
+
+Result
+#+begin_src
+
+        while diff > TOL && k <= nmax                             % por una parte se condiciona al
+                                                                  % while con un valor de tolerancia
+                                                                  % para el error diff, error de una
+                                                                  % iteración (de la iteración
+                                                                  % simple), y, por otra parte, se
+                                                                  % toma un numero máximo de
+                                                                  % iteraciones porque puede
+                                                                  % perfectamente el error de
+                                                                  % iteración no ser menor que la
+                                                                  % tolerancia, provocando un bucle
+                                                                  % infinito
+
+#+end_src
+
+Which looks nice. 
+*** Whole buffer with matlab-fill-region
+
+#+begin_src
+Debugger entered--Lisp error: (error "Fill algorithm failed!")
+  signal(error ("Fill algorithm failed!"))
+  error("Fill algorithm failed!")
+  matlab-fill-paragraph(nil)
+  #f(compiled-function (&optional justify region) "Fill paragraph at or after point.\n\nIf JUSTIFY is non-nil (interactively, with prefix argument), justify as well.\nIf `sentence-end-double-space' is non-nil, then period followed by one\nspace does not end a sentence, so don't break a line there.\nThe variable `fill-column' controls the width for filling.\n\nIf `fill-paragraph-function' is non-nil, we call it (passing our\nargument to it), and if it returns non-nil, we simply return its value.\n\nIf `fill-paragraph-function' is nil, return the `fill-prefix' used for filling.\n\nThe REGION argument is non-nil if called interactively; in that\ncase, if Transient Mark mode is enabled and the mark is active,\ncall `fill-region' to fill each of the paragraphs in the active\nregion, instead of just filling the current paragraph." (interactive #f(compiled-function () #<bytecode -0x6dab22fd463fb72>)) #<bytecode -0x1241d3ac4eb2217>)(nil)
+  apply(#f(compiled-function (&optional justify region) "Fill paragraph at or after point.\n\nIf JUSTIFY is non-nil (interactively, with prefix argument), justify as well.\nIf `sentence-end-double-space' is non-nil, then period followed by one\nspace does not end a sentence, so don't break a line there.\nThe variable `fill-column' controls the width for filling.\n\nIf `fill-paragraph-function' is non-nil, we call it (passing our\nargument to it), and if it returns non-nil, we simply return its value.\n\nIf `fill-paragraph-function' is nil, return the `fill-prefix' used for filling.\n\nThe REGION argument is non-nil if called interactively; in that\ncase, if Transient Mark mode is enabled and the mark is active,\ncall `fill-region' to fill each of the paragraphs in the active\nregion, instead of just filling the current paragraph." (interactive #f(compiled-function () #<bytecode -0x6dab22fd463fb72>)) #<bytecode -0x1241d3ac4eb2217>) nil)
+  filladapt-funcall(fill-paragraph nil)
+  filladapt-fill-paragraph(fill-paragraph nil)
+  fill-paragraph(nil)
+  matlab-fill-comment-line()
+  funcall-interactively(matlab-fill-comment-line)
+  call-interactively(matlab-fill-comment-line nil nil)
+  command-execute(matlab-fill-comment-line)
+
+#+end_src
