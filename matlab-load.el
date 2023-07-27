@@ -72,21 +72,21 @@ Convenient template insertion commands:
  \\[matlab-stringify-region] - Convert plain text in region to a string with correctly quoted chars.
 
 Variables:
-  `matlab-indent-level'		Level to indent blocks.
+  `matlab-indent-level'         Level to indent blocks.
   `matlab-continuation-indent-level' Level to indent after ... continuation
-  `matlab-case-indent-level'		Level to unindent case statements.
+  `matlab-case-indent-level'            Level to unindent case statements.
   `matlab-indent-past-arg1-functions'
                                 Regexp of functions to indent past the first
                                   argument on continuation lines.
   `matlab-maximum-indents'      List of maximum indents during lineups.
   `matlab-comment-column'       Goal column for on-line comments.
-  `fill-column'			Column used in auto-fill.
+  `fill-column'                 Column used in auto-fill.
   `matlab-indent-function-body' If non-nil, indents body of MATLAB functions.
-  `matlab-functions-have-end'	If non-nil, MATLAB functions terminate with end.
+  `matlab-functions-have-end'   If non-nil, MATLAB functions terminate with end.
   `matlab-fill-code'            Non-nil, auto-fill code in auto-fill-mode.
   `matlab-fill-strings'         Non-nil, auto-fill strings in auto-fill-mode.
   `matlab-verify-on-save-flag'  Non-nil, enable code checks on save.
-  `matlab-vers-on-startup'	If t, show version on start-up.
+  `matlab-vers-on-startup'      If t, show version on start-up.
   `matlab-handle-simulink'      If t, enable simulink keyword highlighting.
 
 All Key Bindings:
@@ -95,6 +95,13 @@ All Key Bindings:
 \(fn)" t nil)
 
 (register-definition-prefixes "matlab" '("gud-matlab-debug-active" "matlab-" "ml-fl-anchor-limit"))
+
+;;;***
+
+;;;### (autoloads nil "matlab-ccount" "matlab-ccount.el" (0 0 0 0))
+;;; Generated autoloads from matlab-ccount.el
+
+(register-definition-prefixes "matlab-ccount" '("matlab-count-characters"))
 
 ;;;***
 
@@ -330,6 +337,31 @@ Commands:
 \(fn)" t nil)
 
 (register-definition-prefixes "matlab-topic" '("matlab-shell-"))
+
+;;;***
+
+;;;### (autoloads nil "mlgud" "mlgud.el" (0 0 0 0))
+;;; Generated autoloads from mlgud.el
+
+(defvar mlgud-tooltip-mode nil "\
+Non-nil if Mlgud-Tooltip mode is enabled.
+See the `mlgud-tooltip-mode' command
+for a description of this minor mode.
+Setting this variable directly does not take effect;
+either customize it (see the info node `Easy Customization')
+or call the function `mlgud-tooltip-mode'.")
+
+(custom-autoload 'mlgud-tooltip-mode "mlgud" nil)
+
+(autoload 'mlgud-tooltip-mode "mlgud" "\
+Toggle the display of MLGUD tooltips.
+With a prefix argument ARG, enable the feature if ARG is
+positive, and disable it otherwise.  If called from Lisp, enable
+it if ARG is omitted or nil.
+
+\(fn &optional ARG)" t nil)
+
+(register-definition-prefixes "mlgud" '("mlgud-"))
 
 ;;;***
 

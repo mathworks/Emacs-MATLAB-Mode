@@ -84,3 +84,27 @@ Debugger entered--Lisp error: (error "Fill algorithm failed!")
   command-execute(matlab-fill-comment-line)
 
 #+end_src
+*** Whole buffer with matlab-fill-region: commit 1b52a1d3359580f8c5d6bfbedb669b1420d8d0d5
+
+    see the file, it did not change much and I receive:
+
+    Paragraph Fill not supported in this context. [21 times]
+
+*** Second file, running the command, returns error
+Steps
+
+
+
+    1) mark the whole buffer
+    2) run matlab-fill-region.
+       
+#+begin_src
+Debugger entered--Lisp error: (error "Fill algorithm failed!")
+  signal(error ("Fill algorithm failed!"))
+  error("Fill algorithm failed!")
+  matlab-fill-paragraph(nil)
+  matlab-fill-region(1 14464 nil)
+  funcall-interactively(matlab-fill-region 1 14464 nil)
+  call-interactively(matlab-fill-region nil nil)
+  command-execute(matlab-fill-region)
+#+end_src
