@@ -108,3 +108,104 @@ Debugger entered--Lisp error: (error "Fill algorithm failed!")
   call-interactively(matlab-fill-region nil nil)
   command-execute(matlab-fill-region)
 #+end_src
+
+
+*** file prob.m with commit b49c86e5738f23c9d8cebd5b4f1dd81a9ca4b27c
+
+**** matlab-fill-code nil
+
+Nothing is filled, not in 
+
+    1) fill_prob.m
+    2) nor in fill_prob2
+
+
+**** matlab-fill-code t
+In short it seems worse
+
+Just using matlab-fill-comment-line on 
+
+#+begin_src 
+            k = k + 1;
+            z = faux(t, yk, f, h, y);                              % hay que tener en cuenta que durante este bucle sólo se está considerando el tiempo t=tk +h con h valor de paso que corresponda, pero se mantiene fijo así como también se toma el valor inicial de y del paso anterior pero éste no está fijo 
+#+end_src
+
+
+Leads to 
+
+#+begin_src 
+
+function [teuler,yeuler,ev]=fill_prob(f,intv,y0,N,TOL,nmax) % Se implementa la función
+                                                                   % correspondiente a la iteración
+                                                                   % simple+dato inicial el valor
+                                                                   % del paso anterior, yeuler = y0;
+                                                                   % % Se toman los valores
+                                                                   % iniciales que se dan como
+                                                                   % argumento a = min(intv); b =
+                                                                   % max(intv); h = (a + b)/N;
+                                                                   % teuler = a; tk = a; yk = y0; ev
+                                                                   % = 0; %el número de evaluaciones
+                                                                   % al inicio es cero, pues no ha
+                                                                   % habido ninguna iteración faux =
+                                                                   % @(t, y, f, h, z) [y + h*f(t,
+                                                                   % z)]; % se define la función
+                                                                   % auxiliar para la iteración
+                                                                   % simple for i = 1:N t = tk + h;
+                                                                   % % se toma los valores del
+                                                                   % tiempo correspondientes al paso
+                                                                   % y = yk; diff = 100; % se toma
+                                                                   % un numero arbitrariamente
+                                                                   % grande para inicializar el
+                                                                   % error de la iteración simple k
+                                                                   % = 0; % se inicializa el conteo
+                                                                   % para la iteración simple while
+                                                                   % diff > TOL && k <= nmax % por
+                                                                   % una parte se condiciona al
+                                                                   % while con un valor de
+                                                                   % tolerancia para el error diff,
+                                                                   % error de una iteración (de la
+                                                                   % iteración simple), y, por otra
+                                                                   % parte, se toma un numero máximo
+                                                                   % de iteraciones porque puede
+                                                                   % perfectamente el error de
+                                                                   % iteración no ser menor que la
+                                                                   % tolerancia, provocando un bucle
+                                                                   % infinito k = k + 1; z = faux(t,
+                                                                   % yk, f, h, y); % hay que tener
+                                                                   % en cuenta que durante este
+                                                                   % bucle sólo se está considerando
+                                                                   % el tiempo t=tk +h con h valor
+                                                                   % de paso que corresponda, pero
+                                                                   % se mantiene fijo así como
+                                                                   % también se toma el valor
+                                                                   % inicial de y del paso anterior
+                                                                   % pero éste no está fijo
+
+#+end_src
+
+Which destroys the whole file. 
+
+If however 
+
+#+begin_src 
+
+            k = k + 1;
+
+            z = faux(t, yk, f, h, y);                              % hay que tener en cuenta que durante este bucle sólo se está considerando el tiempo t=tk +h con h valor de paso que corresponda, pero se mantiene fijo así como también se toma el valor inicial de y del paso anterior pero éste no está fijo 
+
+#+end_src
+
+Which is is a bit odd, then the code is  filled.
+
+#+begin_src 
+            z = faux(t, yk, f, h, y); % hay que tener en cuenta que durante este bucle sólo se está
+                                                                   % considerando el tiempo t=tk +h
+                                                                   % con h valor de paso que
+                                                                   % corresponda, pero se mantiene
+                                                                   % fijo así como también se toma
+                                                                   % el valor inicial de y del paso
+                                                                   % anterior pero éste no está fijo
+
+#+end_src
+
+Conclusion this seems worse than before. Sorry. I am puzzled

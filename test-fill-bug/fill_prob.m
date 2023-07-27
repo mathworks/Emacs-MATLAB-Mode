@@ -51,7 +51,10 @@ function [teuler,yeuler,ev]=fill_prob(f,intv,y0,N,TOL,nmax) % Se implementa la f
                                                                   % infinito
         
             k = k + 1;
+
             z = faux(t, yk, f, h, y);                              % hay que tener en cuenta que durante este bucle sólo se está considerando el tiempo t=tk +h con h valor de paso que corresponda, pero se mantiene fijo así como también se toma el valor inicial de y del paso anterior pero éste no está fijo 
+
+
             diff = max(max(abs(z - y)));                           % aquí se calcula el error de iteración, en este caso se utiliza la norma infinito
             y = z;                                                 % se da el nuevo valor para la siguiente iteración 
             

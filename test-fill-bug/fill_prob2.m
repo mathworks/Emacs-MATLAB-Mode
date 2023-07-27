@@ -10,7 +10,9 @@ function [teuler,yeuler,ev]=fill_prob2(f,intv,y0,N,TOL,nmax) % Se implementa la 
     tk = a;
     yk = y0;
     
-    ev = 0;                                                       % el número de evaluaciones al inicio es cero, pues no ha habido ninguna iteración
+    ev = 0;                                                       % el número de evaluaciones al
+                                                                  % inicio es cero, pues no ha
+                                                                  % habido ninguna iteración
     
     faux = @(t, y, f, h, z) [y + h*f(t, z)];                      % se define la función auxiliar para la iteración simple
     
@@ -23,7 +25,17 @@ function [teuler,yeuler,ev]=fill_prob2(f,intv,y0,N,TOL,nmax) % Se implementa la 
         diff = 100;                                              % se toma un numero arbitrariamente grande para inicializar el error de la iteración simple
         k = 0;                                                    % se inicializa el conteo para la iteración simple 
         
-        while diff > TOL && k <= nmax                             % por una parte se condiciona al while con un valor de tolerancia para el error diff, error de una iteración (de la iteración simple), y, por otra parte, se toma un numero máximo de iteraciones porque puede perfectamente el error de iteración no ser menor que la tolerancia, provocando un bucle infinito
+        while diff > TOL && k <= nmax                             % por una parte se condiciona
+                                                                  % al while con un valor de
+                                                                  % tolerancia para el error
+                                                                  % diff, error de una iteración
+                                                                  % (de la iteración simple), y,
+                                                                  % por otra parte, se toma un
+                                                                  % numero máximo de iteraciones
+                                                                  % porque puede perfectamente el
+                                                                  % error de iteración no ser
+                                                                  % menor que la tolerancia,
+                                                                  % provocando un bucle infinito
         
             k = k + 1;
             z = faux(t, yk, f, h, y);                              % hay que tener en cuenta que durante este bucle sólo se está considerando el tiempo t=tk +h con h valor de paso que corresponda, pero se mantiene fijo así como también se toma el valor inicial de y del paso anterior pero éste no está fijo 
