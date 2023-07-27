@@ -2703,9 +2703,10 @@ ARG is passed to `fill-paragraph' and will justify the text."
   (interactive "P")
 
   ;;; comment Filling
-  (cond ((or (matlab-line-comment-p (matlab-compute-line-context 1))
-             (and (matlab-cursor-in-comment)
-                  (not (matlab-line-ellipsis-p (matlab-compute-line-context 1)))))
+  (cond ((let* ((ctxt (matlab-compute-line-context 1))
+                (ecc (matlab-line-end-comment-column ctxt)))
+           (and ecc (< ecc fill-column)
+                (not (matlab-line-ellipsis-p (matlab-compute-line-context 1)))))
          ;; We are in a comment, lets fill the paragraph with some
          ;; nice regular expressions.
          ;; Cell start/end markers of %% also separate paragraphs
