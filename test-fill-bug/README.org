@@ -209,3 +209,32 @@ Which is is a bit odd, then the code is  filled.
 #+end_src
 
 Conclusion this seems worse than before. Sorry. I am puzzled
+
+
+** UB:31.07.2023:17:22: New tests  with commit 3c0c6c52bb6d799afc5ea82b974a91ae8e48dc49
+Taking the following line form file =fill_prob2.m=
+
+Namely 
+
+#+begin_src 
+        diff = 100;                                              % se toma un numero arbitrariamente grande para inicializar el error de la iteración simple
+#+end_src
+
+Running =matlab-fill-comment-line= gives now error, namely
+
+
+#+begin_src
+Debugger entered--Lisp error: (error "Fill algorithm failed!")
+  signal(error ("Fill algorithm failed!"))
+  error("Fill algorithm failed!")
+  matlab-fill-paragraph(nil)
+  #f(compiled-function (&optional justify region) "Fill paragraph at or after point.\n\nIf JUSTIFY is non-nil (interactively, with prefix argument), justify as well.\nIf `sentence-end-double-space' is non-nil, then period followed by one\nspace does not end a sentence, so don't break a line there.\nThe variable `fill-column' controls the width for filling.\n\nIf `fill-paragraph-function' is non-nil, we call it (passing our\nargument to it), and if it returns non-nil, we simply return its value.\n\nIf `fill-paragraph-function' is nil, return the `fill-prefix' used for filling.\n\nThe REGION argument is non-nil if called interactively; in that\ncase, if Transient Mark mode is enabled and the mark is active,\ncall `fill-region' to fill each of the paragraphs in the active\nregion, instead of just filling the current paragraph." (interactive #f(compiled-function () #<bytecode -0x6a515d0afcffb72>)) #<bytecode -0x1d9641585f325b63>)(nil)
+  apply(#f(compiled-function (&optional justify region) "Fill paragraph at or after point.\n\nIf JUSTIFY is non-nil (interactively, with prefix argument), justify as well.\nIf `sentence-end-double-space' is non-nil, then period followed by one\nspace does not end a sentence, so don't break a line there.\nThe variable `fill-column' controls the width for filling.\n\nIf `fill-paragraph-function' is non-nil, we call it (passing our\nargument to it), and if it returns non-nil, we simply return its value.\n\nIf `fill-paragraph-function' is nil, return the `fill-prefix' used for filling.\n\nThe REGION argument is non-nil if called interactively; in that\ncase, if Transient Mark mode is enabled and the mark is active,\ncall `fill-region' to fill each of the paragraphs in the active\nregion, instead of just filling the current paragraph." (interactive #f(compiled-function () #<bytecode -0x6a515d0afcffb72>)) #<bytecode -0x1d9641585f325b63>) nil)
+  filladapt-funcall(fill-paragraph nil)
+  filladapt-fill-paragraph(fill-paragraph nil)
+  fill-paragraph(nil)
+  matlab-fill-comment-line()
+  funcall-interactively(matlab-fill-comment-line)
+  call-interactively(matlab-fill-comment-line nil nil)
+  command-execute(matlab-fill-comment-line)
+#+end_src
