@@ -218,7 +218,7 @@
    ;; %exit, %warning, %error, %trace keywords
    '("%\\(exit\\|warning\\|error\\|trace\\) \\([^\n]+\\)$" 2 font-lock-string-face prepend)
    ;; %<var> expansions
-   '("\\(%<[^%\n>]+>\\)" 1 font-lock-reference-face prepend)
+   '("\\(%<[^%\n>]+>\\)" 1 font-lock-constant-face prepend)
    ;; Built-in functions, e.g. EXISTS
    (list (concat "\\<\\(" (regexp-opt tlc-keywords) "\\)\\>")
 	 1 'font-lock-type-face)
