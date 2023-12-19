@@ -1003,7 +1003,7 @@ Sends commands to the MATLAB shell to initialize the MATLAB process."
 	     (ecca (if ecc (format "emacs.set('clientcmd', '%s');" ecc) ""))
 	     (args (list nsa ecca))
 	     (cmd (format "run('%s');%s" initcmd (apply 'concat args))))
-	(matlab-shell-send-command cmd)
+	(matlab-shell-send-command (string-replace (expand-file-name "~/") "~/" cmd))
 	)
     
     ;; Setup is misconfigured - we need emacsinit because it tells us how to debug
