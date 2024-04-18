@@ -1019,7 +1019,7 @@ This matcher will handle a range of variable features."
     (matlab-font-lock-regexp-opt matlab-constants-keyword-list)
     1 'matlab-math-face)
    ;; Imaginary number support
-   '("\\<[0-9]\\.?\\(i\\|j\\)\\_>" 1 font-lock-reference-face)
+   '("\\<[0-9]\\.?\\(i\\|j\\)\\_>" 1 font-lock-constant-face)
    )
   "Basic Expressions to highlight in MATLAB mode or shell.")
 
@@ -1100,10 +1100,10 @@ This matcher will handle a range of variable features."
 \\(\\([^\n,;%(]+\\|([^\n%)]+)\\)+\\)"
      (1 font-lock-keyword-face)
      (2 font-lock-variable-name-face append)
-     (3 font-lock-reference-face append))
+     (3 font-lock-constant-face append))
    ;; Items after a switch statements are cool
    '("\\_<\\(case\\|switch\\)\\_>\\s-+\\({[^}\n]+}\\|[^,%\n]+\\)"
-     (2 font-lock-reference-face))
+     (2 font-lock-constant-face))
    ;; set_param and waitfor have input variables that can be highlighted.
    (list (concat matlab-indent-past-arg1-functions "\\s-*")
          '("(\\s-*\\(\\(?:\\w\\|\\.\\)+\\)\\s-*\\(,\\|)\\)" nil  nil
@@ -1168,14 +1168,14 @@ This matcher will handle a range of variable features."
     (list (concat "^" matlab-comment-line-s "\\s-*"
                   "\\(\\([A-Z]+\\s-*=\\s-+\\|\\[[^]]+]\\s-*=\\s-+\\|\\)"
                   "\\([A-Z][0-9A-Z]+\\)\\(([^)\n]+)\\| \\)\\)")
-          '(1 font-lock-reference-face prepend))
+          '(1 font-lock-constant-face prepend))
     (list (concat "^" matlab-comment-line-s "\\s-*"
                   "See also\\s-+")
           '("\\([A-Z][A-Z0-9]+\\)\\([,.]\\| and\\|$\\) *" nil  nil
-            (1 font-lock-reference-face prepend)))
+            (1 font-lock-constant-face prepend)))
     (list (concat "^" matlab-comment-line-s "\\s-*"
                   "\\(\\$" "Revision" "[^\n$]+\\$\\)")
-          '(1 font-lock-reference-face prepend))
+          '(1 font-lock-constant-face prepend))
     ;; Debugging Keywords
     (list (matlab-font-lock-regexp-opt matlab-debug-list)
           '(0 'bold))

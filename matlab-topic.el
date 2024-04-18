@@ -29,12 +29,12 @@
 
 (defvar matlab-shell-topic-mouse-face-keywords
   '(;; These are subtopic fields...
-    ("^\\(\\w+/\\w+\\)[ \t]+-" 1 font-lock-reference-face)
+    ("^\\(\\w+/\\w+\\)[ \t]+-" 1 font-lock-constant-face)
     ;; These are functions...
     ("^[ \t]+\\(\\w+\\)[ \t]+-" 1 font-lock-function-name-face)
     ;; Here is a See Also line...
     ("[ \t]+See also "
-     ("\\(\\w+\\)\\([,.]\\| and\\|$\\) *" nil  nil (1 font-lock-reference-face))))
+     ("\\(\\w+\\)\\([,.]\\| and\\|$\\) *" nil  nil (1 font-lock-constant-face))))
   "These are keywords we also want to put mouse-faces on.")
 
 (defvar matlab-shell-topic-font-lock-keywords
@@ -59,7 +59,7 @@
 	      (1 font-lock-variable-name-face))
 	     )
 	    ;; Reference uppercase words
-	    ("\\<\\([A-Z]+[0-9]*\\)\\>" 1 font-lock-reference-face)))
+	    ("\\<\\([A-Z]+[0-9]*\\)\\>" 1 font-lock-constant-face)))
   "Keywords for regular help buffers.")
 
 ;; View-major-mode is an emacs20 thing.  This gives us a small compatibility
