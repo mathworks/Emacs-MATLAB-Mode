@@ -20,7 +20,7 @@
 ;;; Commentary:
 
 ;; This provides useful functions and variables for using cells in matlab.
-;; Major parts of the code are modified from python-cell.el by Thomas Hisch (https://github.com/thisch/matlab-cell.el).
+;; Major parts of the code are modified from python-cell.el by Thomas Hisch (currently at: https://github.com/twmr/python-cell.el).
 
 ;;; Code:
 ;; (require 'matlab)
