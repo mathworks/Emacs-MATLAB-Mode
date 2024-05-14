@@ -53,6 +53,7 @@
 (require 'matlab-compat)
 (require 'matlab-syntax)
 (require 'matlab-scan)
+(require 'matlab-cell)
 (require 'easymenu)
 (require 'derived)
 
@@ -1327,6 +1328,7 @@ All Key Bindings:
   ;; and font-lock for comments/strings.
   (matlab-syntax-setup)
   (matlab-scan-setup)
+  (matlab-cell-mode-enable) ;; Enabling cell-mode here. Would a hook be better?
 
   ;; Indentation setup.
   (setq indent-tabs-mode nil)
