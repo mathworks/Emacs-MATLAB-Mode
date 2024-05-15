@@ -53,7 +53,7 @@
 ;; Hisch (currently at: https://github.com/twmr/python-cell.el). 
 
 ;;; Code:
-(require 'matlab-shell)
+;; (require 'matlab-shell)
 
 ;; Customizable Variables and Faces
 (defgroup matlab-cell nil
@@ -296,7 +296,16 @@ It should return nil if there's no region to be highlighted."
 
 ;;;###autoload
 (define-minor-mode matlab-cell-mode
-  "Highlight MATLAB-like cells and navigate between them."
+  "Highlight MATLAB-like cells and navigate between them.
+The minor-mode provides the following interactive navigation functions:
+1. 'matlab-cell-forward-cell' :| Move point to the beginning of the cell right below.
+2. 'matlab-cell-backward-cell' : Move point to the end of the cell right above.
+3. 'matlab-cell-beginning-of-cell' : Move point to beginning of current cell. Return (point).
+4. 'matlab-cell-end-of-cell' : Move point to end of current cell. Return (point).
+5. 'matlab-move-cell-up' : Move the contents of the current cell \"up\", so that it occurs before the previous.
+6. 'matlab-move-cell-down' : Move the contents of the current cell \"down\", so that it occurs after the next.
+7. 'matlab-cell-run-till-point' : Run all the cells from beginning till previous cell.
+"
   :keymap matlab-cell-mode-map
   (let ((arg `((,matlab-cell-cellbreak-regexp 1 'matlab-cell-cellbreak-face prepend))))
     (if (not matlab-cell-mode) ;; OFF
