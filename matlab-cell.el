@@ -78,9 +78,7 @@
 
 (defcustom matlab-cell-cellbreak-regexp
   (rx line-start (* space)
-      (group (and "%" (or (and "%" space (* (not (any "\n"))))
-                          (and " <" (or "codecell" "markdowncell") ">"))
-                  line-end)))
+      (group "%%" (* (not (any "\n"))) line-end))
   "Regexp used for detecting the cell boundaries of code cells/blocks."
   :type 'string
   :group 'matlab-cell
@@ -114,7 +112,8 @@ the command `matlab-cell-mode' to turn Matlab-Cell mode on."
 ;; Navigation
 (defun matlab-cell-move-cell-up (&optional arg)
   "Move the contents of the current cell up.
-Optionally a prefix argument ARG can be provided for repeating it a bunch of times."
+Optionally a prefix argument ARG can be provided for repeating it a
+bunch of times."
   (interactive "p")
 
   (dotimes (_ (or arg 1))
@@ -129,7 +128,8 @@ Optionally a prefix argument ARG can be provided for repeating it a bunch of tim
 
 (defun matlab-cell-move-cell-down (&optional arg)
   "Move the contents of the current cell down.
-Optionally a prefix argument ARG can be provided for repeating it a bunch of times."
+Optionally a prefix argument ARG can be provided for repeating it a
+  bunch of times." 
   (interactive "p")
 
   (dotimes (_ (or arg 1))
@@ -207,6 +207,15 @@ Optionally provide prefix argument ARG to move by that many cells."
   (point)
   )
 
+;; Execution
+
+(defun matlab-cell-shell-run-cell ()
+  "Run the cell point is in, in matlab-shell."
+  (interactive)
+  (let ((rng (matlab-cell-range-function)))
+    (matlab-shell-run-region (car rng) (cdr rng)))
+  )
+
 (defun matlab-cell-run-till-point ()
   "Run all cells until point, not including the cell point is in."
   (interactive)
@@ -216,7 +225,7 @@ Optionally provide prefix argument ARG to move by that many cells."
         (widen)
         (goto-char (point-min))
         (while (>= pt (point))
-	  (save-window-excursion (matlab-shell-run-cell))
+	  (save-window-excursion (matlab-cell-shell-run-cell))
           (matlab-cell-forward-cell)
           (matlab-cell-end-of-cell))))))
 
@@ -297,8 +306,9 @@ It should return nil if there's no region to be highlighted."
 ;;;###autoload
 (define-minor-mode matlab-cell-mode
   "Highlight MATLAB-like cells and navigate between them.
-The minor-mode provides the following interactive navigation functions:
-1. 'matlab-cell-forward-cell' :| Move point to the beginning of the cell right below.
+The minor-mode provides the following interactive navigation
+functions: 
+1. 'matlab-cell-forward-cell' : Move point to the beginning of the cell right below. 
 2. 'matlab-cell-backward-cell' : Move point to the end of the cell right above.
 3. 'matlab-cell-beginning-of-cell' : Move point to beginning of current cell. Return (point).
 4. 'matlab-cell-end-of-cell' : Move point to end of current cell. Return (point).
