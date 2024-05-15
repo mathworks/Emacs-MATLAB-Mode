@@ -19,11 +19,41 @@
 
 ;;; Commentary:
 
-;; This provides useful functions and variables for using cells in matlab.
-;; Major parts of the code are modified from python-cell.el by Thomas Hisch (currently at: https://github.com/twmr/python-cell.el).
+;; This creates a minor mode called 'matlab-cell-mode' that adds
+;; utilities for working with cells in matlab code. The basic mechanic
+;; is to redefine the page-delimiter (locally) to any line that starts
+;; with "%%" as the first non-empty characters followed by some
+;; comment strings.
+;; Consequently, the line that is detected in the above manner is
+;; highlighted by the face 'matlab-cell-cellbreak-face'. By defailt,
+;; this is bold-faced and has an overline above it.
+;;
+;; The cell point is on is highlighted by the face
+;; 'matlab-cell-highlight-face'. By default this is set to
+;; "extra-bold". The cell-highlight can be toggled using
+;; 'matlab-cell-highlight-cell' (defaults to "t").
+;;
+;; Another variable, 'matlab-cell-sticky-flag' is defined, that
+;; defines whether the current cell is highlighted even when point
+;; moves to another window (defaults to "t").
+;;
+;; Finally, the minor-mode provides the following interactive navigation functions:
+;; 1. 'matlab-cell-forward-cell' :| Move point to the beginning of the cell right below.
+;; 2. 'matlab-cell-backward-cell' : Move point to the end of the cell right above.
+;; 3. 'matlab-cell-beginning-of-cell' : Move point to beginning of current cell. Return (point).
+;; 4. 'matlab-cell-end-of-cell' : Move point to end of current cell. Return (point).
+;; 5. 'matlab-move-cell-up' : Move the contents of the current cell "up", so that it occurs before the previous.
+;; 6. 'matlab-move-cell-down' : Move the contents of the current cell "down", so that it occurs after the next.
+;; 7. 'matlab-cell-run-till-point' : Run all the cells from beginning till previous cell.
+;;
+;; Other than this, there are some utility functions to help
+;; development.
+;;
+;; Major parts of the code are modified from python-cell.el by Thomas
+;; Hisch (currently at: https://github.com/twmr/python-cell.el). 
 
 ;;; Code:
-;; (require 'matlab)
+(require 'matlab-shell)
 
 ;; Customizable Variables and Faces
 (defgroup matlab-cell nil
@@ -73,7 +103,7 @@
              (when matlab-cell-overlay
                (overlay-put matlab-cell-overlay 'face matlab-cell-highlight-face))))))
 
-(defcustom matlab-cell-sticky-flag nil
+(defcustom matlab-cell-sticky-flag t
   "Non-nil means the Matlab-Cell mode highlight appears in all windows.
 Otherwise Matlab-Cell mode will highlight only in the selected
 window.  Setting this variable takes effect the next time you use
@@ -186,7 +216,7 @@ Optionally provide prefix argument ARG to move by that many cells."
         (widen)
         (goto-char (point-min))
         (while (>= pt (point))
-	  (matlab-shell-run-cell)
+	  (save-window-excursion (matlab-shell-run-cell))
           (matlab-cell-forward-cell)
           (matlab-cell-end-of-cell))))))
 
