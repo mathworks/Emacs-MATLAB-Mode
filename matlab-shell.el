@@ -670,7 +670,7 @@ it returns empty string"
       (save-match-data
 	(if (looking-at comint-prompt-regexp)
 	    ;; We'll send this line.
-	    (buffer-substring-no-properties (match-end 0) (point-at-eol))
+	    (buffer-substring-no-properties (match-end 0) (pos-eol)) 
 	  ;; Otherwise, it's probably junk that is useless.  Don't do it.
 	  "")))))
 
@@ -2226,8 +2226,8 @@ This command requires an active MATLAB shell."
 
 (defun matlab-shell-run-region (beg end &optional noshow)
   "Run region from BEG to END and display result in MATLAB shell.
-If NOSHOW is non-nil, replace newlines with commas to suppress output.
-This command requires an active MATLAB shell."
+If NOSHOW is non-nil, replace newlines with commas to suppress
+output. This command requires an active MATLAB shell." 
   (interactive "r")
   (if (> beg end) (let (mid) (setq mid beg  beg end  end mid)))
 
@@ -2277,7 +2277,8 @@ This command requires an active MATLAB shell."
 (defun matlab-shell-region-command (beg end &optional noshow)
   "Convert the region between BEG and END into a MATLAB command.
 Picks between different options for running the commands.
-Optional argument NOSHOW specifies if we should echo the region to the command line."
+Optional argument NOSHOW specifies if we should echo the region to the
+  command line."
   (cond
    ((eq matlab-shell-run-region-function 'auto)
   
@@ -2315,7 +2316,7 @@ When NOSHOW is non-nil, suppress output by adding ; to commands."
       ;; Delete all the comments
       (while (search-forward "%" nil t)
 	(when (not (matlab-cursor-in-string))
-	  (delete-region (1- (point)) (matlab-point-at-eol))))
+	  (delete-region (1- (point)) (matlab-point-at-eol)))) 
       (setq str (buffer-substring-no-properties (point-min) (point-max))))
 
     ;; Strip out blank lines
@@ -2343,7 +2344,8 @@ When NOSHOW is non-nil, suppress output by adding ; to commands."
   "Create a command to run the region between BEG and END.
 Uses internal MATLAB API to execute the code keeping breakpoints
 and local functions active.
-Optional argument NOSHOW specifies if we should echo the region to the command line."
+Optional argument NOSHOW specifies if we should echo the region to the
+  command line."
   ;; Reduce end by 1 char, as that is how ML treats it
   (setq end (1- end))
 

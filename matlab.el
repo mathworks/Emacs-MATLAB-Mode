@@ -97,7 +97,8 @@ nil (never) means that new *.m files will not enter
   :type 'integer)
 
 (defcustom matlab-array-continuation-indent-level 2
-  "*Basic indentation after continuation within an array if no other methods are found."
+  "*Basic indentation after continuation within an array if no other
+methods are found."
   :group 'matlab
   :type 'integer)
 
@@ -279,9 +280,9 @@ Returns one of 'empty, 'script, 'function, 'class."
                 'script))))))))
 
 (defun matlab-do-functions-have-end-p (&optional no-navigate)
-  "Look at the contents of the current buffer and decide if functions have end.
-If the current value of `matlab-functions-have-end' is 'guess, look @ the buffer.
-If the value is t, then return that."
+  "Look at the contents of the current buffer and decide if functions
+have end. If the current value of `matlab-functions-have-end' is
+'guess, look @ the buffer. If the value is t, then return that."
   (if (eq matlab-functions-have-end 'guess)
       ;; Lets guess what we think the answer is.
       (let ((type (matlab-guess-script-type)))
@@ -949,9 +950,9 @@ color support."
            (blockmatch (when (not tmp) (matlab--mk-keyword-node))))
       (when (and (member (nth 1 blockmatch) '("properties" "events" "arguments"))
                  (matlab--valid-keyword-node blockmatch))
-        (setq font-lock-beg (min font-lock-beg (point-at-bol)))
+        (setq font-lock-beg (min font-lock-beg (pos-bol)))
         (when (not (matlab--scan-next-keyword 'all (window-end)))
-          (setq font-lock-end (max font-lock-end (point-at-eol)))))
+          (setq font-lock-end (max font-lock-end (pos-eol)))))
 
       (if (and (eq font-lock-beg flb)
                (eq font-lock-end fle))
@@ -992,7 +993,7 @@ This matcher will handle a range of variable features."
                   (list (nth 1 md1) (nth 1 md1))))
            (newmdata (append md1 md1 tm1)))
       (when match
-        (goto-char (point-at-eol))
+        (goto-char (pos-eol))
         (set-match-data newmdata)
         t))))
 
@@ -1081,7 +1082,7 @@ This matcher will handle a range of variable features."
                '(save-excursion
                   (condition-case nil
                       (matlab-scan-end-of-command)
-                    (error (point-at-eol))))
+                    (error (pos-eol))))
                nil
                '(1 font-lock-variable-name-face)))
    ;; ARGUMENTS have variables to highlight
@@ -1692,7 +1693,7 @@ The name is any text after the %% and any whitespace."
                  (eq (matlab-line-comment-style lvl1) 'cell-start))
         ;; We are in a cell start, get the content
         (goto-char (matlab-line-point lvl1))
-        (skip-chars-forward "% \t.,*" (point-at-eol))
+        (skip-chars-forward "% \t.,*" (pos-eol))
         (setq start (point))
         (end-of-line 1)
         (skip-chars-backward " \t*" start)
@@ -2211,7 +2212,7 @@ this line."
   "Calculate the indentation for lines following this command line.
 See `matlab-calculate-indentation' for how the output of this fcn is used."
   (let ((startpnt (matlab-with-context-line lvl1
-                    (point-at-eol)))
+                    (pos-eol)))
         )
     (save-excursion
       (matlab-scan-beginning-of-command lvl1)
@@ -2233,7 +2234,7 @@ See `matlab-calculate-indentation' for how the output of this fcn is used."
             (let* ((CTXT (matlab-with-context-line boc-lvl1
                            (matlab-line-end-of-code boc-lvl1)
                            (matlab-re-search-keyword-backward
-                            (matlab-keyword-regex 'end) (point-at-bol) t)
+                            (matlab-keyword-regex 'end) (pos-bol) t)
                            (matlab-scan-block-start-context))))
               (matlab-line-indentation (nth 3 CTXT)))
 
@@ -2258,10 +2259,10 @@ See `matlab-calculate-indentation' for how the output of this fcn is used."
              ))))))
 
 (defun matlab-electric-indent-function (char)
-  "Return t if `electric-indent-mode' should indent after CHAR is inserted.
-Return nil otherwise.
-This function recommends indenting after special keywords that typically cause indentation
-changes so the code fixes itself up."
+  "Return t if `electric-indent-mode' should indent after CHAR is
+  inserted. Return nil otherwise. 
+This function recommends indenting after special keywords that
+  typically cause indentation changes so the code fixes itself up."
   (cond ((eq char ?e)
          (let ((lvl1 (matlab-compute-line-context 1)))
            (or (matlab-line-block-middle-p lvl1)
@@ -2335,7 +2336,7 @@ Argument ARG specifies how many %s to insert."
            (if (> (current-column) comment-column) (delete-horizontal-space))
            (if (< (current-column) comment-column) (indent-to comment-column))
            ;; Now see if the current line is too long to fit.  Can we back indent?
-           (let ((eol-col (- (point-at-eol) (point-at-bol))))
+           (let ((eol-col (- (pos-eol) (pos-bol))))
              (when (> eol-col fill-column)
                (delete-horizontal-space)
                (indent-to (- comment-column (- eol-col fill-column)))))
@@ -2589,7 +2590,7 @@ filling which will automatically insert `...' and the end of a line."
                 (if matlab-fill-strings-flag
                     (let ((pos (point))
                           (pos2 nil))
-                      (while (and (re-search-backward "'" (point-at-bol) t)
+                      (while (and (re-search-backward "'" (pos-bol) t)
                                   (progn (forward-char -1)
                                          (looking-at "''"))))
                       (setq pos2 (point))
@@ -2730,7 +2731,7 @@ ARG is passed to `fill-paragraph' and will justify the text."
                                       (if (looking-at "%%")
                                           (progn (end-of-line)
                                                  (forward-char 1)))
-                                      (point-at-bol)))
+                                      (pos-bol)))
                (end (save-excursion (matlab-scan-end-of-command)))
                (fill-prefix nil))
            (matlab-set-comm-fill-prefix)
