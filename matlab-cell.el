@@ -325,10 +325,14 @@ functions:
 "
   :init-value nil
   :keymap matlab-cell-mode-map
+  (let ((arg `((,matlab-cell-cellbreak-regexp 1 'matlab-cell-cellbreak-face prepend))))
   (make-local-variable 'page-delimiter)
   (setq page-delimiter matlab-cell-cellbreak-regexp)
+  ;; (font-lock-add-keywords nil arg)
   (when matlab-cell-highlight-cell
     (matlab-cell-setup-cellhighlight))
+  ;; (font-lock-flush)
+  )
   )
 
 ;;;###autoload
