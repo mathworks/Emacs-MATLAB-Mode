@@ -323,16 +323,13 @@ functions:
 7. `matlab-cell-run-till-point' : Run all the cells from beginning
 				  till previous cell. 
 "
+  :init-value nil
   :keymap matlab-cell-mode-map
-  (let ((arg `((,matlab-cell-cellbreak-regexp 1 'matlab-cell-cellbreak-face prepend))))
-    (if (not matlab-cell-mode) ;; OFF
-        (font-lock-remove-keywords nil arg)
-      (make-local-variable 'page-delimiter)
-      (setq page-delimiter matlab-cell-cellbreak-regexp)
-      (font-lock-add-keywords nil arg)
-      (when matlab-cell-highlight-cell
-        (matlab-cell-setup-cellhighlight))))
-  (font-lock-flush))
+  (make-local-variable 'page-delimiter)
+  (setq page-delimiter matlab-cell-cellbreak-regexp)
+  (when matlab-cell-highlight-cell
+    (matlab-cell-setup-cellhighlight))
+  )
 
 ;;;###autoload
 (defun matlab-cell-mode-enable ()
