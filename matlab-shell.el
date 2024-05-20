@@ -73,7 +73,7 @@ Command switches are a list of strings.  Each entry is one switch."
 (defface matlab-shell-error-face
   (list
    (list t
-	 (list :background nil
+	 (list :background 'unspecified
 	       :foreground "red1"
 	       :bold t)))
   "*Face to use when errors occur in MATLAB shell."
