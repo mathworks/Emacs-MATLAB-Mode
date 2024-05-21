@@ -252,6 +252,11 @@ binary defined by `invocation-name' in `invocation-directory'"
     ec
     ))
 
+(when (not (fboundp 'string-replace)) ;; string-replace appeared in Emacs 28
+  (defun string-replace (fromstring tostring instring)
+    (let ((case-fold-search nil))
+      (replace-regexp-in-string (regexp-quote fromstring) tostring instring t t))))
+
 (provide 'matlab-compat)
 
 ;;; matlab-compat.el ends here
