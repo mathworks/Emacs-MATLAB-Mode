@@ -150,7 +150,8 @@ Optionally provide prefix argument ARG to move by that many cells."
 
   (dotimes (_ (or arg 1))
     (let ((endp (save-excursion (matlab-cell-end-of-cell))))
-      (if (not (eq (point) endp))
+      (if (and (not (eq (point) endp))
+	       (not (pos-visible-in-window-p endp)))
 	  (goto-char endp)
 	(goto-char endp)
     (if (re-search-forward matlab-cell-cellbreak-regexp nil t)
@@ -167,7 +168,8 @@ Optionally provide prefix argument ARG to move by that many cells."
   
   (dotimes (_ (or arg 1))
     (let ((begp (save-excursion (matlab-cell-beginning-of-cell))))
-      (if (not (eq (point) begp))
+      (if (and (not (eq (point) begp))
+	       (not (pos-visible-in-window-p begp)))
 	  (goto-char begp)
 	(goto-char begp)
 	(forward-char -1)
