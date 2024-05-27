@@ -143,15 +143,19 @@ Optionally a prefix argument ARG can be provided for repeating it a
       (matlab-cell-beginning-of-cell)))
   )
 
-(defun matlab-cell-forward-cell  (&optional arg)
+(defun matlab-cell-forward-cell  (&optional arg aggressive)
   "Move point forward by a cell.
-Optionally provide prefix argument ARG to move by that many cells."
+Optionally provide prefix argument ARG to move by that many cells.
+Optionally provide argument AGGRESSIVE to specify whether to move
+  aggressively to next cell or just move to end of current cell if
+  next cell is not visible." 
   (interactive "p")
 
   (dotimes (_ (or arg 1))
     (let ((endp (save-excursion (matlab-cell-end-of-cell))))
       (if (and (not (eq (point) endp))
-	       (not (pos-visible-in-window-p endp)))
+	       (not (pos-visible-in-window-p endp))
+	       (not aggressive))
 	  (goto-char endp)
 	(goto-char endp)
     (if (re-search-forward matlab-cell-cellbreak-regexp nil t)
@@ -161,15 +165,19 @@ Optionally provide prefix argument ARG to move by that many cells."
     )))
   )
 
-(defun matlab-cell-backward-cell  (&optional arg)
+(defun matlab-cell-backward-cell  (&optional arg aggressive)
   "Move point backwards by a cell.
-Optionally provide prefix argument ARG to move by that many cells."  
+Optionally provide prefix argument ARG to move by that many cells.
+Optionally provide argument AGGRESSIVE to specify whether to move
+  aggressively to previous cell or just move to beginning of current
+  cell if previous cell is not visible."   
   (interactive "p")
   
   (dotimes (_ (or arg 1))
     (let ((begp (save-excursion (matlab-cell-beginning-of-cell))))
       (if (and (not (eq (point) begp))
-	       (not (pos-visible-in-window-p begp)))
+	       (not (pos-visible-in-window-p begp))
+	       (not aggressive))
 	  (goto-char begp)
 	(goto-char begp)
 	(forward-char -1)
