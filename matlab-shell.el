@@ -670,7 +670,7 @@ it returns empty string"
       (save-match-data
 	(if (looking-at comint-prompt-regexp)
 	    ;; We'll send this line.
-	    (buffer-substring-no-properties (match-end 0) (pos-eol)) 
+	    (buffer-substring-no-properties (match-end 0) (point-at-eol)) 
 	  ;; Otherwise, it's probably junk that is useless.  Don't do it.
 	  "")))))
 
