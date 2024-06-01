@@ -339,18 +339,18 @@ functions:
 				  till previous cell."
   :init-value nil
   :keymap matlab-cell-mode-map
-  (let ((arg `((,matlab-cell-cellbreak-regexp 1 'matlab-cell-cellbreak-face prepend))))
+  ;; (let ((arg `((,matlab-cell-cellbreak-regexp 1 'matlab-cell-cellbreak-face prepend))))
   (make-local-variable 'page-delimiter)
   (setq page-delimiter matlab-cell-cellbreak-regexp)
   ;; (font-lock-add-keywords nil arg)
   (when matlab-cell-highlight-cell
     (matlab-cell-setup-cellhighlight))
-  ;; (font-lock-flush)
-  ))
+  ;; (font-lock-flush))
+  )
 
 ;;;###autoload
 (defun matlab-cell-mode-enable ()
-  "Enable matlab-cell-mode."  
+  "Enable matlab-cell-mode."
   (matlab-cell-mode 1))
 
 ;;;###autoload

@@ -121,7 +121,6 @@ will disable use emacsclient as the external editor."
 
 ;;
 ;; Run from Emacs
-;;;###autoload
 (defcustom matlab-shell-run-region-function 'auto
   "Technique to use for running a line, region, or cell.
 There are different benefits to different kinds of commands.
@@ -2225,6 +2224,7 @@ This command requires an active MATLAB shell."
     (matlab-shell-run-region (matlab-point-at-bol) (matlab-point-at-eol))))
 
 
+;;;###autoload
 (defun matlab-shell-run-region (beg end &optional noshow)
   "Run region from BEG to END and display result in MATLAB shell.
 If NOSHOW is non-nil, replace newlines with commas to suppress
