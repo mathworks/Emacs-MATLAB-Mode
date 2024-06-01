@@ -121,10 +121,11 @@ will disable use emacsclient as the external editor."
 
 ;;
 ;; Run from Emacs
+;;;###autoload
 (defcustom matlab-shell-run-region-function 'auto
   "Technique to use for running a line, region, or cell.
 There are different benefits to different kinds of commands.
-Use 'auto to guess which to use by looking at the environment.
+Use `auto to guess which to use by looking at the environment.
 auto           - guess which to use
 matlab-shell-region->commandline
                - Extract region, and generate 1 line of ML code.
@@ -272,7 +273,7 @@ mode.")
 ;;
 ;;;###autoload
 (defun matlab-mode-determine-matlabroot ()
-  "Return the MATLABROOT for the 'matlab-shell-command'."
+  "Return the MATLABROOT for the `matlab-shell-command'."
   (let ((path (file-name-directory matlab-shell-command)))
     ;; if we don't have a path, find the MATLAB executable on our path.
     (when (not path)
@@ -356,7 +357,7 @@ These will differ when MATLAB code changes directory without notifying Emacs."]
      (and (featurep 'custom) (fboundp 'custom-declare-variable))
      ]
     ["Exit" matlab-shell-exit t]))
-(easy-menu-add matlab-shell-menu matlab-shell-mode-map)
+(easy-menu-add matlab-shell-menu matlab-shell-mode-map) ;; can be removed?
 
 
 ;;; MODE
@@ -1865,7 +1866,7 @@ Optional FCN-P indicates specifies to force treating as a function."
     ans))
 
 (defun matlab-shell-mref-which-fcn (ref)
-  "Try to run 'which' on REF to find actual file location.
+  "Try to run `which' on REF to find actual file location.
 If the MATLAB shell isn't ready to run a which command, skip and
 return nil."
   (when (not matlab-shell-in-process-filter)

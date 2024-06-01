@@ -20,17 +20,17 @@
 ;;; Commentary:
 
 ;; This creates a minor mode called `matlab-cell-mode' that adds
-;; utilities for working with cells in matlab code. The basic mechanic
+;; utilities for working with cells in matlab code.  The basic mechanic
 ;; is to redefine the page-delimiter (locally) to any line that starts
 ;; with "%%" as the first non-empty characters followed by some
 ;; comment strings.
 ;; Consequently, the line that is detected in the above manner is
-;; highlighted by the face `matlab-cell-cellbreak-face'. By defailt,
+;; highlighted by the face `matlab-cell-cellbreak-face'.  By defailt,
 ;; this is bold-faced and has an overline above it.
 ;;
 ;; The cell point is on is highlighted by the face
-;; `matlab-cell-highlight-face'. By default this is set to
-;; "extra-bold". The cell-highlight can be toggled using
+;; `matlab-cell-highlight-face'.  By default this is set to
+;; "extra-bold".  The cell-highlight can be toggled using
 ;; `matlab-cell-highlight-cell' (defaults to "t").
 ;;
 ;; Another variable, `matlab-cell-sticky-flag' is defined, that
@@ -40,8 +40,8 @@
 ;; Finally, the minor-mode provides the following interactive navigation functions:
 ;; 1. `matlab-cell-forward-cell' :| Move point to the beginning of the cell right below.
 ;; 2. `matlab-cell-backward-cell' : Move point to the end of the cell right above.
-;; 3. `matlab-cell-beginning-of-cell' : Move point to beginning of current cell. Return (point).
-;; 4. `matlab-cell-end-of-cell' : Move point to end of current cell. Return (point).
+;; 3. `matlab-cell-beginning-of-cell' : Move point to beginning of current cell.  Return (point).
+;; 4. `matlab-cell-end-of-cell' : Move point to end of current cell.  Return (point).
 ;; 5. `matlab-move-cell-up' : Move the contents of the current cell "up", so that it occurs before the previous.
 ;; 6. `matlab-move-cell-down' : Move the contents of the current cell "down", so that it occurs after the next.
 ;; 7. `matlab-cell-run-till-point' : Run all the cells from beginning till previous cell.
@@ -50,10 +50,9 @@
 ;; development.
 ;;
 ;; Major parts of the code are modified from python-cell.el by Thomas
-;; Hisch (currently at: https://github.com/twmr/python-cell.el). 
+;; Hisch (currently at: https://github.com/twmr/python-cell.el).
 
 ;;; Code:
-;; (require 'matlab-shell)
 
 ;; Customizable Variables and Faces
 (defgroup matlab-cell nil
@@ -95,11 +94,11 @@
   :type 'face
   :group 'matlab-cell
   :set (lambda (symbol value)
-         (set symbol value)
-         (dolist (buffer (buffer-list))
-           (with-current-buffer buffer
-             (when matlab-cell-overlay
-               (overlay-put matlab-cell-overlay 'face matlab-cell-highlight-face))))))
+	 (set symbol value)
+	 (dolist (buffer (buffer-list))
+	   (with-current-buffer buffer
+	     (when matlab-cell-overlay
+	       (overlay-put matlab-cell-overlay 'face matlab-cell-highlight-face))))))
 
 (defcustom matlab-cell-sticky-flag t
   "Non-nil means the Matlab-Cell mode highlight appears in all windows.
@@ -119,7 +118,7 @@ bunch of times."
   (dotimes (_ (or arg 1))
     (let ((rngc (matlab-cell-range-function))
 	  (rngp (save-excursion (matlab-cell-backward-cell)
-				(matlab-cell-range-function))))    
+				(matlab-cell-range-function))))
       (goto-char (car rngp))
       (kill-region (car rngc) (cdr rngc))
       (yank)
@@ -129,13 +128,13 @@ bunch of times."
 (defun matlab-cell-move-cell-down (&optional arg)
   "Move the contents of the current cell down.
 Optionally a prefix argument ARG can be provided for repeating it a
-  bunch of times." 
+  bunch of times."
   (interactive "p")
 
   (dotimes (_ (or arg 1))
     (let ((rngc (matlab-cell-range-function))
 	  (rngn (save-excursion (matlab-cell-forward-cell)
-				(matlab-cell-range-function))))    
+				(matlab-cell-range-function))))
       (goto-char (cdr rngn))
       (kill-region (car rngc) (cdr rngc))
       (yank)
@@ -148,7 +147,7 @@ Optionally a prefix argument ARG can be provided for repeating it a
 Optionally provide prefix argument ARG to move by that many cells.
 Optionally provide argument AGGRESSIVE to specify whether to move
   aggressively to next cell or just move to end of current cell if
-  next cell is not visible." 
+  next cell is not visible."
   (interactive "p")
 
   (dotimes (_ (or arg 1))
@@ -160,7 +159,7 @@ Optionally provide argument AGGRESSIVE to specify whether to move
 	(goto-char endp)
     (if (re-search-forward matlab-cell-cellbreak-regexp nil t)
 	(progn (end-of-line)
-               (forward-char 1))
+	       (forward-char 1))
       (goto-char (point-max)))
     )))
   )
@@ -170,9 +169,9 @@ Optionally provide argument AGGRESSIVE to specify whether to move
 Optionally provide prefix argument ARG to move by that many cells.
 Optionally provide argument AGGRESSIVE to specify whether to move
   aggressively to previous cell or just move to beginning of current
-  cell if previous cell is not visible."   
+  cell if previous cell is not visible."
   (interactive "p")
-  
+
   (dotimes (_ (or arg 1))
     (let ((begp (save-excursion (matlab-cell-beginning-of-cell))))
       (if (and (not (eq (point) begp))
@@ -185,7 +184,7 @@ Optionally provide argument AGGRESSIVE to specify whether to move
 	(and (save-excursion (re-search-backward matlab-cell-cellbreak-regexp
 						 nil t))
 	     (= (match-beginning 0) (save-excursion
-                                      (forward-char -1) (beginning-of-line) (point)))
+				      (forward-char -1) (beginning-of-line) (point)))
 	     (goto-char (match-beginning 0)))
 
 	(if (> (point) (point-min))
@@ -205,8 +204,8 @@ Optionally provide argument AGGRESSIVE to specify whether to move
   (end-of-line)
   (if (re-search-backward matlab-cell-cellbreak-regexp nil t)
       (progn (goto-char (match-end 0))
-             (end-of-line)
-             (forward-char 1))
+	     (end-of-line)
+	     (forward-char 1))
     (goto-char (point-min)))
   (point)
   )
@@ -218,7 +217,7 @@ Optionally provide argument AGGRESSIVE to specify whether to move
   (end-of-line)
   (if (re-search-forward matlab-cell-cellbreak-regexp nil t)
       (progn (goto-char (match-beginning 0))
-             (forward-char -1))
+	     (forward-char -1))
     (goto-char (point-max)))
   (point)
   )
@@ -238,12 +237,12 @@ Optionally provide argument AGGRESSIVE to specify whether to move
   (let ((pt (point)))
     (save-excursion
       (save-restriction
-        (widen)
-        (goto-char (point-min))
-        (while (>= pt (point))
+	(widen)
+	(goto-char (point-min))
+	(while (>= pt (point))
 	  (save-window-excursion (matlab-cell-shell-run-cell))
-          (matlab-cell-forward-cell)
-          (matlab-cell-end-of-cell))))))
+	  (matlab-cell-forward-cell)
+	  (matlab-cell-end-of-cell))))))
 
 ;;; Cell Highlighting
 
@@ -255,33 +254,33 @@ end position of highlight in the buffer.
 It should return nil if there's no region to be highlighted."
   (save-match-data
     (let ((r-start (save-excursion
-                     (progn (end-of-line)
-                            (if (re-search-backward matlab-cell-cellbreak-regexp nil t)
-                                (progn (goto-char (match-beginning 0))
-                                       (point))
-                              (point-min)))))
-          (r-end (save-excursion
-                   (progn (end-of-line)
-                          (if (re-search-forward matlab-cell-cellbreak-regexp nil t)
-                              (progn (goto-char (match-beginning 0))
-                                     (point))
-                            (point-max))))))
+		     (progn (end-of-line)
+			    (if (re-search-backward matlab-cell-cellbreak-regexp nil t)
+				(progn (goto-char (match-beginning 0))
+				       (point))
+			      (point-min)))))
+	  (r-end (save-excursion
+		   (progn (end-of-line)
+			  (if (re-search-forward matlab-cell-cellbreak-regexp nil t)
+			      (progn (goto-char (match-beginning 0))
+				     (point))
+			    (point-max))))))
       (progn
-        ;; (message "cp is %s start is %s; end is %s" (point) r-start r-end)
-        (if (and (eq r-start (point-min)) (eq r-end (point-max)))
-            nil
-          `(,r-start . ,r-end))))))
+	;; (message "cp is %s start is %s; end is %s" (point) r-start r-end)
+	(if (and (eq r-start (point-min)) (eq r-end (point-max)))
+	    nil
+	  `(,r-start . ,r-end))))))
 
 (defun matlab-cell-highlight ()
   "Activate the Matlab-Cell overlay on the current line."
   (if matlab-cell-mode  ; Might be changed outside the mode function.
       (progn
-        (unless matlab-cell-overlay
-          (setq matlab-cell-overlay (make-overlay 1 1)) ; to be moved
-          (overlay-put matlab-cell-overlay 'face matlab-cell-highlight-face))
-        (overlay-put matlab-cell-overlay
-                     'window (unless matlab-cell-sticky-flag (selected-window)))
-        (matlab-cell-move-overlay matlab-cell-overlay))
+	(unless matlab-cell-overlay
+	  (setq matlab-cell-overlay (make-overlay 1 1)) ; to be moved
+	  (overlay-put matlab-cell-overlay 'face matlab-cell-highlight-face))
+	(overlay-put matlab-cell-overlay
+		     'window (unless matlab-cell-sticky-flag (selected-window)))
+	(matlab-cell-move-overlay matlab-cell-overlay))
     (matlab-cell-unhighlight)))
 
 (defun matlab-cell-unhighlight ()
@@ -290,7 +289,7 @@ It should return nil if there's no region to be highlighted."
     (delete-overlay matlab-cell-overlay)))
 
 (defun matlab-cell-move-overlay (overlay)
-  "Move the Matlab-Cell overlay."
+  "Move the Matlab-Cell overlay given as OVERLAY."
   (if-let ((start-end (matlab-cell-range-function)))
       (move-overlay overlay (car start-end) (cdr start-end))
     (move-overlay overlay 1 1)))
@@ -323,22 +322,21 @@ It should return nil if there's no region to be highlighted."
 (define-minor-mode matlab-cell-mode
   "Highlight MATLAB-like cells and navigate between them.
 The minor-mode provides the following interactive navigation
-functions: 
+functions:
 1. `matlab-cell-forward-cell' : Move point to the beginning of the
-				cell right below.  
+				cell right below.
 2. `matlab-cell-backward-cell' : Move point to the end of the cell
-				 right above. 
+				 right above.
 3. `matlab-cell-beginning-of-cell' : Move point to beginning of
-                                     current cell. Return (point). 
+				     current cell.  Return (point).
 4. `matlab-cell-end-of-cell' : Move point to end of current
-			       cell. Return (point). 
-5. `matlab-move-cell-up' : Move the contents of the current cell 
-			   \"up\", so that it occurs before the previous. 
+			       cell.  Return (point).
+5. `matlab-move-cell-up' : Move the contents of the current cell
+			   \"up\", so that it occurs before the previous.
 6. `matlab-move-cell-down' : Move the contents of the current cell
-			     \"down\", so that it occurs after the next. 
+			     \"down\", so that it occurs after the next.
 7. `matlab-cell-run-till-point' : Run all the cells from beginning
-				  till previous cell. 
-"
+				  till previous cell."
   :init-value nil
   :keymap matlab-cell-mode-map
   (let ((arg `((,matlab-cell-cellbreak-regexp 1 'matlab-cell-cellbreak-face prepend))))
@@ -348,15 +346,16 @@ functions:
   (when matlab-cell-highlight-cell
     (matlab-cell-setup-cellhighlight))
   ;; (font-lock-flush)
-  )
-  )
+  ))
 
 ;;;###autoload
 (defun matlab-cell-mode-enable ()
+  "Enable matlab-cell-mode."  
   (matlab-cell-mode 1))
 
 ;;;###autoload
 (defun matlab-cell-mode-disable ()
+  "Disable matlab-cell-mode."
   (matlab-cell-mode 0))
 
 (provide 'matlab-cell)

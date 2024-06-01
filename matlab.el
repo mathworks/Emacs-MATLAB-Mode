@@ -54,6 +54,7 @@
 (require 'matlab-syntax)
 (require 'matlab-scan)
 (require 'matlab-cell)
+
 (require 'easymenu)
 (require 'derived)
 
