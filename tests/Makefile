@@ -1,58 +1,41 @@
-# Automatically Generated Makefile by EDE.
-# For use with: make
-# Relative File Name: tests/Makefile
+# Copyright 2024 The MathWorks, Inc.
 #
-# DO NOT MODIFY THIS FILE OR YOUR CHANGES MAY BE LOST.
-# EDE is the Emacs Development Environment.
-# http://cedet.sourceforge.net/ede.shtml
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see http://www.gnu.org/licenses/.
 #
 
-top=../
-ede_FILES=Project.ede Makefile
+EMACS = emacs
+EMACSFLAGS = -batch --no-site-file --eval '(setq debug-on-error t)'
 
-tests_LISP=mstest.el metest.el
-EMACS=emacs
-EMACSFLAGS=-batch --no-site-file --eval '(setq debug-on-error t)'
-require=$(foreach r,$(1),(require (quote $(r))))
-LOADPATH= ../
-matlab_MISC=buggy.m dbtester.m expressions.m indents.m mclass.m mpclass.m stringtest.m syntaxerr.m cellscript.m fontlock.m testeeval.m
-VERSION=4.0
-DISTDIR=$(top)matlab-emacs-$(VERSION)/tests
+MATLAB_FILES = $(wildcard *.m)
 
+TEST_TARGETS = modetests
 
-ifdef OS # No MATLAB shell tests on windows.
-all: tests matlab modetests
-else # The OS variable is only defined on windows, so linux systems can run shell tests.
-all: tests matlab modetests shelltests
+ifndef OS # OS is defined on Windows (e.g. OS=Windows_NT) and there's no MATLAB shell tests on windows.
+   TEST_TARGETS += shelltests
 endif
 
+.PHONY: all
+all: $(TEST_TARGETS)
+
 .PHONY: modetests
-modetests: metest.elc
-	$(EMACS) -batch -q -l metest.elc -e "metest-all-syntax-tests"
+modetests: metest.el
+	$(EMACS) $(EMACSFLAGS) -l metest.el -e "metest-all-syntax-tests"
 
 .PHONY: shelltests
-shelltests: mstest.elc
-	$(EMACS) -batch -q -l mstest.elc -e "mstest-run-all-tests"
+shelltests: mstest.el
+	$(EMACS) $(EMACSFLAGS) -l mstest.el $(MATLAB_PROG_SETUP) -e "mstest-run-all-tests"
 
-%.elc: %.el
-	$(EMACS) $(EMACSFLAGS) $(addprefix -L ,$(LOADPATH)) --eval '(progn $(call require, $(PRELOADS)))' -f batch-byte-compile $^
+# [eof] tests/Makefile
 
-.PHONY: tests
-tests: $(addsuffix c, $(tests_LISP))
-
-matlab: 
-	@
-
-tags: 
-
-
-clean:
-	rm -f *.elc
-
-.PHONY: dist
-
-dist:
-	mkdir $(DISTDIR)
-	cp $(tests_LISP) $(matlab_MISC) $(ede_FILES) $(DISTDIR)
-
-# End of Makefile
+# LocalWords:  EMACSFLAGS setq ifneq modetests shelltests metest mstest eof

@@ -254,33 +254,6 @@ Calls `matlab-ispell-strings-region'"
   (interactive)
   (matlab-ispell-strings-and-comments-region (point-min) (point-max)))
 
-;;; Printing
-;;
-
-;;;###autoload
-(defun matlab-generate-latex ()
-  "Convert a MATLAB M file into a Latex document for printing.
-Author: Uwe Brauer oub@eucmos.sim.ucm.es
-Created: 14 Feb 2002"
-  (interactive "*")
-  (save-restriction
-    (save-excursion
-      (goto-char (point-min))
-      (insert "\\documentclass[12pt]{report}\n
-\\usepackage{listings}
-\\lstloadlanguages{Matlab}
-\\lstset{language=Matlab,keywordstyle=\\bfseries,labelstep=1,escapechar=\\#}
-\\begin{document}
-\\begin{lstlisting}{}")
-      (newline)
-      (goto-char (point-max))
-      (insert "\n\\end{lstlisting}\n\\end{document}")
-      (widen)))
-  (font-lock-mode nil)
-  (LaTeX-mode)
-  (font-lock-mode nil))
-
-
 (provide 'matlab-cgen)
 
 ;;; matlab-cgen.el ends here

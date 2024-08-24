@@ -1,77 +1,70 @@
-# Automatically Generated Makefile by EDE.
-# For use with: make
-# Relative File Name: Makefile
+# Copyright 2024 The MathWorks, Inc.
 #
-# DO NOT MODIFY THIS FILE OR YOUR CHANGES MAY BE LOST.
-# EDE is the Emacs Development Environment.
-# http://cedet.sourceforge.net/ede.shtml
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
 #
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see http://www.gnu.org/licenses/.
+#
+# Usage
+# -----
+#   make                             - build and run tests in ./tests
+#   make MATLAB_EXE=/path/to/matlab  - build and run tests using specified MATLAB executable
 
-top="$(CURDIR)"/
-ede_FILES=Project.ede Makefile
+# MATLAB executable to used by tests/Makefile for testing matlab-shell
+MATLAB_EXE = matlab
+ifeq ($(shell which $(MATLAB_EXE)),)
+   $(warning $(MATLAB_EXE) not found. Consider running: make MATLAB_EXE=/path/to/matlab)
+endif
+ifneq ($(MATLAB_EXE),matlab)
+    # This file quoting assumes bash shell syntax
+    export MATLAB_PROG_SETUP = --eval='(setq matlab-shell-command "$(MATLAB_EXE)")'
+endif
 
-EMACS=emacs
-EMACSFLAGS=-batch --no-site-file --eval '(setq debug-on-error t)'
-LOADPATH= ./
-LOADDEFS=matlab-load.el
-LOADDIRS=.
-misc_MISC=ChangeLog ChangeLog.old1 ChangeLog.old2 INSTALL README dl_emacs_support.m
-lisp_LISP=matlab-compat.el matlab-syntax.el matlab-scan.el matlab.el matlab-shell.el matlab-shell-gud.el matlab-netshell.el matlab-complete.el matlab-cgen.el matlab-publish.el matlab-topic.el mlint.el tlc.el linemark.el matlab-maint.el
-cedet_LISP=semantic-matlab.el semanticdb-matlab.el srecode-matlab.el cedet-matlab.el company-matlab-shell.el
-VERSION=4.0
-DISTDIR=$(top)matlab-emacs-$(VERSION)
+EMACS = emacs
+EMACSFLAGS = -batch --no-site-file --eval "(setq debug-on-error t)"
 
+LOADPATH = ./
+LOADDEFS = matlab-load.el
+LOADDIRS = .
 
+EL_SRCS  = $(filter-out $(LOADDEFS), $(wildcard *.el))
+ELC = $(EL_SRCS:.el=.elc)
 
-all: autoloads misc lisp cedet toolbox Templates
-
-.PHONY: clean-autoloads
-clean-autoloads: 
-	rm -f $(LOADDEFS)
-
-.PHONY: autoloads
-autoloads: 
-	$(EMACS) $(EMACSFLAGS) $(addprefix -L ,$(LOADPATH)) --eval '(setq generated-autoload-file "$(abspath $(LOADDEFS))")' -f batch-update-autoloads $(abspath $(LOADDIRS))
-
-
-misc: 
-	@
-
-%.elc: %.el
-	$(EMACS) $(EMACSFLAGS) $(addprefix -L ,$(LOADPATH)) --eval '(progn $(call require, $(PRELOADS)))' -f batch-byte-compile $^
+.PHONY: all
+all: lisp tests
 
 .PHONY: lisp
-lisp: $(addsuffix c, $(lisp_LISP))
+lisp: $(LOADDEFS) $(ELC)
 
-.PHONY: cedet
-cedet: $(addsuffix c, $(cedet_LISP))
+$(LOADDEFS):
+	$(EMACS) $(EMACSFLAGS) $(addprefix -L ,$(LOADPATH)) \
+            --eval '(setq generated-autoload-file "$(abspath $(LOADDEFS))")' \
+            -f batch-update-autoloads $(abspath $(LOADDIRS))
 
-.PHONY:toolbox
-toolbox:
-	$(MAKE) -C toolbox
+%.elc: %.el | $(LOADDEFS)
+	$(EMACS) $(EMACSFLAGS) $(addprefix -L ,$(LOADPATH)) -f batch-byte-compile $<
 
-.PHONY:Templates
-Templates:
-	$(MAKE) -C templates
+$(ELC): $(MAKEFILE_LIST)
 
-tags: 
-	$(MAKE) -C toolbox/ $(MFLAGS) $@
-	$(MAKE) -C templates/ $(MFLAGS) $@
+.PHONY: tests
+tests: .tests.tstamp
 
+.tests.tstamp: $(LOADDEFS) $(ELC)
+	$(MAKE) -C tests
+	@touch $@
 
+.PHONY: clean
 clean:
-	rm -f *.elc
+	$(RM) $(LOADDEFS)
+	$(RM) *.elc
+	$(RM) *.tstamp
 
-.PHONY: dist
-
-dist: autoloads
-	rm -rf $(DISTDIR)
-	mkdir $(DISTDIR)
-	cp matlab-load.el $(misc_MISC) $(lisp_LISP) $(cedet_LISP) $(ede_FILES) $(DISTDIR)
-	$(MAKE) -C toolbox $(MFLAGS) DISTDIR=$(DISTDIR)/toolbox dist
-	$(MAKE) -C templates $(MFLAGS) DISTDIR=$(DISTDIR)/templates dist
-	$(MAKE) -C tests $(MFLAGS) DISTDIR=$(DISTDIR)/tests dist
-	tar -cvzf $(DISTDIR).tar.gz $(DISTDIR)
-	rm -rf $(DISTDIR)
-
-# End of Makefile
+# [eof] Makefile

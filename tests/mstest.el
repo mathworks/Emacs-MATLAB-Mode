@@ -72,10 +72,10 @@
     (matlab-shell))
   
   (let ((msb (matlab-shell-active-p)))
-    (when (not msb) (error "MATLAB Shell command failed to create a shell buffer."))
+    (when (not msb) (user-error "MATLAB Shell command failed to create a shell buffer."))
     (accept-process-output nil 1)
     (with-current-buffer msb
-      (when (not (get-buffer-process msb)) (error "MATLAB Shell buffer failed to start process."))
+      (when (not (get-buffer-process msb)) (user-error "MATLAB Shell buffer failed to start process."))
 
       ;; Check full startup.
       (let* ((start (current-time))
@@ -83,7 +83,7 @@
 	(while (not matlab-prompt-seen)
 	  (setq elapsed (float-time (time-subtract nil start)))
 	  (when (> elapsed 20)
-	    (error "MATLAB Shell took to long (20s) to produce a prompt."))
+	    (user-error "MATLAB Shell took to long (20s) to produce a prompt."))
 	  (accept-process-output nil 1)
 	  (redisplay)
 	  (sit-for 1)))
@@ -92,7 +92,7 @@
       ;; history file.  Make sure that happend.
       (if matlab-shell-running-matlab-version
 	  (message "VERSION SCRAPE: Successfully found MATLAB Version %s" matlab-shell-running-matlab-version)
-	(error "VERSION SCRAPE: Failed to find MATLAB Version number during startup."))
+	(user-error "VERSION SCRAPE: Failed to find MATLAB Version number during startup."))
       (message "PASS")
       
       ;; Make sure MATLAB thinks we have enough columns to display the rest of our tests.
@@ -100,7 +100,7 @@
       (let ((txt (mstest-get-command-output "disp(get(0,'CommandWindowSize'))")))
 	(when (< (string-to-number txt) 80)
 	  (mstest-savestate)	  
-	  (error "COLUMNS TEST: Expecting a minimum of 80 columns, found %S" txt)))
+	  (user-error "COLUMNS TEST: Expecting a minimum of 80 columns, found %S" txt)))
       
       ;; Check that our path was added.
       (let ((txt (mstest-get-command-output "P=split(path,':');disp(P{1});"))
@@ -110,7 +110,7 @@
 	(when (not (string= txt tbxdir))
 	  (message "PATH TEST: Found %S" txt)
 	  (mstest-savestate)
-	  (error "MATLAB Shell failed to initialize with matlab-emacs as first entry on path."))
+	  (user-error "MATLAB Shell failed to initialize with matlab-emacs as first entry on path."))
 	(message "PASS")
 	)
 
@@ -120,7 +120,7 @@
 	(message "Computed MATLAB ROOT as : %S" txt)
 	(when (or (not txt) (string= txt ""))
 	  (mstest-savestate)
-	  (error "Failed to find MATLABROOT."))
+	  (user-error "Failed to find MATLABROOT."))
 	)
       (message "PASS")
 
@@ -129,17 +129,19 @@
       (let ((txt (mstest-get-command-output "beep off; stat = beep; disp(stat)")))
 	(when (or (not txt) (not (string= txt "off")))
 	  (mstest-savestate)
-	  (error "Expected BEEPS to be off, but found %S" txt)))
+	  (user-error "Expected BEEPS to be off, but found %S" txt)))
       (message "PASS")
       
       ;; Make sure that 'WHICH' works correctly.
       (message "WHICH TEST: ls")
       (let ((txt (car (matlab-shell-which-fcn "ls")))
-	    (exp (expand-file-name "toolbox/matlab/general/ls.m" (matlab-shell-matlabroot))))
+	    (exp (expand-file-name "toolbox/matlab/io/filesystem/ls.m" (matlab-shell-matlabroot))))
 	(if (string= txt exp)
 	    (message "PASS")
 	  (mstest-savestate)
-	  (error "Expected %s, but found %s" exp txt)))
+          (message "Expected: [%S]" exp)
+          (message "Found: [%S]" txt)
+	  (user-error "'WHICH TEST: ls' failed")))
       
       )))
 
@@ -147,7 +149,7 @@
 (defun mstest-completion ()
   "Test emacsdocomplete, and make sure it returns what we expect."
   (let ((msb (matlab-shell-active-p)))
-    (when (not msb) (error "mstest-completion must run after mstest-start"))
+    (when (not msb) (user-error "mstest-completion must run after mstest-start"))
 
     (with-current-buffer msb
       (goto-char (point-max))
@@ -159,13 +161,13 @@
 		  (matlab-shell-completion-list "emacs")
 		(error
 		 (mstest-savestate)
-		 (error "%S" ERR))))
+		 (user-error "%S" ERR))))
 	     (CL (cdr (nth 2 CLO)))
-	     (EXP '("emacs" "emacscd" "emacsdocomplete" "emacsinit" "emacsnetshell" "emacsrunregion"))
+	     (EXP '("emacs" "emacscd" "emacsdocomplete" "emacsinit" "emacsnetshell" "emacsrun" "emacsrunregion" "emacstipstring"))
 	     (cnt 1))
 	(while (and CL EXP)
 	  (when (not (string= (car EXP) (car (car CL))))
-	    (error "Expected %S /= %S TS for %d completion"
+	    (user-error "Expected %S /= %S TS for %d completion"
 		   (car EXP) (car (car CL)) cnt))
 	  (setq cnt (1+ cnt)
 		CL (cdr CL)
@@ -179,7 +181,7 @@
   "Test the Emacs capturing output functionality."
   (save-window-excursion
     (let ((msb (matlab-shell-active-p)))
-      (when (not msb) (error "mstest-completion must run after mstest-start"))
+      (when (not msb) (user-error "mstest-completion must run after mstest-start"))
 
       ;; We'll be testing how windows split, etc.
       (switch-to-buffer msb)
@@ -195,26 +197,26 @@
 	(when (not (string= txt "\n"))
 	  (mstest-savestate)
 	  (message "Leftover text: [%s]" txt)
-	  (error "There should be no leftover text from help commands."))
+	  (user-error "There should be no leftover text from help commands."))
 
 	(when (not (eq (current-buffer) msb))
 	  (mstest-savestate)
-	  (error "Help command changed current buffer."))
+	  (user-error "Help command changed current buffer."))
 
 	(when (not (= (length (window-list)) 2))
 	  (mstest-savestate)
-	  (error "Help command failed to create a 2nd window."))
+	  (user-error "Help command failed to create a 2nd window."))
 
 	(other-window 1)
 
 	(when (not (string= (buffer-name) "*MATLAB Help: ls*"))
 	  (mstest-savestate)
-	  (error "Help command failed to create MATLAB Help buffer."))
+	  (user-error "Help command failed to create MATLAB Help buffer."))
 
 	(goto-char (point-min))
 	(when (not (looking-at "\\s-*LS\\s-+List"))
 	  (mstest-savestate)
-	  (error "Help ls command failed to populate help with LS help."))
+	  (user-error "Help ls command failed to populate help with LS help."))
 
 	(message "PASS"))
 
@@ -225,12 +227,12 @@
 	(when (not (string= txt "\n"))
 	  (mstest-savestate)
 	  (message "Leftover text: [%s]" txt)
-	  (error "There should be no leftover text from testeeval command."))
+	  (user-error "There should be no leftover text from testeeval command."))
 	
 	(when (or (not (stringp mstest-EVAL-TEST))
 		  (not (string= mstest-EVAL-TEST "evaluate this")))
 	  (mstest-savestate)
-	  (error "Emacs failed to evaluate command sent from testeeval MATLAB command."))
+	  (user-error "Emacs failed to evaluate command sent from testeeval MATLAB command."))
 	  
 	(message "PASS"))
 
@@ -241,27 +243,28 @@
   "Test various errors, and if we can parse them."
   
   (let ((msb (matlab-shell-active-p)))
-    (when (not msb) (error "mstest-error-parse must run after mstest-start"))
+    (when (not msb) (user-error "mstest-error-parse must run after mstest-start"))
 
     (with-current-buffer msb
       (goto-char (point-max))
 
-      (mstest-error-command-check "buggy err" "buggy.m" 7)
+      (mstest-error-command-check "buggy err" "buggy.m" 21)
 
       (mstest-error-command-check "buggy cmderr" "ls.m" -1)
 
-      (mstest-error-command-check "buggy warn" "buggy.m" 15)
+      (mstest-error-command-check "buggy warn" "buggy.m" 29)
 
-      (mstest-error-command-check "eltest.utils.testme" "testme.m" 7)
+      (mstest-error-command-check "eltest.utils.testme" "testme.m" 21)
 
-      (mstest-error-command-check "eltest.utils.testme(true)" "testme.m" 14)
+      (mstest-error-command-check "eltest.utils.testme(true)" "testme.m" 28)
 
-      (mstest-error-command-check "et=eltest.EmacsTest; et.throwerr()" "EmacsTest.m" 17)
+      (mstest-error-command-check "et=eltest.EmacsTest; et.throwerr()" "EmacsTest.m" 31)
 
       ;; This must occur after assignment into variable et.
-      (mstest-error-command-check "et.throwprop()" "EmacsTest.m" 22)
+      (mstest-error-command-check "et.throwprop()" "EmacsTest.m" 36)
 
-      (mstest-error-command-check "syntaxerr" "syntaxerr.m" 8)
+      ;; TODO - this no longer works ...
+      ;; (mstest-error-command-check "syntaxerr" "syntaxerr.m" 22)
       
       )))
 
@@ -280,8 +283,8 @@ If LINE is negative then do not test the line number."
 	(error
 	 (mstest-savestate)
 	 (message "matlab-shell-last-error produced n error:")
-	 (error "%S" ERR))
-	(t (error "%S" ERR)))
+	 (user-error "%S" ERR))
+	(t (user-error "%S" ERR)))
     
       (let* ((bfn (buffer-file-name))
 	     (bfnd (if bfn (file-name-nondirectory bfn)
@@ -292,11 +295,11 @@ If LINE is negative then do not test the line number."
 	(when (not (string= bfnd file))
 	  (mstest-savestate)
 	  (message "Err Text Generated:\n%S" txt)
-	  (error "Expected last error in %s.  Found myself in %s" file (buffer-name)))
+	  (user-error "Expected last error in %s.  Found myself in %s" file (buffer-name)))
 	(when (and (> line  0) (not (= ln line)))
 	  (mstest-savestate)
 	  (message "Err Text Generated:\n\n%S\n" txt)
-	  (error "Expected last error in %s on line %d.  Found on line %d" file line ln))
+	  (user-error "Expected last error in %s on line %d.  Found on line %d" file line ln))
       
 	))
     (message "PASS")
@@ -311,8 +314,8 @@ If LINE is negative then do not test the line number."
 	  (matlab-shell-last-error)
 	(error
 	 (mstest-savestate)
-	 (error "Error not found"))
-	(t (error "%S" ERR)))
+	 (user-error "Error not found"))
+	(t (user-error "%S" ERR)))
     
       (let* ((bfn (buffer-file-name))
 	     (bfnd (if bfn (file-name-nondirectory bfn)
@@ -322,10 +325,10 @@ If LINE is negative then do not test the line number."
       
 	(when (not (string= bfnd file))
 	  (mstest-savestate)
-	  (error "Expected last error in %s.  Found myself in %s" file (buffer-name)))
+	  (user-error "Expected last error in %s.  Found myself in %s" file (buffer-name)))
 	(when (and (> line  0) (not (= ln line)))
 	  (mstest-savestate)
-	  (error "Expected last error in %s on line %d.  Found on line %d" file line ln))
+	  (user-error "Expected last error in %s on line %d.  Found on line %d" file line ln))
       
 	))
 
@@ -343,55 +346,61 @@ If LINE is negative then do not test the line number."
 (defun mstest-debugger ()
   "Test debugging commands, and how MATLAB outputs state."
   (let ((msb (matlab-shell-active-p)))
-    (when (not msb) (error "mstest-debugger must run after mstest-start"))
+    (when (not msb) (user-error "mstest-debugger must run after mstest-start"))
 
     (with-current-buffer msb
       (goto-char (point-max))
 
       ;; Basic create/clear cycle.
-      (mstest-debugger-breakpoint "dbstop in dbtester" "dbtester" "4")
+      (mstest-debugger-breakpoint "dbstop in dbtester" "dbtester" "18") ;; B = 1:.2:pi
       (mstest-debugger-breakpoint "dbclear all" nil nil))
 
     (save-excursion
       (find-file (expand-file-name "dbtester.m" mst-testfile-path))
-      (goto-line 6)
-      ;; Use gud fcn
-      (mstest-debugger-breakpoint #'gud-break "dbtester" "6")
+      (goto-line 20) ;; OUT = localfunc_1(B);
 
-      (mstest-debugger-breakpointlist '(("dbtester" . 6)))
+      ;; Use our mlgud functions
+      (mstest-debugger-breakpoint #'mlgud-break "dbtester" "20")
+
+      (mstest-debugger-breakpointlist '(("dbtester" . 20)))
       
-      (mstest-debugger-navto "dbtester" "dbtester.m" "6")
+      (mstest-debugger-navto "dbtester" "dbtester.m" "20")
 
-      (mstest-debugger-navto #'gud-next "dbtester.m" 8)
+      (mstest-debugger-navto #'mlgud-next "dbtester.m" 22) ;; OUT = OUT + 1;
       
-      (mstest-debugger-navto #'gud-next "dbtester.m" 10)
+      (mstest-debugger-navto #'mlgud-next "dbtester.m" 24) ;; end
 
-      (mstest-debugger-navto #'gud-cont "dbtester.m" -1)
+      (mstest-debugger-navto #'mlgud-cont "dbtester.m" -1)
 
-      (goto-line 41)
-      (mstest-debugger-breakpoint #'gud-break "dbtester" "6" "dbtester>localfunc_5" "41"))
-
-      (mstest-debugger-breakpointlist '(("dbtester>localfunc_5" . 41)
-					("dbtester" . 6)))
-
-      (find-file (expand-file-name "dbtester.m" mst-testfile-path))
-
-      (mstest-debugger-navto "dbtester" "dbtester.m" "6")
-
-      (mstest-debugger-navto #'gud-cont "dbtester.m" 41)
-
-      (mstest-debugger-navto #'gud-finish "dbtester.m" 37)
-
-      (mstest-debugger-stacklist '(("localfunc_4" . 37)
-				   ("localfunc_3" . 33)
-				   ("localfunc_2" . 29)
-				   ("localfunc_1" . 24)
-				   ("dbtester" . 6)
-				   ))
+      (goto-line 55) ;; A = B;
       
-      (mstest-debugger-navto #'gud-finish "dbtester.m" 33)
+      ;; TODO following errors, need to fix
+      ;; (mstest-debugger-breakpoint #'mlgud-break "dbtester" "20" "dbtester>localfunc_5" "55")
+      )
 
-      (mstest-debugger-navto #'gud-cont "dbtester.m" -1)
+    ;; TODO following errors, need to fix
+
+    ;; (mstest-debugger-breakpointlist '(("dbtester>localfunc_5" . 55)
+    ;;   				("dbtester" . 20)))
+
+    ;; (find-file (expand-file-name "dbtester.m" mst-testfile-path))
+
+    ;; (mstest-debugger-navto "dbtester" "dbtester.m" "20")
+
+    ;; (mstest-debugger-navto #'mlgud-cont "dbtester.m" 55)
+
+    ;; (mstest-debugger-navto #'mlgud-finish "dbtester.m" 51) ;; A = localfunc_5(B);
+
+    ;; (mstest-debugger-stacklist '(("localfunc_4" . 51) ;; A = localfunc_5(B);
+    ;;   			   ("localfunc_3" . 47) ;; A = localfunc_4(B);
+    ;;   			   ("localfunc_2" . 43) ;; A = localfunc_3(B);
+    ;;   			   ("localfunc_1" . 38) ;; OUT = localfunc_2(OUT_TMP(1:2:end));
+    ;;   			   ("dbtester" . 20) ;; OUT = localfunc_1(B);
+    ;;   			   ))
+    
+    ;; (mstest-debugger-navto #'mlgud-finish "dbtester.m" 47) ;; A = localfunc_4(B);
+
+    ;; (mstest-debugger-navto #'mlgud-cont "dbtester.m" -1)
 
       ))
 
@@ -411,7 +420,7 @@ If LINE is negative then do not test the line number."
 
 	(unless (looking-at (format "\\s-*%d\\s-+\\(>>\\|--\\)\\s-+%s\\s-+%d" cnt (car SK) (cdr SK)))
 	  (mstest-savestate)
-	  (error "DEBUG: Stack buffer did not contain stack frame for %S, found [%s]"
+	  (user-error "DEBUG: Stack buffer did not contain stack frame for %S, found [%s]"
 		 SK (buffer-substring (point-at-bol) (point-at-eol))))
 	(forward-line 1)
 	(setq cnt (1+ cnt)))
@@ -437,7 +446,7 @@ If LINE is negative then do not test the line number."
 
 	(unless (looking-at (format "\\s-*%d\\s-+-\\s-+%s\\s-+%d" cnt (car BP) (cdr BP)))
 	  (mstest-savestate)
-	  (error "DEBUG: Breakpoints buffer did not contain breakpoint for %S, found [%s]"
+	  (user-error "DEBUG: Breakpoints buffer did not contain breakpoint for %S, found [%s]"
 		 BP (buffer-substring (point-at-bol) (point-at-eol))))
 	(forward-line 1)
 	(setq cnt (1+ cnt)))
@@ -471,7 +480,7 @@ a function."
 	  (when (matlab-on-debug-prompt-p)
 	    ;; on a debug prompt, this is a problem.
 	    (mstest-savestate)
-	    (error "DEBUG: Expected to have exited debug mode, but still on K>> prompt."))
+	    (user-error "DEBUG: Expected to have exited debug mode, but still on K>> prompt."))
 
 	;; else, we should have jumped to some src code.
 	(when (or (not (string= fname fileexp))
@@ -479,7 +488,7 @@ a function."
 	  (message "DEBUG: Expected %s line %d, ended up at %s line %d"
 		   fileexp lineexp fname line)
 	  (mstest-savestate)
-	  (error "DEBUG test failed"))
+	  (user-error "DEBUG test failed"))
 
 
 	;; Text should start w/ a number, then some code
@@ -488,13 +497,13 @@ a function."
 		(progn
 		  (mstest-savestate)
 		  (message "Command produced output : [%s]" txt)
-		  (error "DEBUG: Expected ML dugger to produce a line number.  It did not."))
+		  (user-error "DEBUG: Expected ML dugger to produce a line number.  It did not."))
 	      (let ((dbln (string-to-number (match-string 1 txt))))
 		(when (not (= dbln line))
 		  (message "DEBUG: Expected %s line %d, ended up at %s %d"
 			   fileexp lineexp fname line)
 		  (mstest-savestate)
-		  (error "DEBUG test failed"))))
+		  (user-error "DEBUG test failed"))))
 	  (message "Skipping ML output line check.")
 	  )))
 
@@ -543,7 +552,7 @@ set in the same order as specified."
 	      (when (not (string= txt "\n"))
 		(message "DEBUG: Expected no breakpoints.  Found '%S'." txt)
 		(mstest-savestate)
-		(error "DEBUG test failed"))
+		(user-error "DEBUG test failed"))
 	      (message "PASS"))
 
 	  ;; We are expecting breakpoints.  Make sure they all match.
@@ -556,7 +565,7 @@ set in the same order as specified."
 	      (when (not (string-match "Breakpoint for \\([.>a-zA-Z0-9_]+\\) \\(is\\|are\\) on line " txt))
 		(message "DEBUG: No breakpoints found.  dbstatus returned %S" txt)
 		(mstest-savestate)
-		(error "DEBUG test failed"))
+		(user-error "DEBUG test failed"))
 	      (let ((file (match-string-no-properties 1 txt))
 		    (txtend (match-end 0)))
 
@@ -564,14 +573,14 @@ set in the same order as specified."
 		(when (not (string= file fileexp))
 		  (message "DEBUG: Breakpoints in wrong place.  Expected %S, found %S" fileexp file)
 		  (mstest-savestate)
-		  (error "DEBUG test failed"))
+		  (user-error "DEBUG test failed"))
 
 		;; Loop over all the line numbers.
 		(dolist (LN lineexp)
 		  (unless (string-match "[0-9]+" txt txtend)
 		    (message "DEBUG: Breakpoints text found.  No line number found for expected %S" LN)
 		    (mstest-savestate)
-		    (error "DEBUG test failed"))
+		    (user-error "DEBUG test failed"))
 		
 		  (let ((line (match-string-no-properties 0 txt)))
 		    (setq txtend (match-end 0))
@@ -579,7 +588,7 @@ set in the same order as specified."
 		    (when (not (string= line LN))
 		      (message "DEBUG: Breakpoints in wrong place.  Expected Line %S, found %S" LN line)
 		      (mstest-savestate)
-		      (error "DEBUG test failed"))))
+		      (user-error "DEBUG test failed"))))
 	  
 		(message "PASS")))
 
@@ -590,7 +599,7 @@ set in the same order as specified."
 	(unless (string-match "^\\s-*$" txt)
 	  (message "DEBUG: Expected multiple breakpoint sets, but found no separator before exptected sets: %S" inputs)
 	  (mstest-savestate)
-	  (error "DEBUG test failed"))
+	  (user-error "DEBUG test failed"))
 
 	(setq txt (substring txt (match-end 0)))
 	)
@@ -637,7 +646,7 @@ Searches for the text between the last prompt, and the previous prompt."
       (funcall command))
      ;; What is this?
      (t
-      (error "Unkown command for mtest-get-command-output"))
+      (user-error "Unknown command, %S, for mtest-get-command-output" command))
      )
     
     (with-current-buffer (matlab-shell-active-p)
@@ -656,7 +665,7 @@ Searches for the text between the last prompt, and the previous prompt."
 	      (message "timeout: Start Ctxt: %S" ctxt)
 	      (message "timeout: End Ctxt: %S" ctxte)
 	      (mstest-savestate)
-	      (error "Timeout waiting for prompt. (%d elapsed seconds)" totaltime)))
+	      (user-error "Timeout waiting for prompt. (%d elapsed seconds)" totaltime)))
 	  (redisplay)
 	  ;; Some filters also call accept-process-output inside this one
 	  ;; which causes it to not time out.

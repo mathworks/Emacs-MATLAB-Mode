@@ -1,4 +1,4 @@
-;;; metest.el --- Testing suite for MATLaB Emacs
+;;; metest.el --- Testing suite for MATLAB Emacs
 ;;
 ;; Copyright (C) 2019-2023 Eric Ludlam
 ;;
@@ -33,18 +33,12 @@
 
 (require 'matlab-load)
 (require 'matlab)
-(require 'cedet-matlab)
 (require 'matlab-complete)
-(require 'semantic-matlab)
-
-;; Enable semantic
-(semantic-mode 1)
-(matlab-cedet-setup)
 
 (defun metest-all-syntax-tests ()
   "Run all the syntax tests in this file."
   (setq debug-on-error t)
-  (matlab-scan-stat-reset ) ;; Enable scanner statistics logging.
+  (matlab-scan-stat-reset) ;; Enable scanner statistics logging.
   
   (metest-log-init)
 
@@ -64,7 +58,6 @@
   (metest-run 'metest-indents-test)
 
   ;; Parsing and completion are high level tools
-  (metest-run 'metest-parse-test)
   (metest-run 'metest-complete-test)
 
   (metest-log-report (metest-log-write))
@@ -376,50 +369,6 @@
     ;; Now do the indent in case a bad indent will trigger a bug later.
     (matlab--change-indentation indent)
     ))
-
-(defvar met-parser-files '("mpclass.m")
-  "List of files for running semantic parsing tests.")
-
-(defvar metest-parse-test (cons "semantic parser" met-parser-files))
-(defun metest-parse-test (F)
-  "Run the semantic parsing test to make sure the parse works."
-    (let ((buf (metest-find-file F))
-	  exp act
-	  (cnt 0))
-      (with-current-buffer buf
-
-	;; Prep buffer for test
-	(semantic-idle-scheduler-mode -1)
-	(semantic-clear-toplevel-cache)
-
-	;; Do the test
-	(goto-char (point-min))
-	;;(message ">> Starting semantic parser test in %S" (current-buffer))
-
-	(unless (re-search-forward "^%%\\s-*>>\\s-+SEMANTIC TEST" nil t)
-	  (metest-error "Semantic parser test: Failed to find test cookie."))
-	(unless (re-search-forward "^%{[ \t\n]+\\(((\\)" nil t)
-	  (metest-error "Semantic parser test: Failed to find expected values."))
-	(goto-char (match-beginning 1))
-	(setq exp (read (buffer-substring (point)
-					  (save-excursion (re-search-forward "%}" nil t)
-							  (match-beginning 0)))))
-	(setq act (semantic-fetch-tags))
-	
-	;; Compare the two lists ... simply.
-	(while (and exp act)
-	  (unless (metest-compare-tags (car exp) (car act))
-	    (metest-error "Expected tag %s, found %s" (semantic-format-tag-prototype (car exp))
-			  (semantic-format-tag-prototype (car act))))
-	  (setq exp (cdr exp) act (cdr act) cnt (1+ cnt))
-	  )
-	(when (or exp act)
-	  (metest-error "Found tags and expected tag lists differnet lengths.\nExpected Remains: %S\nActual Remains: %S"
-		 exp act))
-	
-	)
-      (list cnt "tests")))
-
 
 (defun metest-compare-tags (EXP ACT)
   "Return non-nil if EXP tag is similiar to ACT"

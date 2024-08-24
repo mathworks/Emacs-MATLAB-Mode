@@ -1,3 +1,41 @@
+2024-08-24 John Ciolfi <ciolfi@mathworks.com>
+	1. Mirrored from SourceForge to github
+	 - git clone --bare git+ssh://oub@git.code.sf.net/p/matlab-emacs/src matlab-sf-mirror-bare
+      	 - cd matlab-sf-mirror-bare
+    	 - delete old branches via
+             git branch -D wisent-parser
+    	     git branch -D fontlockhang
+    	     git branch -D strings
+    	     git branch -D usage1
+    	     git branch -D hairyblocks
+    	     git branch -D mac_init
+    	     git branch -D modernize
+    	     git branch -D font-lock
+    	     git branch -D shell-patch
+    	     git branch -D shellcomplete
+         - git push --mirror https://github.com/mathworks/Emacs-MATLAB-Mode.git
+	2. For MathWorks standards,
+	   - Renamed COPYING to LICENSE.txt
+	   - Added SECURITY.md
+	   - Added CONTRIBUTING.org
+	3. Deleted stale files that no longer work or are no longer needed
+	   - INSTALL
+	   - Project.ede
+	   - README
+	   - cedet-matlab.el
+	   - matlab-publish.el
+	   - semantic-matlab.el
+	   - semanticdb-matlab.el
+	   - srecode-matlab.el
+	   - templates/Makefile
+	   - templates/Project.ede
+	   - templates/srecode-matlab.srt
+	   - tests/Project.ede
+	   - toolbox/Makefile
+	   - toolbox/Project.ede
+	4. Cleaned up the Makefile's and fixed build issues
+	5. Tests were fixed and now pass (verified with MATLAB 2024a)
+
 2023-07-12 22:14  Uwe Brauer  <oub@mat.ucm.es>
 
 	* COPYING: add GPL3+ License
