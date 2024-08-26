@@ -8,6 +8,8 @@
 *.rej
 *.dat
 
+# Time stamp files created by the Makefile's
+*.tstamp
+
 # matlab-load.el is generated
 matlab-load.el
-parse
