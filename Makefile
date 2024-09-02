@@ -46,6 +46,7 @@ lisp: $(LOADDEFS) $(ELC)
 
 $(LOADDEFS):
 	$(EMACS) $(EMACSFLAGS) $(addprefix -L ,$(LOADPATH)) \
+            --eval "(require 'autoload)" \
             --eval '(setq generated-autoload-file "$(abspath $(LOADDEFS))")' \
             -f batch-update-autoloads $(abspath $(LOADDIRS))
 
@@ -66,5 +67,60 @@ clean:
 	$(RM) $(LOADDEFS)
 	$(RM) *.elc
 	$(RM) *.tstamp
+	$(RM) -r tstamp
+
+#--------------------------------#
+# Test various versions of Emacs #
+#--------------------------------#
+
+# make check-emacs-versions
+#
+# This requires that you define EMACS27, etc. in the environmenbt or specify them when invoking make.
+
+SUPPORTED_EMACS_VERSIONS = 27 28 29
+
+define CHECK_EMACS_VER
+  ifeq ($$(shell which $(EMACS${1})),)
+    $$(error 'EMACS${1}' is not defined. $$(HELP))
+  endif
+endef
+
+ifeq ($(MAKECMDGOALS),check-emacs-versions)
+    $(foreach V,$(SUPPORTED_EMACS_VERSIONS),$(eval $(call CHECK_EMACS_VER,$(V))))
+endif
+
+#---
+#  Generate test targets
+define TEST_SUPPORTED_VER_TARGET
+.tstamp/emacs$(1).tstamp: $(EL_SRCS) $$(MAKEFILE_LIST) | .tstamp
+	@echo "Testing build with EMACS$(1)"
+	make clean
+	make EMACS=$(EMACS$(1))
+	@touch $$@
+
+endef
+
+$(foreach V,$(SUPPORTED_EMACS_VERSIONS),$(eval $(call TEST_SUPPORTED_VER_TARGET,$(V))))
+
+#---
+# Create dependencies to avoid testing different versions of emacs at the same time. For example:
+#    .tstamp/emacs29.tstamp: .tstamp/emacs28.tstamp
+define CREATE_VER_DEPEND
+.tstamp/emacs$(1).tstamp: .tstamp/emacs$(shell echo $$(($(V) - 1))).tstamp
+
+endef
+
+ALL_BUT_FIRST_VER = $(wordlist 2,$(words $(SUPPORTED_EMACS_VERSIONS)),$(SUPPORTED_EMACS_VERSIONS))
+
+$(foreach V,$(ALL_BUT_FIRST_VER),$(eval $(call CREATE_VER_DEPEND,$(V))))
+
+#---
+CHECK_TARGETS = $(foreach V,$(SUPPORTED_EMACS_VERSIONS),.tstamp/emacs$(V).tstamp)
+
+.PHONY: check-emacs-versions
+check-emacs-versions: $(CHECK_TARGETS)
+
+.tstamp:
+	$(HIDE) mkdir $@
 
 # [eof] Makefile

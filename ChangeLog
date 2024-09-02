@@ -1,3 +1,7 @@
+2024-09-02 John Ciolfi <ciolfi@mathworks.com>
+	1. Enable building with emacs29
+	2. Added make -f check-emacs-versions
+
 2024-08-24 John Ciolfi <ciolfi@mathworks.com>
 	1. Mirrored from SourceForge to github
 	 - git clone --bare git+ssh://oub@git.code.sf.net/p/matlab-emacs/src matlab-sf-mirror-bare
