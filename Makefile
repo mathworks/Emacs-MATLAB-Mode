@@ -20,7 +20,7 @@
 #   make NOTESTS=1                   - build without running the tests.
 
 EMACS = emacs
-EMACSFLAGS = -batch --no-site-file --eval "(setq debug-on-error t)"
+EMACSFLAGS = --batch -Q --eval "(setq debug-on-error t)"
 
 LOADPATH = ./
 LOADDEFS = matlab-load.el

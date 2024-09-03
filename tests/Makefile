@@ -15,7 +15,7 @@
 #
 
 EMACS = emacs
-EMACSFLAGS = -batch --no-site-file --eval '(setq debug-on-error t)'
+EMACSFLAGS = --batch -Q --eval '(setq debug-on-error t)'
 
 MATLAB_FILES = $(wildcard *.m)
 
