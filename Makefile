@@ -17,6 +17,7 @@
 # -----
 #   make                             - build and run tests in ./tests
 #   make MATLAB_EXE=/path/to/matlab  - build and run tests using specified MATLAB executable
+#   make NOTESTS=1                   - build without running the tests.
 
 # MATLAB executable to used by tests/Makefile for testing matlab-shell
 MATLAB_EXE = matlab
@@ -38,13 +39,18 @@ LOADDIRS = .
 EL_SRCS  = $(filter-out $(LOADDEFS), $(wildcard *.el))
 ELC = $(EL_SRCS:.el=.elc)
 
+ALL_TARGETS = lisp
+ifeq ($(NOTESTS),)
+    ALL_TARGETS += tests
+endif
+
 .PHONY: all
-all: lisp tests
+all: $(ALL_TARGETS)
 
 .PHONY: lisp
 lisp: $(LOADDEFS) $(ELC)
 
-$(LOADDEFS):
+$(LOADDEFS): | .clean.tstamp
 	$(EMACS) $(EMACSFLAGS) $(addprefix -L ,$(LOADPATH)) \
             --eval "(require 'autoload)" \
             --eval '(setq generated-autoload-file "$(abspath $(LOADDEFS))")' \
@@ -53,13 +59,19 @@ $(LOADDEFS):
 %.elc: %.el | $(LOADDEFS)
 	$(EMACS) $(EMACSFLAGS) $(addprefix -L ,$(LOADPATH)) -f batch-byte-compile $<
 
-$(ELC): $(MAKEFILE_LIST)
+$(ELC): $(LOADDEFS) $(MAKEFILE_LIST) | .clean.tstamp
 
 .PHONY: tests
 tests: .tests.tstamp
 
 .tests.tstamp: $(LOADDEFS) $(ELC)
 	$(MAKE) -C tests
+	@touch $@
+
+# When switching emacs versions, we need to clean generated files
+.clean.tstamp:
+	$(RM) *.elc
+	$(RM) $(LOADDEFS)
 	@touch $@
 
 .PHONY: clean
@@ -94,8 +106,8 @@ endif
 define TEST_SUPPORTED_VER_TARGET
 .tstamp/emacs$(1).tstamp: $(EL_SRCS) $$(MAKEFILE_LIST) | .tstamp
 	@echo "Testing build with EMACS$(1)"
-	make clean
-	make EMACS=$(EMACS$(1))
+	$(MAKE) clean
+	$(MAKE) EMACS=$(EMACS$(1))
 	@touch $$@
 
 endef
