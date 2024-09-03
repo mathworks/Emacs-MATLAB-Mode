@@ -52,14 +52,16 @@ $(LOADDEFS): | .clean.tstamp
 $(ELC): $(LOADDEFS) $(MAKEFILE_LIST) | .clean.tstamp
 
 ifeq ($(NOTESTS),)
-    # MATLAB executable to used by tests/Makefile for testing matlab-shell
-    MATLAB_EXE = matlab
-    ifeq ($(shell which $(MATLAB_EXE)),)
-       $(warning $(MATLAB_EXE) not found. Consider running: make MATLAB_EXE=/path/to/matlab)
-    endif
-    ifneq ($(MATLAB_EXE),matlab)
-        # This file quoting assumes bash shell syntax
-        export MATLAB_PROG_SETUP = --eval='(setq matlab-shell-command "$(MATLAB_EXE)")'
+    ifneq ($(MAKECMDGOALS),clean)
+        # MATLAB executable to used by tests/Makefile for testing matlab-shell
+        MATLAB_EXE = matlab
+        ifeq ($(shell which $(MATLAB_EXE)),)
+           $(warning $(MATLAB_EXE) not found. Consider running: make MATLAB_EXE=/path/to/matlab)
+        endif
+        ifneq ($(MATLAB_EXE),matlab)
+            # This file quoting assumes bash shell syntax
+            export MATLAB_PROG_SETUP = --eval='(setq matlab-shell-command "$(MATLAB_EXE)")'
+        endif
     endif
 endif
 
