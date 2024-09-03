@@ -40,9 +40,12 @@ Build:
 
 #+begin_src bash
   cd /path/to/Emacs-MATLAB-mode
+  # build and run tests (requires matlab)
   make
-  # or
+  # build and run tests using a specific matlab
   make MATLAB_EXE=/path/to/matlab
+  # or build without running the tests (useful if you have not modified the *.el files)
+  make NOTESTS=1
 #+end_src
 
 Add the following to your =~/.emacs= file:

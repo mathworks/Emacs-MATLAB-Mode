@@ -19,16 +19,6 @@
 #   make MATLAB_EXE=/path/to/matlab  - build and run tests using specified MATLAB executable
 #   make NOTESTS=1                   - build without running the tests.
 
-# MATLAB executable to used by tests/Makefile for testing matlab-shell
-MATLAB_EXE = matlab
-ifeq ($(shell which $(MATLAB_EXE)),)
-   $(warning $(MATLAB_EXE) not found. Consider running: make MATLAB_EXE=/path/to/matlab)
-endif
-ifneq ($(MATLAB_EXE),matlab)
-    # This file quoting assumes bash shell syntax
-    export MATLAB_PROG_SETUP = --eval='(setq matlab-shell-command "$(MATLAB_EXE)")'
-endif
-
 EMACS = emacs
 EMACSFLAGS = -batch --no-site-file --eval "(setq debug-on-error t)"
 
@@ -60,6 +50,18 @@ $(LOADDEFS): | .clean.tstamp
 	$(EMACS) $(EMACSFLAGS) $(addprefix -L ,$(LOADPATH)) -f batch-byte-compile $<
 
 $(ELC): $(LOADDEFS) $(MAKEFILE_LIST) | .clean.tstamp
+
+ifeq ($(NOTESTS),)
+    # MATLAB executable to used by tests/Makefile for testing matlab-shell
+    MATLAB_EXE = matlab
+    ifeq ($(shell which $(MATLAB_EXE)),)
+       $(warning $(MATLAB_EXE) not found. Consider running: make MATLAB_EXE=/path/to/matlab)
+    endif
+    ifneq ($(MATLAB_EXE),matlab)
+        # This file quoting assumes bash shell syntax
+        export MATLAB_PROG_SETUP = --eval='(setq matlab-shell-command "$(MATLAB_EXE)")'
+    endif
+endif
 
 .PHONY: tests
 tests: .tests.tstamp
