@@ -40,11 +40,17 @@ all: $(ALL_TARGETS)
 .PHONY: lisp
 lisp: $(LOADDEFS) $(ELC)
 
+HAVE_OLD_EMACS = $(shell $(EMACS) --batch -Q --eval \
+		   "(when (<= emacs-major-version 28) (message \"have-old-emacs\"))" 2>&1)
+ifeq ($(filter have-old-emacs,$(HAVE_OLD_EMACS)),have-old-emacs)
+    BATCH_UPDATE = --eval '(setq generated-autoload-file "$(abspath $(LOADDEFS))")' \
+		   -f batch-update-autoloads $(abspath $(LOADDIRS))
+else
+    BATCH_UPDATE = -f loaddefs-generate-batch $(abspath $(LOADDEFS)) $(abspath $(LOADDIRS))
+endif
+
 $(LOADDEFS): | .clean.tstamp
-	$(EMACS) $(EMACSFLAGS) $(addprefix -L ,$(LOADPATH)) \
-            --eval "(require 'autoload)" \
-            --eval '(setq generated-autoload-file "$(abspath $(LOADDEFS))")' \
-            -f batch-update-autoloads $(abspath $(LOADDIRS))
+	$(EMACS) $(EMACSFLAGS) $(addprefix -L ,$(LOADPATH)) $(BATCH_UPDATE)
 
 %.elc: %.el | $(LOADDEFS)
 	$(EMACS) $(EMACSFLAGS) $(addprefix -L ,$(LOADPATH)) -f batch-byte-compile $<
