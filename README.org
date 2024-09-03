@@ -51,7 +51,7 @@ Build:
 Add the following to your =~/.emacs= file:
 
 #+begin_src emacs-lisp
-  (add-to-list 'load-path "/path/to/matlab-emacs")
+  (add-to-list 'load-path "/path/to/Emacs-MATLAB-mode")
   (load-library "matlab-load")
 #+end_src
 
