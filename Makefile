@@ -64,10 +64,7 @@ ifeq ($(NOTESTS),)
         ifeq ($(shell which $(MATLAB_EXE)),)
            $(warning $(MATLAB_EXE) not found. Consider running: make MATLAB_EXE=/path/to/matlab)
         endif
-        ifneq ($(MATLAB_EXE),matlab)
-            # This file quoting assumes bash shell syntax
-            export MATLAB_PROG_SETUP = --eval='(setq matlab-shell-command "$(MATLAB_EXE)")'
-        endif
+        export MATLAB_PROG_SETUP = "--eval=(setq matlab-shell-command \"$(MATLAB_EXE)\")"
     endif
 endif
 

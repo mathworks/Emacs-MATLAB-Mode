@@ -5,22 +5,27 @@
 
 * Running bare Emacs with matlab-mode
 
-To isolate problems, it's often good to run stock Emacs with matlab-mode.
-
-In /path/to/Emacs-MATLAB-mode
+To isolate problems, it's often good to run stock Emacs with matlab-mode:
 
   #+begin_src bash
+    # In /path/to/Emacs-MATLAB-mode
     make clean
     make NOTESTS=1
 
     # From anywhere
+    echo "% empty" > startup.m
+    env MATLABPATH=  emacs -Q -l /path/to/Emacs-MATLAB-mode
     emacs -Q -l /path/to/Emacs-MATLAB-mode
   #+end_src
 
-If you open *.m or *.tlc files, you will be using the matlab-mode from
-/path/to/Emacs-MATLAB-mode.
+Notice that we are creating an empty startup.m and removing the MATLABPATH environment
+variable. This ensures you are running MATLAB with an unaltered environment. Problems with the
+matlab-shell can occur when either MATLABPATH or startup.m is altering the behavior of
+MATLAB. Therefore, if you see problems, try running with an unaltered environment.
 
-If you'd like to try matlab-shell, in Emacs:
+If you open *.m or *.tlc files, you will be using the matlab-mode from /path/to/Emacs-MATLAB-mode.
+
+To run the matlab-shell in Emacs:
 
   #+begin_example
     M-x RET (load-library "matlab-load") RET
@@ -37,5 +42,4 @@ If you'd like to try matlab-shell, in Emacs:
       >> help ls
   #+end_example
 
-
-# LocalWords:  showall NOTESTS
+# LocalWords:  showall NOTESTS env

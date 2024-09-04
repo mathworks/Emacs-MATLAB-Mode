@@ -25,6 +25,8 @@ ifndef OS # OS is defined on Windows (e.g. OS=Windows_NT) and there's no MATLAB 
    TEST_TARGETS += shelltests
 endif
 
+CLEAN_MATLABPATH = env MATLABPATH=
+
 .PHONY: all
 all: $(TEST_TARGETS)
 
@@ -34,7 +36,7 @@ modetests: metest.el
 
 .PHONY: shelltests
 shelltests: mstest.el
-	$(EMACS) $(EMACSFLAGS) -l mstest.el $(MATLAB_PROG_SETUP) -e "mstest-run-all-tests"
+	$(CLEAN_MATLABPATH) $(EMACS) $(EMACSFLAGS) -l mstest.el $(MATLAB_PROG_SETUP) -e "mstest-run-all-tests"
 
 # [eof] tests/Makefile
 
