@@ -89,7 +89,7 @@ clean:
 	$(RM) $(LOADDEFS)
 	$(RM) *.elc
 	$(RM) *.tstamp
-	$(RM) -r tstamp
+	$(RM) -r .tstamp
 
 #--------------------------------#
 # Test various versions of Emacs #
@@ -114,9 +114,10 @@ endif
 #---
 #  Generate test targets
 define TEST_SUPPORTED_VER_TARGET
-.tstamp/emacs$(1).tstamp: $(EL_SRCS) $$(MAKEFILE_LIST) | .tstamp
+.tstamp/emacs$(1).tstamp: $(EL_SRCS) $$(MAKEFILE_LIST)
 	@echo "Testing build with EMACS$(1)"
 	$(MAKE) clean
+	if [ ! -d ".tstamp" ]; then mkdir .tstamp; fi
 	$(MAKE) EMACS=$(EMACS$(1))
 	@touch $$@
 
@@ -141,8 +142,5 @@ CHECK_TARGETS = $(foreach V,$(SUPPORTED_EMACS_VERSIONS),.tstamp/emacs$(V).tstamp
 
 .PHONY: check-emacs-versions
 check-emacs-versions: $(CHECK_TARGETS)
-
-.tstamp:
-	$(HIDE) mkdir $@
 
 # [eof] Makefile
