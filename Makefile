@@ -64,7 +64,8 @@ ifeq ($(NOTESTS),)
         ifeq ($(shell which $(MATLAB_EXE)),)
            $(warning $(MATLAB_EXE) not found. Consider running: make MATLAB_EXE=/path/to/matlab)
         endif
-        export MATLAB_PROG_SETUP = "--eval=(setq matlab-shell-command \"$(MATLAB_EXE)\")"
+        export MATLAB_PROG_SETUP = "--eval=(setq matlab-shell-command \"$(MATLAB_EXE)\")" \
+				   "--eval=(setq matlab-shell-command-switches '(\"-nodesktop\" \"-nosplash\" \"-noFigureWindows\"))"
     endif
 endif
 

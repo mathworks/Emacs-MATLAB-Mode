@@ -42,4 +42,23 @@ To run the matlab-shell in Emacs:
       >> help ls
   #+end_example
 
-# LocalWords:  showall NOTESTS env
+If you see problems with matlab-shell, it could be that you have MATLAB startup options or other
+environment issues which are adversely impacting matlab-shell. You can try customizing
+matlab-shell-command-switches, for example below we add -nosplash and -noFigureWindows which reduces
+the resource requires on MATLAB:
+
+  #+begin_example
+     M-x RET customize-variable RET matlab-shell-command RET
+  #+end_example
+
+  and set for the current session to:
+
+  #+begin_src emacs-lisp
+    '("-nodesktop" "-nosplash" "-noFigureWindows")
+  #+end_src
+
+  then M-x matlab-shell.
+
+See [[https://www.mathworks.com/help/matlab/startup-and-shutdown.html][MATLAB Startup and Shutdown]] for other options.
+
+# LocalWords:  showall NOTESTS env nodesktop nosplash
