@@ -46,7 +46,7 @@ Build:
   # Alternatively, build lisp and run tests using a specific MATLAB executable:
   make MATLAB_EXE=/path/to/matlab
 
-  # If deisred, you can separate the building of lisp and running tests using:
+  # If desired, you can separate the building of lisp and running tests using:
   make lisp
   make tests
   make tests MATLAB_EXE=/path/to/matlab # if using a specific MATLAB executable
