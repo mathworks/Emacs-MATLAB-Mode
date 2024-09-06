@@ -15,9 +15,10 @@
 #
 # Usage
 # -----
-#   make                             - build and run tests in ./tests
-#   make MATLAB_EXE=/path/to/matlab  - build and run tests using specified MATLAB executable
-#   make NOTESTS=1                   - build without running the tests.
+#   make                             - build lisp and run tests in ./tests
+#   make MATLAB_EXE=/path/to/matlab  - build lisp and run tests using specified MATLAB executable
+#   make lisp                        - build lisp without running the tests.
+#   make tests                       - run the tests (will rebuild lisp if needed)
 
 EMACS = emacs
 EMACSFLAGS = --batch -Q --eval "(setq debug-on-error t)"
@@ -29,13 +30,10 @@ LOADDIRS = .
 EL_SRCS  = $(filter-out $(LOADDEFS), $(wildcard *.el))
 ELC = $(EL_SRCS:.el=.elc)
 
-ALL_TARGETS = lisp
-ifeq ($(NOTESTS),)
-    ALL_TARGETS += tests
-endif
+GOALS := $(if $(MAKECMDGOALS),$(MAKECMDGOALS),all)
 
 .PHONY: all
-all: $(ALL_TARGETS)
+all: lisp tests
 
 .PHONY: lisp
 lisp: $(LOADDEFS) $(ELC)
@@ -57,16 +55,16 @@ $(LOADDEFS): | .clean.tstamp
 
 $(ELC): $(LOADDEFS) $(MAKEFILE_LIST) | .clean.tstamp
 
-ifeq ($(NOTESTS),)
-    ifneq ($(MAKECMDGOALS),clean)
-        # MATLAB executable to used by tests/Makefile for testing matlab-shell
-        MATLAB_EXE = matlab
-        ifeq ($(shell which $(MATLAB_EXE)),)
-           $(warning $(MATLAB_EXE) not found. Consider running: make MATLAB_EXE=/path/to/matlab)
-        endif
-        export MATLAB_PROG_SETUP = "--eval=(setq matlab-shell-command \"$(MATLAB_EXE)\")" \
-				   "--eval=(setq matlab-shell-command-switches '(\"-nodesktop\" \"-nosplash\" \"-noFigureWindows\"))"
+ifneq ($(filter tests all, $(GOALS)),)
+    # Running tests. Check for existence of MATLAB because it's used by tests/Makefile for testing
+    # matlab-shell.
+    MATLAB_EXE = matlab
+    ifeq ($(shell which $(MATLAB_EXE)),)
+        $(warning $(MATLAB_EXE) not found. Consider running: make MATLAB_EXE=/path/to/matlab)
     endif
+    export MATLAB_PROG_SETUP = \
+        "--eval=(setq matlab-shell-command \"$(MATLAB_EXE)\")" \
+	"--eval=(setq matlab-shell-command-switches '(\"-nodesktop\" \"-nosplash\" \"-noFigureWindows\"))"
 endif
 
 .PHONY: tests
