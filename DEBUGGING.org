@@ -10,31 +10,33 @@ To isolate problems, it's often good to run stock Emacs with matlab-mode:
   #+begin_src bash
     # In /path/to/Emacs-MATLAB-mode
     make clean
-    make NOTESTS=1
+    make lisp    # Build only. If you want to build and run tests remove the lisp target
 
     # From anywhere
     echo "% empty" > startup.m
-    env MATLABPATH=  emacs -Q -l /path/to/Emacs-MATLAB-mode
-    emacs -Q -l /path/to/Emacs-MATLAB-mode
-  #+end_src
+    M=/path/to/Emacs-MATLAB-mode
+    env MATLABPATH=  emacs -Q -L $M -l $M/matlab-load.el
+
+    # If you want to run a specific version of MATLAB
+    env MATLABPATH=  PATH=/path/to/bin/matlab:$PATH  emacs -Q -L $M -l $M/matlab-load.el
+
+    #+end_src
 
 Notice that we are creating an empty startup.m and removing the MATLABPATH environment
 variable. This ensures you are running MATLAB with an unaltered environment. Problems with the
 matlab-shell can occur when either MATLABPATH or startup.m is altering the behavior of
 MATLAB. Therefore, if you see problems, try running with an unaltered environment.
 
-If you open *.m or *.tlc files, you will be using the matlab-mode from /path/to/Emacs-MATLAB-mode.
+If you open *.m you will be using the matlab-mode from /path/to/Emacs-MATLAB-mode.
 
-To run the matlab-shell in Emacs:
+To run MATLAB in Emacs:
 
   #+begin_example
-    M-x RET (load-library "matlab-load") RET
-
     If 'matlab' command is not on your path,
        M-x RET customize-variable RET matlab-shell-command RET
     and set it to /path/to/bin/matlab, then set for current session
 
-    Next run matlab-shell
+    Next run matlab-shell which runs MATLAB within and Emacs buffer:
 
       M-x matlab-shell
 
@@ -61,4 +63,4 @@ the resource requires on MATLAB:
 
 See [[https://www.mathworks.com/help/matlab/startup-and-shutdown.html][MATLAB Startup and Shutdown]] for other options.
 
-# LocalWords:  showall NOTESTS env nodesktop nosplash
+# LocalWords:  showall env nodesktop nosplash

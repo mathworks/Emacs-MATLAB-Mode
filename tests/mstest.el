@@ -217,7 +217,11 @@
           (user-error "Help command failed to create MATLAB Help buffer"))
 
         (goto-char (point-min))
-        (when (not (looking-at "\\s-*LS\\s-+List"))
+        ;; Should see one of
+        ;;    LS List folder contents (R2024a and prior)
+        ;;    ls - List folder contents (R2024b)
+        (when (not (looking-at "\\s-*ls\\s-+\\(?:\\-\\s-+\\)?list"))
+
           (mstest-savestate)
           (user-error "Help ls command failed to populate help with LS help"))
 
@@ -654,7 +658,7 @@ Searches for the text between the last prompt, and the previous prompt."
       (funcall command))
      ;; What is this?
      (t
-     (user-error "Unknown command, %S, for mtest-get-command-output" command))
+      (user-error "Unknown command, %S, for mtest-get-command-output" command))
      )
 
     (with-current-buffer (matlab-shell-active-p)
