@@ -19,6 +19,10 @@
 #   make MATLAB_EXE=/path/to/matlab  - build lisp and run tests using specified MATLAB executable
 #   make lisp                        - build lisp without running the tests.
 #   make tests                       - run the tests (will rebuild lisp if needed)
+#
+# Administration:
+#   make list-files-for-release      - show the files that are used by Emacs in "release" mode
+#
 
 EMACS = emacs
 EMACSFLAGS = --batch -Q --eval "(setq debug-on-error t)"
@@ -93,7 +97,7 @@ clean:
 
 # make check-emacs-versions
 #
-# This requires that you define EMACS27, etc. in the environmenbt or specify them when invoking make.
+# This requires that you define EMACS27, etc. in the environment or specify them when invoking make.
 
 SUPPORTED_EMACS_VERSIONS = 27 28 29
 
@@ -139,4 +143,17 @@ CHECK_TARGETS = $(foreach V,$(SUPPORTED_EMACS_VERSIONS),.tstamp/emacs$(V).tstamp
 .PHONY: check-emacs-versions
 check-emacs-versions: $(CHECK_TARGETS)
 
-# [eof] Makefile
+#------------------------------------#
+# List files that should be released #
+#------------------------------------#
+
+.PHONY: list-files-for-release
+list-files-for-release:
+	@/usr/bin/ls -1 *.el | grep -v matlab-load.el
+	@/usr/bin/ls bin/*.sh
+	@find toolbox -name '*.m' -print
+
+# [EOF] Makefile
+
+# LocalWords:  EMACSFLAGS setq LOADPATH LOADDEFS LOADDIRS ELC elc MAKECMDGOALS ifeq abspath
+# LocalWords:  autoloads loaddefs tstamp addprefix ifneq nodesktop nosplash endef usr
