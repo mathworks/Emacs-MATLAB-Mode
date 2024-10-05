@@ -1,6 +1,6 @@
 ;;; matlab-shell-gud.el --- GUD support in matlab-shell.
 ;;
-;; Copyright (C) 2019 Eric Ludlam
+;; Copyright (C) 2024 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <eludlam@emacsvm>
 ;;

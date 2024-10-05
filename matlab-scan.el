@@ -1,6 +1,6 @@
 ;;; matlab-scan.el --- Tools for contextually scanning a MATLAB buffer
 ;;
-;; Copyright (C) 2021 Eric Ludlam
+;; Copyright (C) 2024 Eric Ludlam
 ;;
 ;; Author:  <eludlam@mathworks.com>
 ;;

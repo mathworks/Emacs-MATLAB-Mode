@@ -1,6 +1,6 @@
 ;;; matlab-compat.el --- Compatibility Code
 ;;
-;; Copyright (C) 2019 Eric Ludlam
+;; Copyright (C) 2024 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <eludlam@osboxes>
 ;;

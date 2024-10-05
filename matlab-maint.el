@@ -1,6 +1,6 @@
 ;;; matlab-maint.el --- matlab mode maintainer utilities
 ;;
-;; Copyright (C) 2019 Eric Ludlam
+;; Copyright (C) 2024 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <eludlam@emacsvm>
 ;;

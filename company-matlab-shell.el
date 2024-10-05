@@ -1,6 +1,6 @@
 ;;; company-matlab-shell.el --- a matlab-shell-mode completion back-end for Matlab
 ;;
-;; Copyright (C) 2016,2017,2019 Eric Ludlam
+;; Copyright (C) 2016,2017,2024 Eric Ludlam
 ;; Copyright (C) 2009 David Engster
 ;;
 ;; This program is free software; you can redistribute it and/or

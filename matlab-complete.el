@@ -1,6 +1,6 @@
 ;;; matlab-complete.el --- Simple completion tool for matlab-mode
 ;;
-;; Copyright (C) 2019, 2020 Eric Ludlam
+;; Copyright (C) 2019, 2024 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <zappo@gnu.org>
 ;;

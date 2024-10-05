@@ -8,7 +8,7 @@
   "The current version of TLC mode.")
 
 ;;
-;; Copyright 1997-2021 Eric Ludlam
+;; Copyright 1997-2024 Eric Ludlam
 ;;
 ;; This program is derived from free software; you can redistribute it
 ;; and/or modify it under the terms of the GNU General Public License

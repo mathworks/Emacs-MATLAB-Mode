@@ -1,6 +1,6 @@
 ;;; matlab-syntax.el --- Manage MATLAB syntax tables and buffer parsing.
 ;;
-;; Copyright (C) 2021 Eric Ludlam
+;; Copyright (C) 2024 Eric Ludlam
 ;;
 ;; Author:  <eludlam@mathworks.com>
 ;;

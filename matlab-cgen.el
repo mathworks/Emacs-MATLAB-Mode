@@ -1,6 +1,6 @@
 ;;; matlab-cgen.el --- In buffer code generation features (templates, etc)
 ;;
-;; Copyright (C) 2019 Eric Ludlam
+;; Copyright (C) 2024 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <zappo@gnu.org>
 ;;

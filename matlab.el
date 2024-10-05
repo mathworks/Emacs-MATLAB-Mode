@@ -11,7 +11,7 @@
   "Current version of MATLAB(R) mode.")
 
 ;;
-;; Copyright (C) 1997-2022 Eric M. Ludlam
+;; Copyright (C) 1997-2024 Eric M. Ludlam
 ;; Copyright (C) 1991-1997 Matthew R. Wette
 ;;
 ;; This program is free software; you can redistribute it and/or modify

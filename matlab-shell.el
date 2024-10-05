@@ -1,6 +1,6 @@
 ;;; matlab-shell.el --- Run MATLAB in an inferior process
 ;;
-;; Copyright (C) 2019 Eric Ludlam
+;; Copyright (C) 2024 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <zappo@gnu.org>
 ;;

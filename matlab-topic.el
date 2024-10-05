@@ -1,6 +1,6 @@
 ;;; matlab-topic.el --- Help browsing via Emacs buffers.
 ;;
-;; Copyright (C) 2019 Eric Ludlam
+;; Copyright (C) 2024 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <zappo@gnu.org>
 ;;
