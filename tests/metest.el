@@ -31,7 +31,7 @@
 
 (defvar met-testfile-path) ; quiet compiler
 
-(require 'matlab-load)
+(require 'matlab-autoload)
 (require 'matlab)
 (require 'matlab-complete)
 

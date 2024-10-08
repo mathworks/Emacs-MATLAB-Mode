@@ -28,7 +28,7 @@ EMACS = emacs
 EMACSFLAGS = --batch -Q --eval "(setq debug-on-error t)"
 
 LOADPATH = ./
-LOADDEFS = matlab-load.el
+LOADDEFS = matlab-autoload.el
 LOADDIRS = .
 
 EL_SRCS  = $(filter-out $(LOADDEFS), $(wildcard *.el))
@@ -149,7 +149,7 @@ check-emacs-versions: $(CHECK_TARGETS)
 
 .PHONY: list-files-for-release
 list-files-for-release:
-	@/usr/bin/ls -1 *.el | grep -v matlab-load.el
+	@/usr/bin/ls -1 *.el | grep -v matlab-autoload.el
 	@/usr/bin/ls bin/*.sh
 	@find toolbox -name '*.m' -print
 
