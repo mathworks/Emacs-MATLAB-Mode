@@ -1,3 +1,31 @@
+2024-10-11 17:17  Uwe Brauer  <oub@mat.ucm.es>
+
+	* tlc.el (tlc--indent-move-up): run checkdoc
+
+	* mlint.el: run checkdoc
+
+2024-10-11 17:14  Uwe Brauer  <oub@mat.ucm.es>
+
+	* mlgud.el: this files needs to be checked carefully!
+
+2024-10-11 17:11  Uwe Brauer  <oub@mat.ucm.es>
+
+	* matlab-topic.el: run checkdoc
+
+	* matlab-syntax.el: run checkdoc
+
+	* matlab-shell-gud.el run checkdoc
+
+	* matlab-scan.el: run checkdoc
+
+	* matlab-maint.el run checkdoc
+
+	* matlab-complete.el: run checkdoc
+
+	* matlab-cgen.el: run checkdoc
+
+	* company-matlab-shell.el: run checkdoc
+
 2024-10-11 09:30  Uwe Brauer  <oub@mat.ucm.es>
 
 	* matlab-shell.el: run checkdock

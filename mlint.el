@@ -545,7 +545,7 @@ Optional argument FIELDS are the initialization arguments."
 
 (defclass mlint-lm-str2num (mlint-lm-replace-focus)
   ((new-text :initform "str2double"))
-  "Replace str2num with str2double")
+  "Replace str2num with str2double.")
 
 (defclass mlint-lm-entry-deprecated (mlint-lm-replace-focus)
   ()
@@ -860,7 +860,7 @@ Highlight problems and/or cross-function variables."
   "Minor mode keymap used when mlinting a buffer.")
 
 (easy-menu-define
-  mlint-minor-menu mlint-minor-mode-map "M-Lint Minor Mode Menu"
+  mlint-minor-menu mlint-minor-mode-map "M-Lint Minor Mode Menu."
   '("M-Lint"
     ["Get M-Lint Warnings" mlint-buffer t]
     ["Clear M-Lint Warnings" mlint-clear-warnings t]
@@ -909,7 +909,7 @@ Must be bound to event E."
 
 ;;;###autoload
 (easy-mmode-define-minor-mode mlint-minor-mode
-                              "Toggle mlint minor mode, a mode for showing mlint errors.
+"Toggle mlint minor mode, a mode for showing mlint errors.
 With prefix ARG, turn mlint minor mode on iff ARG is positive.
 \\{mlint-minor-mode-map\\}"
                               nil " mlint" mlint-minor-mode-map

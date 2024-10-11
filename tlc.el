@@ -353,8 +353,9 @@
 	  i-col)))))
 
 (defun tlc--indent-move-up (is-tlc-if-part)
-  "Move to first prior non-blank line or matching %if,  %else, %endif when IS-TLC-IF-PART is t.
-Specify IS-TLC-IF-PART as t, if current line is %else, %elsif, %endif to align the %if statements."
+  "Move to first prior non-blank line or matching %if,  %else, %endif
+when IS-TLC-IF-PART is t. Specify IS-TLC-IF-PART as t, if current
+  line is %else, %elsif, %endif to align the %if statements."
   (let ((n-if-statements-to-skip 0)  ;; num %if statements to skip over when is-tlc-if-part is t
         done)
     (while (not done)

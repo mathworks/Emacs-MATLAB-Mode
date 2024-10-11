@@ -7,6 +7,8 @@
 ;; Keywords: MATLAB(R)
 ;; Version:
 
+;;; Code:
+
 (defconst matlab-mode-version "6.0"
   "Current version of MATLAB(R) mode.")
 
@@ -56,3 +58,7 @@
 (provide 'matlab-mode)
 
 ;;; matlab.el ends here
+
+(provide 'matlab-mode)
+
+;;; matlab-mode.el ends here

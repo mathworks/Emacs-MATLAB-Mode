@@ -237,7 +237,7 @@ the region.  BEGIN and END mark the region to be stringified."
   "Spell check valid strings in region with Ispell.
 Argument BEGIN and END mark the region boundary."
   (interactive "r")
-  (error "This function needs to be reimplemented.")
+  (error "This function needs to be reimplemented")
   (require 'ispell)
   (save-excursion
     (goto-char begin)

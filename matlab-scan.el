@@ -34,7 +34,7 @@
 ;;
 ;; List of our keywords, and tools to look up keywords and find out
 ;; what they are.
-(defconst matlab-block-keyword-list '(("end" . end) 
+(defconst matlab-block-keyword-list '(("end" . end)
 				      ("function" . decl)
 				      ("classdef" . decl)
 				      ("arguments" . args)
@@ -72,7 +72,7 @@
 
 (defun matlab-keyword-p (word)
   "Non nil if WORD is a keyword.
-If word is a number, it is a match-string index for the current buffer."
+If word is a number, it is a `match-string' index for the current buffer."
    (let* ((local-word (if (numberp word)
 			  (match-string-no-properties word)
 			word))
@@ -550,11 +550,11 @@ If the current line is not a declaration, return nil."
 
 ;; Parenthetical blocks
 (defsubst matlab-line-close-paren-p (lvl1)
-  "Non nil If the current line starts with closing paren (any type.)"
+  "Non nil If the current line starts with closing paren (any type.)."
   (eq (car lvl1) 'close-paren))
 
 (defsubst matlab-line-paren-depth (lvl1)
-  "The current depth of parens at the start of this line"
+  "The current depth of parens at the start of this line."
   (nth mlf-paren-depth lvl1))
 
 (defsubst matlab-line-close-paren-inner-char (lvl1)
@@ -724,7 +724,7 @@ If LVL2 is nil, compute it."
 (defun matlab-previous-nonempty-line (lvl2)
   "Return lvl1 ctxt for previous non-empty line."
   (let ((prev (nth mlf-previous-nonempty lvl2))
-	)    
+	)
     (if (eq prev t)
 	;; Compute it and stash it.
 	(save-excursion
@@ -742,7 +742,7 @@ If LVL2 is nil, compute it."
 (defun matlab-previous-code-line (lvl2)
   "Return lvl1 ctxt for previous non-empty line."
   (let ((prev (nth mlf-previous-code lvl2))
-	)    
+	)
     (if (eq prev t)
 	;; Compute it and stash it.
 	(save-excursion
@@ -763,7 +763,7 @@ If LVL2 is nil, compute it."
 (defun matlab-previous-command-begin (lvl2)
   "Return lvl1 ctxt for previous non-empty line."
   (let ((prev (nth mlf-previous-command-beginning lvl2))
-	)    
+	)
     (if (eq prev t)
 	;; Compute it and stash it.
 	(save-excursion
@@ -925,7 +925,7 @@ This function walks down past continuations and open arrays."
 (defvar matlab-indent-level)
 
 (defsubst matlab--mk-keyword-node ()
-  "Like `matlab-on-keyword-p', but returns a node for block scanning.
+  "Like `matlab-on-keyword-p', but return a node for block scanning.
 The elements of the return node are:
   0 - type of keyword, like ctrl or decl
   1 - text of the keyword
@@ -934,7 +934,7 @@ The elements of the return node are:
   ;; Don't check the context - assume our callers have vetted this
   ;; point.  This is b/c the search fcns already skip comments and
   ;; strings for efficiency.
-  (let* ((start (save-excursion (skip-syntax-backward "w_") (point))) 
+  (let* ((start (save-excursion (skip-syntax-backward "w_") (point)))
 	 (end (save-excursion (skip-syntax-forward "w_") (point)))
 	 (txt (buffer-substring-no-properties start end))
 	 (type (matlab-keyword-p txt)))
@@ -1070,7 +1070,7 @@ Also skips over all nexted block constructs along the way.
 Assumes cursor is in a valid starting state, otherwise ERROR.
 If cursor is on a middle-block construct like else, case, ERROR.
 
-Optional BOUNDS is a point in the buffer past which we won't scan. 
+Optional BOUNDS is a point in the buffer past which we won't scan.
 Optional STATE is the current parsing state to start from.
 Use STATE to stop/start block scanning partway through."
   (let ((blockstate (matlab--scan-derive-block-state state '(decl args mcos ctrl)))
@@ -1079,7 +1079,7 @@ Use STATE to stop/start block scanning partway through."
 	(regex (matlab-keyword-regex 'blocks))
 	)
 
-    (when (not blockstate) (error "Not on valid block start."))
+    (when (not blockstate) (error "Not on valid block start"))
 
     (when (not state) (skip-syntax-forward "w")) ;; skip keyword
 
@@ -1135,7 +1135,7 @@ Also skips over all nexted block constructs along the way.
 Assumes cursor is in a valid starting state, otherwise ERROR.
 If cursor is on a middle-block construct like else, case, ERROR.
 
-Optional BOUNDS is a point in the buffer past which we won't scan. 
+Optional BOUNDS is a point in the buffer past which we won't scan.
 Optional STATE is the current parsing state to start from.
 Use STATE to stop/start block scanning partway through."
   (let ((blockstate (matlab--scan-derive-block-state state '(end)))
@@ -1144,7 +1144,7 @@ Use STATE to stop/start block scanning partway through."
 	(regex (matlab-keyword-regex 'blocks))
 	)
 
-    (when (not blockstate) (error "Not on valid block end."))
+    (when (not blockstate) (error "Not on valid block end"))
 
     (when (not state) (skip-syntax-backward "w")) ;; skip keyword
 
@@ -1474,3 +1474,7 @@ If optional NODISP, then don't display, just return the msg."
 (provide 'matlab-scan)
 
 ;;; matlab-indent.el ends here
+
+(provide 'matlab-scan)
+
+;;; matlab-scan.el ends here
