@@ -1,0 +1,66 @@
+#+startup: showall
+#+options: toc:nil
+
+# Copyright 2024 The MathWorks, Inc.
+
+* Running bare Emacs with matlab-mode
+
+To isolate problems, it's often good to run stock Emacs with matlab-mode:
+
+  #+begin_src bash
+    # In /path/to/Emacs-MATLAB-mode
+    make clean
+    make lisp    # Build only. If you want to build and run tests remove the lisp target
+
+    # From anywhere
+    echo "% empty" > startup.m
+    M=/path/to/Emacs-MATLAB-mode
+    env MATLABPATH=  emacs -Q -L $M -l $M/matlab-autoload.el
+
+    # If you want to run a specific version of MATLAB
+    env MATLABPATH=  PATH=/path/to/bin/matlab:$PATH  emacs -Q -L $M -l $M/matlab-autoload.el
+
+    #+end_src
+
+Notice that we are creating an empty startup.m and removing the MATLABPATH environment
+variable. This ensures you are running MATLAB with an unaltered environment. Problems with the
+matlab-shell can occur when either MATLABPATH or startup.m is altering the behavior of
+MATLAB. Therefore, if you see problems, try running with an unaltered environment.
+
+If you open *.m you will be using the matlab-mode from /path/to/Emacs-MATLAB-mode.
+
+To run MATLAB in Emacs:
+
+  #+begin_example
+    If 'matlab' command is not on your path,
+       M-x RET customize-variable RET matlab-shell-command RET
+    and set it to /path/to/bin/matlab, then set for current session
+
+    Next run matlab-shell which runs MATLAB within and Emacs buffer:
+
+      M-x matlab-shell
+
+    At the MATLAB prompt run some action, for example
+      >> help ls
+  #+end_example
+
+If you see problems with matlab-shell, it could be that you have MATLAB startup options or other
+environment issues which are adversely impacting matlab-shell. You can try customizing
+matlab-shell-command-switches, for example below we add -nosplash and -noFigureWindows which reduces
+the resource requires on MATLAB:
+
+  #+begin_example
+     M-x RET customize-variable RET matlab-shell-command RET
+  #+end_example
+
+  and set for the current session to:
+
+  #+begin_src emacs-lisp
+    '("-nodesktop" "-nosplash" "-noFigureWindows")
+  #+end_src
+
+  then M-x matlab-shell.
+
+See [[https://www.mathworks.com/help/matlab/startup-and-shutdown.html][MATLAB Startup and Shutdown]] for other options.
+
+# LocalWords:  showall env nodesktop nosplash

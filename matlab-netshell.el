@@ -1,6 +1,6 @@
 ;;; matlab-netshell.el --- Control MATLAB from a network port.
 ;;
-;; Copyright (C) 2019 Eric Ludlam
+;; Copyright (C) 2024 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <zappo@gnu.org>
 ;;

@@ -1,6 +1,6 @@
 ;;; matlab-syntax.el --- Manage MATLAB syntax tables and buffer parsing.
 ;;
-;; Copyright (C) 2021 Eric Ludlam
+;; Copyright (C) 2024 Eric Ludlam
 ;;
 ;; Author:  <eludlam@mathworks.com>
 ;;
@@ -55,7 +55,7 @@ Does not work well in classes with properties with datatypes.")
     ;;       These next syntaxes are handled with `matlab--syntax-propertize'
     ;;   Transpose:           varname'
     ;;   Quoted quotes:       ' don''t '    or " this "" "
-    ;;   Unterminated Char V: ' text 
+    ;;   Unterminated Char V: ' text
     (modify-syntax-entry ?'  "\"" st)
     (modify-syntax-entry ?\" "\"" st)
     
@@ -85,7 +85,7 @@ Does not work well in classes with properties with datatypes.")
     ;;(modify-syntax-entry ?}  "){" st)
     
     st)
-  "MATLAB syntax table")
+  "MATLAB syntax table.")
 
 (defvar matlab-navigation-syntax-table
   (let ((st (copy-syntax-table matlab-syntax-table)))
@@ -214,7 +214,7 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
     "dbstop" "dbclear"
     ;; Graphics
     "print" "xlim" "ylim" "zlim" "grid" "hold" "box" "colormap" "axis")
-  "Functions that are commonly used with commandline dual")
+  "Functions that are commonly used with commandline dual.")
 (defconst matlab-cds-regex (regexp-opt matlab-syntax-commanddual-functions 'symbols))
 
 (defun matlab--scan-line-for-command-dual (&optional debug)
@@ -288,7 +288,7 @@ Called when comments found in `matlab--scan-line-for-unterminated-string'."
       ))))
 
 (defun matlab--scan-line-bad-blockcomment ()
-  "Scan this line for invalid block comment starts."
+  "Scan this line for invalid block comment start."
   (when (and (re-search-forward "%{" (point-at-eol) t) (not (looking-at "\\s-*$")))
     (goto-char (1- (match-end 0)))
     t))
@@ -472,7 +472,7 @@ Returns non-nil if the cursor moved."
 	  ;; so error.
 	  (when (< (point) start)
 	    (goto-char start)
-	    (error "Error navitaging syntax."))
+	    (error "Error navitaging syntax"))
 	  t)
       ;; else not in comment, but still skip 'all-comments' if requested.
       (when (and all-comments (looking-at "\\s-*\\s<"))
@@ -540,7 +540,7 @@ Returns non-nil if the cursor moved."
   "Return non-nil if the current word is treated like a variable.
 This could mean it is:
   * Field of a structure
-  * Assigned from or into with =" 
+  * Assigned from or into with ="
   (or (save-excursion (skip-syntax-backward "w")
 		      (skip-syntax-backward " ")
 		      (or (= (preceding-char) ?\.)

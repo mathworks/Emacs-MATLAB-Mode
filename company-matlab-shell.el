@@ -1,6 +1,6 @@
 ;;; company-matlab-shell.el --- a matlab-shell-mode completion back-end for Matlab
 ;;
-;; Copyright (C) 2016,2017,2019 Eric Ludlam
+;; Copyright (C) 2016,2017,2024 Eric Ludlam
 ;; Copyright (C) 2009 David Engster
 ;;
 ;; This program is free software; you can redistribute it and/or
@@ -16,16 +16,22 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;;; Code:
+
 (condition-case nil
     (require 'company)
   (error nil))
 
 (eval-when-compile (require 'cl))
+
+;;; Commentary:
+;; 
+
 (require 'matlab)
 (require 'matlab-shell)
 
 (defvar company-matlab-shell--ci (make-hash-table :test 'equal)
-  "Private variable for company-matlab-shell completion info")
+  "Private variable for `company-matlab-shell' completion info.")
 
 (defun company-matlab-shell-grab-completion-substr ()
   "Return the completion substring of the command that is to be

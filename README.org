@@ -1,150 +1,109 @@
-* Matlab-emacs Project:
+#+startup: showall
+#+options: toc:nil
 
-  MATLAB and Emacs integration:
+# Copyright 2024 The MathWorks, Inc.
 
-  1. matlab-mode for editing *.m files.
-  2. matlab-shell for running MATLAB -nodesktop within Emacs (Unix-only).
-     - matlab-shell will use company-mode for completions.
-  3. tlc-mode for editing *.tlc files (part of Simulink Coder).
-  4. Integration with CEDET.
+* Emacs MATLAB-mode
 
-** INSTALL
+[[https://mathworks.com][MathWorks]] MATLAB® and [[https://www.gnu.org/software/emacs/][GNU Emacs]] integration:
 
-   To install directly from the repository,
+1. matlab-mode for editing *.m files.
 
-   : cd /path/to/matlab-emacs
-   : make
+   - Edit MATLAB code with syntax highlighting and smart indentation.
+   - Lint MATLAB code with fix-it's using the MATLAB Code Analyzer.
 
-   Next, add the following to your ~/.emacs file:
+2. ~M-x matlab-shell~ for running and debugging MATLAB within Emacs (Unix-only).
 
-   #+BEGIN_SRC elisp
-  ;; Replace path below to be where your matlab.el file is.
-  (add-to-list 'load-path "/path/to/matlab-emacs")
+   - matlab-shell uses company-mode for completions.
+
+3. tlc-mode for editing *.tlc files. The Target Language Compiler (TLC) part of Simulink® Coder™.
+
+* Installation
+
+** Install via MELPA
+
+Installing via [[https://melpa.org][MELPA]] is recommended because MELPA will contain the latest validated release.
+
+Add to your =~/.emacs=:
+
+#+begin_src emacs-lisp
+  (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/") t)
+#+end_src
+
+then run
+
+: M-x RET package-list-packages RET
+
+** Install from this repository
+
+Build:
+
+#+begin_src bash
+  cd /path/to/Emacs-MATLAB-mode
+
+  # Build lisp and run tests (requires MATLAB executable):
+  make
+  # Alternatively, build lisp and run tests using a specific MATLAB executable:
+  make MATLAB_EXE=/path/to/matlab
+
+  # If desired, you can separate the building of lisp and running tests using:
+  make lisp
+  make tests
+  make tests MATLAB_EXE=/path/to/matlab # if using a specific MATLAB executable
+#+end_src
+
+Add the following to your =~/.emacs= file:
+
+#+begin_src emacs-lisp
+  (add-to-list 'load-path "/path/to/Emacs-MATLAB-mode")
   (load-library "matlab-load")
+#+end_src
 
-  ;; Enable CEDET feature support for MATLAB code. (Optional)
-  ;; (matlab-cedet-setup)
-   #+END_SRC
+* MathWorks Products ([[https://www.mathworks.com][https://www.mathworks.com]])
 
-** MELPA
+Emacs MATLAB-mode is designed to be compatible with the last six years of MathWorks products and may
+support even older versions of MathWorks products.
 
-   GNU emacs (sorry Xemacs folks) users (version >=24) can use the
-   package as provided by MELPA.
-   Set 
+* License
 
-   #+BEGIN_SRC elisp
-   (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/") t)
-   #+END_SRC
-   And then run 
-   M-x
-   package-list-packages
+GPL3, https://www.gnu.org/licenses/gpl-3.0.en.html (see [[file:License.txt][License.txt]])
 
-** Releases
+* Community Support
 
-   The most recent version of matlab.el is in SourceForge GIT.
+[[https://www.mathworks.com/matlabcentral][MATLAB Central]]
 
-   Homepage:
-   http://matlab-emacs.sf.net
+* FAQ
 
-   Project Page:
-   http://sourceforge.net/projects/matlab-emacs
+** How do I customize matlab-mode?
 
-   GIT Repository:
-   https://sourceforge.net/p/matlab-emacs/src/ci/master/tree/
+You can configure matlab-emacs using the "matlab" or "matlab-shell" customization groups:
 
-   You can get a zip file using the "Download snapshot" button or use git to create a local
-   repository:
+: Emacs -> Options -> Customize Emacs -> Specific Group
 
-   #+BEGIN_SRC shell
-   git clone git://git.code.sf.net/p/matlab-emacs/src matlab-emacs-src
-   #+END_SRC
+** How do I customize "edit file.m" behavior?
 
-   If you do not have a GIT client on your machine, you can use the
-   MATLAB script dl_emacs_support.m to download a fresh copy of the
-   matlab.el sources.
-   https://sourceforge.net/p/matlab-emacs/src/ci/master/tree/dl_emacs_support.m
+By default when you run
 
-   Older versions in the SourceForge CVS repository are *no* longer updated.
+: M-x matlab-shell
+:
+: >> edit file.m
 
-** Dependencies
+file.m will open in emacs using 'emacsclient -n'. matlab-shell achieve this behavior by instructing
+MATLAB to use 'emacsclient -n' as the external text editor.
 
-   MATLAB-Emacs can use the CEDET suite for the following items:
-   - Modifying the build system (Makefiles, etc)
-   - mlint (uses EIEIO object system)
-   - parsing/completion (uses semantic parsing system)
-     - some template insertion features
+You can customize this by setting `matlab-shell-emacsclient-command' in the matlab-shell
+customization group. You can change this command to what's appropriate. If you set it to the empty
+string, 'edit file.m' will use the default MATLAB editor setting.
 
-     As of Emacs 23.2, CEDET is included in Emacs, and nothing extra
-     is needed to satisfy that dependency.
+The default MATLAB editor setting is controlled in the MATLAB preferences, (e.g. R2018a Home tab,
+Environment section, Preferences) where you can select which editor you want to edit a text
+file. MATLAB Editor or an external text editor. If you always want to use Emacs as your matlab
+editor even when running MATLAB outside of emacs, select Text editor and set it to the appropriate
+'emacsclient -n' command.
 
-     For older versions of Emacs:
+* History
 
-     See http://cedet.sf.net for downloading CEDET.
+matlab-mode has a history dating back many years. Older contributions can be found in
+[[https://sourceforge.net/projects/matlab-emacs/][https://sourceforge.net/projects/matlab-emacs/]].
 
-     If you only want to use matlab.el for editing code or running the
-     MATLAB shell, you DO NOT need to install CEDET.
-
-     If you do want to use CEDET, add the following to your .emacs file:
-     #+BEGIN_SRC elisp
-    (matlab-cedet-setup)
-     #+END_SRC
-
-** Mailing List
-
-   Subscribe to matlab-emacs-discuss mailing list get updates on new releases
-   and discuss topics relevant to the matlab-emacs project.
-
-   http://lists.sourceforge.net/mailman/listinfo/matlab-emacs-discuss
-
-   *Old mailing list*: The original mailing list where beta versions of matlab.el
-   were posted, and where comments, questions, bug reports, and answers to
-   questions could be sent.  If you were subscribed to this list, please
-   unsubscribe, and subscribe to the new list above.  To unsubscribe, send email
-   with the body of: "unsubscribe matlab-emacs"
-
-** FAQ
-
-*** How Do I Customize matlab-emacs?
-
-   You can configure matlab-emacs using the "matlab" or "matlab-shell"
-   customization groups:
-
-   : Emacs -> Options -> Customize Emacs -> Specific Group
-
-*** How do I customize "edit file.m" behavior?
-
-   By default when you run
-
-   : M-x matlab-shell
-   :
-   : >> edit file.m
-
-   file.m will open in emacs using 'emacsclient -n'. matlab-shell achieve this
-   behavior by instructing MATLAB to use 'emacsclient -n' as the external text
-   editor.
-
-   You can customize this by setting `matlab-shell-emacsclient-command' (Matlab
-   Shell Emacsclient Command) of the matlab-shell customization group. You can
-   change this command to what's appropriate. If you set it to the empty string,
-   'edit file.m' will use the default MATLAB editor setting.
-
-   The default MATLAB editor setting is controlled in the MATLAB preferences,
-   (e.g. R2018a Home tab, Environment section, Preferences) where you can select
-   which editor you want to edit a text file. MATLAB Editor or an external text
-   editor. If you always want to use Emacs as your matlab editor even when
-   running MATLAB outside of emacs, select Text editor and set it to the
-   appropriate 'emacsclient -n' command.
-
-*** Can I debug *.m files using Emacs as a debugger?
-
-   Starting with MATLAB 8.5 (R2015b), Emacs can no longer be used as a debugger
-   for debugging MATLAB code. With R2015b, MATLAB no longer provides
-   necessary file and line number information for external debuggers. Therefore,
-   in matlab-shell:
-
-   : >> dbstop in foo
-
-   will open foo in the MATLAB editor for debugging.
-
-#+STARTUP: showall
-
+# LocalWords:  showall nodesktop melpa emacsclient

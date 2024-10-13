@@ -1,6 +1,6 @@
 ;;; matlab-shell.el --- Run MATLAB in an inferior process
 ;;
-;; Copyright (C) 2019 Eric Ludlam
+;; Copyright (C) 2024 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <zappo@gnu.org>
 ;;
@@ -73,7 +73,7 @@ Command switches are a list of strings.  Each entry is one switch."
 (defface matlab-shell-error-face
   (list
    (list t
-	 (list :background nil
+	 (list :background 'unspecified
 	       :foreground "red1"
 	       :bold t)))
   "*Face to use when errors occur in MATLAB shell."
@@ -126,12 +126,12 @@ will disable use emacsclient as the external editor."
 There are different benefits to different kinds of commands.
 Use `auto to guess which to use by looking at the environment.
 auto           - guess which to use
-matlab-shell-region->commandline
+`matlab-shell-region->commandline'
                - Extract region, and generate 1 line of ML code.
-matlab-shell-region->script
+`matlab-shell-region->script'
                - Extract region and any local fcns, and write to
                  tmp script.  Call that from MATLAB.
-matlab-shell-region->internal
+`matlab-shell-region->internal'
                - Send region location to MATLAB, and have ML
                  extract and run that region.  Customize
                  `matlab-shell-emacsrunregion' to specify what ML
@@ -329,7 +329,7 @@ mode.")
 
 (easy-menu-define matlab-shell-menu
   matlab-shell-mode-map
-  "MATLAB shell menu"
+  "MATLAB shell menu."
   '("MATLAB"
     ["Goto last error" matlab-shell-last-error t]
     "----"

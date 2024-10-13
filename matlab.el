@@ -7,11 +7,11 @@
 ;; Keywords: MATLAB(R)
 ;; Version:
 
-(defconst matlab-mode-version "5.0"
+(defconst matlab-mode-version "6.0"
   "Current version of MATLAB(R) mode.")
 
 ;;
-;; Copyright (C) 1997-2022 Eric M. Ludlam
+;; Copyright (C) 1997-2024 Eric M. Ludlam
 ;; Copyright (C) 1991-1997 Matthew R. Wette
 ;;
 ;; This program is free software; you can redistribute it and/or modify
@@ -274,7 +274,7 @@ Returns one of 'empty, 'script, 'function, 'class."
                          'function)
                         ((string= str "classdef")
                          'class)
-                        (t (error "Error in script guessing algorithm.")))))
+                        (t (error "Error in script guessing algorithm")))))
 
                (t
                 ;; No function or class - just a script.
@@ -568,7 +568,7 @@ point, but it will be restored for them."
   "Keymap used in MATLAB mode to provide a menu.")
 
 ;; make a menu keymap
-(easy-menu-define matlab-mode-menu matlab-mode-map "MATLAB menu"
+(easy-menu-define matlab-mode-menu matlab-mode-map "MATLAB menu."
   '("MATLAB"
     ["Start MATLAB" matlab-shell
      :active (not (matlab-shell-active-p))
@@ -913,12 +913,14 @@ Uses `regex-opt' if available.  Otherwise creates a 'dumb' expression."
 ;;
 (defun matlab-font-lock-basic-keyword-match (limit)
   "Font lock matcher for basic keywords.
-Fails to match when keywords show up as variables, etc."
+Fails to match when keywords show up as variables, etc.
+Argument LIMIT ."
   (matlab--scan-next-keyword 'fl-simple limit))
 
 (defun matlab-font-lock-vardecl-keyword-match (limit)
   "Font lock matcher for mcos keywords.
-Fails to match when keywords show up as variables, etc."
+Fails to match when keywords show up as variables, etc.
+Argument LIMIT ."
   (matlab--scan-next-keyword 'vardecl limit))
 
 (defvar matlab-fl-anchor-keyword nil)
@@ -1308,8 +1310,8 @@ Variables:
   `fill-column'                 Column used in auto-fill.
   `matlab-indent-function-body' If non-nil, indents body of MATLAB functions.
   `matlab-functions-have-end'   If non-nil, MATLAB functions terminate with end.
-  `matlab-fill-code'            Non-nil, auto-fill code in auto-fill-mode.
-  `matlab-fill-strings'         Non-nil, auto-fill strings in auto-fill-mode.
+  `matlab-fill-code'            Non-nil, auto-fill code in `auto-fill-mode'.
+  `matlab-fill-strings'         Non-nil, auto-fill strings in `auto-fill-mode'.
   `matlab-verify-on-save-flag'  Non-nil, enable code checks on save.
   `matlab-vers-on-startup'      If t, show version on start-up.
   `matlab-handle-simulink'      If t, enable simulink keyword highlighting.
@@ -1795,7 +1797,8 @@ If there isn't one, then return nil, point otherwise."
 (defun matlab-indent-region (start end &optional column noprogress)
   "Indent the region between START And END for MATLAB mode.
 Unlike `indent-region-line-by-line', this function captures
-parsing state and re-uses that state along the way."
+parsing state and re-uses that state along the way.
+Optional argument COLUMN boundary of the filling."
   (interactive)
   (save-excursion
     (setq end (copy-marker end))
@@ -1828,7 +1831,7 @@ parsing state and re-uses that state along the way."
     (matlab--indent-line lvl2)))
 
 (defvar matlab--change-indentation-override #'matlab--change-indentation
-  "Tests to override this to validate indent-region.")
+  "Tests to override this to validate `indent-region'.")
 
 (defun matlab--indent-line (lvl2)
   "Indent the current line according to MATLAB mode.

@@ -1,6 +1,6 @@
 ;;; matlab-shell-gud.el --- GUD support in matlab-shell.
 ;;
-;; Copyright (C) 2019 Eric Ludlam
+;; Copyright (C) 2024 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <eludlam@emacsvm>
 ;;
@@ -819,7 +819,7 @@ Visit the file presented in that breakpoint frame."
 ;;
 
 (defun gud-matlab-debug-tracker ()
-  "Function called when new prompts appear.
+  "Function called when new prompt appear.
 Call debug activate/deactivate features."
   (save-excursion
     (let ((inhibit-field-text-motion t))
@@ -1000,8 +1000,7 @@ Debug commands are:
 Debug commands are:
  \\[mlgud-break]        - Add breakpoint (ebstop in FILE at point)
  \\[mlgud-remove]        - Remove breakpoint (ebclear in FILE at point)
- \\[mlgud-list-breakpoints]        - List breakpoints (ebstatus)
-"
+ \\[mlgud-list-breakpoints]        - List breakpoints (ebstatus)"
   nil " I-MGUD" matlab-shell-inactive-gud-minor-mode-map
 
   ;; Always disable tooltips, in case configured while in the mode.

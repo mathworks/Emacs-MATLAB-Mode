@@ -1,6 +1,6 @@
 ;;; matlab-compat.el --- Compatibility Code
 ;;
-;; Copyright (C) 2019 Eric Ludlam
+;; Copyright (C) 2024 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <eludlam@osboxes>
 ;;
@@ -251,6 +251,11 @@ binary defined by `invocation-name' in `invocation-directory'"
     ;; Return, ec, the emacsclient to use
     ec
     ))
+
+(when (not (fboundp 'string-replace)) ;; string-replace appeared in Emacs 28
+  (defun string-replace (fromstring tostring instring)
+    (let ((case-fold-search nil))
+      (replace-regexp-in-string (regexp-quote fromstring) tostring instring t t))))
 
 (provide 'matlab-compat)
 

@@ -1,6 +1,6 @@
 ;;; matlab-complete.el --- Simple completion tool for matlab-mode
 ;;
-;; Copyright (C) 2019, 2020 Eric Ludlam
+;; Copyright (C) 2019, 2024 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <zappo@gnu.org>
 ;;
@@ -434,7 +434,8 @@ The last type of semantic used while completing things.")
 
 ;;;###autoload
 (defun matlab-complete-symbol (&optional arg)
-  "Complete a partially typed symbol in a MATLAB mode buffer."
+  "Complete a partially typed symbol in a MATLAB mode buffer.
+Optional argument ARG ."
   (interactive "P")
   (if (and (featurep 'matlab-shell) (matlab-shell-active-p) matlab-shell-ask-MATLAB-for-completions)
       ;; Use MATLAB shell if active and asking for completions is enabled.

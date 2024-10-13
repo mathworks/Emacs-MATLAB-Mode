@@ -1,6 +1,6 @@
 ;;; matlab-maint.el --- matlab mode maintainer utilities
 ;;
-;; Copyright (C) 2019 Eric Ludlam
+;; Copyright (C) 2024 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <eludlam@emacsvm>
 ;;
@@ -45,7 +45,7 @@
   "Keymap used by matlab mode maintainers.")
 
 (easy-menu-define
-  matlab-maint-menu matlab-maint-mode-map "MATLAB Maintainer's Minor Mode"
+  matlab-maint-menu matlab-maint-mode-map "MATLAB Maintainer's Minor Mode."
   '("MMaint"
     ["Compile" matlab-maint-compile-matlab-emacs t]
     ["Clean" matlab-maint-compile-clean t]
@@ -60,7 +60,7 @@
 
 ;;;###autoload
 (define-minor-mode matlab-maint-minor-mode
-  "Minor mode for matlab-mode maintainrs."
+  "Minor mode for `matlab-mode' maintainrs."
   nil " MMaint" matlab-maint-mode-map
   )
 
@@ -107,7 +107,7 @@
 ;;
 ;; Helpful commands for maintainers.
 (defcustom matlab-maint-compile-opts '("emacs" "emacs24" "emacs25" "emacs26")
-  "Various emacs versions we can use to compile with."
+  "Various Emacs versions we can use to compile with."
   :group 'matlab-maint
   :type '(repeat (string :tag "Emacs Command: ")))
 
@@ -145,7 +145,7 @@
     ))
 
 (defun matlab-maint-run-tests (arg)
-  "Run the tests for matlab mode.
+  "Run the test for matlab mode.
 With universal ARG, ask for the code to be run with output tracking turned on."
   (interactive "P")
   (when (buffer-file-name)

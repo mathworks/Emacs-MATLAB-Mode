@@ -1,6 +1,6 @@
 ;;; matlab-topic.el --- Help browsing via Emacs buffers.
 ;;
-;; Copyright (C) 2019 Eric Ludlam
+;; Copyright (C) 2024 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <zappo@gnu.org>
 ;;
@@ -83,7 +83,7 @@
 
 (easy-menu-define
  matlab-shell-help-mode-menu matlab-shell-help-mode-map
- "MATLAB shell Help menu"
+ "MATLAB shell Help menu."
  '("MATLAB Help"
    ["Describe This Command" matlab-shell-help-choose t]
    "----"
