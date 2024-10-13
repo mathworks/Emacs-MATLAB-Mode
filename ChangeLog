@@ -1,3 +1,8 @@
+2024-10-13 14:53  Uwe Brauer  <oub@mat.ucm.es>
+
+	* mlint.el (mlint-program-selection-fcn): Start to repair compiler
+	warnings concerning quote in docstrings
+
 2024-10-11 17:17  Uwe Brauer  <oub@mat.ucm.es>
 
 	* tlc.el (tlc--indent-move-up): run checkdoc

@@ -46,7 +46,7 @@
 
 ;; If we can't find an mlint program this fcn will be needed.
 (autoload 'matlab-mode-determine-matlabroot "matlab-shell" "\
-Return the MATLABROOT for the 'matlab-shell-command'.
+Return the MATLABROOT for the \\='matlab-shell-command\\='.
 
 \(fn)" nil nil)
 
@@ -115,18 +115,18 @@ SYMBOL is the variable being set.  VALUE is the new value."
   (mlint-reset-program))
 
 (defvar mlint-program-selection-fcn nil
-  "Function to specify the `mlint-program' for the current buffer.
+  "Function to specify the \\=`mlint-program\\=' for the current buffer.
 For example,
   (eval-after-load \"mlint\"
-   '(setq mlint-program-selection-fcn 'my-function-to-select-mlint-program))
-will setup `my-function-to-select-mlint-program' to pick the mlint for a buffer.
-After opening a *.m file, `my-function-to-select-mlint-program' is called and
+   \\='(setq mlint-program-selection-fcn \\='my-function-to-select-mlint-program))
+will setup \\=`my-function-to-select-mlint-program\\=' to pick the mlint for a buffer.
+After opening a *.m file, \\=`my-function-to-select-mlint-program\\=' is called and
 the appropriate mlint should be returned. If there's no mlint program
 available, nil should be returned and mlint will not be activated.")
 
 (defvar mlint-program nil
   "Program to run for MLint.
-This value can be automatically set by `mlint-programs'.")
+This value can be automatically set by \\=`mlint-programs\\='.")
 
 (defvar mlint-programs) ;; forward declaration to quiet compiler warning
 
@@ -554,7 +554,7 @@ Extracts the replacement for the deprecated symbol from the warning message.")
 
 (cl-defmethod initialize-instance :after ((this mlint-lm-entry-deprecated)
                                           &rest fields)
-  "Calculate the 'new text' for THIS instance.
+  "Calculate the \\='new text\\=' for THIS instance.
 Optional argument FIELDS are the initialization arguments."
   ;; After basic initialization, update the new text field.
   (let* ((warn (oref this warning))
@@ -573,7 +573,7 @@ Optional argument FIELDS are the initialization arguments."
   )
 
 (cl-defmethod initialize-instance :after ((this mlint-lm-function-name) &rest fields)
-  "Compute the 'new text' for THIS to be the file name from the message.
+  "Compute the \\='new text\\=' for THIS to be the file name from the message.
 Optional arguments FIELDS are the initialization arguments."
   (let* ((warn (oref this warning))
          (junk (or (string-match "file name: '\\([a-zA-z][a-zA-z0-9]+\\)'" warn)
