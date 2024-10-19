@@ -305,11 +305,15 @@ It should return nil if there's no region to be highlighted."
   (add-hook 'post-command-hook #'matlab-cell-highlight nil t))
 
 ;;; Keymap
-(defvar matlab-cell-mode-map
+(defvar matlab-cell-mode-map  
   (let ((map (make-sparse-keymap)))
-    ;; (define-key map [(control return)] 'matlab-shell-run-cell)
-    ;; (define-key map [(control down)] 'matlab-cell-forward-cell)
-    ;; (define-key map [(control up)] 'matlab-cell-backward-cell)
+    (define-key map (kbd "C-s-<down>") #'matlab-cell-forward-cell)
+    (define-key map (kbd "C-s-<up>") #'matlab-cell-backward-cell)
+    (define-key map (kbd "C-s-<left>") #'matlab-cell-beginning-of-cell)
+    (define-key map (kbd "C-s-<right>") #'matlab-cell-end-of-cell)
+    (define-key map (kbd "C-x <up>") #'matlab-cell-move-cell-up)
+    (define-key map (kbd "C-x <down>") #'matlab-cell-move-cell-down)
+    (define-key map (kbd "s-<return>") #'matlab-cell-run-till-point)
     map)
   "Key map for Matlab-Cell minor mode.")
 
@@ -331,14 +335,15 @@ functions:
 				     current cell.  Return (point).
 4. `matlab-cell-end-of-cell' : Move point to end of current
 			       cell.  Return (point).
-5. `matlab-move-cell-up' : Move the contents of the current cell
+5. `matlab-cell-move-cell-up' : Move the contents of the current cell
 			   \"up\", so that it occurs before the previous.
-6. `matlab-move-cell-down' : Move the contents of the current cell
+6. `matlab-cell-move-cell-down' : Move the contents of the current cell
 			     \"down\", so that it occurs after the next.
 7. `matlab-cell-run-till-point' : Run all the cells from beginning
 				  till previous cell."
   :init-value nil
   :keymap matlab-cell-mode-map
+  
   ;; (let ((arg `((,matlab-cell-cellbreak-regexp 1 'matlab-cell-cellbreak-face prepend))))
   (make-local-variable 'page-delimiter)
   (setq page-delimiter matlab-cell-cellbreak-regexp)
