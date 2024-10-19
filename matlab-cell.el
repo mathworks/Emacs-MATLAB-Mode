@@ -311,11 +311,11 @@ It should return nil if there's no region to be highlighted."
     (define-key map (kbd "C-s-<up>") #'matlab-cell-backward-cell)
     (define-key map (kbd "C-s-<left>") #'matlab-cell-beginning-of-cell)
     (define-key map (kbd "C-s-<right>") #'matlab-cell-end-of-cell)
-    (define-key map (kbd "C-x <up>") #'matlab-cell-move-cell-up)
-    (define-key map (kbd "C-x <down>") #'matlab-cell-move-cell-down)
+    (define-key map (kbd "s-<up>") #'matlab-cell-move-cell-up)
+    (define-key map (kbd "s-<down>") #'matlab-cell-move-cell-down)
     (define-key map (kbd "s-<return>") #'matlab-cell-run-till-point)
     map)
-  "Key map for Matlab-Cell minor mode.")
+  "Key map for Matlab-Cell minor mode. ")
 
 (defalias 'matlab-cell-what-cell #'what-page)
 (defalias 'matlab-cell-narrow-to-cell #'narrow-to-page)
@@ -326,21 +326,21 @@ It should return nil if there's no region to be highlighted."
 (define-minor-mode matlab-cell-mode
   "Highlight MATLAB-like cells and navigate between them.
 The minor-mode provides the following interactive navigation
-functions:
+functions. The default keybindings are provided in parens for each:
 1. `matlab-cell-forward-cell' : Move point to the beginning of the
-				cell right below.
+   cell right below. (C-s-<down>)
 2. `matlab-cell-backward-cell' : Move point to the end of the cell
-				 right above.
+   right above. (C-s-<up>)
 3. `matlab-cell-beginning-of-cell' : Move point to beginning of
-				     current cell.  Return (point).
-4. `matlab-cell-end-of-cell' : Move point to end of current
-			       cell.  Return (point).
+   current cell.  Return (point). (C-s-<left>)
+4. `matlab-cell-end-of-cell' : Move point to end of current cell.
+   Return (point). (C-s-<right>)
 5. `matlab-cell-move-cell-up' : Move the contents of the current cell
-			   \"up\", so that it occurs before the previous.
-6. `matlab-cell-move-cell-down' : Move the contents of the current cell
-			     \"down\", so that it occurs after the next.
+   \"up\", so that it occurs before the previous. (s-<up>)
+6. `matlab-cell-move-cell-down' : Move the contents of the current
+   cell \"down\", so that it occurs after the next. (s-<down>)
 7. `matlab-cell-run-till-point' : Run all the cells from beginning
-				  till previous cell."
+   till previous cell. (s-<return>)"
   :init-value nil
   :keymap matlab-cell-mode-map
   
