@@ -1,3 +1,9 @@
+2024-10-20 18:55  Nidish Narayanaa Balaji <nidbid@gmail.com>
+
+	* matlab-cell.el: New file, support of matlab-cells (pieces of
+	code), using a minor mode. 
+
+
 2024-10-13 14:53  Uwe Brauer  <oub@mat.ucm.es>
 
 	* mlint.el (mlint-program-selection-fcn): Start to repair compiler

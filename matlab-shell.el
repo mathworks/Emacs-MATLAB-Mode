@@ -124,7 +124,7 @@ will disable use emacsclient as the external editor."
 (defcustom matlab-shell-run-region-function 'auto
   "Technique to use for running a line, region, or cell.
 There are different benefits to different kinds of commands.
-Use 'auto to guess which to use by looking at the environment.
+Use `auto to guess which to use by looking at the environment.
 auto           - guess which to use
 `matlab-shell-region->commandline'
                - Extract region, and generate 1 line of ML code.
@@ -272,7 +272,7 @@ mode.")
 ;;
 ;;;###autoload
 (defun matlab-mode-determine-matlabroot ()
-  "Return the MATLABROOT for the 'matlab-shell-command'."
+  "Return the MATLABROOT for the `matlab-shell-command'."
   (let ((path (file-name-directory matlab-shell-command)))
     ;; if we don't have a path, find the MATLAB executable on our path.
     (when (not path)
@@ -356,7 +356,7 @@ These will differ when MATLAB code changes directory without notifying Emacs."]
      (and (featurep 'custom) (fboundp 'custom-declare-variable))
      ]
     ["Exit" matlab-shell-exit t]))
-(easy-menu-add matlab-shell-menu matlab-shell-mode-map)
+(easy-menu-add matlab-shell-menu matlab-shell-mode-map) ;; can be removed?
 
 
 ;;; MODE
@@ -670,7 +670,7 @@ it returns empty string"
       (save-match-data
 	(if (looking-at comint-prompt-regexp)
 	    ;; We'll send this line.
-	    (buffer-substring-no-properties (match-end 0) (point-at-eol))
+	    (buffer-substring-no-properties (match-end 0) (point-at-eol)) 
 	  ;; Otherwise, it's probably junk that is useless.  Don't do it.
 	  "")))))
 
@@ -1865,7 +1865,7 @@ Optional FCN-P indicates specifies to force treating as a function."
     ans))
 
 (defun matlab-shell-mref-which-fcn (ref)
-  "Try to run 'which' on REF to find actual file location.
+  "Try to run `which' on REF to find actual file location.
 If the MATLAB shell isn't ready to run a which command, skip and
 return nil."
   (when (not matlab-shell-in-process-filter)
@@ -2224,10 +2224,11 @@ This command requires an active MATLAB shell."
     (matlab-shell-run-region (matlab-point-at-bol) (matlab-point-at-eol))))
 
 
+;;;###autoload
 (defun matlab-shell-run-region (beg end &optional noshow)
   "Run region from BEG to END and display result in MATLAB shell.
-If NOSHOW is non-nil, replace newlines with commas to suppress output.
-This command requires an active MATLAB shell."
+If NOSHOW is non-nil, replace newlines with commas to suppress
+output. This command requires an active MATLAB shell." 
   (interactive "r")
   (if (> beg end) (let (mid) (setq mid beg  beg end  end mid)))
 
@@ -2277,7 +2278,8 @@ This command requires an active MATLAB shell."
 (defun matlab-shell-region-command (beg end &optional noshow)
   "Convert the region between BEG and END into a MATLAB command.
 Picks between different options for running the commands.
-Optional argument NOSHOW specifies if we should echo the region to the command line."
+Optional argument NOSHOW specifies if we should echo the region to the
+  command line."
   (cond
    ((eq matlab-shell-run-region-function 'auto)
   
@@ -2315,7 +2317,7 @@ When NOSHOW is non-nil, suppress output by adding ; to commands."
       ;; Delete all the comments
       (while (search-forward "%" nil t)
 	(when (not (matlab-cursor-in-string))
-	  (delete-region (1- (point)) (matlab-point-at-eol))))
+	  (delete-region (1- (point)) (matlab-point-at-eol)))) 
       (setq str (buffer-substring-no-properties (point-min) (point-max))))
 
     ;; Strip out blank lines
@@ -2343,7 +2345,8 @@ When NOSHOW is non-nil, suppress output by adding ; to commands."
   "Create a command to run the region between BEG and END.
 Uses internal MATLAB API to execute the code keeping breakpoints
 and local functions active.
-Optional argument NOSHOW specifies if we should echo the region to the command line."
+Optional argument NOSHOW specifies if we should echo the region to the
+  command line."
   ;; Reduce end by 1 char, as that is how ML treats it
   (setq end (1- end))
 

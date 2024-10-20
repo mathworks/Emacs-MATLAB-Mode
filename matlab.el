@@ -53,6 +53,8 @@
 (require 'matlab-compat)
 (require 'matlab-syntax)
 (require 'matlab-scan)
+(require 'matlab-cell)
+
 (require 'easymenu)
 (require 'derived)
 
@@ -96,7 +98,8 @@ nil (never) means that new *.m files will not enter
   :type 'integer)
 
 (defcustom matlab-array-continuation-indent-level 2
-  "*Basic indentation after continuation within an array if no other methods are found."
+  "*Basic indentation after continuation within an array if no other
+methods are found."
   :group 'matlab
   :type 'integer)
 
@@ -278,9 +281,9 @@ Returns one of 'empty, 'script, 'function, 'class."
                 'script))))))))
 
 (defun matlab-do-functions-have-end-p (&optional no-navigate)
-  "Look at the contents of the current buffer and decide if functions have end.
-If the current value of `matlab-functions-have-end' is 'guess, look @ the buffer.
-If the value is t, then return that."
+  "Look at the contents of the current buffer and decide if functions
+have end. If the current value of `matlab-functions-have-end' is
+'guess, look @ the buffer. If the value is t, then return that."
   (if (eq matlab-functions-have-end 'guess)
       ;; Lets guess what we think the answer is.
       (let ((type (matlab-guess-script-type)))
@@ -1329,6 +1332,7 @@ All Key Bindings:
   ;; and font-lock for comments/strings.
   (matlab-syntax-setup)
   (matlab-scan-setup)
+  (matlab-cell-mode-enable) ;; Enabling cell-mode here. Would a hook be better?
 
   ;; Indentation setup.
   (setq indent-tabs-mode nil)
@@ -2259,10 +2263,10 @@ See `matlab-calculate-indentation' for how the output of this fcn is used."
              ))))))
 
 (defun matlab-electric-indent-function (char)
-  "Return t if `electric-indent-mode' should indent after CHAR is inserted.
-Return nil otherwise.
-This function recommends indenting after special keywords that typically cause indentation
-changes so the code fixes itself up."
+  "Return t if `electric-indent-mode' should indent after CHAR is
+  inserted. Return nil otherwise. 
+This function recommends indenting after special keywords that
+  typically cause indentation changes so the code fixes itself up."
   (cond ((eq char ?e)
          (let ((lvl1 (matlab-compute-line-context 1)))
            (or (matlab-line-block-middle-p lvl1)
