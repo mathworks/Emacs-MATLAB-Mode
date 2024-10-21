@@ -1332,7 +1332,12 @@ All Key Bindings:
   ;; and font-lock for comments/strings.
   (matlab-syntax-setup)
   (matlab-scan-setup)
-  (matlab-cell-mode-enable) ;; Enabling cell-mode here. Would a hook be better?
+  (when (and (not noninteractive)
+             (>= emacs-major-version 28))
+    ;; matlab-cell == "matlab %% sections" and has some cost, thus don't activate in batch mode.
+    ;; matlab-cell with emacs 27, upon loading a *.m files gives
+    ;; File mode specification error: (invalid-function (start-end (matlab-cell-range-function)))
+    (matlab-cell-mode-enable)) ;; Enabling cell-mode here. Would a hook be better?
 
   ;; Indentation setup.
   (setq indent-tabs-mode nil)
