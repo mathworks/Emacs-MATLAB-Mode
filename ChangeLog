@@ -1,7 +1,11 @@
+2024-10-21 17:59  Uwe Brauer  <oub@mat.ucm.es>
+
+	* matlab-mode.el: Repair various syntax errors, thanks to Jonas Bernoulli
+
 2024-10-20 18:55  Nidish Narayanaa Balaji <nidbid@gmail.com>
 
 	* matlab-cell.el: New file, support of matlab-cells (pieces of
-	code), using a minor mode. 
+	code), using a minor mode.
 
 
 2024-10-13 14:53  Uwe Brauer  <oub@mat.ucm.es>
