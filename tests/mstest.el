@@ -33,10 +33,11 @@
 
 (defvar mst-testfile-path) ;; quiet compiler
 
-(require 'matlab-autoload)
+(require 'comint)
+
 (require 'matlab)
 (require 'matlab-shell)
-(require 'comint)
+(require 'matlab-topic)
 
 ;;; Code:
 (defun mstest-run-all-tests ()

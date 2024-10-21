@@ -1481,7 +1481,6 @@ This should work in version before `completion-in-region' was available."
 ;;; Find Files
 ;;
 ;; Finding Files with MATLAB shell.
-;; Originally for use with semantic-matlab, but now used in more places.
 
 (defun matlab-shell-which-fcn (fcn)
   "Get the location of FCN's M file.

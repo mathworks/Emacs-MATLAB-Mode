@@ -180,7 +180,7 @@ adding the following to your =~/.emacs=.
 
 To try this using "stock" emacs, place the above in org-matlab-setup.el and use:
 
- : emacs -q -L /path/to/matlab-mode -l /path/to/matlab-load.el -l org-matlab-setup.el
+ : emacs -q -L /path/to/matlab-mode -l /path/to/matlab-autoload.el -l org-matlab-setup.el
 
 # LocalWords:  showall inlineimages latexpreview usepackage parskip tocloft cftsecnumwidth sinewave
 # LocalWords:  cftsubsecindent cftsubsecnumwidth setq defun isstring fixup matlabp dpng funcall

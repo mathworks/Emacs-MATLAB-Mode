@@ -1,3 +1,8 @@
+2024-10-21 John Ciolfi <ciolfi@mathworks.com>
+	* matlab-autoload.el: Changed matlab-load.el to matlab-autoload.el to be consistent with
+	current Emacs conventions. Eliminated require of matlab-autoload.el from tests.
+	* .dirs-local.el: setup for flycheck
+
 2024-10-21 17:59  Uwe Brauer  <oub@mat.ucm.es>
 
 	* matlab-mode.el: Repair various syntax errors, thanks to Jonas Bernoulli

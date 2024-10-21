@@ -11,5 +11,6 @@
 # Time stamp files created by the Makefile's
 *.tstamp
 
-# matlab-load.el is generated
+# matlab-autoload.el (matlab-load.el was the old name) is generated
+matlab-autoload.el
 matlab-load.el

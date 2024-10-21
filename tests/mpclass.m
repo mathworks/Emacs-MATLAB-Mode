@@ -49,27 +49,4 @@ function localfunc(T)
     disp(T);
 end
 
-%% >> SEMANTIC TEST EXPECTED OUTPUT
-
-%{
-
-(( "mpclass" type
-             ( :type "class" 
-               :superclasses ("handle" "matlab.mixin.SetGetExactNames")
-               :members (
-               ("X" variable)
-               ("Y" variable)
-               ("A" variable (:protection "private"))
-               ("B" variable (:protection "private"))
-               ("mpclass" function (
-                   :return ("obj")
-                   :arguments ("x" "y")))
-               ("do_thing" function (
-                   :protection "protected"
-                   :arguments ("obj" "a" "b"))))))
-    ("localfunc" function (
-        :arguments ("T"))))
-%}
-
-
 %% End

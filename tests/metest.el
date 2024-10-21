@@ -33,6 +33,7 @@
 
 (require 'matlab-autoload)
 (require 'matlab)
+(require 'mlint)
 (require 'matlab-complete)
 
 (defun metest-all-syntax-tests ()
@@ -369,11 +370,6 @@
     ;; Now do the indent in case a bad indent will trigger a bug later.
     (matlab--change-indentation indent)
     ))
-
-(defun metest-compare-tags (EXP ACT)
-  "Return non-nil if EXP tag is similiar to ACT"
-  (semantic-tag-similar-p EXP ACT :documentation)
-  )
 
 (defconst met-kw-font-alist '(( "kw" . font-lock-keyword-face )
 			      ( "ty" . font-lock-type-face )

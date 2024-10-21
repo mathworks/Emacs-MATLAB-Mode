@@ -56,7 +56,7 @@ Add the following to your =~/.emacs= file:
 
 #+begin_src emacs-lisp
   (add-to-list 'load-path "/path/to/Emacs-MATLAB-mode")
-  (load-library "matlab-load")
+  (load-library "matlab-autoload")
 #+end_src
 
 * MathWorks Products ([[https://www.mathworks.com][https://www.mathworks.com]])
