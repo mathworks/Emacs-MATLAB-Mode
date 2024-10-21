@@ -41,11 +41,13 @@ function [out, docTopic] = help(varargin)
     end
     assert(~isempty(builtinHelp));
 
-    % Cd to where built-in help is so we call that first.  On cleanup restore orig working directory.
+    % Cd to where built-in help is so we call that first.
+    % On cleanup restore orig working directory.
     builtinHelpDir = fileparts(builtinHelp);
 
     origCWD=pwd;
     cd(builtinHelpDir);
+    addpath(origCWD); % handle case of 'help foo' where foo.m is in oldCWD
     cleanup = onCleanup(@()cd(origCWD));
 
     if ~strcmp(which('help'), builtinHelp)
