@@ -53,7 +53,7 @@
 (require 'matlab-compat)
 (require 'matlab-syntax)
 (require 'matlab-scan)
-(require 'matlab-cell)
+(require 'matlab-sections)
 
 (require 'derived)
 (require 'easymenu)
@@ -1335,10 +1335,10 @@ All Key Bindings:
   (matlab-scan-setup)
   (when (and (not noninteractive)
              (>= emacs-major-version 28))
-    ;; matlab-cell == "matlab %% sections" and has some cost, thus don't activate in batch mode.
-    ;; matlab-cell with emacs 27, upon loading a *.m files gives
-    ;; File mode specification error: (invalid-function (start-end (matlab-cell-range-function)))
-    (matlab-cell-mode-enable)) ;; Enabling cell-mode here. Would a hook be better?
+    ;; matlab-section == "matlab %% sections" and has some cost, thus don't activate in batch mode.
+    ;; matlab-section with emacs 27, upon loading a *.m files gives
+    ;; File mode specification error: (invalid-function (start-end (matlab-section-range-function)))
+    (matlab-sections-mode-enable)) ;; Enabling section-mode here. Would a hook be better?
 
   ;; Indentation setup.
   (setq indent-tabs-mode nil)
@@ -1686,6 +1686,7 @@ Accounts for nested functions."
       ;; If that end wasn't a decl, scan upward.
       (matlab--scan-block-backward-up-until 'decl))))
 
+; Can be rewritten to use functions from matlab-sections.el ;;;;;;;;;;;;;;;;;;;
 (defun matlab-add-log-current-defun ()
   "Return a text string representing the current block.
 Tries to return the current defun.  If not, look for a
@@ -1710,6 +1711,7 @@ The name is any text after the %% and any whitespace."
         (buffer-substring-no-properties start (point))
         ))
     ))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun matlab-current-defun ()
   "Return the name of the current function."

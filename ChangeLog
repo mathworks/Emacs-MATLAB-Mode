@@ -1,3 +1,7 @@
+2024-10-22 22:55  Nidish Narayanaa Balaji <nidbid@gmail.com>
+
+	* matlab-sections.el: Renamed matlab-cell.el to matlab-sections.el.
+
 2024-10-21 John Ciolfi <ciolfi@mathworks.com>
 	* matlab-autoload.el: Changed matlab-load.el to matlab-autoload.el to be consistent with
 	current Emacs conventions. Eliminated require of matlab-autoload.el from tests.
