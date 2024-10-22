@@ -122,7 +122,7 @@ will disable use emacsclient as the external editor."
 ;;
 ;; Run from Emacs
 (defcustom matlab-shell-run-region-function 'auto
-  "Technique to use for running a line, region, or cell.
+  "Technique to use for running a line, region, or code-section.
 There are different benefits to different kinds of commands.
 Use `auto to guess which to use by looking at the environment.
 auto           - guess which to use
@@ -546,7 +546,7 @@ Try C-h f matlab-shell RET"))
 
     ;; Add pseudo html-renderer
     (add-hook 'comint-output-filter-functions 'matlab-shell-render-html-anchor nil t)
-    ;; Scroll to bottom after running cell/region
+    ;; Scroll to bottom after running code-section/region
     (add-hook 'comint-output-filter-functions 'comint-postoutput-scroll-to-bottom nil t)
 
     ;; Add error renderer to prompt hook so the prompt is available for resolving names.
@@ -2192,15 +2192,15 @@ Similar to  `comint-send-input'."
 ;;
 ;; Run some subset of the buffer in matlab-shell.
 
-(defun matlab-shell-run-cell ()
-  "Run the cell the cursor is in."
+(defun matlab-shell-run-code-section ()
+  "Run the code-section the cursor is in."
   (interactive)
   (let ((start (save-excursion
 		 (forward-page -1)
 		 (if (looking-at "function")
-		     (error "You are not in a cell.  Try `matlab-shell-save-and-go' instead"))
+		     (error "You are not in a code-section.  Try `matlab-shell-save-and-go' instead"))
 		 (when (matlab-line-comment-p (matlab-compute-line-context 1))
-		   ;; Skip over starting comment from the current cell.
+		   ;; Skip over starting comment from the current code-section.
 		   (matlab-end-of-command)
 		   (end-of-line)
 		   (forward-char 1))

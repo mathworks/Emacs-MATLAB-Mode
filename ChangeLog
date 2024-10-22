@@ -1,3 +1,9 @@
+2024-10-22 08:26  Uwe Brauer  <oub@mat.ucm.es>
+
+	* matlab-shell.el (matlab-shell-run-code-section): change name
+	cell-->code-section. Naming convention found in
+	https://www.mathworks.com/help/matlab/matlab_prog/create-and-run-sections.html
+
 2024-10-21 John Ciolfi <ciolfi@mathworks.com>
 	* matlab-autoload.el: Changed matlab-load.el to matlab-autoload.el to be consistent with
 	current Emacs conventions. Eliminated require of matlab-autoload.el from tests.
