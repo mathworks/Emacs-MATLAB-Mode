@@ -42,7 +42,7 @@ Does not work well in classes with properties with datatypes.")
     ;; Comment Handling:
     ;;   Multiline comments:   %{ text %}
     ;;   Single line comments: % text (single char start)
-    ;;   Ellipsis omments:     ... text (comment char is 1st char after 3rd dot)
+    ;;   Ellipsis comments:     ... text (comment char is 1st char after 3rd dot)
     ;;                            ^ handled in `matlab--syntax-propertize'
     (modify-syntax-entry ?%  "< 13" st)
     (modify-syntax-entry ?{  "(} 2c" st)
@@ -75,7 +75,7 @@ Does not work well in classes with properties with datatypes.")
     (modify-syntax-entry ?&  "." st)
     (modify-syntax-entry ?|  "." st)
 
-    ;; Parentheticl blocks:
+    ;; Parenthetical blocks:
     ;;   Note: these are in standard syntax table, repeated here for completeness.
     (modify-syntax-entry ?\(  "()" st)
     (modify-syntax-entry ?\)  ")(" st)
@@ -119,8 +119,8 @@ Does not work well in classes with properties with datatypes.")
 ;;    * matlab--put-char-category - Apply a syntax category to a character
 ;;    * matlab--syntax-symbol     - Create a syntax category symbol
 ;;    * matlab--syntax-propertize - Used as `syntax-propertize-function' for
-;;                                  doing the buffer scan to augment syntxes.
-;;    * matlab--scan-line-*       - Scan for specific types of syntax occurances.
+;;                                  doing the buffer scan to augment syntaxes.
+;;    * matlab--scan-line-*       - Scan for specific types of syntax occurrences.
 
 (defun matlab--put-char-category (pos category)
   "At character POS, put text CATEGORY."
@@ -130,7 +130,7 @@ Does not work well in classes with properties with datatypes.")
   )
 
 (defmacro matlab--syntax-symbol (symbol syntax doc)
-  "Create a new SYMBOL used as a text property category with SYNTAX."
+  "Create a new SYMBOL with DOC used as a text property category with SYNTAX."
   (declare (indent defun))
   `(progn (defvar ,symbol ,syntax ,doc)
 	  (set ',symbol ,syntax) ;; So you can re-eval it.
@@ -155,7 +155,7 @@ Does not work well in classes with properties with datatypes.")
   "Scan region between START and END for unterminated strings.
 Only scans whole-lines, as MATLAB is a line-based language.
 If region is not specified, scan the whole buffer.
-See `matlab--scan-line-for-ellipsis', `matlab--san-line-bad-blockcomment',
+See `matlab--scan-line-for-ellipsis', `matlab--scan-line-bad-blockcomment',
 and `matlab--scan-line-for-unterminated-string' for specific details."
   (save-match-data ;; avoid 'Syntax Checking transmuted the match-data'
     (save-excursion
@@ -170,7 +170,7 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
       (while (and (not (>= (point) (or end (point-max)))) (not (eobp)))
 
 	(when matlab-syntax-support-command-dual
-	  ;; Commandl line dual comes first to prevent wasting time
+	  ;; Command line dual comes first to prevent wasting time
 	  ;; in later checks.
 	  (beginning-of-line)
 	  (when (matlab--scan-line-for-command-dual)
@@ -214,11 +214,12 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
     "dbstop" "dbclear"
     ;; Graphics
     "print" "xlim" "ylim" "zlim" "grid" "hold" "box" "colormap" "axis")
-  "Functions that are commonly used with commandline dual.")
+  "Functions that are commonly used with command line dual.")
 (defconst matlab-cds-regex (regexp-opt matlab-syntax-commanddual-functions 'symbols))
 
 (defun matlab--scan-line-for-command-dual (&optional debug)
-  "Scan this line for command line duality strings."
+  "Scan this line for command line duality strings.
+DEBUG is ignored."
   ;; Note - add \s$ b/c we'll add that syntax to the first letter, and it
   ;; might still be there during an edit!
   (let ((case-fold-search nil))
@@ -233,10 +234,11 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
   "Treat ' as non-string when used as transpose.")
 
 (matlab--syntax-symbol matlab--quoted-string-syntax '(9 . nil) ;; 9 = escape in a string
-  "Treat '' or \"\" as not string delimeteres when inside a string.")
+  "Treat '' or \"\" as not string delimiters when inside a string.")
 
 (defun matlab--scan-line-for-unterminated-string (&optional debug)
-  "Scan this line for an unterminated string, leave cursor on starting string char."
+  "Scan this line for an unterminated string, leave cursor on starting string char.
+DEBUG is ignored."
   ;; First, scan over all the string chars.
   (save-restriction
     (narrow-to-region (line-beginning-position) (line-end-position))
@@ -305,7 +307,7 @@ Called when comments found in `matlab--scan-line-for-unterminated-string'."
 ;;
 ;; We'd like to support multiple kinds of strings and comments.  To do
 ;; that we overload `font-lock-syntactic-face-function' with our own.
-;; This does the same job as the orriginal, except we scan the start
+;; This does the same job as the original, except we scan the start
 ;; for special cookies left behind by `matlab--syntax-propertize' and
 ;; use that to choose different fonts.
 (defun matlab--font-lock-syntactic-face (pps)
@@ -314,7 +316,7 @@ Called when comments found in `matlab--scan-line-for-unterminated-string'."
   ;; (if (nth 3 state) font-lock-string-face font-lock-comment-face)
   (if (nth 3 pps)
       ;; This is a string.  Check the start char to see if it was
-      ;; marked as an unterminate string.
+      ;; marked as an unterminated string.
       (cond ((get-text-property (nth 8 pps) 'unterminated)
 	     'matlab-unterminated-string-face)
 	    ((get-text-property (nth 8 pps) 'command-dual)
@@ -388,7 +390,7 @@ Safe to use in `matlab-mode-hook'."
   "Return t if the cursor is in a valid MATLAB character vector or string scalar.
 Note: INCOMPLETE is now obsolete
 If the optional argument INCOMPLETE is non-nil, then return t if we
-are in what could be a an incomplete string. (Note: this is also the default)"
+are in what could be a an incomplete string.  (Note: this is also the default)"
   (nth 3 (syntax-ppss (point))))
 
 (defun matlab-cursor-comment-string-context (&optional bounds-sym)
@@ -444,7 +446,8 @@ bounds of the string or comment the cursor is in"
 
 (defsubst matlab-beginning-of-string-or-comment (&optional all-comments)
   "If the cursor is in a string or comment, move to the beginning.
-Returns non-nil if the cursor is in a comment."
+Returns non-nil if the cursor is in a comment.
+Optional ALL-COMMENTS if t, move to first."
   (let* ((pps (syntax-ppss (point))))
     (prog1
 	(when (nth 8 pps)
@@ -472,7 +475,7 @@ Returns non-nil if the cursor moved."
 	  ;; so error.
 	  (when (< (point) start)
 	    (goto-char start)
-	    (error "Error navitaging syntax"))
+	    (error "Error navigating syntax"))
 	  t)
       ;; else not in comment, but still skip 'all-comments' if requested.
       (when (and all-comments (looking-at "\\s-*\\s<"))
@@ -484,13 +487,13 @@ Returns non-nil if the cursor moved."
 ;;
 ;; MATLAB's lists are (), {}, [].
 ;; We used to need to do special stuff, but now I think this
-;; is just a call striaght to up-list.
+;; is just a call straight to up-list.
 
 (defun matlab-up-list (count)
   "Move forwards or backwards up a list by COUNT.
 When travelling backward, use `syntax-ppss' counted paren
 starts to navigate upward.
-When travelling forward, use \\='up-list\\=' diretly, but disable
+When travelling forward, use \\='up-list\\=' directly, but disable
 comment and string crossing."
   (save-restriction
     (matlab-beginning-of-string-or-comment)
@@ -571,3 +574,7 @@ If COUNT is negative, travel backward."
 (provide 'matlab-syntax)
 
 ;;; matlab-syntax.el ends here
+
+;; LocalWords:  Ludlam eludlam compat booleanp propertize varname defmacro oldsyntax progn edebug
+;; LocalWords:  ppss sexp pps defun eobp mcm blockcomment EOL defconst commanddual cds bolp eol
+;; LocalWords:  cellbreak setq defsubst charvector memq sexps posn parens
