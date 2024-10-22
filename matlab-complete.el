@@ -52,10 +52,10 @@
   "*How the `matlab-complete-symbol' interfaces with the user.
 Valid values are:
 
-'increment - which means that new strings are tried with each
+\='increment - which means that new strings are tried with each
              successive call until all methods are exhausted.
              (Similar to `hippie-expand'.)
-'complete  - Which means that if there is no single completion, then
+\='complete  - Which means that if there is no single completion, then
              all possibilities are displayed in a completion buffer."
   :group 'matlab
   :type '(radio (const :tag "Incremental completion (hippie-expand)."
@@ -197,9 +197,9 @@ This list still needs lots of help.")
 
 (defun matlab-lattr-semantics (&optional prefix)
   "Return the semantics of the current position.
-Values are nil 'solo, 'value, and 'boolean.  Boolean is a subset of
+Values are nil \='solo, \='value, and \='boolean.  Boolean is a subset of
 value.  nil means there is no semantic content (ie, string or comment.)
-If optional PREFIX, then return 'solo if that is the only thing on the
+If optional PREFIX, then return \='solo if that is the only thing on the
 line."
   (cond
    ((or (matlab-line-empty-p (matlab-compute-line-context 1))
@@ -446,7 +446,8 @@ Optional argument ARG ."
 
 (defun matlab-complete-symbol-with-shell (&optional arg)
   "Complete a partially typed symbol in a MATLAB mode buffer using `matlab-shell'.
-Use `completion-in-region' to support the completion behavior."
+Use `completion-in-region' to support the completion behavior.
+ARG is ignored."
   (interactive "P")
   ;; Try to do completion with the shell
   (matlab-navigation-syntax
@@ -466,7 +467,7 @@ Use `completion-in-region' to support the completion behavior."
   )
 
 (defun matlab--complete-compute-search-functions (semantics)
-  "Return the search functions for context specified by SEMATNICS."
+  "Return the search functions for context specified by SEMANTICS."
   (cond ((eq semantics 'solo)
 	 '(matlab-solo-completions
 	   matlab-find-user-functions
@@ -502,7 +503,7 @@ tried first.  If the line is blank, then flow control, or high level
 functions are tried first.
   The completion technique is controlled with `matlab-completion-technique'
 It defaults to incremental completion described above.  If a
-completion list is preferred, then change this to 'complete.  If you
+completion list is preferred, then change this to \='complete.  If you
 just want a completion list once, then use the universal argument ARG
 to change it temporarily."
   (interactive "P")
@@ -576,11 +577,10 @@ to change it temporarily."
 
 
 (provide 'matlab-complete)
-
 ;;; matlab-complete.el ends here
 
-;; LocalWords:  el Ludlam zappo ish defcustom CLim XColor XDir XLabel
-;; LocalWords:  XAxis XScale YColor YDir YAxis YScale YTick ZColor ZDir ZGrid
+;; LocalWords:  el Ludlam zappo ish defcustom CLim XColor XDir XLabel fboundp nlst vardecl featurep
+;; LocalWords:  XAxis XScale YColor YDir YAxis YScale YTick ZColor ZDir ZGrid substr
 ;; LocalWords:  ZLabel ZScale ZTick Dithermap defun lst tl setq cdr defmacro
 ;; LocalWords:  nreverse eol progn foundlst expandto listp stringp sem lattr
 ;; LocalWords:  donext funcall allsyms mapcar
