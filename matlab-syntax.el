@@ -239,7 +239,7 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
   "Scan this line for an unterminated string, leave cursor on starting string char."
   ;; First, scan over all the string chars.
   (save-restriction
-    (narrow-to-region (point-at-bol) (point-at-eol))
+    (narrow-to-region (line-beginning-position) (line-end-position))
     (beginning-of-line)
     (condition-case err
 	(while (re-search-forward "\\s\"\\|\\s<" nil t)
@@ -289,13 +289,13 @@ Called when comments found in `matlab--scan-line-for-unterminated-string'."
 
 (defun matlab--scan-line-bad-blockcomment ()
   "Scan this line for invalid block comment start."
-  (when (and (re-search-forward "%{" (point-at-eol) t) (not (looking-at "\\s-*$")))
+  (when (and (re-search-forward "%{" (line-end-position) t) (not (looking-at "\\s-*$")))
     (goto-char (1- (match-end 0)))
     t))
 
 (defun matlab--scan-line-for-ellipsis ()
   "Scan this line for an ellipsis."
-  (when (re-search-forward "\\.\\.\\." (point-at-eol) t)
+  (when (re-search-forward "\\.\\.\\." (line-end-position) t)
     (goto-char (match-beginning 0))
     t))
 
@@ -393,11 +393,11 @@ are in what could be a an incomplete string. (Note: this is also the default)"
 
 (defun matlab-cursor-comment-string-context (&optional bounds-sym)
   "Return the comment/string context of cursor for the current line.
-Return 'comment if in a comment.
-Return 'string if in a string.
-Return 'charvector if in a character vector
-Return 'ellipsis if after an ... ellipsis
-Return 'commanddual if in text interpreted as string for command dual
+Return \\='comment if in a comment.
+Return \\='string if in a string.
+Return \\='charvector if in a character vector
+Return \\='ellipsis if after an ... ellipsis
+Return \\='commanddual if in text interpreted as string for command dual
 Return nil if none of the above.
 Scans from the beginning of line to determine the context.
 If optional BOUNDS-SYM is specified, set that symbol value to the
@@ -490,7 +490,7 @@ Returns non-nil if the cursor moved."
   "Move forwards or backwards up a list by COUNT.
 When travelling backward, use `syntax-ppss' counted paren
 starts to navigate upward.
-When travelling forward, use 'up-list' diretly, but disable
+When travelling forward, use \\='up-list\\=' diretly, but disable
 comment and string crossing."
   (save-restriction
     (matlab-beginning-of-string-or-comment)
