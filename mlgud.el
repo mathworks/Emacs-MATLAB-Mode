@@ -39,7 +39,7 @@
 ;; <shane@spr.com> added support for xdb (HPUX debugger).  Rick Sladkey
 ;; <jrs@world.std.com> wrote the GDB command completion code.  Dave Love
 ;; <d.love@dl.ac.uk> added the IRIX kluge, re-implemented the Mips-ish variant
-;; and added a menu. Brian D. Carlstrom <bdc@ai.mit.edu> combined the IRIX
+;; and added a menu.  Brian D. Carlstrom <bdc@ai.mit.edu> combined the IRIX
 ;; kluge with the gud-xdb-directories hack producing gud-dbx-directories.
 ;; Derek L. Davies <ddavies@world.std.com> added support for jdb (Java
 ;; debugger.)
@@ -77,6 +77,7 @@ pdb (Python), and jdb."
 (put 'mlgud-find-file 'permanent-local t)
 
 (defun mlgud-marker-filter (&rest args)
+  "Marker filter ARGS."
   (apply mlgud-marker-filter args))
 
 (defvar mlgud-minor-mode nil)
@@ -91,12 +92,13 @@ pdb (Python), and jdb."
 MINOR-MODE defaults to `mlgud-minor-mode'.
 The symbol returned is `mlgud-<MINOR-MODE>-<SYM>'.
 If SOFT is non-nil, returns nil if the symbol doesn't already exist."
-  (unless (or minor-mode mlgud-minor-mode) (error "mlGud internal error"))
+  (unless (or minor-mode mlgud-minor-mode) (error "Internal error"))
   (funcall (if soft 'intern-soft 'intern)
 	   (format "mlgud-%s-%s" (or minor-mode mlgud-minor-mode) sym)))
 
 (defun mlgud-val (sym &optional minor-mode)
-  "Return the value of `mlgud-symbol' SYM.  Default to nil."
+  "Return the value of `mlgud-symbol' SYM.  Default to nil.
+MINOR-MODE."
   (let ((sym (mlgud-symbol sym t minor-mode)))
     (if (boundp sym) (symbol-value sym))))
 
@@ -116,6 +118,7 @@ Used to gray out relevant toolbar icons.")
     (info-other-window "(emacs)Debuggers")))
 
 (defun mlgud-tool-bar-item-visible-no-fringe ()
+  "Tool bar fringe."
   (not (or (eq (buffer-local-value 'major-mode (window-buffer)) 'speedbar-mode)
 	   (eq (buffer-local-value 'major-mode (window-buffer)) 'gdb-memory-mode)
 	   (and (eq mlgud-minor-mode 'gdbmi)
@@ -124,6 +127,7 @@ Used to gray out relevant toolbar icons.")
 (declare-function gdb-gud-context-command "gdb-mi.el")
 
 (defun mlgud-stop-subjob ()
+  "Stop."
   (interactive)
   (with-current-buffer mlgud-comint-buffer
     (cond ((string-equal mlgud-target-name "emacs")
@@ -161,7 +165,7 @@ Used to gray out relevant toolbar icons.")
        (car x) (cdr x) map))))
 
 (defun mlgud-file-name (f)
-  "Transform a relative file name to an absolute file name.
+  "Transform a relative file name to an absolute file name, F.
 Uses `mlgud-<MINOR-MODE>-directories' to find the source files."
   ;; When `default-directory' is a remote file name, prepend its
   ;; remote part to f, which is the local file name.  Fortunately,
@@ -181,7 +185,10 @@ Uses `mlgud-<MINOR-MODE>-directories' to find the source files."
 
 (declare-function gdb-create-define-alist "gdb-mi" ())
 
+(defvar mlgud-tooltip-mode) ;; defined below
+
 (defun mlgud-find-file (file)
+  "Find FILE for mlgud."
   ;; Don't get confused by double slashes in the name that comes from GDB.
   (while (string-match "//+" file)
     (setq file (replace-match "/" t t file)))
@@ -217,8 +224,8 @@ Uses `mlgud-<MINOR-MODE>-directories' to find the source files."
 ;; MLGUD prefix.
 
 (defmacro mlgud-def (func cmd &optional doc)
-  "Define FUNC to be a command sending CMD, with
-optional doc string DOC.  Certain %-escapes in the string arguments
+  "Define FUNC to be a command sending CMD.
+Optional doc string DOC.  Certain %-escapes in the string arguments
 are interpreted specially if present.  These are:
 
   %f -- Name (without directory) of current source file.
@@ -352,7 +359,7 @@ The value t means that there is no stack, and we are in display-file mode.")
 ;; Make sure our special speedbar mode is loaded
 (if (featurep 'speedbar)
     (mlgud-install-speedbar-variables)
-  (add-hook 'speedbar-load-hook 'mlgud-install-speedbar-variables))
+  (with-eval-after-load "speedbar" (mlgud-install-speedbar-variables)))
 
 (defun mlgud-expansion-speedbar-buttons (_directory _zero)
   "Wrapper for call to `speedbar-add-expansion-list'.
@@ -524,8 +531,8 @@ required by the caller."
 (define-derived-mode mlgud-mode comint-mode "Debugger"
   "Major mode for interacting with an inferior debugger process.
 
-   You start it up with one of the commands M-x gdb, M-x sdb, M-x dbx,
-M-x perldb, M-x xdb, or M-x jdb.  Each entry point finishes by executing a
+   You start it up with one of the commands \\[gdb], \\[sdb], \\[dbx],
+\\[perldb], \\[xdb], or \\[jdb].  Each entry point finishes by executing a
 hook; `gdb-mode-hook', `sdb-mode-hook', `dbx-mode-hook',
 `perldb-mode-hook', `xdb-mode-hook', or `jdb-mode-hook' respectively.
 
@@ -564,7 +571,8 @@ If you are using gdb or xdb, \\[mlgud-finish] runs execution to the return from
 the current function and stops.
 
 All the keystrokes above are accessible in the MLGUD buffer
-with the prefix C-c, and in all buffers through the prefix C-x C-a.
+with the prefix Control-c, and in all buffers through the
+prefix Control-x Control-a.
 
 All pre-defined functions for which the concept make sense repeat
 themselves the appropriate number of times if you give a prefix
@@ -588,6 +596,7 @@ comint mode, which see."
   (add-hook 'kill-buffer-hook 'mlgud-kill-buffer-hook nil t))
 
 (defun mlgud-set-buffer ()
+  "Set buffer for mlgud."
   (when (derived-mode-p 'mlgud-mode)
     (setq mlgud-comint-buffer (current-buffer))))
 
@@ -604,6 +613,7 @@ It is saved for when this flag is not set.")
   "Non-nil means this is text that has been saved for later in `mlgud-filter'.")
 
 (defun mlgud-filter (proc string)
+  "Filter PROC STRING."
   ;; Here's where the actual buffer insertion is done
   (let (output process-window)
     (if (buffer-name (process-buffer proc))
@@ -672,6 +682,7 @@ It is saved for when this flag is not set.")
 (defvar speedbar-previously-used-expansion-list-name)
 
 (defun mlgud-sentinel (proc msg)
+  "Sentinel PROC MSG for mlgud."
   (cond ((null (buffer-name (process-buffer proc)))
 	 ;; buffer killed
 	 ;; Stop displaying an arrow in a source file.
@@ -717,6 +728,7 @@ It is saved for when this flag is not set.")
 	     (set-buffer obuf))))))
 
 (defun mlgud-kill-buffer-hook ()
+  "Kill buffer hook for mlgud."
   (setq mlgud-minor-mode-type mlgud-minor-mode)
   (condition-case nil
       (progn
@@ -725,6 +737,7 @@ It is saved for when this flag is not set.")
     (error nil)))
 
 (defun mlgud-reset ()
+  "Reset mlgud."
   (dolist (buffer (buffer-list))
     (unless (eq buffer mlgud-comint-buffer)
       (with-current-buffer buffer
@@ -754,6 +767,7 @@ Obeying it means displaying in another window the specified file and line."
 ;; to get around the fact that this is called inside a save-excursion.
 
 (defun mlgud-display-line (true-file line)
+  "Display line for mlgud TRUE-FILE and LINE."
   (let* ((last-nonmenu-event t)	 ; Prevent use of dialog box for questions.
 	 (buffer
 	  (with-current-buffer mlgud-comint-buffer
@@ -800,6 +814,7 @@ Obeying it means displaying in another window the specified file and line."
 ;; mlgud-last-frame.  Here's how we do it:
 
 (defun mlgud-format-command (str arg)
+  "Format command STR ARG."
   (let ((insource (not (eq (current-buffer) mlgud-comint-buffer)))
 	(frame (or mlgud-last-frame mlgud-last-last-frame))
 	result)
@@ -862,6 +877,7 @@ Obeying it means displaying in another window the specified file and line."
 	    (buffer-substring begin (point))))))))
 
 (defun mlgud-call (fmt &optional arg)
+  "Call FMT ARG."
   (let ((msg (mlgud-format-command fmt arg)))
     (message "Command: %s" msg)
     (sit-for 0)
@@ -890,7 +906,7 @@ Obeying it means displaying in another window the specified file and line."
             (process-send-string proc (concat command "\n"))))))))
 
 (defun mlgud-refresh (&optional arg)
-  "Fix up a possibly garbled display, and redraw the arrow."
+  "Fix up a possibly garbled display, and redraw the arrow, ARG optional."
   (interactive "P")
   (or mlgud-last-frame (setq mlgud-last-frame mlgud-last-last-frame))
   (mlgud-display-frame)
@@ -903,6 +919,7 @@ Obeying it means displaying in another window the specified file and line."
 (defvar mlgud-find-expr-function 'mlgud-find-c-expr)
 
 (defun mlgud-find-expr (&rest args)
+  "Find expression using ARGS."
   (let ((expr (if (and transient-mark-mode mark-active)
 		  (buffer-substring (region-beginning) (region-end))
 		(apply mlgud-find-expr-function args))))
@@ -926,7 +943,7 @@ Obeying it means displaying in another window the specified file and line."
 ;; Rich Schaefer <schaefer@asc.slb.com> Schlumberger, Austin, Tx.
 
 (defun mlgud-find-c-expr ()
-  "Returns the expr that surrounds point."
+  "Return the expr that surrounds point."
   (interactive)
   (save-excursion
     (let ((p (point))
@@ -951,7 +968,7 @@ Obeying it means displaying in another window the specified file and line."
       (buffer-substring (car expr) (cdr expr)))))
 
 (defun mlgud-innermost-expr ()
-  "Returns the smallest expr that point is in; move point to beginning of it.
+  "Return the smallest expr that point is in; move point to beginning of it.
 The expr is represented as a cons cell, where the car specifies the point in
 the current buffer that marks the beginning of the expr and the cdr specifies
 the character after the end of the expr."
@@ -971,19 +988,19 @@ the character after the end of the expr."
     (cons begin end)))
 
 (defun mlgud-backward-sexp ()
-  "Version of `backward-sexp' that catches errors."
+  "Version of `backward-sexp' to catch errors."
   (condition-case nil
       (backward-sexp)
     (error t)))
 
 (defun mlgud-forward-sexp ()
-  "Version of `forward-sexp' that catches errors."
+  "Version of `forward-sexp' to catch errors."
   (condition-case nil
      (forward-sexp)
     (error t)))
 
 (defun mlgud-prev-expr ()
-  "Returns the previous expr, point is set to beginning of that expr.
+  "Return the previous expr, point is set to beginning of that expr.
 The expr is represented as a cons cell, where the car specifies the point in
 the current buffer that marks the beginning of the expr and the cdr specifies
 the character after the end of the expr"
@@ -996,7 +1013,7 @@ the character after the end of the expr"
     (cons begin end)))
 
 (defun mlgud-next-expr ()
-  "Returns the following expr, point is set to beginning of that expr.
+  "Return the following expr, point is set to beginning of that expr.
 The expr is represented as a cons cell, where the car specifies the point in
 the current buffer that marks the beginning of the expr and the cdr specifies
 the character after the end of the expr."
@@ -1031,7 +1048,7 @@ If no punctuation is found, return `? '."
     result))
 
 (defun mlgud-expr-compound (first second)
-  "Non-nil if concatenating FIRST and SECOND makes a single C expression.
+  "Non-nil if concatenating FIRST and SECOND make a single C expression.
 The two exprs are represented as a cons cells, where the car
 specifies the point in the current buffer that marks the beginning of the
 expr and the cdr specifies the character after the end of the expr.
@@ -1179,7 +1196,7 @@ ACTIVATEP non-nil means activate mouse motion events."
 (declare-function tooltip-start-delayed-tip "tooltip" ())
 
 (defun mlgud-tooltip-mouse-motion (event)
-  "Command handler for mouse movement events in `global-map'."
+  "Command handler for mouse movement EVENT in `global-map'."
   (interactive "e")
   (tooltip-hide)
   (when (car (mouse-pixel-position))
@@ -1218,7 +1235,7 @@ With arg, dereference expr if ARG is positive, otherwise do not dereference."
 ; it may be difficult to do better. Using GDB/MI as in
 ; gdb-mi.el gets around this problem.
 (defun mlgud-tooltip-process-output (process output)
-  "Process debugger output and show it in a tooltip window."
+  "PROCESS debugger OUTPUT and show it in a tooltip window."
   (remove-function (process-filter process) #'mlgud-tooltip-process-output)
   (tooltip-show (tooltip-strip-prompt process output)
 		(or mlgud-tooltip-echo-area tooltip-use-echo-area
@@ -1296,3 +1313,12 @@ so they have been disabled."))
 (provide 'mlgud)
 
 ;;; mlgud.el ends here
+
+;; LocalWords:  gud gdb esr Schelter wfs ics utexas edu rms Masanobu sdb dbx bwarsaw cen comint
+;; LocalWords:  shane spr xdb HPUX Sladkey jrs dl uk IRIX Mips ish Carlstrom bdc mit ddavies jdb
+;; LocalWords:  alist hl perldb pdb defun funcall boundp gdbmi speedbar subjob keymap dolist pstar
+;; LocalWords:  nexti stepi cdr setq buf stringp noselect nowarn FUNC docstring defmacro func progn
+;; LocalWords:  defalias dframe stackframe featurep tfunc tdata tface prevline varnum repeat:nil
+;; LocalWords:  pcase memq SPC docfile tbreak ignoredups obuf eobp nonmenu modtime adef Flpc subst
+;; LocalWords:  nondirectory bolp gdbsrc asc slb schaefer Schlumberger prev sexp defcustom activatep
+;; LocalWords:  eventp posn elt
