@@ -147,7 +147,7 @@ Caches some found regexp to retrieve them faster."
 ;; as quickly as possible.
 
 (defun matlab-compute-line-context (level &rest context)
-  "Compute and return the line context for the current line of MATLAB code.
+  "Compute and return the line CONTEXT for the current line of MATLAB code.
 LEVEL indicates how much information to return.
 LEVEL of 1 is the most primitive / simplest data.
 LEVEL of 2 is stuff that is derived from previous lines of code.
@@ -212,7 +212,7 @@ in a single call using fastest methods."
     (let* ((ppsbol (syntax-ppss (point))) ;; Use the cache
 	   (pps (progn (back-to-indentation)
 		       ;; Compute by hand - leaving cache alone.
-		       (parse-partial-sexp (point-at-bol)
+		       (parse-partial-sexp (line-beginning-position)
 					   (point)
 					   nil nil
 					   ;; previous state
@@ -221,7 +221,7 @@ in a single call using fastest methods."
 		     ;; Starting @ indentation, parse forward to eol
 		     ;; and see where we are.
 		     ;; Compute by hand, leaving cache alone.
-		     (parse-partial-sexp (point) (point-at-eol)
+		     (parse-partial-sexp (point) (line-end-position)
 					 nil nil
 					 ;; Previous state
 					 pps)))
@@ -348,7 +348,7 @@ in a single call using fastest methods."
 ;;
 ;; Use these to query a context for a piece of data
 (defmacro matlab-with-context-line (__context &rest forms)
-  "Save excursion, and move point to the line specified by CONTEXT.
+  "Save excursion, and move point to the line specified by __CONTEXT FORMS.
 Takes a lvl1 or lvl2 context.
 Returns the value from the last part of forms."
   (declare (indent 1) (debug (form &rest form)))
@@ -361,7 +361,7 @@ Returns the value from the last part of forms."
      ,@forms))
 
 (defsubst matlab-line-point (lvl1)
-  "Return the point at beginning of indentation for line specified by lvl1."
+  "Return the point at beginning of indentation for line specified by LVL1."
   (nth mlf-point lvl1))
 
 (defsubst matlab-line-indentation (lvl1)
@@ -374,23 +374,23 @@ Returns the value from the last part of forms."
 
 ;; Comments
 (defsubst matlab-line-comment-p (lvl1)
-  "Return t if the current line is a comment."
+  "Return t if the current line is a comment LVL1."
   (eq (car lvl1) 'comment))
 
 (defsubst matlab-line-regular-comment-p (lvl1)
-  "Return t if the current line is a comment w/ no attributes."
+  "Return t if the current line is a comment w/ no attributes LVL1."
   (and (eq (car lvl1) 'comment) (eq (nth 1 lvl1) nil)))
 
 (defsubst matlab-line-comment-ignore-p (lvl1)
-  "Return t if the current line is an indentation ignored comment."
+  "Return t if the current line is an indentation ignored comment LVL1."
   (and (matlab-line-comment-p lvl1) (eq (nth mlf-stype lvl1) 'indent-ignore)))
 
 (defsubst matlab-line-comment-style (lvl1)
-  "Return type type of comment on this line."
+  "Return type type of comment on this line LVL1."
   (and (matlab-line-comment-p lvl1) (nth mlf-stype lvl1)))
 
 (defsubst matlab-line-end-comment-column (lvl1)
-  "Return column of comment on line, or nil if no comment.
+  "Return column of comment on line, or nil if no comment LVL1.
 All lines that start with a comment end with a comment."
   (when (eq (nth mlf-end-comment-type lvl1) 'comment)
     (save-excursion
@@ -400,21 +400,21 @@ All lines that start with a comment end with a comment."
       (current-column))))
 
 (defsubst matlab-line-end-comment-point (lvl1)
-  "Return star of comment on line, or nil if no comment.
+  "Return star of comment on line, or nil if no comment LVL1.
 All lines that start with a comment end with a comment."
   (when (eq (nth mlf-end-comment-type lvl1) 'comment)
     (nth mlf-end-comment-pt lvl1)))
 
 (defsubst matlab-line-ellipsis-p (lvl1)
-  "Return if this line ends with a comment."
+  "Return if this line ends with a comment LVL1."
   (eq (nth mlf-end-comment-type lvl1) 'ellipsis))
 
 (defsubst matlab-line-commanddual-p (lvl1)
-  "Return if this line ends with command duality string."
+  "Return if this line ends with command duality string LVL1."
   (eq (nth mlf-end-comment-type lvl1) 'commanddual))
 
 (defsubst matlab-line-block-comment-start (lvl1)
-  "Return the start of the block comment we are in, or nil."
+  "Return the start of the block comment we are in, or nil LVL1."
   (when (and (matlab-line-comment-p lvl1)
 	     (memq (nth mlf-stype lvl1)
 		   '(block-start block-end block-body block-body-prefix)))
@@ -422,40 +422,40 @@ All lines that start with a comment end with a comment."
 
 ;; Code and Declarations
 (defsubst matlab-line-code-p (lvl1)
-  "Return t if the current line is code."
+  "Return t if the current line is code LVL1."
   (eq (car lvl1) 'code))
 
 (defsubst matlab-line-boring-code-p (lvl1)
-  "Return t if the current line is code w/ no keyword."
+  "Return t if the current line is code w/ no keyword LVL1."
   (and (eq (car lvl1) 'code) (not (nth 1 lvl1))))
 
 (defsubst matlab-line-block-start-keyword-p (lvl1)
-  "Return t if the current line starts with block keyword."
+  "Return t if the current line begins with block keyword LVL1."
   (eq (car lvl1) 'block-start))
 
 (defsubst matlab-line-declaration-p (lvl1)
   "If the current line is a declaration return non-nil.
-Declarations are things like function or classdef."
+Declarations are things like function or classdef LVL1."
   (and (matlab-line-block-start-keyword-p lvl1) (eq (nth mlf-stype lvl1) 'decl)))
 
 (defsubst matlab-line-end-p (lvl1)
-  "Non nil If the current line starts with an end."
+  "Non nil If the current line begins with an end LVL1."
   (eq (car lvl1) 'end))
 
 (defsubst matlab-line-block-middle-p (lvl1)
-  "Non nil If the current line starts with a middle block keyword.
-These are keywords like `else' or `catch'."
+  "Non nil If the current line begins with a middle block keyword.
+These are keywords like `else' or `catch' LVL1."
   (and (eq (car lvl1) 'block-start) (eq (nth 1 lvl1) 'mid)))
 
 (defsubst matlab-line-block-case-p (lvl1)
-  "Non nil If the current line starts with a middle block keyword.
-These are keywords like `else' or `catch'."
+  "Non nil If the current line begins with a middle block keyword.
+These are keywords like `else' or `catch' LVL1."
   (and (eq (car lvl1) 'block-start) (eq (nth 1 lvl1) 'case)))
 
 (defun matlab-line-end-of-code (&optional lvl1)
   "Go to the end of the code on the current line.
 If there is a comment or ellipsis, go to the beginning of that.
-If the line starts with a comment return nil, otherwise t."
+If the line starts with a comment return nil, otherwise t LVL1."
   (unless lvl1 (setq lvl1 (matlab-compute-line-context 1)))
   (goto-char (nth mlf-point lvl1))
   (if (or (matlab-line-empty-p lvl1) (matlab-line-comment-p lvl1))
@@ -463,12 +463,12 @@ If the line starts with a comment return nil, otherwise t."
     ;; Otherwise, look for that code.
     (if (eq (nth mlf-end-comment-type lvl1) 'comment)
 	(goto-char (nth mlf-end-comment-pt lvl1))
-      (goto-char (point-at-eol)))))
+      (goto-char (line-end-position)))))
 
 (defun matlab-line-end-of-code-needs-semicolon-p (&optional lvl1)
   "Return non-nil of this line of code needs a semicolon.
 Move cursor to where the ; should be inserted.
-Return nil for empty and comment only lines."
+Return nil for empty and comment only lines LVL1."
   (unless lvl1 (setq lvl1 (matlab-compute-line-context 1)))
   (let ((endpt nil))
     (save-excursion
@@ -484,7 +484,7 @@ Return nil for empty and comment only lines."
       (goto-char endpt))))
 
 (defun matlab-line-first-word-text (&optional lvl1)
-  "Return text for the specific keyword found under point."
+  "Return text for the specific keyword found under point LVL1 LVL1."
   (matlab-with-context-line lvl1
     (buffer-substring-no-properties
      (point) (save-excursion (skip-syntax-forward "w_") (point))))
@@ -493,15 +493,15 @@ Return nil for empty and comment only lines."
 ;; Declarations and Names
 (defvar matlab-fl-opt-whitespace)
 (defun matlab-line-declaration-name (&optional lvl1)
-  "Return string name of a declaration on the line.
+  "Return string name of a declaration on the line LVL1.
 For functions, this is the name of the function.
 For classes, this is the name of the class.
 Output is a list of the form:
   ( NAME DECL-TYPE START END)
 Where NAME is the name, and DECL-TYPE is one of
-'function or 'class
+\\='function or \\='class
 START and END are buffer locations around the found name.
-If the current line is not a declaration, return nil."
+If the current line is not a declaration, return nil LVL1."
   (unless lvl1 (setq lvl1 (matlab-compute-line-context 1)))
   (when (matlab-line-declaration-p lvl1)
     (let (type name start end)
@@ -550,11 +550,11 @@ If the current line is not a declaration, return nil."
 
 ;; Parenthetical blocks
 (defsubst matlab-line-close-paren-p (lvl1)
-  "Non nil If the current line starts with closing paren (any type.)."
+  "Non nil if the current line begins with closing paren (any type.) LVL1."
   (eq (car lvl1) 'close-paren))
 
 (defsubst matlab-line-paren-depth (lvl1)
-  "The current depth of parens at the start of this line."
+  "The current depth of parens at the start of this line LVL1."
   (nth mlf-paren-depth lvl1))
 
 (defsubst matlab-line-close-paren-inner-char (lvl1)
@@ -574,7 +574,7 @@ If the current line is not a declaration, return nil."
   (nth mlf-paren-outer-char lvl1))
 
 (defsubst matlab-line-close-paren-outer-point (lvl1)
-  "The point the outermost parenthetical expression start is at."
+  "The point the outermost parenthetical expression start is at LVL1."
   (nth mlf-paren-outer-point lvl1))
 
 
@@ -698,8 +698,8 @@ in the returned list for quick access."
 ;;; Refresh this lvl2
 ;;
 (defun matlab-refresh-line-context-lvl2 (lvl2 &optional lvl1)
-  "Refresh the content of this lvl2 context.
-Assume ONLY the line this lvl2 context belongs to has changed
+  "Refresh the content of this LVL2 context, LVL1 optional.
+Assume ONLY the line this LVL2 context belongs to has changed
 and we don't have any caches in later lines."
   (matlab-with-context-line lvl2
     (when (not lvl1) (setq lvl1 (matlab-compute-line-context 1)))
@@ -722,7 +722,7 @@ If LVL2 is nil, compute it."
     (matlab-compute-line-context 1)))
 
 (defun matlab-previous-nonempty-line (lvl2)
-  "Return lvl1 ctxt for previous non-empty line."
+  "Return lvl1 ctxt for previous non-empty line LVL2."
   (let ((prev (nth mlf-previous-nonempty lvl2))
 	)
     (if (eq prev t)
@@ -740,7 +740,7 @@ If LVL2 is nil, compute it."
     prev))
 
 (defun matlab-previous-code-line (lvl2)
-  "Return lvl1 ctxt for previous non-empty line."
+  "Return lvl1 ctxt for previous non-empty line LVL2."
   (let ((prev (nth mlf-previous-code lvl2))
 	)
     (if (eq prev t)
@@ -761,7 +761,7 @@ If LVL2 is nil, compute it."
     prev))
 
 (defun matlab-previous-command-begin (lvl2)
-  "Return lvl1 ctxt for previous non-empty line."
+  "Return lvl1 ctxt for previous non-empty line LVL2."
   (let ((prev (nth mlf-previous-command-beginning lvl2))
 	)
     (if (eq prev t)
@@ -823,7 +823,7 @@ This is true iff the previous line has an ellipsis."
       ;; `parse-partial-sexp' instead of regular `syntax-ppss' which
       ;; can be slow as it attempts to get a solid start from someplace
       ;; potentially far away.
-      (let* ((pps (parse-partial-sexp (point-at-bol) (point-at-eol))) ;;(syntax-ppss (point)))
+      (let* ((pps (parse-partial-sexp (line-beginning-position) (line-end-position))) ;;(syntax-ppss (point)))
 	     (csc (nth 8 pps)))
 	;; Ellipsis start has a syntax of 11 (comment-start).
 	;; Other comments have high-bit flags, so don't == 11.
@@ -831,7 +831,7 @@ This is true iff the previous line has an ellipsis."
 	  csc)))))
 
 (defun matlab-scan-beginning-of-command (&optional lvl1 code-only)
-  "Return point in buffer at the beginning of this command.
+  "Return point in buffer at the beginning of this command LVL1.
 This function walks up any preceeding comments, enclosing parens, and skips
 backward over lines that include ellipsis.
 If optional CODE-ONLY is specified, it doesn't try to scan over
@@ -874,7 +874,7 @@ preceeding comments."
       (point))))
 
 (defun matlab-scan-end-of-command (&optional lvl1)
-  "Return point in buffer at the end of this command.
+  "Return point in buffer at the end of this command LVL1.
 This function walks down past continuations and open arrays."
   (unless lvl1 (setq lvl1 (matlab-compute-line-context 1)))
   ;; If we are in a block comment, just jump to the end, and
@@ -914,7 +914,7 @@ This function walks down past continuations and open arrays."
 
       ;; Return where we ended up
       (end-of-line)
-      (point-at-eol))))
+      (line-end-position))))
 
 
 ;;; BLOCK SCANNING and SEARCHING
@@ -957,7 +957,7 @@ Returns nil if preceeding non-whitespace char is `.'"
 
 (defun matlab--valid-keyword-node (&optional node parentblock)
   "Return non-nil if NODE is in a valid location.
-Optional parentblock specifies containing parent block if it is known."
+Optional parentblock specifies containing PARENTBLOCK if it is known."
   (when (not node) (setq node (matlab--mk-keyword-node)))
   (when node
     (save-excursion
@@ -1032,6 +1032,7 @@ Assume basic keyword checks have already been done."
 (defun matlab--scan-derive-block-state (providedstate filter)
   "Return a block state for current point.
 If PROVIDEDSTATE is non nil, use that.
+FILTER.
 Return nil if no valid block under pt."
   (or providedstate
       (let ((thiskeyword (matlab--mk-keyword-node)))
@@ -1121,7 +1122,8 @@ Use STATE to stop/start block scanning partway through."
 
 (defun matlab--scan-block-forward-up (&optional bounds)
   "Like `matlab--scan-block-forward', but cursor is not on a keyword.
-Instead, travel to end as if on keyword."
+Instead, travel to end as if on keyword.
+BOUNDS."
   (let ((currentstate '((unknown "" 0))))
     (matlab--scan-block-forward bounds currentstate)))
 
@@ -1169,7 +1171,8 @@ Use STATE to stop/start block scanning partway through."
 
 (defun matlab--scan-block-backward-up (&optional bounds)
   "Like `matlab--scan-block-forward', but cursor is not on a keyword.
-Instead, travel to end as if on keyword."
+Instead, travel to end as if on keyword.
+BOUNDS."
   (let ((currentstate '((end "end" 0))))
     (matlab--scan-block-backward bounds currentstate)))
 
@@ -1196,7 +1199,8 @@ Limit search to within BOUNDS.  If keyword not found, return nil."
 (defun matlab-re-search-keyword-forward (regexp &optional bound noerror bonustest)
   "Like `re-search-forward' but will not match content in strings or comments.
 If BONUSTEST is a function, use it to test each match if it is valid.  If not
-then skip and keep searching."
+then skip and keep searching.
+REGEXP BOUND NOERROR."
   (let ((ans nil) (case-fold-search nil) (err nil))
     (save-excursion
       (while (and (not ans) (not err)
@@ -1227,7 +1231,8 @@ then skip and keep searching."
     (when ans (goto-char ans) (matlab--mk-keyword-node))))
 
 (defun matlab-re-search-keyword-backward (regexp &optional bound noerror)
-  "Like `re-search-backward' but will not match content in strings or comments."
+  "Like `re-search-backward' but will not match content in strings or comments.
+Options: REGEXP BOUND NOERROR."
   (let ((ans nil) (case-fold-search nil))
     (save-excursion
       (while (and (not ans)
@@ -1293,7 +1298,7 @@ Since the list isn't sorted, not optimizations possible.")
       nil)))
 
 (defun matlab-scan-cache-put (ctxt)
-  "Put a context onto the cache.
+  "Put a context CTXT onto the cache.
 Make sure the cache doesn't exceed max size."
   (push ctxt matlab-scan-temporal-cache)
   (setcdr (or (nthcdr matlab-scan-cache-max matlab-scan-temporal-cache)
@@ -1302,7 +1307,8 @@ Make sure the cache doesn't exceed max size."
 
 
 (defun matlab-scan-before-change-fcn (start end &optional length)
-  "Function run in after change hooks."
+  "Function run in after change hooks.
+Options: START END LENGTH."
   ;;(setq matlab-scan-temporal-cache nil))
   (let ((pt (point))
 	(cache matlab-scan-temporal-cache)
@@ -1310,7 +1316,7 @@ Make sure the cache doesn't exceed max size."
     ;; Flush whole lines.
     (save-excursion
       (goto-char start)
-      (setq start (point-at-bol)))
+      (setq start (line-beginning-position)))
     ;; Only drop items AFTER the start of our region.
     (while cache
       (if (<= start (matlab-line-point (car cache)))
@@ -1342,8 +1348,8 @@ Make sure the cache doesn't exceed max size."
   "Cache stats for tracking effectiveness of the cache.")
 (defun matlab-scan-stat-reset (&optional arg)
   "Reset the stats cache.
-With no arg, disable gathering stats.
-With arg, enable gathering stats, and flush old stats."
+With no ARG, disable gathering stats.
+With ARG, enable gathering stats, and flush old stats."
   (interactive "P")
   (if arg
       (progn (setq matlab-scan-cache-stats nil)
@@ -1352,7 +1358,7 @@ With arg, enable gathering stats, and flush old stats."
     (setq matlab-scan-cache-stats (matlab-obarray-make 13))))
 
 (defun matlab-scan-stat-inc (thing)
-  "Increment the stat associated with thing."
+  "Increment the stat associated with THING."
   (when matlab-scan-cache-stats
     (let ((sym (intern-soft (symbol-name thing) matlab-scan-cache-stats)))
       (when (not sym)
@@ -1363,7 +1369,8 @@ With arg, enable gathering stats, and flush old stats."
   )
 
 (defun matlab-scan-stats-print (&optional summary)
-  "Display stats for scanner hits."
+  "Display stats for scanner hits.
+Options: SUMMARY."
   (interactive "P")
   (let ((res nil))
     (mapatoms (lambda (sym)
