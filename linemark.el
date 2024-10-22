@@ -36,18 +36,7 @@
 (eval-and-compile
   (require 'matlab-compat))
 
-(eval-when-compile
-  (require 'cl))
-
 ;;; Code:
-;; Compatibility
-(eval-and-compile
-  ;; `object-name-string' is an obsolete function (as of 24.4); use `eieio-object-name-string' instead.
-  (cond ((fboundp 'eieio-object-name-string)
-         (defalias 'linemark-object-name-string 'eieio-object-name-string))
-        (t
-         (defalias 'linemark-object-name-string 'object-name-string)))
-  )
 
 (defgroup linemark nil
   "Line marking/highlighting."
@@ -142,7 +131,7 @@ the new instantiation."
         (lmg linemark-groups))
     ;; Find an old group.
     (while (and (not foundgroup) lmg)
-      (if (string= name (linemark-object-name-string (car lmg)))
+      (if (string= name (eieio-object-name-string (car lmg)))
           (setq foundgroup (car lmg)))
       (setq lmg (cdr lmg)))
     ;; Which group to use.
@@ -164,7 +153,7 @@ If GROUP, then make sure it also belongs to GROUP."
         (found nil))
     (while (and o (not found))
       (let ((og (overlay-get (car o) 'obj)))
-        (if (and og (linemark-entry-child-p og))
+        (if (and og (linemark-entry--eieio-childp og))
             (progn
               (setq found og)
               (if group
@@ -251,12 +240,12 @@ Call the new entrie's activate method."
            args)))
 
 (cl-defmethod linemark-display ((g linemark-group) active-p)
-  "Set object G to be active or inactive."
+  "Set object G to be active or inactive based on ACTIVE-P."
   (mapc (lambda (g) (linemark-display g active-p)) (oref g marks))
   (oset g active active-p))
 
 (cl-defmethod linemark-display ((e linemark-entry) active-p)
-  "Set object E to be active or inactive."
+  "Set object E to be active or inactive based on ACTIVE-P."
   (if active-p
       (with-slots ((file filename)) e
         (if (oref e overlay)
@@ -319,7 +308,7 @@ Call the new entrie's activate method."
 ;; are removed when the buffer buffer goes away.
 
 (defun linemark-find-file-hook ()
-  "Activate all marks which can benifit from this new buffer."
+  "Activate all linemarks which can benifit from this new buffer."
   (mapcar (lambda (g) (condition-case nil
                           ;; See comment in linemark-add-entry for
                           ;; reasoning on this condition-case.
@@ -333,7 +322,7 @@ Call the new entrie's activate method."
         (to nil))
     (while o
       (setq to (overlay-get (car o) 'obj))
-      (if (and to (linemark-entry-child-p to))
+      (if (and to (linemark-entry--eieio-childp to))
           (linemark-display to nil))
       (setq o (cdr o)))))
 
