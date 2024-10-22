@@ -17,8 +17,8 @@ To isolate problems, it's often good to run stock Emacs with matlab-mode:
     M=/path/to/Emacs-MATLAB-mode
     env MATLABPATH=  emacs -Q -L $M -l $M/matlab-autoload.el
 
-    # If you want to run a specific version of MATLAB
-    env MATLABPATH=  PATH=/path/to/bin/matlab:$PATH  emacs -Q -L $M -l $M/matlab-autoload.el
+    # If you want to run a specific version of MATLAB, /matlab-install/bin/matlab:
+    env MATLABPATH=  PATH=/matlab-install/bin:$PATH  emacs -Q -L $M -l $M/matlab-autoload.el
 
     #+end_src
 
