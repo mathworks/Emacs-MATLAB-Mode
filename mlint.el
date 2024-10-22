@@ -32,9 +32,9 @@
   (require 'matlab-compat))
 (require 'matlab)
 (require 'linemark)
+
 (eval-when-compile
-  (require 'font-lock)
-  (require 'cl))
+  (require 'font-lock))
 
 (eval-and-compile
   ;; `object-name-string' is an obsolete function (as of 24.4); use `eieio-object-name-string' instead.
@@ -52,7 +52,9 @@ Return the MATLABROOT for the \\='matlab-shell-command\\='.
 
 
 ;; `goto-line' is for interactive use only; use `forward-line' instead.
-(defun mlint-goto-line (n) (goto-char (point-min)) (forward-line (1- n)))
+(defun mlint-goto-line (n)
+  "Goto line N for mlint."
+  (goto-char (point-min)) (forward-line (1- n)))
 
 ;;; Code:
 (defvar mlint-platform
@@ -91,7 +93,7 @@ Return the MATLABROOT for the \\='matlab-shell-command\\='.
                "win64"
              "win32")))
         (t "unknown"))
-  "MATLAB platform we are running mlint on. See >> lower(computer).")
+  "MATLAB platform we are running mlint on.  See >> lower(computer).")
 
 (defcustom mlint-calculate-cyclic-complexity-flag nil
   "*Non-nil means to collect cyclic complexity values."
@@ -119,10 +121,12 @@ SYMBOL is the variable being set.  VALUE is the new value."
 For example,
   (eval-after-load \"mlint\"
    \\='(setq mlint-program-selection-fcn \\='my-function-to-select-mlint-program))
-will setup \\=`my-function-to-select-mlint-program\\=' to pick the mlint for a buffer.
-After opening a *.m file, \\=`my-function-to-select-mlint-program\\=' is called and
-the appropriate mlint should be returned. If there's no mlint program
-available, nil should be returned and mlint will not be activated.")
+will setup \\=`my-function-to-select-mlint-program\\=' to pick
+the mlint for a buffer.  After opening a *.m file,
+\\=`my-function-to-select-mlint-program\\=' is called and the
+appropriate mlint should be returned. If there's no mlint program
+available, nil should be returned and mlint will not be
+activated.")
 
 (defvar mlint-program nil
   "Program to run for MLint.
@@ -537,7 +541,7 @@ Optional argument FIELDS are the initialization arguments."
                 (oref this new-text))))
 
 (cl-defmethod mlint-fix-entry ((ent mlint-lm-replace-focus))
-  "Replace the focus area with :new-text."
+  "For ENT, replace the focus area with :new-text."
   (let ((pos (cl-call-next-method)))
     (save-excursion
       (goto-char (point))
@@ -597,7 +601,7 @@ Optional arguments FIELDS are the initialization arguments."
   "Specialized logical and/or class.")
 
 (cl-defmethod mlint-fix-entry ((ent mlint-lm-entry-logicals))
-  "Replace the single logical with double logical."
+  "For ENT, replace the single logical with double logical."
   (save-excursion
     (mlint-goto-line (oref ent line))
     (let* ((s (progn (move-to-column (1- (oref ent column))) (point)))
@@ -615,7 +619,7 @@ Optional arguments FIELDS are the initialization arguments."
   "Specialized logical and/or class.")
 
 (cl-defmethod mlint-fix-entry ((ent mlint-lm-entry-unused-argument))
-  "Remove the arguments."
+  "For ENT, remove the arguments."
   (save-excursion
     (mlint-goto-line (oref ent line))
     (let* ((s (progn (move-to-column (1- (oref ent column))) (point)))
@@ -636,7 +640,7 @@ Optional arguments FIELDS are the initialization arguments."
 
 
 (cl-defmethod mlint-fix-entry ((ent mlint-lm-quiet))
-  "Add semi-colon to end of this line."
+  "For ENT, add semi-colon to end of this line."
   (save-excursion
     (matlab-end-of-command)
     (insert ";"))
@@ -649,7 +653,7 @@ Optional arguments FIELDS are the initialization arguments."
   )
 
 (cl-defmethod mlint-fix-entry ((ent mlint-lm-missing-end))
-  "Add semi-colon to end of this line."
+  "For ENT, add semi-colon to end of this line."
   (save-excursion
     (let* ((msg (oref ent warning))
            line blockname)
@@ -908,40 +912,39 @@ Must be bound to event E."
     (when repos (goto-char repos))))
 
 ;;;###autoload
-(easy-mmode-define-minor-mode mlint-minor-mode
-"Toggle mlint minor mode, a mode for showing mlint errors.
+(define-minor-mode mlint-minor-mode
+  "Toggle mlint minor mode, a mode for showing mlint errors.
 With prefix ARG, turn mlint minor mode on iff ARG is positive.
 \\{mlint-minor-mode-map\\}"
-                              nil " mlint" mlint-minor-mode-map
-                              (if (and mlint-minor-mode (not (eq major-mode 'matlab-mode)))
-                                  (progn
-                                    (mlint-minor-mode -1)
-                                    (error "M-Lint minor mode is only for MATLAB Major mode")))
-                              (if (not mlint-minor-mode)
-                                  (progn
-                                    (mlint-clear-nested-function-info-overlays)
-                                    (mlint-clear-warnings)
-                                    (remove-hook 'after-save-hook 'mlint-buffer t)
-                                    (easy-menu-remove mlint-minor-menu)
-                                    )
-                                ;; activate mlint if possible
-                                (if mlint-program-selection-fcn
-                                    (let ((ans (funcall mlint-program-selection-fcn)))
-                                      (when ans
-                                        (make-local-variable 'mlint-program)
-                                        (setq mlint-program ans)))
-                                  ;; else use global mlint-program for all *.m files
-                                  (if (not mlint-program)
-                                      (if (y-or-n-p "No MLINT program available.  Configure it? ")
-                                          (customize-variable 'mlint-programs))))
+  :init-value nil
+  :lighter " mlint"
+  :keymap mlint-minor-mode-map
+  (if (and mlint-minor-mode (not (eq major-mode 'matlab-mode)))
+      (progn
+        (mlint-minor-mode -1)
+        (error "M-Lint minor mode is only for MATLAB Major mode")))
+  (if (not mlint-minor-mode)
+      (progn
+        (mlint-clear-nested-function-info-overlays)
+        (mlint-clear-warnings)
+        (remove-hook 'after-save-hook 'mlint-buffer t))
+    ;; activate mlint if possible
+    (if mlint-program-selection-fcn
+        (let ((ans (funcall mlint-program-selection-fcn)))
+          (when ans
+            (make-local-variable 'mlint-program)
+            (setq mlint-program ans)))
+      ;; else use global mlint-program for all *.m files
+      (if (not mlint-program)
+          (if (y-or-n-p "No MLINT program available.  Configure it? ")
+              (customize-variable 'mlint-programs))))
 
-                                (if mlint-program
-                                    (progn
-                                      (add-hook 'after-save-hook 'mlint-buffer nil t)
-                                      (easy-menu-add mlint-minor-menu mlint-minor-mode-map)
-                                      (mlint-buffer))
-                                  ;; Remove the mlint menu. set mlint-minor-mode variable to nil, disable mlint keybindings
-                                  (mlint-minor-mode -1))))
+    (if mlint-program
+        (progn
+          (add-hook 'after-save-hook 'mlint-buffer nil t)
+          (mlint-buffer))
+      ;; Remove the mlint menu. set mlint-minor-mode variable to nil, disable mlint keybindings
+      (mlint-minor-mode -1))))
 
 (defvar mlint-minor-mode-was-enabled-before nil
   "Non nil if mlint is off, and it was auto-disabled.")
