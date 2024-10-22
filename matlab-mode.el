@@ -8,6 +8,7 @@
 ;; Maintainer: Eric M. Ludlam <eludlam@mathworks.com>
 ;; Created: 04 Jan 91
 ;; Keywords: MATLAB(R)
+;; Package-Requires: ((emacs "27.2"))
 ;; Version: 6.0
 
 ;; SPDX-License-Identifier: GPL-3.0-or-later
