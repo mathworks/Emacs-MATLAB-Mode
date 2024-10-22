@@ -34,7 +34,7 @@
 (defun company-matlab-shell-grab-completion-substr ()
   "Return the completion substring of the command.
 The completion substring is to be completed in `matlab-shell', or
-\='stop if completions can't be performed at the current point."
+\\='stop if completions can't be performed at the current point."
   (when (eq major-mode 'matlab-shell-mode)
     (if (not (matlab-on-prompt-p))
         'stop  ;; tell company can't complete when point is not in the prompt

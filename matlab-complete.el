@@ -197,9 +197,9 @@ This list still needs lots of help.")
 
 (defun matlab-lattr-semantics (&optional prefix)
   "Return the semantics of the current position.
-Values are nil \='solo, \='value, and \='boolean.  Boolean is a subset of
+Values are nil \\='solo, \\='value, and \\='boolean.  Boolean is a subset of
 value.  nil means there is no semantic content (ie, string or comment.)
-If optional PREFIX, then return \='solo if that is the only thing on the
+If optional PREFIX, then return \\='solo if that is the only thing on the
 line."
   (cond
    ((or (matlab-line-empty-p (matlab-compute-line-context 1))
@@ -503,7 +503,7 @@ tried first.  If the line is blank, then flow control, or high level
 functions are tried first.
   The completion technique is controlled with `matlab-completion-technique'
 It defaults to incremental completion described above.  If a
-completion list is preferred, then change this to \='complete.  If you
+completion list is preferred, then change this to \\='complete.  If you
 just want a completion list once, then use the universal argument ARG
 to change it temporarily."
   (interactive "P")

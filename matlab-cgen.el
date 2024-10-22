@@ -212,7 +212,7 @@ should be re-indented."
  )
 
 (defun matlab-stringify-region (begin end)
-  "Put MATLAB single quotes (\=') around region and quote all quotes within it.
+  "Put MATLAB single quotes (\\=') around region and quote all quotes within it.
 Stringification allows you to type in normal MATLAB code, mark it, and
 then turn it into a MATLAB string that will output exactly what's in
 the region.  BEGIN and END mark the region to be stringified."
