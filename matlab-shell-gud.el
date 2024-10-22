@@ -591,7 +591,7 @@ LONGESTNAME specifies the how long the longest name we can expect is."
   (setq matlab-gud-visible-breakpoints nil))
 
 (defun mlg-add-breakpoint (file fcn line)
-  "Add a visible breakpoint to FILE at LINE."
+  "Add a visible breakpoint to FILE FCN at LINE."
   (let ((found nil))
     (dolist (BP matlab-gud-visible-breakpoints)
       (when (and (string= (oref BP file) file)
@@ -612,7 +612,7 @@ LONGESTNAME specifies the how long the longest name we can expect is."
   )
 
 (defun mlg-del-breakpoint (file fcn line)
-  "Add a visible breakpoint to FILE at LINE."
+  "Add a visible breakpoint to FILE FCN at LINE."
   (let ((BPS matlab-gud-visible-breakpoints)
         (NBPS nil))
     (while BPS
@@ -655,7 +655,7 @@ LONGESTNAME specifies the how long the longest name we can expect is."
         (let ((ol (matlab-make-overlay (save-excursion
                                          (back-to-indentation)
                                          (point))
-                                       (point-at-eol) buff nil nil)))
+                                       (line-end-position) buff nil nil)))
           ;; Store it
           (oset bp overlay ol)
           ;; Setup cool stuff
@@ -932,7 +932,9 @@ Debug commands are:
  \\[matlab-shell-gud-show-symbol-value]        - Evaluate expression
  \\[mlg-show-stack]        - Where am I (ebstack)
  \\[mlgud-stop-subjob]        - Quit (dbquit)"
-  nil " MGUD" matlab-shell-gud-minor-mode-map
+  :init-value nil
+  :lighter " MGUD"
+  :keymap matlab-shell-gud-minor-mode-map
 
   ;; Make the buffer read only
   (if matlab-shell-gud-minor-mode
@@ -961,12 +963,13 @@ Debug commands are:
       (kill-local-variable 'tool-bar-map))))
 
 ;;;###autoload
-(define-global-minor-mode global-matlab-shell-gud-minor-mode
+(define-globalized-minor-mode global-matlab-shell-gud-minor-mode
   matlab-shell-gud-minor-mode
   (lambda ()
     "Should we turn on in this buffer? Only if in a MATLAB mode."
     (when (eq major-mode 'matlab-mode)
-      (matlab-shell-gud-minor-mode 1))))
+      (matlab-shell-gud-minor-mode 1)))
+  :group 'matlab-shell)
 
 ;;; MATLAB SHELL Inactive GUD Minor Mode
 
@@ -1001,7 +1004,9 @@ Debug commands are:
  \\[mlgud-break]        - Add breakpoint (ebstop in FILE at point)
  \\[mlgud-remove]        - Remove breakpoint (ebclear in FILE at point)
  \\[mlgud-list-breakpoints]        - List breakpoints (ebstatus)"
-  nil " I-MGUD" matlab-shell-inactive-gud-minor-mode-map
+  :init-value nil
+  :lighter " I-MGUD"
+  :keymap matlab-shell-inactive-gud-minor-mode-map
 
   ;; Always disable tooltips, in case configured while in the mode.
   (mlgud-tooltip-mode -1)
@@ -1016,13 +1021,15 @@ Debug commands are:
   (describe-minor-mode 'matlab-shell-gud-minor-mode))
 
 ;;;###autoload
-(define-global-minor-mode global-matlab-shell-inactive-gud-minor-mode
+(define-globalized-minor-mode global-matlab-shell-inactive-gud-minor-mode
   matlab-shell-inactive-gud-minor-mode
   (lambda ()
     "Should we turn on in this buffer? Only if in a MATLAB mode."
     (when (eq major-mode 'matlab-mode)
-      (matlab-shell-inactive-gud-minor-mode 1))))
+      (matlab-shell-inactive-gud-minor-mode 1)))
+  :group 'matlab-shell)
 
+(defvar tooltip-use-echo-area) ;; quiet warning
 ;;; Tooltips
 ;;
 ;; Using the mlgud tooltip feature for a bunch of setup, but then
