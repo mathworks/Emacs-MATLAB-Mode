@@ -29,6 +29,11 @@
 
 ;;; Code:
 
+(defgroup matlab-maint nil
+  "MATLAB maintainer utilities."
+  :prefix "matlab-maint-"
+  :group 'matlab)
+
 ;;; Minor Mode Definition
 ;;
 (defvar matlab-maint-mode-map
@@ -55,25 +60,26 @@
      :style toggle :selected matlab-shell-io-testing ]
     ["Display logger frame" matlab-maint-toggle-logger-frame
      :style toggle :selected (and matlab-maint-logger-frame
-				  (frame-live-p matlab-maint-logger-frame)) ]
+                                  (frame-live-p matlab-maint-logger-frame)) ]
     ))
 
 ;;;###autoload
 (define-minor-mode matlab-maint-minor-mode
-  "Minor mode for `matlab-mode' maintainrs."
-  nil " MMaint" matlab-maint-mode-map
-  )
+  "Minor mode for `matlab-mode' maintainers."
+  :init-value nil
+  :lighter " MMaint"
+  :keymap matlab-maint-mode-map)
 
 ;;;###autoload
-(define-global-minor-mode global-matlab-maint-minor-mode
+(define-globalized-minor-mode global-matlab-maint-minor-mode
   matlab-maint-minor-mode
   (lambda ()
     "Should we turn on in this buffer? Only if in the project."
     (let ((dir (expand-file-name default-directory))
-	  (ml (file-name-directory (expand-file-name (locate-library "matlab")))))
+          (ml (file-name-directory (expand-file-name (locate-library "matlab")))))
       (when (string= ml (substring dir 0 (min (length dir) (length ml))))
-	(matlab-maint-minor-mode 1))))
-  )
+        (matlab-maint-minor-mode 1))))
+  :group 'matlab-maint)
 
 ;;; Testing stuff in M buffers
 ;;
@@ -117,14 +123,13 @@
   :type 'string)
 
 (defun matlab-maint-pick-emacs (emacscmd)
-  "Select the Emacs to use for compiling."
+  "Select the EMACSCMD to use for compiling."
   (interactive (list (completing-read "Emacs to compile MATLAB: "
-				      matlab-maint-compile-opts
-				      nil
-				      t
-				      (car matlab-maint-compile-opts))))
-  (setq matlab-maint-compile-emacs emacscmd)
-  )
+                                      matlab-maint-compile-opts
+                                      nil
+                                      t
+                                      (car matlab-maint-compile-opts))))
+  (setq matlab-maint-compile-emacs emacscmd))
 
 (defun matlab-maint-compile-matlab-emacs ()
   "Run make for the matlab-emacs project."
@@ -132,7 +137,7 @@
   (save-excursion
     (matlab-maint-set-buffer-to "matlab.el")
     (if (string= matlab-maint-compile-emacs "emacs")
-	(compile "make")
+        (compile "make")
       (compile (concat "make EMACS=" matlab-maint-compile-emacs))))
   )
 
@@ -153,8 +158,8 @@ With universal ARG, ask for the code to be run with output tracking turned on."
   (save-excursion
     (matlab-maint-set-buffer-to "tests/Makefile")
     (if (or arg matlab-shell-io-testing)
-	;; Ask for dbug
-	(compile "make TESTDEBUG=1")
+        ;; Ask for debug
+        (compile "make TESTDEBUG=1")
       ;; No debugging
       (compile "make")))
   (switch-to-buffer "*compilation*")
@@ -168,10 +173,10 @@ With universal ARG, ask for the code to be run with output tracking turned on."
   (load-library "matlab-scan")
   (load-library "matlab")
   (mapc (lambda (b) (with-current-buffer b
-		      (when (eq major-mode 'matlab-mode)
-			(message "Updating matlab mode in %S" b)
-			(matlab-mode))))
-	(buffer-list (selected-frame)))
+                      (when (eq major-mode 'matlab-mode)
+                        (message "Updating matlab mode in %S" b)
+                        (matlab-mode))))
+        (buffer-list (selected-frame)))
   (message "loading done")
   )
 ;;; MATLAB SHELL tools
@@ -181,7 +186,7 @@ With universal ARG, ask for the code to be run with output tracking turned on."
   "Set the current buffer to FILE found in matlab-mode's source.
 Return the buffer."
   (let* ((ml (file-name-directory (locate-library "matlab")))
-	 (newf (expand-file-name file ml)))
+         (newf (expand-file-name file ml)))
     (set-buffer (find-file-noselect newf))))
 
 (defun matlab-maint-toggle-io-tracking ()
@@ -189,7 +194,7 @@ Return the buffer."
   (interactive)
   (setq matlab-shell-io-testing (not matlab-shell-io-testing))
   (message "MATLAB Shell IO logging %s" (if matlab-shell-io-testing
-					    "enabled" "disabled")))
+                                            "enabled" "disabled")))
 
 (defvar matlab-maint-logger-frame nil
   "Frame displaying log information.")
@@ -198,21 +203,24 @@ Return the buffer."
   "Display a frame showing various log buffers."
   (interactive)
   (if (and matlab-maint-logger-frame
-	   (frame-live-p matlab-maint-logger-frame))
+           (frame-live-p matlab-maint-logger-frame))
       (progn
-	(delete-frame matlab-maint-logger-frame)
-	(setq matlab-maint-logger-frame nil))
+        (delete-frame matlab-maint-logger-frame)
+        (setq matlab-maint-logger-frame nil))
     ;; Otherwise, create ...
     (setq matlab-maint-logger-frame (make-frame))
     (with-selected-frame matlab-maint-logger-frame
       (delete-other-windows)
       (switch-to-buffer "*Messages*")
       (when (matlab-netshell-client)
-	(split-window-horizontally)
-	(other-window 1)
-	(switch-to-buffer (process-buffer (matlab-netshell-client)))
-	))))
+        (split-window-horizontally)
+        (other-window 1)
+        (switch-to-buffer (process-buffer (matlab-netshell-client)))
+        ))))
 
 (provide 'matlab-maint)
 
 ;;; matlab-maint.el ends here
+
+;; LocalWords:  Ludlam eludlam emacsvm netshell symref keymap MMaint defun defcustom emacscmd setq
+;; LocalWords:  TESTDEBUG mapc newf noselect progn
