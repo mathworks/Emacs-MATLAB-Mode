@@ -31,7 +31,7 @@
   "List of templates used in MATLAB mode.")
 
 ;; This trick allows this file to be autoloaded ONLY when the user uses the insert prefix.
-;; 
+;;
 ;;;###autoload (autoload 'matlab-insert-map-fcn "matlab-cgen" "Keymap for C-c C-c in matlab-mode" t 'keymap)
 
 (defvar matlab-insert-map
@@ -52,7 +52,7 @@
   "Keymap used for inserting simple texts based on context.")
 
 (defvar matlab-insert-map-fcn nil
-  "Keymap for C-c C-c in matlab-mode.")
+  "Keymap for `matlab-insert-map' (C-c C-c) in `matlab-mode'.")
 
 (fset 'matlab-insert-map-fcn (setq matlab-insert-map-fcn matlab-insert-map))
 
@@ -75,11 +75,12 @@
 ;;
 (defun matlab-insert-end-block (&optional reindent)
   "Insert and END block based on the current syntax.
-Optional argument REINDENT indicates if the specified block should be re-indented."
+Optional argument REINDENT indicates if the specified block
+should be re-indented."
   (interactive "P")
   (when (not (matlab-line-empty-p (matlab-compute-line-context 1)))
     (end-of-line) (insert "\n"))
-  
+
   (let ((valid t) (begin nil))
     (save-excursion
       (condition-case nil
@@ -211,7 +212,7 @@ Optional argument REINDENT indicates if the specified block should be re-indente
  )
 
 (defun matlab-stringify-region (begin end)
-  "Put MATLAB 's around region, and quote all quotes in the string.
+  "Put MATLAB single quotes (\=') around region and quote all quotes within it.
 Stringification allows you to type in normal MATLAB code, mark it, and
 then turn it into a MATLAB string that will output exactly what's in
 the region.  BEGIN and END mark the region to be stringified."
@@ -257,3 +258,6 @@ Calls `matlab-ispell-strings-region'"
 (provide 'matlab-cgen)
 
 ;;; matlab-cgen.el ends here
+
+;; LocalWords:  Ludlam zappo autoloaded Keymap keymap fset setq defun dolist reindent progn sexp
+;; LocalWords:  stringp fname nondirectory upcase allstring
