@@ -88,8 +88,8 @@ tests: .tests.tstamp
 clean:
 	$(RM) $(LOADDEFS)
 	$(RM) *.elc
-	$(RM) *.tstamp
-	$(RM) -r .tstamp
+	find . -name .git -prune -o -name "*.tstamp" -exec $(RM) {} \;
+	find . -name .git -prune -o -name "*~" -exec $(RM) {} \;
 
 #--------------------------------#
 # Test various versions of Emacs #
