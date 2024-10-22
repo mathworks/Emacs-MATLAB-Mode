@@ -149,7 +149,7 @@ check-emacs-versions: $(CHECK_TARGETS)
 
 .PHONY: list-files-for-release
 list-files-for-release:
-	@/usr/bin/ls -1 *.el | grep -v matlab-autoload.el
+	@/usr/bin/ls -1 *.el | grep -v -P '(matlab-autoload.el|matlab-maint.el)'
 	@/usr/bin/ls bin/*.sh
 	@find toolbox -name '*.m' -print
 
