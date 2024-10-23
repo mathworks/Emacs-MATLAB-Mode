@@ -1,4 +1,4 @@
-;;; semantic-matlab.el --- Semantic details for MATLAB files
+;;; semantic-matlab.el --- Semantic details for MATLAB files -*- lexical-binding: t -*-
 
 ;;; Copyright (C) 2004-2020 Eric M. Ludlam
 
@@ -56,27 +56,25 @@
 If `semantic-mode' is not enabled, do something hacky to make it work."
   (save-excursion
     (when buffer (set-buffer buffer))
-    
-    (let ((tags (save-excursion
-		  (semantic-refresh-tags-safe)
-		  (semantic-find-tags-by-class 'function (current-buffer)))))
-      (when (and (not tags) (not semantic-mode))
-	;; We got no tags, and semantic isn't enabled.
-	;; Lets fake it.
 
-	;; call the parse region function.  It won't be cached, so we have to do the work every
-	;; time, but hopefully it is fast enough for matlab-shell and scripts with code sections
+    (let ((tags (save-excursion
+                  (semantic-refresh-tags-safe)
+                  (semantic-find-tags-by-class 'function (current-buffer)))))
+      (when (and (not tags) (not semantic-mode))
+        ;; We got no tags, and semantic isn't enabled.
+        ;; Lets fake it.
+
+        ;; call the parse region function.  It won't be cached, so we have to do the work every
+        ;; time, but hopefully it is fast enough for matlab-shell and scripts with code sections
         ;; (formally called cells).
-	(setq tags (semantic-matlab-parse-region))
-	
-	)
+        (setq tags (semantic-matlab-parse-region)))
       tags)))
 
 (defun matlab-semantic-tag-text (tag buffer)
   "Return the text string for TAG in BUFFER."
   (with-current-buffer buffer
     (buffer-substring-no-properties (semantic-tag-start tag)
-				    (semantic-tag-end tag))))
+                                    (semantic-tag-end tag))))
 
 ;;; Configuration
 ;;
@@ -105,17 +103,17 @@ completions.")
   "Regexp to identify if a file represents a class or a function.")
 
 (defun semantic-matlab-guess-buffer-type (&optional buffer)
-  "Guess what kind of MATLAB content BUFFER contains.
+  "Guess what kind of MATLAB content in BUFFER.
 Looks @ first declaration to determine if it is a class or function."
   (save-excursion
     (if buffer (set-buffer buffer))
     (goto-char (point-min))
     (if (re-search-forward semantic-matlab-match-filetype-re nil t)
-	(let ((key (match-string 1)))
-	  (cond ((string= key "classdef")
-		 'class)
-		((string= key "function")
-		 'function)))
+        (let ((key (match-string 1)))
+          (cond ((string= key "classdef")
+                 'class)
+                ((string= key "function")
+                 'function)))
       'script)))
 
 ;;; TAG MATCHING
@@ -132,64 +130,64 @@ Return argument is:
   (save-excursion
     (if buffer (set-buffer buffer))
     (let ((re semantic-matlab-match-classdef-re)
-	  start cn end doc base meth
-	  (taglist nil)
-	  )
+          start cn end doc base meth
+          (taglist nil)
+          )
       (goto-char (point-min))
       (when (re-search-forward re nil t)
-	  (setq start (match-beginning 0)
-		cn (buffer-substring-no-properties
-		    (match-beginning 2) (match-end 2))
-		base (save-excursion
-		       (let ((tmp nil))
-			 (while (looking-at "\\s-*[<&]\\s-*\\(\\(\\sw\\|\\.\\)+\\)")
-			   (setq tmp (cons (match-string-no-properties 1) tmp))
-			   (goto-char (match-end 0)))
-			 (nreverse tmp)))
-		doc (save-excursion
-		      (forward-line)
-		      (beginning-of-line)
-		      ;; snarf doc string
-		      (cond
-		       ;; Mathworks standard
-		       ((looking-at "%[A-Z0-9_]+\\s-+\\(.*\\)\\s-*$")
-			(match-string-no-properties 1))
-		       ;; lookfor string
-		       ((looking-at "%\\s-+\\(.*\\)\\s-*$")
-			(match-string-no-properties 1))
-		       ;; otherwise simply snarf first line of
-		       ;; comments under function declaration
-		       (t
-			(re-search-forward "[^[:blank:][:cntrl:]]" nil t)
-			(backward-char)
-			(if (looking-at "%\\s-+\\(.*\\)")
-			    (match-string-no-properties 1)
-			  nil))))
-		end (save-excursion
-		      (goto-char start)
-		      (if matlab-functions-have-end
-			  (condition-case nil
-			      ;; If we get a failure, we should at least
-			      ;; return whatever we got so far.
-			      (matlab-forward-sexp)
-			    (error (point-max)))
-			(matlab-end-of-defun))
-		      (point))
-		meth (semantic-matlab-sort-raw-function-tags (semantic-matlab-function-tags)
-							     end)
-		)
-	  (semantic-matlab-methods-update-tags (car meth) start end)
-	  (setq taglist
-		(cons (list start end
-			    cn
-			    base
-			    doc
-			    (car meth)
-			    (semantic-matlab-properties-tags start end)
-			    (car (semantic-matlab-sort-raw-function-tags (car (cdr meth)) (point-max)))
-			    )
-		      taglist))
-	  )
+        (setq start (match-beginning 0)
+              cn (buffer-substring-no-properties
+                  (match-beginning 2) (match-end 2))
+              base (save-excursion
+                     (let ((tmp nil))
+                       (while (looking-at "\\s-*[<&]\\s-*\\(\\(\\sw\\|\\.\\)+\\)")
+                         (setq tmp (cons (match-string-no-properties 1) tmp))
+                         (goto-char (match-end 0)))
+                       (nreverse tmp)))
+              doc (save-excursion
+                    (forward-line)
+                    (beginning-of-line)
+                    ;; snarf doc string
+                    (cond
+                     ;; Mathworks standard
+                     ((looking-at "%[A-Z0-9_]+\\s-+\\(.*\\)\\s-*$")
+                      (match-string-no-properties 1))
+                     ;; lookfor string
+                     ((looking-at "%\\s-+\\(.*\\)\\s-*$")
+                      (match-string-no-properties 1))
+                     ;; otherwise simply snarf first line of
+                     ;; comments under function declaration
+                     (t
+                      (re-search-forward "[^[:blank:][:cntrl:]]" nil t)
+                      (backward-char)
+                      (if (looking-at "%\\s-+\\(.*\\)")
+                          (match-string-no-properties 1)
+                        nil))))
+              end (save-excursion
+                    (goto-char start)
+                    (if matlab-functions-have-end
+                        (condition-case nil
+                            ;; If we get a failure, we should at least
+                            ;; return whatever we got so far.
+                            (matlab-forward-sexp)
+                          (error (point-max)))
+                      (matlab-end-of-defun))
+                    (point))
+              meth (semantic-matlab-sort-raw-function-tags (semantic-matlab-function-tags)
+                                                           end)
+              )
+        (semantic-matlab-methods-update-tags (car meth) start end)
+        (setq taglist
+              (cons (list start end
+                          cn
+                          base
+                          doc
+                          (car meth)
+                          (semantic-matlab-properties-tags start end)
+                          (car (semantic-matlab-sort-raw-function-tags (car (cdr meth)) (point-max)))
+                          )
+                    taglist))
+        )
       (nreverse taglist))))
 
 (defvar semantic-matlab-match-methods-block-re
@@ -200,28 +198,26 @@ Return argument is:
   "Create a tags list out of RAWTAGS and properties found between START and END."
   (save-excursion
     (goto-char start)
-    (let ((taglist nil)
-	  (tmpend nil)
-	  (attrs nil)
-	  )
+    (let ((tmpend nil)
+          (attrs nil))
       (while (re-search-forward semantic-matlab-match-methods-block-re nil end)
-	(save-excursion ;; find end of properties block
-	  (goto-char (match-beginning 0))
-	  (matlab-forward-sexp nil)
-	  (setq tmpend (point)))
+        (save-excursion ;; find end of properties block
+          (goto-char (match-beginning 0))
+          (matlab-forward-sexp nil)
+          (setq tmpend (point)))
 
-	(setq attrs (semantic-matlab-parse-attributes-and-move))
+        (setq attrs (semantic-matlab-parse-attributes-and-move))
 
-	(while (and rawtags (< (nth 5 (car rawtags)) tmpend))
+        (while (and rawtags (< (nth 5 (car rawtags)) tmpend))
 
-	  (while attrs
-	    (semantic-tag-put-attribute (car rawtags) (car attrs) (car (cdr attrs)))
-	    (setq attrs (cdr (cdr attrs))))
-	  (setq rawtags (cdr rawtags))))
-	
-	(goto-char tmpend)
-	)
-      ))
+          (while attrs
+            (semantic-tag-put-attribute (car rawtags) (car attrs) (car (cdr attrs)))
+            (setq attrs (cdr (cdr attrs))))
+          (setq rawtags (cdr rawtags))))
+
+      (goto-char tmpend)
+      )
+    ))
 
 (defvar semantic-matlab-match-properties-block-re
   "^\\s-*\\bproperties\\b"
@@ -233,47 +229,47 @@ Return argument is:
     (save-match-data
       (goto-char start)
       (let ((taglist nil)
-	    (tmpend nil)
-	    (attrs nil)
-	    )
-	(while (re-search-forward semantic-matlab-match-properties-block-re nil end)
-	  (setq attrs (semantic-matlab-parse-attributes-and-move))
+            (tmpend nil)
+            (attrs nil)
+            )
+        (while (re-search-forward semantic-matlab-match-properties-block-re nil end)
+          (setq attrs (semantic-matlab-parse-attributes-and-move))
 
-	  (save-excursion ;; find end of properties block
-	    (matlab-forward-sexp t)
-	    (beginning-of-line)
-	    (setq tmpend (point)))
+          (save-excursion ;; find end of properties block
+            (matlab-forward-sexp t)
+            (beginning-of-line)
+            (setq tmpend (point)))
 
-	  (while (re-search-forward "^\\s-*\\(\\w+\\)\\>" tmpend t)
-	    (setq taglist (cons
-			   (append
-			    (apply #'semantic-tag-new-variable (match-string-no-properties 1)
-				   nil nil
-				   attrs)
-			    (list (match-beginning 1) (line-end-position)))
-			   taglist)))
+          (while (re-search-forward "^\\s-*\\(\\w+\\)\\>" tmpend t)
+            (setq taglist (cons
+                           (append
+                            (apply #'semantic-tag-new-variable (match-string-no-properties 1)
+                                   nil nil
+                                   attrs)
+                            (list (match-beginning 1) (line-end-position)))
+                           taglist)))
 
-	  (goto-char tmpend)
-	  )
-	(nreverse taglist)
-	))))
+          (goto-char tmpend)
+          )
+        (nreverse taglist)
+        ))))
 
 (defun semantic-matlab-parse-attributes-and-move ()
   "Parse the properties or method attributes block, and move cursor to end of list."
   (when (looking-at "\\s-*(")
     (let ((end (save-excursion
-		 (matlab-forward-sexp)
-		 (point)))
-	  (attrs nil)
-	  (case-fold-search t)
-	  )
+                 (matlab-forward-sexp)
+                 (point)))
+          (attrs nil)
+          (case-fold-search t)
+          )
       (save-excursion
-	;; Protection
-	(when (re-search-forward "\\<Access=['\"]\\(\\w+\\)['\"]" end t)
-	  (setq attrs (append (list :protection (match-string-no-properties 1))
-			      attrs)))
-	;; Add next attr here
-	)
+        ;; Protection
+        (when (re-search-forward "\\<Access=['\"]\\(\\w+\\)['\"]" end t)
+          (setq attrs (append (list :protection (match-string-no-properties 1))
+                              attrs)))
+        ;; Add next attr here
+        )
       (goto-char end)
       attrs)))
 
@@ -294,72 +290,72 @@ START=END=0 and no arguments or return values."
   (save-excursion
     (if buffer (set-buffer buffer))
     (let ((re semantic-matlab-match-function-re)
-	  start ret fn arg end doc
-	  (taglist nil)
-	  )
+          start ret fn arg end doc
+          (taglist nil)
+          )
       (goto-char (point-min))
       (if (and (string-match (format "^%s" (semantic-matlab-root-directory))
-			     (buffer-file-name))
-	       (looking-at "%\\([A-Z0-9_]+\\)\\s-+\\(.*\\)\\s-*$"))
-	  ;; This is a builtin function, ie there's no function line.
-	  ;; Hence we must use function name from the doc string.
-	  ;; FIXME
-	  ;; How can we get function arguments/return vals for builtin func's?
-	  (setq taglist
-		(cons (list 0 0 nil (downcase (match-string-no-properties 1))
-			    nil (match-string-no-properties 2) t
-			    )
-		      taglist))
-	;; this is a either not builtin or a user function
-	(while (re-search-forward re nil t)
-	  (setq start (match-beginning 0)
-		ret (buffer-substring-no-properties
-		     (match-beginning 2) (match-end 2))
-		fn (buffer-substring-no-properties
-		    (match-beginning 3) (match-end 3))
-		arg (buffer-substring-no-properties
-		     (match-end 3) (save-excursion
-				     (matlab-end-of-command)
-				     (point)))
-		doc (save-excursion
-		      (forward-line)
-		      (beginning-of-line)
-		      ;; snarf doc string
-		      (cond
-		       ;; Mathworks standard
-		       ((looking-at "%[A-Z0-9_]+\\s-+\\(.*\\)\\s-*$")
-			(match-string-no-properties 1))
-		       ;; lookfor string
-		       ((looking-at "%\\s-+\\(.*\\)\\s-*$")
-			(match-string-no-properties 1))
-		       ;; otherwise simply snarf first line of
-		       ;; comments under function declaration
-		       (t
-			(re-search-forward "[^[:blank:][:cntrl:]]" nil t)
-			(backward-char)
-			(if (looking-at "%\\s-+\\(.*\\)")
-			    (match-string-no-properties 1)
-			  nil))))
-		end (save-excursion
-		      (goto-char start)
-		      (if matlab-functions-have-end
-			  (condition-case nil
-			      ;; If we get a failure, we should at least
-			      ;; return whatever we got so far.
-			      (matlab-forward-sexp)
-			    (error (point-max)))
-			(matlab-end-of-defun))
-		      (point)))
-	  (setq taglist
-		(cons (list start end
-			    (split-string ret "[][,=. \t\n]+" t)
-			    fn
-			    (split-string arg "[(), \n\t.]+" t)
-			    doc
-			    nil
-			    )
-		      taglist))))
-	(nreverse taglist))))
+                             (buffer-file-name))
+               (looking-at "%\\([A-Z0-9_]+\\)\\s-+\\(.*\\)\\s-*$"))
+          ;; This is a builtin function, ie there's no function line.
+          ;; Hence we must use function name from the doc string.
+          ;; FIXME
+          ;; How can we get function arguments/return vals for builtin func's?
+          (setq taglist
+                (cons (list 0 0 nil (downcase (match-string-no-properties 1))
+                            nil (match-string-no-properties 2) t
+                            )
+                      taglist))
+        ;; this is a either not builtin or a user function
+        (while (re-search-forward re nil t)
+          (setq start (match-beginning 0)
+                ret (buffer-substring-no-properties
+                     (match-beginning 2) (match-end 2))
+                fn (buffer-substring-no-properties
+                    (match-beginning 3) (match-end 3))
+                arg (buffer-substring-no-properties
+                     (match-end 3) (save-excursion
+                                     (matlab-end-of-command)
+                                     (point)))
+                doc (save-excursion
+                      (forward-line)
+                      (beginning-of-line)
+                      ;; snarf doc string
+                      (cond
+                       ;; Mathworks standard
+                       ((looking-at "%[A-Z0-9_]+\\s-+\\(.*\\)\\s-*$")
+                        (match-string-no-properties 1))
+                       ;; lookfor string
+                       ((looking-at "%\\s-+\\(.*\\)\\s-*$")
+                        (match-string-no-properties 1))
+                       ;; otherwise simply snarf first line of
+                       ;; comments under function declaration
+                       (t
+                        (re-search-forward "[^[:blank:][:cntrl:]]" nil t)
+                        (backward-char)
+                        (if (looking-at "%\\s-+\\(.*\\)")
+                            (match-string-no-properties 1)
+                          nil))))
+                end (save-excursion
+                      (goto-char start)
+                      (if matlab-functions-have-end
+                          (condition-case nil
+                              ;; If we get a failure, we should at least
+                              ;; return whatever we got so far.
+                              (matlab-forward-sexp)
+                            (error (point-max)))
+                        (matlab-end-of-defun))
+                      (point)))
+          (setq taglist
+                (cons (list start end
+                            (split-string ret "[][,=. \t\n]+" t)
+                            fn
+                            (split-string arg "[(), \n\t.]+" t)
+                            doc
+                            nil
+                            )
+                      taglist))))
+      (nreverse taglist))))
 
 ;; TODO - commented out the below.  See if anything breaks, then delete.
 
@@ -370,49 +366,49 @@ START=END=0 and no arguments or return values."
 ;; describing the class.  This means that in semantic-matlab, the
 ;; old-style MATLAB classes are linked to the constructor file."
 ;;   (let* ((name (buffer-file-name buffer))
-;; 	 class method methods retval attributes)
+;;       class method methods retval attributes)
 ;;     (when (string-match ".*/@\\(.*?\\)/\\(.*?\\)\\.m" name)
 ;;       ;; this buffer is part of a class - check
 ;;       (setq class (match-string 1 name))
 ;;       (setq method (match-string 2 name))
-;;       (when (string= class method)	; is this the constructor?
-;; 	;; get attributes of the class
-;; 	;; TODO - we blindly assume the constructor is correctly defined
-;; 	(setq retval (semantic-tag-get-attribute (car tags) :return))
-;; 	(goto-char (point-min))
-;; 	;; search for attributes
-;; 	(while (re-search-forward
-;; 		(concat "^\\s-*" (car retval)
-;; 			"\\.\\([A-Za-z0-9_]+\\)\\s-*=\\s-*\\(.+\\);")
-;; 		nil t)
-;; 	  (push (list (match-string-no-properties 1) ; name
-;; 		      (match-string-no-properties 2)) ; default value
-;; 		attributes))
-;; 	;; now scan the methods
-;; 	(dolist (cur (delete class
-;; 			     (nthcdr 2
-;; 				     (assoc class semanticdb-matlab-user-class-cache))))
-;; 	  (push
-;; 	   (semantic-tag-put-attribute
-;; 	    (car (semanticdb-file-stream
-;; 		  (concat
-;; 		   (file-name-directory name)
-;; 		   cur ".m")))
-;; 	    :typemodifiers '("public"))
-;; 	   methods))
-;; 	;; generate tag
-;; 	(semantic-tag-new-type
-;; 	 class
-;; 	 "class"
-;; 	 (append
-;; 	  (mapcar (lambda (cur)
-;; 		    (semantic-tag-new-variable
-;; 		      (car cur) nil (cdr cur)
-;; 		      :typemodifiers '("public")))
-;; 		  attributes)
-;; 	  methods)
-;; 	 nil
-;; 	 :typemodifiers '("public"))))))
+;;       (when (string= class method)   ; is this the constructor?
+;;      ;; get attributes of the class
+;;      ;; TODO - we blindly assume the constructor is correctly defined
+;;      (setq retval (semantic-tag-get-attribute (car tags) :return))
+;;      (goto-char (point-min))
+;;      ;; search for attributes
+;;      (while (re-search-forward
+;;              (concat "^\\s-*" (car retval)
+;;                      "\\.\\([A-Za-z0-9_]+\\)\\s-*=\\s-*\\(.+\\);")
+;;              nil t)
+;;        (push (list (match-string-no-properties 1) ; name
+;;                    (match-string-no-properties 2)) ; default value
+;;              attributes))
+;;      ;; now scan the methods
+;;      (dolist (cur (delete class
+;;                           (nthcdr 2
+;;                                   (assoc class semanticdb-matlab-user-class-cache))))
+;;        (push
+;;         (semantic-tag-put-attribute
+;;          (car (semanticdb-file-stream
+;;                (concat
+;;                 (file-name-directory name)
+;;                 cur ".m")))
+;;          :typemodifiers '("public"))
+;;         methods))
+;;      ;; generate tag
+;;      (semantic-tag-new-type
+;;       class
+;;       "class"
+;;       (append
+;;        (mapcar (lambda (cur)
+;;                  (semantic-tag-new-variable
+;;                    (car cur) nil (cdr cur)
+;;                    :typemodifiers '("public")))
+;;                attributes)
+;;        methods)
+;;       nil
+;;       :typemodifiers '("public"))))))
 
 ;; (defun semantic-matlab-find-oldstyle-classes (files)
 ;;   "Scan FILES for old-style Matlab class system.
@@ -421,11 +417,11 @@ START=END=0 and no arguments or return values."
 ;;     (dolist (cur files)
 ;;       ;; scan file path for @-directory
 ;;       (when (string-match "\\(.*\\)/@\\(.*?\\)/\\(.*?\\)\\.m" cur)
-;; 	(if (setq temp
-;; 		  (assoc (match-string 2 cur) classes))
-;; 	    (nconc temp `(,(match-string 3 cur)))
-;; 	  (push `( ,(match-string 2 cur) ,(match-string 1 cur)
-;; 		   ,(match-string 3 cur)) classes))))
+;;      (if (setq temp
+;;                (assoc (match-string 2 cur) classes))
+;;          (nconc temp `(,(match-string 3 cur)))
+;;        (push `( ,(match-string 2 cur) ,(match-string 1 cur)
+;;                 ,(match-string 3 cur)) classes))))
 ;;     classes))
 
 ;;; BEGIN PARSER
@@ -435,17 +431,18 @@ START=END=0 and no arguments or return values."
 IGNORE any arguments which specify a subregion to parse.
 Each tag returned is a semantic FUNCTION tag.  See
 `semantic-tag-new-function'."
+  (ignore ignore)
   (semanticdb-matlab-cache-files)
   (let* ((bt (semantic-matlab-guess-buffer-type))
-	 (raw (condition-case nil
-		  ;; Errors from here ought not to be propagated.
-		  (cond ((eq bt 'class)
-			 (semantic-matlab-parse-class))
-			((eq bt 'function)
-			 (semantic-matlab-parse-functions))
-			(t nil))
-	       (error nil)))
-	tags ctags)
+         (raw (condition-case nil
+                  ;; Errors from here ought not to be propagated.
+                  (cond ((eq bt 'class)
+                         (semantic-matlab-parse-class))
+                        ((eq bt 'function)
+                         (semantic-matlab-parse-functions))
+                        (t nil))
+                (error nil)))
+         tags)
     (setq tags (mapcar 'semantic-matlab-expand-tag raw))
     ;; check if this is a class constructor
     ;; (setq ctags (list (semantic-matlab-parse-oldstyle-class tags)))
@@ -453,7 +450,7 @@ Each tag returned is a semantic FUNCTION tag.  See
     tags))
 
 (defun semantic-matlab-parse-changes ()
-  "Parse all changes for the current MATLAB buffer."
+  "Parse all change actions for the current MATLAB buffer."
   ;; NOTE: For now, just schedule a full reparse.
   ;;       To be implemented later.
   (semantic-parse-tree-set-needs-rebuild))
@@ -475,6 +472,7 @@ Each tag returned is a semantic FUNCTION tag.  See
 
 (defun semantic-matlab-parse-class (&optional limit)
   "Parse the class from the current MATLAB buffer up to LIMIT."
+  (ignore limit)
   (semantic-matlab-sort-raw-class-tags (semantic-matlab-class-tags)))
 
 (defun semantic-matlab-sort-raw-class-tags (tag-list)
@@ -482,31 +480,31 @@ Each tag returned is a semantic FUNCTION tag.  See
   (let ((newlist nil))
     (dolist (tag tag-list)
       (let ((start (car tag))
-	    (end (nth 1 tag))
-	    (name (nth 2 tag))
-	    (base (nth 3 tag))
-	    (doc (nth 4 tag))
-	    (meth (nth 5 tag))
-	    (props (nth 6 tag))
-	    (local (nth 7 tag)))
-	(setq newlist
-	      (cons (append
-		     (semantic-tag-new-type name
-					    "class"
-					    (append props meth)
-					    (list base)
-					    :documentation doc)
-		     (list start end))
-		    newlist))
-	(setq newlist (append newlist local))
-	))
+            (end (nth 1 tag))
+            (name (nth 2 tag))
+            (base (nth 3 tag))
+            (doc (nth 4 tag))
+            (meth (nth 5 tag))
+            (props (nth 6 tag))
+            (local (nth 7 tag)))
+        (setq newlist
+              (cons (append
+                     (semantic-tag-new-type name
+                                            "class"
+                                            (append props meth)
+                                            (list base)
+                                            :documentation doc)
+                     (list start end))
+                    newlist))
+        (setq newlist (append newlist local))
+        ))
     newlist))
 
 (defun semantic-matlab-parse-functions (&optional limit)
   "Parse all functions from the current MATLAB buffer up to LIMIT."
   (car
    (semantic-matlab-sort-raw-function-tags (semantic-matlab-function-tags)
-					   (or limit (point-max)))
+                                           (or limit (point-max)))
    ))
 
 (defun semantic-matlab-sort-raw-function-tags (tag-list &optional end)
@@ -514,30 +512,30 @@ Each tag returned is a semantic FUNCTION tag.  See
 Return list is:
   (TAGS-BEFORE-END REMAINING-TAGS)"
   (let ((newlist nil)
-	(rest tag-list))
+        (rest tag-list))
     ;; Loop until there are no more tags, or no tags before END.
     (while (and tag-list (> end (car (car tag-list))))
       (let* ((tag (car tag-list))
-	     (start (car tag))
-	     (end (nth 1 tag))
-	     (ret (nth 2 tag))
-	     (name (nth 3 tag))
-	     (args (nth 4 tag))
-	     (doc (nth 5 tag))
-	     (builtin (nth 6 tag))
-	     (parts (semantic-matlab-sort-raw-function-tags (cdr tag-list) end))
-	     (chil (car parts)))
-	(setq rest (car (cdr parts)))
-	(setq newlist
-	      (cons (append
-		     (semantic-tag-new-function name nil args
-						:return ret
-						:subfunctions chil
-						:documentation doc
-						:builtin builtin)
-		     (list start end))
-		    newlist))
-	(setq tag-list rest)))
+             (start (car tag))
+             (end (nth 1 tag))
+             (ret (nth 2 tag))
+             (name (nth 3 tag))
+             (args (nth 4 tag))
+             (doc (nth 5 tag))
+             (builtin (nth 6 tag))
+             (parts (semantic-matlab-sort-raw-function-tags (cdr tag-list) end))
+             (chil (car parts)))
+        (setq rest (car (cdr parts)))
+        (setq newlist
+              (cons (append
+                     (semantic-tag-new-function name nil args
+                                                :return ret
+                                                :subfunctions chil
+                                                :documentation doc
+                                                :builtin builtin)
+                     (list start end))
+                    newlist))
+        (setq tag-list rest)))
     (list (nreverse newlist) tag-list)))
 
 ;; The following function tries to parse MATLAB variable
@@ -566,98 +564,98 @@ it reaches a function declaration or the beginning of the buffer.
 It returns a list of variable assignments (NAME TYPE ATTRIBUTES),
 where NAME is unique."
   (let ((limit (or (save-excursion
-		     (if (re-search-backward semantic-matlab-match-function-re nil t)
-			 (progn
-			   (forward-line 1)
-			   (point))
-		       nil))
-		   (point-min)))
-	vars)
+                     (if (re-search-backward semantic-matlab-match-function-re nil t)
+                         (progn
+                           (forward-line 1)
+                           (point))
+                       nil))
+                   (point-min)))
+        vars)
     ;; don't parse current line
     (beginning-of-line)
     (while (re-search-backward (concat "^\\(" (regexp-quote semantic-matlab-type-hint-string)
-				       "\\)?\\([^%]*[^=><~]\\)=\\([^=].*\\)$") limit t)
+                                       "\\)?\\([^%]*[^=><~]\\)=\\([^=].*\\)$") limit t)
       (let ((left (match-string-no-properties 2))
-	    (right (match-string-no-properties 3))
-	    temp)
-	;; first we have to deal with ellipsis...
-	(save-excursion
-	  (while (string-match
-		(concat "\\(.*\\)"
-			(regexp-quote matlab-ellipsis-string) "\\s-*$")
-		right)
-	    (forward-line 1)
-	    (setq right
-		  (concat
-		   (match-string 1 right)
-		   (progn (looking-at "^.*$")
-			  (match-string-no-properties 0))))))
-	(save-excursion
-	  (while (and (not (bobp))
-		      (progn
-			(forward-line -1)
-			(looking-at
-			 (concat "\\(.*\\)"
-				 (regexp-quote matlab-ellipsis-string) "\\s-*$"))))
-	    (setq left
-		  (concat (match-string-no-properties 1) left))))
-	;; remove bracket expressions and beginning/trailing whitespaces on left-hand side
-	(while (or (string-match "\\((.*)\\|{.*}\\)" left)
-		   (string-match "^\\(\\s-+\\)" left)
-		   (string-match "\\(\\s-+\\)$" left))
-	  (setq left (replace-match "" t t left)))
-	;; deal with right-hand side
-	(cond
-	 ;; special case: a = set(class,attribute,value)
-	 ((string-match "\\s-*set(\\s-*\\([A-Za-z_0-9 ]+\\)\\s-*," right)
-	  (setq right (match-string 1 right)))
-	 ;; method call which returns same class: class=method(class [,args])
-	 ((and (string-match "\\s-*[A-Za-z_0-9 ]+\\s-*(\\s-*\\([A-Za-z_0-9 ]+\\)\\s-*\\(,\\|)\\)" right)
-	       (string= left (match-string 1 right)))
-	  (setq right (match-string 1 right)))
-	;; otherwise reduce right-hand side to first symbol
-	(t
-	 (string-match "[[({ ]*\\([A-Za-z_0-9]*\\)" right)
-	 (setq right (match-string 1 right))))
-	(cond
-	 ;; multiple assignment, e.g. [a,b]=size(A);
-	 ((string-match "\\[\\(.*\\)\\]" left)
-	  (dolist (cur (split-string (match-string 1 left) ","))
-	    (string-match "\\s-*\\([A-Za-z_0-9]+\\)\\s-*" cur)
-	    (setq cur (match-string 1 cur))
-	    (unless (assoc cur vars)
-	      ;; since we don't know any return types, we just say it's double
-	      (push (list cur "double" "") vars))))
-	 ;; (nested) structure
-	 ((string-match "\\([A-Za-z_0-9.]+\\)\\.\\([A-Za-z_0-9]+\\)" left)
-	  (while (string-match "\\([A-Za-z_0-9.]+\\)\\.\\([A-Za-z_0-9]+\\)" left)
-	    (let ((name (match-string 1 left))
-		  (field (match-string 2 left)))
-	      (if (setq temp (assoc name vars))
-		  (unless (member field temp)
-		    (nconc temp (list field)))
-		(push (list name "struct" field)
-		      vars))
-	      (setq left name))))
-	 ;; class
-	 ((assoc right semanticdb-matlab-user-class-cache)
-	  (string-match "\\([A-Za-z_0-9]+\\)\\s-*$" left)
-	  (setq left (match-string 1 left))
-	  (if (and (setq temp (assoc left vars))
-		   (string= (nth 1 temp) "struct"))
-	      ;; we first thought it's a structure, but it's probably a
-	      ;; new-style class
-	      (setcdr temp `("class" ,right))
-	    (unless temp
-	      (push `(,left "class" ,right) vars))))
-	 (t
-	  ;; default is double
-	  (string-match "\\([A-Za-z_0-9]+\\)\\s-*$" left)
-	  (setq left (match-string 1 left))
-	  (unless (or (assoc left vars)
-		      (string= left right)) ; self assignment
-	    (push `(,left "double" ,right) vars)))
-	 )))
+            (right (match-string-no-properties 3))
+            temp)
+        ;; first we have to deal with ellipsis...
+        (save-excursion
+          (while (string-match
+                  (concat "\\(.*\\)"
+                          (regexp-quote matlab-ellipsis-string) "\\s-*$")
+                  right)
+            (forward-line 1)
+            (setq right
+                  (concat
+                   (match-string 1 right)
+                   (progn (looking-at "^.*$")
+                          (match-string-no-properties 0))))))
+        (save-excursion
+          (while (and (not (bobp))
+                      (progn
+                        (forward-line -1)
+                        (looking-at
+                         (concat "\\(.*\\)"
+                                 (regexp-quote matlab-ellipsis-string) "\\s-*$"))))
+            (setq left
+                  (concat (match-string-no-properties 1) left))))
+        ;; remove bracket expressions and beginning/trailing whitespaces on left-hand side
+        (while (or (string-match "\\((.*)\\|{.*}\\)" left)
+                   (string-match "^\\(\\s-+\\)" left)
+                   (string-match "\\(\\s-+\\)$" left))
+          (setq left (replace-match "" t t left)))
+        ;; deal with right-hand side
+        (cond
+         ;; special case: a = set(class,attribute,value)
+         ((string-match "\\s-*set(\\s-*\\([A-Za-z_0-9 ]+\\)\\s-*," right)
+          (setq right (match-string 1 right)))
+         ;; method call which returns same class: class=method(class [,args])
+         ((and (string-match "\\s-*[A-Za-z_0-9 ]+\\s-*(\\s-*\\([A-Za-z_0-9 ]+\\)\\s-*\\(,\\|)\\)" right)
+               (string= left (match-string 1 right)))
+          (setq right (match-string 1 right)))
+         ;; otherwise reduce right-hand side to first symbol
+         (t
+          (string-match "[[({ ]*\\([A-Za-z_0-9]*\\)" right)
+          (setq right (match-string 1 right))))
+        (cond
+         ;; multiple assignment, e.g. [a,b]=size(A);
+         ((string-match "\\[\\(.*\\)\\]" left)
+          (dolist (cur (split-string (match-string 1 left) ","))
+            (string-match "\\s-*\\([A-Za-z_0-9]+\\)\\s-*" cur)
+            (setq cur (match-string 1 cur))
+            (unless (assoc cur vars)
+              ;; since we don't know any return types, we just say it's double
+              (push (list cur "double" "") vars))))
+         ;; (nested) structure
+         ((string-match "\\([A-Za-z_0-9.]+\\)\\.\\([A-Za-z_0-9]+\\)" left)
+          (while (string-match "\\([A-Za-z_0-9.]+\\)\\.\\([A-Za-z_0-9]+\\)" left)
+            (let ((name (match-string 1 left))
+                  (field (match-string 2 left)))
+              (if (setq temp (assoc name vars))
+                  (unless (member field temp)
+                    (nconc temp (list field)))
+                (push (list name "struct" field)
+                      vars))
+              (setq left name))))
+         ;; class
+         ((assoc right semanticdb-matlab-user-class-cache)
+          (string-match "\\([A-Za-z_0-9]+\\)\\s-*$" left)
+          (setq left (match-string 1 left))
+          (if (and (setq temp (assoc left vars))
+                   (string= (nth 1 temp) "struct"))
+              ;; we first thought it's a structure, but it's probably a
+              ;; new-style class
+              (setcdr temp `("class" ,right))
+            (unless temp
+              (push `(,left "class" ,right) vars))))
+         (t
+          ;; default is double
+          (string-match "\\([A-Za-z_0-9]+\\)\\s-*$" left)
+          (setq left (match-string 1 left))
+          (unless (or (assoc left vars)
+                      (string= left right)) ; self assignment
+            (push `(,left "double" ,right) vars)))
+         )))
     vars))
 
 
@@ -665,46 +663,47 @@ where NAME is unique."
 (define-mode-local-override semantic-get-local-variables
   matlab-mode (&optional point)
   "Return a list of local variables for POINT."
+  (ignore point)
   (semanticdb-matlab-cache-files)
   (save-excursion
     (let ((vars (semantic-matlab-parse-assignments))
-	  knowntypes tags)
+          knowntypes tags)
       (dolist (cur vars)
-	;; check right-hand side for known types which might be
-	;; assigned this variable
-	(if (string= (nth 1 cur) "double")
-	    (when (member (nth 2 cur) knowntypes)
-	      (setcdr cur (cdr (assoc (nth 2 cur) vars))))
-	  (push (nth 0 cur) knowntypes))
-	;; generate the tag
-	(push
-	 (semantic-tag-new-variable
-	  (car cur)
-	  (cond
-	   ;; structures
-	   ((string= (cadr cur) "struct")
-	    (semantic-tag-new-type
-	     ;; this is just a placeholder
-	     (concat (car cur) "_struct")
-	     "struct"
-	     (mapcar
-	      (lambda (x)
-		(semantic-tag-new-variable
-		 x
-		 nil nil :typemodifiers '("public") ))
-	      (nthcdr 2 cur))
-	     nil))
-	   ;; classes
-	   ((string= (cadr cur) "class")
-	    ;; include tags from class constructor
-	    ;; (contains whole class, including methods)
-	    (car (semanticdb-file-stream
-		  (concat
-		   (nth 1 (assoc (nth 2 cur) semanticdb-matlab-user-class-cache))
-		   "/@" (nth 2 cur) "/" (nth 2 cur) ".m"))))
-	   (t
-	    nil)))
-	 tags))
+        ;; check right-hand side for known types which might be
+        ;; assigned this variable
+        (if (string= (nth 1 cur) "double")
+            (when (member (nth 2 cur) knowntypes)
+              (setcdr cur (cdr (assoc (nth 2 cur) vars))))
+          (push (nth 0 cur) knowntypes))
+        ;; generate the tag
+        (push
+         (semantic-tag-new-variable
+          (car cur)
+          (cond
+           ;; structures
+           ((string= (cadr cur) "struct")
+            (semantic-tag-new-type
+             ;; this is just a placeholder
+             (concat (car cur) "_struct")
+             "struct"
+             (mapcar
+              (lambda (x)
+                (semantic-tag-new-variable
+                 x
+                 nil nil :typemodifiers '("public") ))
+              (nthcdr 2 cur))
+             nil))
+           ;; classes
+           ((string= (cadr cur) "class")
+            ;; include tags from class constructor
+            ;; (contains whole class, including methods)
+            (car (semanticdb-file-stream
+                  (concat
+                   (nth 1 (assoc (nth 2 cur) semanticdb-matlab-user-class-cache))
+                   "/@" (nth 2 cur) "/" (nth 2 cur) ".m"))))
+           (t
+            nil)))
+         tags))
       tags)))
 
 
@@ -714,46 +713,47 @@ where NAME is unique."
 For MATLAB, we have to mark builtin functions, since we currently
 cannot derive an argument list for them."
   (let ((class (semantic-tag-class tag))
-	(name (semantic-format-tag-name tag parent color))
-	str)
+        (name (semantic-format-tag-name tag parent color)))
     (if (eq class 'function)
-	(let* ((args  (semantic-tag-function-arguments tag))
-	       (argstr (semantic--format-tag-arguments args
-						       #'identity
-						       color))
-	       (builtin (semantic-tag-get-attribute tag :builtin))
-	       (doc (semantic-tag-docstring tag)))
-	  (if builtin
-	      (if color
-		  (setq builtin (semantic--format-colorize-text " [builtin] " 'keyword)
-			argstr (semantic--format-colorize-text " arguments unavailable" 'label))
-		(setq builtin " [builtin] "
-		      argstr " arguments unavailable"))
-	    (setq builtin ""))
-	  (concat name builtin "(" (if args " " "")
-		  argstr
-		  " )"))
+        (let* ((args  (semantic-tag-function-arguments tag))
+               (argstr (semantic--format-tag-arguments args
+                                                       #'identity
+                                                       color))
+               (builtin (semantic-tag-get-attribute tag :builtin))
+               (doc (semantic-tag-docstring tag)))
+          (ignore doc)
+          (if builtin
+              (if color
+                  (setq builtin (semantic--format-colorize-text " [builtin] " 'keyword)
+                        argstr (semantic--format-colorize-text " arguments unavailable" 'label))
+                (setq builtin " [builtin] "
+                      argstr " arguments unavailable"))
+            (setq builtin ""))
+          (concat name builtin "(" (if args " " "")
+                  argstr
+                  " )"))
       (semantic-format-tag-prototype-default tag parent color))))
 
 (defun semantic-idle-summary-format-matlab-mode (tag &optional parent color)
   "Describe TAG and display corresponding MATLAB \\='lookfor\\=' doc-string.
 Optional PARENT and COLOR specify additional details for the tag.
 See `semantic-format-tag-prototype-matlab-mode' for details."
+  (ignore parent)
   (let* ((proto (semantic-format-tag-prototype-matlab-mode tag nil color))
-	 (doc (semantic-tag-docstring tag)))
+         (doc (semantic-tag-docstring tag)))
     (concat proto " (" doc ")")))
 
 (defcustom-mode-local-semantic-dependency-system-include-path
   matlab-mode semantic-matlab-dependency-system-include-path
   (when (and semantic-matlab-root-directory
-	     (file-exists-p semantic-matlab-root-directory))
+             (file-exists-p semantic-matlab-root-directory))
     (let ((path nil))
-      (mapcar (lambda (cur)
-		(let ((tmp (expand-file-name
-			    cur semantic-matlab-root-directory)))
-		  (when (file-exists-p tmp)
-		    (push tmp path))))
-	      semantic-matlab-system-paths-include)
+      (mapc (lambda (cur)
+              (let ((tmp (expand-file-name
+                          cur semantic-matlab-root-directory)))
+                (when (file-exists-p tmp)
+                  (push tmp path))))
+            semantic-matlab-system-paths-include)
       path))
   "The system include paths from MATLAB.")
 
@@ -770,12 +770,13 @@ See `semantic-format-tag-prototype-matlab-mode' for details."
   "Insert TAG into the current buffer based on completion."
   (insert (semantic-tag-name tag))
   (let ((name (semantic-tag-name tag))
-	(tt (semantic-tag-class tag))
-	(args (semantic-tag-function-arguments tag))
-	(doc (semantic-tag-docstring tag)))
+        (tt (semantic-tag-class tag))
+        (args (semantic-tag-function-arguments tag))
+        (doc (semantic-tag-docstring tag)))
+    (ignore name doc) ;; should these be used?
     (when (and (eq tt 'function)
-	       args
-	       (not (looking-at "\\s-*(")))
+               args
+               (not (looking-at "\\s-*(")))
       (insert "("))
     ;; delete trailing whitespaces when completing class methods
     (when (looking-at "\\(\\s-+\\)(")
@@ -790,50 +791,50 @@ See `semantic-format-tag-prototype-matlab-mode' for details."
   "Return the current symbol the cursor is on at point in a list.
 This will include a list of type/field names when applicable."
   (let*  ((case-fold-search semantic-case-fold)
-	  sym)
+          sym)
     (with-syntax-table semantic-lex-syntax-table
       (save-excursion
-	(when point (goto-char point))
-	;; go to beginning of symbol
-	(skip-syntax-backward "w_")
-	(setq sym (if (looking-at "[a-zA-Z_0-9]+")
-		      (match-string-no-properties 0)
-		    nil))
-	(if sym
-	    (cond
-	     ;; method call: var = method(class,args)
-	     ((progn
-		(and (looking-back "[^=><~]=\\s-*" nil)
-		     (looking-at "[a-zA-Z_0-9]*\\s-*(\\([a-zA-Z_0-9]+\\),?")))
-	      (list (match-string-no-properties 1) sym))
-	     ;; class properties: var = get(class,'attribute')
-	     ((looking-back "\\(get\\|set\\)(\\s-*\\([a-zA-Z_0-9]+\\),'" nil)
-	      (list (match-string-no-properties 2) sym))
-	     ;; (nested) structures or new-style classes
-	     ((looking-back "[^A-Za-z_0-9.]\\([A-Za-z_0-9.]+\\)\\." nil)
-	      (list (match-string-no-properties 1) sym))
-	     (t
-	      (list sym)))
-	  nil)))))
+        (when point (goto-char point))
+        ;; go to beginning of symbol
+        (skip-syntax-backward "w_")
+        (setq sym (if (looking-at "[a-zA-Z_0-9]+")
+                      (match-string-no-properties 0)
+                    nil))
+        (if sym
+            (cond
+             ;; method call: var = method(class,args)
+             ((progn
+                (and (looking-back "[^=><~]=\\s-*" nil)
+                     (looking-at "[a-zA-Z_0-9]*\\s-*(\\([a-zA-Z_0-9]+\\),?")))
+              (list (match-string-no-properties 1) sym))
+             ;; class properties: var = get(class,'attribute')
+             ((looking-back "\\(get\\|set\\)(\\s-*\\([a-zA-Z_0-9]+\\),'" nil)
+              (list (match-string-no-properties 2) sym))
+             ;; (nested) structures or new-style classes
+             ((looking-back "[^A-Za-z_0-9.]\\([A-Za-z_0-9.]+\\)\\." nil)
+              (list (match-string-no-properties 1) sym))
+             (t
+              (list sym)))
+          nil)))))
 
- (define-mode-local-override semantic-ctxt-current-symbol-and-bounds
-   matlab-mode (&optional point)
-   "Return the current symbol and bounds the cursor is on at POINT.
+(define-mode-local-override semantic-ctxt-current-symbol-and-bounds
+  matlab-mode (&optional point)
+  "Return the current symbol and bounds the cursor is on at POINT.
  Uses `semantic-ctxt-current-symbol' to calculate the symbol.
  Return (PREFIX ENDSYM BOUNDS)."
-   (let ((sym (semantic-ctxt-current-symbol-matlab-mode point))
-	 bounds endsym)
-     (save-excursion
-       (when point (goto-char point))
-       (when sym
-	 ;; go to beginning of symbol
-	 (skip-syntax-backward "w_")
-	 (setq endsym (progn (looking-at "[a-zA-Z_0-9]+")
-			     (match-string-no-properties 0)))
-	 (setq bounds (cons
-		       (match-beginning 0)
-		       (match-end 0)))
-	 (list sym endsym bounds)))))
+  (let ((sym (semantic-ctxt-current-symbol-matlab-mode point))
+        bounds endsym)
+    (save-excursion
+      (when point (goto-char point))
+      (when sym
+        ;; go to beginning of symbol
+        (skip-syntax-backward "w_")
+        (setq endsym (progn (looking-at "[a-zA-Z_0-9]+")
+                            (match-string-no-properties 0)))
+        (setq bounds (cons
+                      (match-beginning 0)
+                      (match-end 0)))
+        (list sym endsym bounds)))))
 
 (defvar semantic-imenu-bucketize-type-members) ;; quiet compiler warning
 ;;;###autoload
@@ -847,17 +848,17 @@ This will include a list of type/field names when applicable."
         ;; Setup a dummy parser table to enable parsing!
         semantic--parse-table t
         imenu-create-index-function 'semantic-create-imenu-index
-	;; semantic-command-separation-character "."
-	semantic-type-relation-separator-character '(".")
-	semantic-symbol->name-assoc-list '((function . "Function")
-					   (type . "Class")
-					   )
-	semantic-imenu-expandable-tag-classes '(function type)
-	semantic-imenu-bucketize-file nil
-	semantic-imenu-bucketize-type-members nil
-	senator-step-at-start-end-tag-classes '(function)
-	semantic-stickyfunc-sticky-classes '(function type)
-	)
+        ;; semantic-command-separation-character "."
+        semantic-type-relation-separator-character '(".")
+        semantic-symbol->name-assoc-list '((function . "Function")
+                                           (type . "Class")
+                                           )
+        semantic-imenu-expandable-tag-classes '(function type)
+        semantic-imenu-bucketize-file nil
+        semantic-imenu-bucketize-type-members nil
+        senator-step-at-start-end-tag-classes '(function)
+        semantic-stickyfunc-sticky-classes '(function type)
+        )
   )
 
 (provide 'semantic-matlab)
