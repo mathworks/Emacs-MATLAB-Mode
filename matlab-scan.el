@@ -104,9 +104,9 @@ keyword types.  These include:
    all    - any kind of keyword
    decl   - declarations, like class or function
    indent - any keyword that causes an indent
-   end    - the end keyword (that causes dedent)
+   end    - the end keyword (that causes indent)
    blocks - indent and end keywords
-   fl-simple - simple to highilght w/ font lock
+   fl-simple - simple to highlight w/ font lock
 Caches some found regexp to retrieve them faster."
   (cond
    ((or (eq types nil) (eq types 'all))
@@ -171,7 +171,7 @@ return the cache if it finds it."
 ;;; LEVEL 1 SCANNER
 ;;
 ;; This scanner pulls out context available on the current line.
-;; This inludes the nature of the line, and anything sytax-ppss gives is.
+;; This includes the nature of the line, and anything syntax-ppss gives is.
 (defconst mlf-ltype 0)
 (defconst mlf-stype 1)
 (defconst mlf-point 2)
@@ -206,7 +206,7 @@ in a single call using fastest methods."
     ;;     syntax-propertize.  Command dual needs to call
     ;;     `syntax-ppss' which it does on bol By setting `syntax-ppss'
     ;;     internal cache on bol, in cases where propertize needs to
-    ;;     be called, the cache returns immediatly during the
+    ;;     be called, the cache returns immediately during the
     ;;     propertize, and needs to do no extra work.
     (beginning-of-line)
     (let* ((ppsbol (syntax-ppss (point))) ;; Use the cache
@@ -281,7 +281,7 @@ in a single call using fastest methods."
 	      stype (cond ((looking-at "%{\\s-*$")
 			   'block-start)
 			  ((looking-at "%%")
-			   'cell-start)
+			   'code-section-start)
 			  ;; The %^ is used in tests
 			  ((looking-at "%\\(?:\\^\\| \\$\\$\\$\\)")
 			   'indent-ignore)
@@ -386,7 +386,7 @@ Returns the value from the last part of forms."
   (and (matlab-line-comment-p lvl1) (eq (nth mlf-stype lvl1) 'indent-ignore)))
 
 (defsubst matlab-line-comment-style (lvl1)
-  "Return type type of comment on this line LVL1."
+  "Return type of comment on this line LVL1."
   (and (matlab-line-comment-p lvl1) (nth mlf-stype lvl1)))
 
 (defsubst matlab-line-end-comment-column (lvl1)
@@ -562,15 +562,15 @@ If the current line is not a declaration, return nil LVL1."
   (nth mlf-paren-inner-char lvl1))
 
 (defsubst matlab-line-close-paren-inner-col (lvl1)
-  "Return the paren column for the prenthetical expression LVL1 is in."
+  "Return the paren column for the parenthetical expression LVL1 is in."
   (nth mlf-paren-inner-col lvl1))
 
 (defsubst matlab-line-close-paren-inner-point (lvl1)
-  "Return the paren column for the prenthetical expression LVL1 is in."
+  "Return the paren column for the parenthetical expression LVL1 is in."
   (nth mlf-paren-inner-point lvl1))
 
 (defsubst matlab-line-close-paren-outer-char (lvl1)
-  "The paren character for the outermost prenthetical expression LVL1 is in."
+  "The paren character for the outermost parenthetical expression LVL1 is in."
   (nth mlf-paren-outer-char lvl1))
 
 (defsubst matlab-line-close-paren-outer-point (lvl1)
@@ -581,7 +581,7 @@ If the current line is not a declaration, return nil LVL1."
 ;;; LEVEL 2 SCANNER
 ;;
 ;; This scanner extracts information that affects the NEXT line of ML code.
-;; This inludes things like ellipsis and keyword chains like if/end blocks.
+;; This includes things like ellipsis and keyword chains like if/end blocks.
 ;;
 ;; Level 2 scanning information cascades from line-to-line, several fields will
 ;; be blank unless a previous line is also scanned.
@@ -597,7 +597,7 @@ If the current line is not a declaration, return nil LVL1."
 Level 2 context are things that are derived from previous lines of code.
 
 Some of that context is derived from the LVL1 context such as paren depth,
-and some scaning previous lines of code.
+and some scanning previous lines of code.
 
 LVL1 will be computed if not provided.
 
@@ -1067,7 +1067,7 @@ If nothing is found before LIMIT, then stop and return nil."
 Return current state on exit.
   nil     - success
   non-nil - indicates incomplete scanning
-Also skips over all nexted block constructs along the way.
+Also skips over all nested block constructs along the way.
 Assumes cursor is in a valid starting state, otherwise ERROR.
 If cursor is on a middle-block construct like else, case, ERROR.
 
@@ -1133,7 +1133,7 @@ BOUNDS."
 Return current state on exit.
   nil     - success
   non-nil - indicates incomplete scanning
-Also skips over all nexted block constructs along the way.
+Also skips over all nested block constructs along the way.
 Assumes cursor is in a valid starting state, otherwise ERROR.
 If cursor is on a middle-block construct like else, case, ERROR.
 
@@ -1259,7 +1259,7 @@ assumes pt is NOT on an end.  List contains:
   0 - type of keyword the end matched.
   1 - column the keyword is on.
   2 - lvl1 context of line the keyword is on
-  3 - lvl1 context of line at beginning of cmnd found keyword is in.
+  3 - lvl1 context of line at beginning of cmd found keyword is in.
 
 Items 2 and 3 are likely the same but could be different."
   (save-excursion
@@ -1354,7 +1354,7 @@ With ARG, enable gathering stats, and flush old stats."
   (if arg
       (progn (setq matlab-scan-cache-stats nil)
 	     (message "Disable matlab scanner stats gathering."))
-    (message "Emable matlab scanner stats gathering.")
+    (message "Enable matlab scanner stats gathering.")
     (setq matlab-scan-cache-stats (matlab-obarray-make 13))))
 
 (defun matlab-scan-stat-inc (thing)
@@ -1479,9 +1479,13 @@ If optional NODISP, then don't display, just return the msg."
 
 
 (provide 'matlab-scan)
-
-;;; matlab-indent.el ends here
-
-(provide 'matlab-scan)
-
 ;;; matlab-scan.el ends here
+
+;; LocalWords:  eludlam defconst decl ifelse vardecl obarray mapc elt cdr defun numberp Ludlam
+;; LocalWords:  defsubst kwt setq symbolp memq ctxt ppss mlf ltype stype propertize BOL sexp bol
+;; LocalWords:  ppsbol pps progn repeat:nil ppsend eol ec prev symval eolp commanddual defmacro
+;; LocalWords:  consp endpt parens tmp bobp setcdr nthcdr setcar nonemptymiss codemiss cmdbegin
+;; LocalWords:  decls classdefs boc bcs lvlwalk eobp parentblock bolp prevblock providedstate
+;; LocalWords:  thiskeyword blockstate currentstate noerror bonustest funcall bgn newcache flushskip
+;; LocalWords:  mapatoms mapconcat printfcn princ nodisp innerparenstr outerp outerparenopen
+;; LocalWords:  outerparenclose extraopen extraclose ucs

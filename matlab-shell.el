@@ -2330,7 +2330,7 @@ When NOSHOW is non-nil, suppress output by adding ; to commands."
       ;; Remove continuations
       (while (string-match
               (concat "\\s-*"
-                      (regexp-quote matlab-elipsis-string)
+                      (regexp-quote matlab-ellipsis-string)
                       "\\s-*\n")
               str)
         (setq str (replace-match " " t t str)))
@@ -2462,15 +2462,15 @@ Argument FNAME specifies if we should echo the region to the command line."
 
 ;;; matlab-shell.el ends here
 
-;; LocalWords:  Ludlam zappo compat comint mlgud gud defcustom nodesktop defface netshell
+;; LocalWords:  Ludlam zappo compat comint mlgud gud defcustom nodesktop defface netshell tmp aref
 ;; LocalWords:  emacsclient commandline emacsrunregion errorscanning cco defconst defun setq Keymaps
-;; LocalWords:  keymap subjob kbd emacscd featurep fboundp EDU msbn pc Thx Chappaz windowid
+;; LocalWords:  keymap subjob kbd emacscd featurep fboundp EDU msbn pc Thx Chappaz windowid tcp
 ;; LocalWords:  postoutput capturetext EMACSCAP captext STARTCAP progn eol dbhot erroexamples cdr
 ;; LocalWords:  ENDPT dolist overlaystack mref deref errortext ERRORTXT shellerror Emacsen iq nt
 ;; LocalWords:  auth mlfile emacsinit initcmd nsa ecc ecca clientcmd EMAACSCAP buffname showbuff
 ;; LocalWords:  evalforms Histed pmark memq promptend numchars integerp emacsdocomplete mycmd ba
-;; LocalWords:  nreverse emacsdocompletion byteswap stringp cbuff mapcar bw FCN's alist
+;; LocalWords:  nreverse emacsdocompletion byteswap stringp cbuff mapcar bw FCN's alist substr usr
 ;; LocalWords:  BUILTINFLAG dired bol bobp numberp princ minibuffer fn matlabregex lastcmd notimeout
-;; LocalWords:  stacktop eltest testme localfcn LF fileref funcall ef ec basec sk nondirectory
-;; LocalWords:  ignoredups boundp edir sexp Fixup mapc emacsrun noshow cnt elipsis newf bss noselect
-;; LocalWords:  fname
+;; LocalWords:  stacktop eltest testme localfcn LF fileref funcall ef ec basec sk nondirectory utils
+;; LocalWords:  ignoredups boundp edir sexp Fixup mapc emacsrun noshow cnt ellipsis newf bss noselect
+;; LocalWords:  fname mlx

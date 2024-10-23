@@ -398,7 +398,7 @@ This overcomes situations where the `fill-column' plus the
   :group 'matlab
   :type 'integer)
 
-(defcustom matlab-elipsis-string "..."
+(defcustom matlab-ellipsis-string "..."
   "Text used to perform continuation on code lines.
 This is used to generate and identify continuation lines."
   :group 'matlab
@@ -412,14 +412,14 @@ This is used to generate and identify continuation lines."
 (defcustom matlab-fill-count-ellipsis-flag t
   "*Non-nil means to count the ellipsis when auto filling.
 This effectively shortens the `fill-column' by the length of
-`matlab-elipsis-string'."
+`matlab-ellipsis-string'."
   :group 'matlab
   :type 'boolean)
 
 (defcustom matlab-fill-strings-flag t
   "*Non-nil means that when auto-fill is on, strings are broken across lines.
 If `matlab-fill-count-ellipsis-flag' is non nil, this shortens the
-`fill-column' by the length of `matlab-elipsis-string'."
+`fill-column' by the length of `matlab-ellipsis-string'."
   :group 'matlab
   :type 'boolean)
 
@@ -925,7 +925,7 @@ Argument LIMIT ."
 
 (defvar matlab-fl-anchor-keyword nil)
 (defun matlab-font-lock-mcos-keyword-match (limit)
-  "Font lock matcher for mcos keywords upto LIMIT.
+  "Font lock matcher for mcos keywords up to LIMIT.
 Fails to match when keywords show up as variables, etc."
   (when (and (eq matlab-functions-have-end 'class)
              (setq matlab-fl-anchor-keyword
@@ -936,7 +936,7 @@ Fails to match when keywords show up as variables, etc."
     t))
 
 (defun matlab-font-lock-args-keyword-match (limit)
-  "Font lock matcher for mcos keywords upto LIMIT.
+  "Font lock matcher for mcos keywords up to LIMIT.
 Fails to match when keywords show up as variables, etc."
   (setq matlab-fl-anchor-keyword
         (matlab--scan-next-keyword 'args limit)))
@@ -1213,7 +1213,7 @@ This matcher will handle a range of variable features."
 
 ;;;###autoload
 (defun matlab-is-matlab-file ()
-  "Enter `matlab-mode' when file content is likey a MATLAB *.m file.
+  "Enter `matlab-mode' when file content is likely a MATLAB *.m file.
 This will also enter `matlab-mode' for empty files *.m files when
 `matlab-mode-for-new-mfiles' indicates as such."
   (and buffer-file-name ;; have a file?
@@ -1334,8 +1334,8 @@ All Key Bindings:
   (matlab-syntax-setup)
   (matlab-scan-setup)
   (when (not noninteractive)
-    ;; matlab-cell == "matlab %% sections" and has some cost, thus don't activate in batch mode.
-    ;; Enabling cell-mode here. Would a hook be better?
+    ;; "matlab %% sections" and has some cost, thus don't activate in batch mode.
+    ;; TODO: investigate if a hook be better?
     (matlab-sections-mode-enable))
 
   ;; Indentation setup.
@@ -1648,7 +1648,7 @@ Assume point is on a defun, and if so, skip to the end."
 
 (defun matlab-end-of-defun (&optional arg)
   "Go to the end of the current function.
-ARG specifes how far."
+ARG specifies how far."
   (interactive "p")
   (unless arg (setq arg 1))
   (let ((ans nil))
@@ -1688,19 +1688,19 @@ Accounts for nested functions."
 (defun matlab-add-log-current-defun ()
   "Return a text string representing the current block.
 Tries to return the current defun.  If not, look for a
-cell block with a name."
-  (or (matlab-current-defun) (matlab-current-cell)))
+code section block with a name."
+  (or (matlab-current-defun) (matlab-current-code-section)))
 
-(defun matlab-current-cell ()
-  "Return the name of the current cell.
+(defun matlab-current-code-section ()
+  "Return the name of the current code section.
 The name is any text after the %% and any whitespace."
   (save-excursion
     (forward-page -1)
     (let ((lvl1 (matlab-compute-line-context 1))
           start)
       (when (and (matlab-line-comment-p lvl1)
-                 (eq (matlab-line-comment-style lvl1) 'cell-start))
-        ;; We are in a cell start, get the content
+                 (eq (matlab-line-comment-style lvl1) 'code-section-start))
+        ;; We are in a code section start, get the content
         (goto-char (matlab-line-point lvl1))
         (skip-chars-forward "% \t.,*" (line-end-position))
         (setq start (point))
@@ -2602,7 +2602,7 @@ filling which will automatically insert `...' and the end of a line."
                          (matlab-cursor-in-string)))
                   (progn
                     (delete-horizontal-space)
-                    (insert " " matlab-elipsis-string "\n")
+                    (insert " " matlab-ellipsis-string "\n")
                     (matlab-indent-line))
                 (if matlab-fill-strings-flag
                     (let ((pos (point))
@@ -2618,11 +2618,11 @@ filling which will automatically insert `...' and the end of a line."
                                               (looking-at "\\["))
                               (progn
                                 (beginning-of-line)
-                                (skip-chars-backward (concat " \t\n" matlab-elipsis-string))
+                                (skip-chars-backward (concat " \t\n" matlab-ellipsis-string))
                                 (if (> (point) (point-min))
                                     (progn
                                       (forward-char -1)
-                                      (looking-at (concat "'\\s-*" matlab-elipsis-string))))))
+                                      (looking-at (concat "'\\s-*" matlab-ellipsis-string))))))
                           (goto-char pos)
                         (goto-char pos2)
                         (forward-char 1)
@@ -2631,7 +2631,7 @@ filling which will automatically insert `...' and the end of a line."
                         (forward-char 1))
                                         ;(delete-horizontal-space)
                       (skip-chars-forward " \t")
-                      (insert "' " matlab-elipsis-string "\n")
+                      (insert "' " matlab-ellipsis-string "\n")
                       (matlab-indent-line)
                       (insert "'")
                       ;; Re scan forward for the end of the string. Add an end bracket
@@ -2740,7 +2740,7 @@ ARG is passed to `fill-paragraph' and will justify the text."
                   (not (matlab-line-ellipsis-p (matlab-compute-line-context 1)))))
          ;; We are in a comment, lets fill the paragraph with some
          ;; nice regular expressions.
-         ;; Cell start/end markers of %% also separate paragraphs
+         ;; Code section start/end markers of %% also separate paragraphs
          (let ((paragraph-separate "%%\\|%[a-zA-Z]\\|%[ \t]*$\\|[ \t]*$")
                (paragraph-start "%[a-zA-Z]\\|%[ \t]*$\\|[ \t]*$\\|%\\s-*\\*")
                (paragraph-ignore-fill-prefix nil)
@@ -3302,7 +3302,7 @@ desired.  Optional argument FAST is not used."
 
 ;; LocalWords:  Wette mwette edu Ludlam eludlam defconst compat easymenu defcustom mfiles objc elec
 ;; LocalWords:  CASEINDENT COMMANDINDENT sexp sg Fns Alist symbolp defun mmode setq decl memq progn
-;; LocalWords:  elipsis vf functionname booleanp keymap torkel fboundp gud ebstop mlgud ebclear
+;; LocalWords:  vf functionname booleanp keymap torkel fboundp gud ebstop mlgud ebclear mw
 ;; LocalWords:  ebstatus mlg mlgud's subjob featurep defface commanddual cellbreak cellbreaks cdr
 ;; LocalWords:  animatedline rlim thetalim cartesian stackedplot bubblechart swarmchart wordcloud
 ;; LocalWords:  bubblecloud heatmap parallelplot fcontour anim polarplot polarscatter polarhistogram
@@ -3311,8 +3311,8 @@ desired.  Optional argument FAST is not used."
 ;; LocalWords:  eol tm newmdata Classdefs dem Imenu imenu boundp alist reindent unindent vers Sexp's
 ;; LocalWords:  Defuns fn minibuffer eobp autoend noerror returnme Unstarted parentblock defuns bobp
 ;; LocalWords:  noprogress minibufferp bolp eolp calc funcall ci sem prevcmd DEPTHNUMBER blockstart
-;; LocalWords:  blockmid blockendless blockend CTXT listp fc pc boc parencol parenchar parenpt
-;; LocalWords:  parenindent parenopt FUNCTIONs MAXs prev startpnt depthchange bc emacsen afterd
+;; LocalWords:  blockmid blockendless blockend CTXT listp fc pc boc parencol parenchar parenpt tmp
+;; LocalWords:  parenindent parenopt FUNCTIONs MAXs prev startpnt depthchange bc emacsen afterd md
 ;; LocalWords:  befored okpos startlst endlst ellipsify noreturn hs tc hc startsym endsym mapc func
-;; LocalWords:  filetype bn nondirectory scanstate sexp's nosemi msgpos fullindent nexti defn
-;; LocalWords:  classdef's
+;; LocalWords:  filetype bn nondirectory scanstate sexp's nosemi msgpos fullindent nexti defn sw
+;; LocalWords:  classdef's aref parens

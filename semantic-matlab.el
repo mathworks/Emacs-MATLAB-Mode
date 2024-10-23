@@ -23,11 +23,11 @@
 
 ;;; Commentary:
 ;;
-;; Parse a MATLAB M file for use w/ CEDET/Semantic
+;; Parse a MATLAB M file for use w/ Semantic
 ;;
 ;; The MATLAB language is pretty simple from a functional standpoint in that
 ;; you can only declare functions.  In addition, the language itself is not
-;; expressable in a yacc style grammar.  It is therefore more expedient
+;; expressible in a yacc style grammar.  It is therefore more expedient
 ;; to scan for regular expressions.
 
 (require 'mode-local)
@@ -65,7 +65,8 @@ If `semantic-mode' is not enabled, do something hacky to make it work."
 	;; Lets fake it.
 
 	;; call the parse region function.  It won't be cached, so we have to do the work every
-	;; time, but hopefully it is fast enough for matlab-shell and cell scripts.
+	;; time, but hopefully it is fast enough for matlab-shell and scripts with code sections
+        ;; (formally called cells).
 	(setq tags (semantic-matlab-parse-region))
 	
 	)
@@ -119,7 +120,7 @@ Looks @ first declaration to determine if it is a class or function."
 
 ;;; TAG MATCHING
 ;;
-;; CLASS Defintions
+;; CLASS Definitions
 (defvar semantic-matlab-match-classdef-re
   "^\\s-*classdef\\b\\s-*\\(?:([^\n)]+)\\)?\\s-*\\<\\(?2:\\w+\\)\\>"
   "Expression to match a class definition start.")
@@ -278,7 +279,7 @@ Return argument is:
 
 ;; FUNCTION Definitions
 
-;; The version of this variable in MATLAB.el is not a condusive to extracting
+;; The version of this variable in MATLAB.el is not a conducive to extracting
 ;; the information we need.
 (defvar semantic-matlab-match-function-re
   "\\(^\\s-*function\\b[ \t\n.]*\\)\\(\\[[^]]+\\]\\s-*=\\|\\w+\\s-*=\\|\\)\\s-*\\(\\(\\sw\\|\\s_\\)+\\)\\>"
@@ -579,11 +580,11 @@ where NAME is unique."
       (let ((left (match-string-no-properties 2))
 	    (right (match-string-no-properties 3))
 	    temp)
-	;; first we have to deal with elipsis...
+	;; first we have to deal with ellipsis...
 	(save-excursion
 	  (while (string-match
 		(concat "\\(.*\\)"
-			(regexp-quote matlab-elipsis-string) "\\s-*$")
+			(regexp-quote matlab-ellipsis-string) "\\s-*$")
 		right)
 	    (forward-line 1)
 	    (setq right
@@ -597,7 +598,7 @@ where NAME is unique."
 			(forward-line -1)
 			(looking-at
 			 (concat "\\(.*\\)"
-				 (regexp-quote matlab-elipsis-string) "\\s-*$"))))
+				 (regexp-quote matlab-ellipsis-string) "\\s-*$"))))
 	    (setq left
 		  (concat (match-string-no-properties 1) left))))
 	;; remove bracket expressions and beginning/trailing whitespaces on left-hand side
@@ -862,3 +863,10 @@ This will include a list of type/field names when applicable."
 (provide 'semantic-matlab)
 
 ;;; semantic-matlab.el ends here
+
+;; LocalWords:  Ludlam eludlam dep semanticdb cedet defun hacky setq funfun filetype BASECLASSES
+;; LocalWords:  DOCSTRING LOCALFCN cn taglist tmp sw nreverse cntrl sexp cdr rawtags tmpend attrs
+;; LocalWords:  repeat:nil RETURNVARS fn vals func's downcase oldstyle dolist nthcdr typemodifiers
+;; LocalWords:  mapcar alist nconc bt ctags reparse chil newlist astruct aclass exampleclass anumber
+;; LocalWords:  anotherclass avariable defconst progn bobp setcdr knowntypes cadr argstr docstring
+;; LocalWords:  defcustom ia tt fboundp nolog ctxt ENDSYM endsym imenu bucketize stickyfunc
