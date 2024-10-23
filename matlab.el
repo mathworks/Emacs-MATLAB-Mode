@@ -549,7 +549,7 @@ point, but it will be restored for them."
     ;; Connecting to MATLAB Shell
     (define-key km [(control c) (control s)] 'matlab-shell-save-and-go)
     (define-key km [(control c) (control r)] 'matlab-shell-run-region)
-    (define-key km [(meta control return)] 'matlab-shell-run-cell)
+    (define-key km [(meta control return)] 'matlab-shell-run-code-section)
     (define-key km [(control return)] 'matlab-shell-run-region-or-line)
     (define-key km [(control c) (control t)] 'matlab-show-line-info)
     (define-key km [(control c) ?. ] 'matlab-shell-locate-fcn)
@@ -581,7 +581,7 @@ point, but it will be restored for them."
      :active (matlab-any-shell-active-p) ]
     ["Run Region" matlab-shell-run-region
      :active (matlab-any-shell-active-p) ]
-    ["Run Cell" matlab-shell-run-cell
+    ["Run Code Section" matlab-shell-run-code-section
      :active (matlab-any-shell-active-p) ]
     ["Version" matlab-show-version t]
     "----"
