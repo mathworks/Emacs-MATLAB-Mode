@@ -270,7 +270,7 @@ If the list is empty, then searches continue backwards through the code."
 	     (save-excursion
 	       (if (and (re-search-backward "^\\s-*function\\>" bounds t)
 			(re-search-forward "\\_<\\(\\w+\\)\\s-*("
-					   (matlab-point-at-eol) t))
+					   (line-end-position) t))
 		   (let ((lst nil) m e)
 		     (while (looking-at "\\(\\w+\\)\\s-*[,)]\\s-*")
 		       (setq m (match-string 1)
@@ -316,7 +316,7 @@ In NEXT is non-nil, than continue through the list of elements."
 		(while (re-search-forward "^\\s-*function\\>" nil t)
 		  (if (re-search-forward
 		       (concat "\\_<\\(" prefix "\\w+\\)\\s-*\\($\\|(\\)")
-		       (matlab-point-at-eol) t)
+		       (line-end-position) t)
 		      (setq lst (cons (match-string 1) lst))))
 		(nreverse lst)))
 	    (let ((lst nil)

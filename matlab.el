@@ -793,21 +793,21 @@ Argument LIMIT is the maximum distance to search."
     (let ((pos (point))
           overlays)
       (while (< pos limit)
-        (setq overlays (matlab-overlays-at pos))
+        (setq overlays (overlays-at pos))
         (while overlays
           (let ((overlay (car overlays)))
-            (when (matlab-overlay-get overlay 'nested-function)
-              (when (= pos (matlab-overlay-start overlay))
+            (when (overlay-get overlay 'nested-function)
+              (when (= pos (overlay-start overlay))
                 (goto-char pos)
                 ;; The following line presumably returns true.
                 (throw 'result (re-search-forward "function" (+ pos 8) t)))
-              (let ((end-of-overlay (- (matlab-overlay-end overlay) 3)))
+              (let ((end-of-overlay (- (overlay-end overlay) 3)))
                 (when (<= pos end-of-overlay)
                   (goto-char end-of-overlay)
                   (throw 'result
                          (re-search-forward "end" (+ end-of-overlay 3) t))))))
           (setq overlays (cdr overlays)))
-        (setq pos (matlab-next-overlay-change pos)))
+        (setq pos (next-overlay-change pos)))
       nil ;; no matches, stop
       )))
 
@@ -818,20 +818,20 @@ Argument LIMIT is the maximum distance to search."
     (let ((pos (point))
           variables)
       (while (< pos limit)
-        (let ((overlays (matlab-overlays-at pos)))
+        (let ((overlays (overlays-at pos)))
           (while overlays
             (let ((overlay (car overlays)))
-              (setq variables (matlab-overlay-get
+              (setq variables (overlay-get
                                overlay 'cross-function-variables))
               (if variables
                   (progn
                     (goto-char pos)
-                    (setq pos (min limit (matlab-overlay-end overlay)))
+                    (setq pos (min limit (overlay-end overlay)))
                     (if (re-search-forward variables pos t)
                         (progn
                           (throw 'result t))))))
             (setq overlays (cdr overlays))))
-        (setq pos (matlab-next-overlay-change pos)))
+        (setq pos (next-overlay-change pos)))
       nil ;; no matches, stop
       )))
 
@@ -1365,7 +1365,7 @@ All Key Bindings:
   (make-local-variable 'normal-auto-fill-function)
   (setq normal-auto-fill-function 'matlab-auto-fill)
   (make-local-variable 'fill-column)
-  (setq fill-column matlab-fill-column)
+  (setq fill-column fill-column)
   (make-local-variable 'fill-paragraph-function)
   (setq fill-paragraph-function 'matlab-fill-paragraph)
   (make-local-variable 'fill-prefix)
@@ -1779,7 +1779,7 @@ A negative number means there were more ends than starts.
     (beginning-of-line)
     (cond ((looking-at "\\s-*\\([a-zA-Z]\\w+\\)[^=][^=]")
            (match-string 1))
-          ((and (re-search-forward "=" (matlab-point-at-eol) t)
+          ((and (re-search-forward "=" (line-end-position) t)
                 (looking-at "\\s-*\\([a-zA-Z]\\w+\\)\\s-*[^=]"))
            (match-string 1))
           (t nil))))
@@ -2181,7 +2181,7 @@ LVL2."
                      (= boc boc2))
                  (save-excursion
                    (goto-char boc)
-                   (while (and (re-search-forward "=" (matlab-point-at-eol) t)
+                   (while (and (re-search-forward "=" (line-end-position) t)
                                (matlab-cursor-in-string-or-comment)))
                    (when (= (preceding-char) ?=)
                      (skip-chars-forward " \t")
@@ -2419,7 +2419,7 @@ Argument BEG and END indicate the region to uncomment."
       (setq fill-prefix
             (save-excursion
               (beginning-of-line)
-              (let ((e (matlab-point-at-eol))
+              (let ((e (line-end-position))
                     (pf nil))
                 (while (and (re-search-forward "%+[ \t]*\\($$$ \\|\\* \\)?" e t)
                             (matlab-cursor-in-string)))
@@ -2449,7 +2449,7 @@ not be broken.  This function will ONLY work on code."
     (if (matlab-line-ellipsis-p lvl1)
         nil
       (save-restriction
-        (narrow-to-region (matlab-point-at-bol) (matlab-point-at-eol))
+        (narrow-to-region (line-beginning-position) (line-end-position))
         ;; get ourselves onto the fill-column.
         (move-to-column fill-column)
         (let ((pos nil)
@@ -2457,7 +2457,7 @@ not be broken.  This function will ONLY work on code."
           (or
            ;; Next, if we have a trailing comment, use that.
            (progn (setq pos (or (matlab-line-comment-p lvl1)
-                                (matlab-point-at-bol)))
+                                (line-beginning-position)))
                   (goto-char pos)
                   (if (and (> (current-column) (- fill-column matlab-fill-fudge))
                            (< (current-column) (+ fill-column matlab-fill-fudge)))
@@ -2469,8 +2469,8 @@ not be broken.  This function will ONLY work on code."
                            (re-search-forward "[ \t]" nil t)))
                   (before (save-excursion
                             (re-search-backward "[ \t]" nil t)))
-                  (afterd (- (or after (matlab-point-at-eol)) (point)))
-                  (befored (- (point) (or before (matlab-point-at-bol)))))
+                  (afterd (- (or after (line-end-position)) (point)))
+                  (befored (- (point) (or before (line-beginning-position)))))
              ;; Here, if "before" is actually the beginning of our
              ;; indentation, then this is most obviously a bad place to
              ;; break our lines.
@@ -2773,7 +2773,7 @@ ARG is passed to `fill-paragraph' and will justify the text."
                  (progn
                    (goto-char (match-beginning 0))
                    (forward-char 1)
-                   (delete-region (point) (matlab-point-at-eol))))
+                   (delete-region (point) (line-end-position))))
              ;; Zap the CR
              (if (not (eobp)) (delete-char 1))
              ;; Clean up whitespace
@@ -3018,8 +3018,8 @@ If optional FAST is non-nil, do not perform usually lengthy checks."
     ;; Loop over the options.
     (mapc (lambda (func) (funcall func fast))
           matlab-mode-verify-fix-functions))
-  (if (matlab-called-interactively-p)
-      (message "Done.")))
+  (when (called-interactively-p 'interactive)
+    (message "Done.")))
 
 ;;
 ;; Add more auto verify/fix functions here!
@@ -3208,15 +3208,15 @@ by `matlab-mode-vf-add-ends'"
 ;;  a section of the buffer for the user's approval.
 (defun matlab-mode-highlight-ask (begin end prompt)
   "Highlight from BEGIN to END while asking PROMPT as a yes-no question."
-  (let ((mo (matlab-make-overlay begin end (current-buffer)))
+  (let ((mo (make-overlay begin end (current-buffer)))
         (show-paren-mode nil) ;; this will highlight things we often ask about.  disable.
         (ans nil))
     (condition-case nil
         (progn
-          (matlab-overlay-put mo 'face 'matlab-region-face)
+          (overlay-put mo 'face 'matlab-region-face)
           (setq ans (y-or-n-p prompt))
-          (matlab-delete-overlay mo))
-      (quit (matlab-delete-overlay mo) (error "Quit")))
+          (delete-overlay mo))
+      (quit (delete-overlay mo) (error "Quit")))
     ans))
 
 ;;; Quiesce an M file to remove accidental display of ANS during a run.

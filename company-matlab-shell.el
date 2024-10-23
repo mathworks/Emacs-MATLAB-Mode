@@ -38,7 +38,7 @@ The completion substring is to be completed in `matlab-shell', or
   (when (eq major-mode 'matlab-shell-mode)
     (if (not (matlab-on-prompt-p))
         'stop  ;; tell company can't complete when point is not in the prompt
-      (let ((lastcmd (buffer-substring (point) (matlab-point-at-eol))))
+      (let ((lastcmd (buffer-substring (point) (line-end-position))))
         ;; Kill the rest of the line since completion only works at the end of the line and
         ;; we'd like it to complete within a line. For example,
         ;;   h=figure;
@@ -46,7 +46,7 @@ The completion substring is to be completed in `matlab-shell', or
         ;;             ^
         ;;             TAB here results in:
         ;;   h.set('Visible','on')
-        (delete-region (point) (matlab-point-at-eol))
+        (delete-region (point) (line-end-position))
         (let* ((buf-name (buffer-name (current-buffer)))
                (ci (matlab-shell-get-completion-info))
                (common-substr (cdr (assoc 'common-substr ci)))

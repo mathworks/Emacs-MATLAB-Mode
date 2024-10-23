@@ -654,15 +654,15 @@ FCN is ignored."
       (with-current-buffer buff
         (goto-char (point-min))
         (forward-line (1- (oref bp line)))
-        (let ((ol (matlab-make-overlay (save-excursion
+        (let ((ol (make-overlay (save-excursion
                                          (back-to-indentation)
                                          (point))
                                        (line-end-position) buff nil nil)))
           ;; Store it
           (oset bp overlay ol)
           ;; Setup cool stuff
-          (matlab-overlay-put ol 'face 'mlg-breakpoint-face)
-          (matlab-overlay-put ol 'before-string
+          (overlay-put ol 'face 'mlg-breakpoint-face)
+          (overlay-put ol 'before-string
                               (propertize "#"
                                           'display
                                           '(left-fringe

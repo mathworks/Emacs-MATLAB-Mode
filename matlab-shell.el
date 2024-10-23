@@ -759,12 +759,12 @@ Argument STR is the text for the anchor."
                  (anchor-text (match-string 1))
                  (anchor-end-finish (search-forward matlab-anchor-end))
                  (anchor-end-start (match-beginning 0))
-                 (o (matlab-make-overlay anchor-beg-finish anchor-end-start)))
-            (matlab-overlay-put o 'mouse-face 'highlight)
-            (matlab-overlay-put o 'face 'underline)
-            (matlab-overlay-put o 'matlab-url anchor-text)
-            (matlab-overlay-put o 'keymap matlab-shell-html-map)
-            (matlab-overlay-put o 'help-echo anchor-text)
+                 (o (make-overlay anchor-beg-finish anchor-end-start)))
+            (overlay-put o 'mouse-face 'highlight)
+            (overlay-put o 'face 'underline)
+            (overlay-put o 'matlab-url anchor-text)
+            (overlay-put o 'keymap matlab-shell-html-map)
+            (overlay-put o 'help-echo anchor-text)
             (delete-region anchor-end-start anchor-end-finish)
             (delete-region anchor-beg-start anchor-beg-finish)
             ))))))
@@ -869,19 +869,19 @@ Input STR is provided by comint but is unused."
                (err-file (matlab-string-trim (nth 2 ans)))
                (err-line (nth 3 ans))
                ;; note (nth 4 ans) is err-col
-               (o (matlab-make-overlay err-start err-end))
+               (o (make-overlay err-start err-end))
                (err-mref-deref (matlab-shell-mref-to-filename err-file))
                (err-full-file (when err-mref-deref (expand-file-name err-mref-deref)))
                (url (concat "opentoline('" (or err-full-file err-file) "'," err-line ",0)"))
                )
           ;; Setup the overlay with the URL.
-          (matlab-overlay-put o 'mouse-face 'highlight)
-          (matlab-overlay-put o 'face 'underline)
+          (overlay-put o 'mouse-face 'highlight)
+          (overlay-put o 'face 'underline)
           ;; The url will recycle opentoline code.
-          (matlab-overlay-put o 'matlab-url url)
-          (matlab-overlay-put o 'matlab-fullfile err-full-file)
-          (matlab-overlay-put o 'keymap matlab-shell-html-map)
-          (matlab-overlay-put o 'help-echo (concat "Jump to error at " (or err-full-file err-file) "."))
+          (overlay-put o 'matlab-url url)
+          (overlay-put o 'matlab-fullfile err-full-file)
+          (overlay-put o 'keymap matlab-shell-html-map)
+          (overlay-put o 'help-echo (concat "Jump to error at " (or err-full-file err-file) "."))
           (setq first url)
           (push o overlaystack)
           ;; Save as a frame
@@ -892,7 +892,7 @@ Input STR is provided by comint but is unused."
       ;; Keep track of the very first error in this error stack.
       ;; It will represent the "place to go" for "go-to-last-error".
       (dolist (O overlaystack)
-        (matlab-overlay-put O 'first-in-error-stack first))
+        (overlay-put O 'first-in-error-stack first))
 
       ;; Once we've found something, don't scan it again.
       (when overlaystack
@@ -936,10 +936,10 @@ STR is provided by COMINT but is unused."
             (delete-region end (match-end 0))
 
             ;; Now colorize the text.  Use overlay because font-lock messes with font properties.
-            (let ((o (matlab-make-overlay start end (current-buffer) nil nil))
+            (let ((o (make-overlay start end (current-buffer) nil nil))
                   )
-              (matlab-overlay-put o 'shellerror t)
-              (matlab-overlay-put o 'face 'matlab-shell-error-face)
+              (overlay-put o 'shellerror t)
+              (overlay-put o 'face 'matlab-shell-error-face)
 
               )))
 
@@ -1260,7 +1260,7 @@ No completions are provided anywhere else in the buffer."
         (re-search-forward comint-prompt-regexp)
         (setq last-cmd-start-point (point))
         ;; save the old (last) command
-        (setq last-cmd (buffer-substring (point) (matlab-point-at-eol))))
+        (setq last-cmd (buffer-substring (point) (line-end-position))))
 
       ;; Get the list of completions.
       ;; When obtaining completions, we can't use save-excursion because we are
@@ -1287,7 +1287,7 @@ No completions are provided anywhere else in the buffer."
                   (last-cmd-start-len (- (length last-cmd) (length cmd-text-to-replace))))
               ;; Replace the text typed in the *MATLAB* and update last-cmd
               (goto-char (+ last-cmd-start-point last-cmd-start-len))
-              (delete-region (point) (matlab-point-at-eol))
+              (delete-region (point) (line-end-position))
               (insert replacement-text)
               (setq last-cmd (concat (substring last-cmd 0 last-cmd-start-len) replacement-text))
               (if (not completions)
@@ -1311,7 +1311,7 @@ No completions are provided anywhere else in the buffer."
         (beginning-of-line)
         (re-search-forward comint-prompt-regexp)
         (setq common-substr-start-pt (+ (point) limit-pos))
-        (setq common-substr-end-pt (matlab-point-at-eol))
+        (setq common-substr-end-pt (line-end-position))
         (if (and (eq (length completions) 1)
                  (string-equal (buffer-substring-no-properties
                                 common-substr-start-pt common-substr-end-pt)
@@ -1563,8 +1563,8 @@ Returns a string path to the root of the executing MATLAB."
 Has a preference for looking backward when not directly on a symbol.
 Snatched and hacked from dired-x.el"
   (let ((word-chars "a-zA-Z0-9_")
-        (bol (matlab-point-at-bol))
-        (eol (matlab-point-at-eol))
+        (bol (line-beginning-position))
+        (eol (line-end-position))
         start)
     (save-excursion
       ;; First see if just past a word.
@@ -1590,7 +1590,7 @@ Snatched and hacked from dired-x.el"
           (if (not (looking-at (concat comint-prompt-regexp)))
               ""
             (search-forward-regexp comint-prompt-regexp)
-            (buffer-substring (point) (matlab-point-at-eol)))))
+            (buffer-substring (point) (line-end-position)))))
     (save-excursion
       (buffer-substring-no-properties
        (matlab-scan-beginning-of-command)
@@ -1729,8 +1729,8 @@ indication that it ran."
           ;; >>                    h.Num<TAB>
           (re-search-backward ">")
           (forward-char 2)
-          (setq lastcmd (buffer-substring (point) (matlab-point-at-eol)))
-          (delete-region (point) (matlab-point-at-eol))
+          (setq lastcmd (buffer-substring (point) (line-end-position)))
+          (delete-region (point) (line-end-position))
           ;; We are done error checking, run the command.
           (setq pos (point))
           (let ((output-start-char
@@ -1800,18 +1800,18 @@ If there is only a `matlab-netshell', send it to the netshell."
 
 (defun matlab-url-at (p)
   "Return the matlab-url overlay at P, or nil."
-  (let ((url nil) (o (matlab-overlays-at p)))
+  (let ((url nil) (o (overlays-at p)))
     (while (and o (not url))
-      (setq url (matlab-overlay-get (car o) 'matlab-url)
+      (setq url (overlay-get (car o) 'matlab-url)
             o (cdr o)))
     url))
 
 (defun matlab-url-stack-top-at (p)
   "Return the matlab-url overlay at P, or nil."
-  (let ((url nil) (o (matlab-overlays-at p)))
+  (let ((url nil) (o (overlays-at p)))
     (while (and o (not url))
-      (setq url (or (matlab-overlay-get (car o) 'first-in-error-stack)
-                    (matlab-overlay-get (car o) 'matlab-url))
+      (setq url (or (overlay-get (car o) 'first-in-error-stack)
+                    (overlay-get (car o) 'matlab-url))
             o (cdr o)))
     url))
 
@@ -1822,7 +1822,7 @@ show up in reverse order."
   (save-excursion
     (let ((url nil) (p (point)))
       (while (and (not url)
-                  (setq p (matlab-previous-overlay-change p))
+                  (setq p (previous-overlay-change p))
                   (not (eq p (point-min))))
         (setq url
               (if stacktop
@@ -2216,7 +2216,7 @@ This command requires an active MATLAB shell."
   (interactive)
   (if (and transient-mark-mode mark-active)
       (matlab-shell-run-region (mark) (point))
-    (matlab-shell-run-region (matlab-point-at-bol) (matlab-point-at-eol))))
+    (matlab-shell-run-region (line-beginning-position) (line-end-position))))
 
 
 ;;;###autoload
@@ -2245,8 +2245,8 @@ output.  This command requires an active MATLAB shell."
         ;; Save the old command
         (beginning-of-line)
         (re-search-forward comint-prompt-regexp)
-        (setq lastcmd (buffer-substring (point) (matlab-point-at-eol)))
-        (delete-region (point) (matlab-point-at-eol))
+        (setq lastcmd (buffer-substring (point) (line-end-position)))
+        (delete-region (point) (line-end-position))
         ;; We are done error checking, run the command.
         (matlab-shell-send-string command)
         ;; Put the old command back.
@@ -2312,7 +2312,7 @@ When NOSHOW is non-nil, suppress output by adding ; to commands."
       ;; Delete all the comments
       (while (search-forward "%" nil t)
         (when (not (matlab-cursor-in-string))
-          (delete-region (1- (point)) (matlab-point-at-eol))))
+          (delete-region (1- (point)) (line-end-position))))
       (setq str (buffer-substring-no-properties (point-min) (point-max))))
 
     ;; Strip out blank lines
