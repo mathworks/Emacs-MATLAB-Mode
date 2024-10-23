@@ -1333,19 +1333,10 @@ All Key Bindings:
   ;; and font-lock for comments/strings.
   (matlab-syntax-setup)
   (matlab-scan-setup)
-<<<<<<< HEAD
-  (when (and (not noninteractive)
-             (>= emacs-major-version 28))
-    ;; matlab-section == "matlab %% sections" and has some cost, thus don't activate in batch mode.
-    ;; matlab-section with emacs 27, upon loading a *.m files gives
-    ;; File mode specification error: (invalid-function (start-end (matlab-section-range-function)))
-    (matlab-sections-mode-enable)) ;; Enabling section-mode here. Would a hook be better?
-=======
   (when (not noninteractive)
     ;; matlab-cell == "matlab %% sections" and has some cost, thus don't activate in batch mode.
     ;; Enabling cell-mode here. Would a hook be better?
-    (matlab-cell-mode-enable))
->>>>>>> default
+    (matlab-sections-mode-enable))
 
   ;; Indentation setup.
   (setq indent-tabs-mode nil)
