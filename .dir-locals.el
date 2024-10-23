@@ -26,4 +26,12 @@
 ;;
 ;;     (put 'flycheck-emacs-lisp-load-path 'safe-local-variable #'listp)
 
-((emacs-lisp-mode . ((flycheck-emacs-lisp-load-path . (".")))))
+((emacs-lisp-mode . ((flycheck-emacs-lisp-load-path . ("."))
+                     ;; Use spaces when TAB key is pressed, which helps with editors that have
+                     ;; different TAB stops.
+                     (indent-tabs-mode . nil)
+                     ;; Monitors are quite large and lisp code often has long variable / function
+                     ;; names, so using a fill-column of 100 seems reasonable.
+                     (fill-column . 100))))
+
+;; LocalWords:  flycheck listp
