@@ -84,9 +84,11 @@ You can configure matlab-emacs using the "matlab" or "matlab-shell" customizatio
 
 By default when you run
 
-: M-x matlab-shell
-:
-: >> edit file.m
+ #+begin_example
+ M-x matlab-shell
+
+ >> edit file.m
+ #+end_example
 
 file.m will open in emacs using 'emacsclient -n'. matlab-shell achieve this behavior by instructing
 MATLAB to use 'emacsclient -n' as the external text editor.
