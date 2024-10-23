@@ -1,4 +1,4 @@
-;;; matlab-syntax.el --- Manage MATLAB syntax tables and buffer parsing.
+;;; matlab-syntax.el --- Manage MATLAB syntax tables and buffer parsing -*- lexical-binding: t -*-
 ;;
 ;; Copyright (C) 2024 Eric Ludlam
 ;;
@@ -198,11 +198,9 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
 	(beginning-of-line)
 	(when (matlab--scan-line-for-unterminated-string)
 	  ;; Mark this one char plus EOL as end of string.
-	  (let ((start (point)))
-	    (matlab--put-char-category (point) 'matlab--unterminated-string-syntax)
-	    (end-of-line)
-	    (matlab--put-char-category (point) 'matlab--unterminated-string-syntax)
-	    ))
+	  (matlab--put-char-category (point) 'matlab--unterminated-string-syntax)
+	  (end-of-line)
+	  (matlab--put-char-category (point) 'matlab--unterminated-string-syntax))
 
 	(beginning-of-line)
 	(forward-line 1))
@@ -220,6 +218,7 @@ and `matlab--scan-line-for-unterminated-string' for specific details."
 (defun matlab--scan-line-for-command-dual (&optional debug)
   "Scan this line for command line duality strings.
 DEBUG is ignored."
+  (ignore debug)
   ;; Note - add \s$ b/c we'll add that syntax to the first letter, and it
   ;; might still be there during an edit!
   (let ((case-fold-search nil))
@@ -239,11 +238,12 @@ DEBUG is ignored."
 (defun matlab--scan-line-for-unterminated-string (&optional debug)
   "Scan this line for an unterminated string, leave cursor on starting string char.
 DEBUG is ignored."
+  (ignore debug)
   ;; First, scan over all the string chars.
   (save-restriction
     (narrow-to-region (line-beginning-position) (line-end-position))
     (beginning-of-line)
-    (condition-case err
+    (condition-case nil
 	(while (re-search-forward "\\s\"\\|\\s<" nil t)
 	  (let ((start-str (match-string 0))
 		(start-char (match-beginning 0)))
@@ -391,6 +391,7 @@ Safe to use in `matlab-mode-hook'."
 Note: INCOMPLETE is now obsolete
 If the optional argument INCOMPLETE is non-nil, then return t if we
 are in what could be a an incomplete string.  (Note: this is also the default)"
+  (ignore incomplete)
   (nth 3 (syntax-ppss (point))))
 
 (defun matlab-cursor-comment-string-context (&optional bounds-sym)
@@ -406,7 +407,6 @@ If optional BOUNDS-SYM is specified, set that symbol value to the
 bounds of the string or comment the cursor is in"
   (let* ((pps (syntax-ppss (point)))
 	 (start (nth 8 pps))
-	 (end 0)
 	 (syntax nil))
     ;; Else, inside something if 'start' is set.
     (when start
