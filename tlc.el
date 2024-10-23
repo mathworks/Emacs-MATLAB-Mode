@@ -1,4 +1,4 @@
-;;; tlc --- Major mode for editing tlc files
+;;; tlc --- Major mode for editing tlc files -*- lexical-binding: t -*-
 ;;
 ;; Author: Eric M. Ludlam <eludlam@mathworks.com>
 ;; Keywords: tlc
@@ -56,7 +56,7 @@
 ;;         %endif
 ;;     %endfunction
 ;;
-;;  The mix of TLC code and C code can result in challenges for semantic indentation. In this case
+;;  The mix of TLC code and C code can result in challenges for semantic indentation.  In this case
 ;;  you can use the special "%%{", "%%}", etc. comments (called indent comment shift operators) to
 ;;  adjust indentation as in:
 ;;
@@ -221,7 +221,7 @@
    '("\\(%<[^%\n>]+>\\)" 1 font-lock-constant-face prepend)
    ;; Built-in functions, e.g. EXISTS
    (list (concat "\\<\\(" (regexp-opt tlc-keywords) "\\)\\>")
-	 1 'font-lock-type-face)
+         1 'font-lock-type-face)
    '("[^.]\\(\\.\\.\\.\\)$" 1 'underline prepend)
    )
   "List of keywords for nicely coloring X defaults.")
@@ -238,17 +238,17 @@
   (make-local-variable 'comment-end)
   (make-local-variable 'comment-start-skip)
   (setq comment-start "%% "
-	comment-end   "")
+        comment-end   "")
   (setq comment-start-skip "%%\\|/%")
   (make-local-variable 'indent-line-function)
   (setq indent-line-function 'tlc-indent)
   (make-local-variable 'font-lock-defaults)
   (setq font-lock-defaults '((tlc-font-lock-keywords)
-			     nil ; do not do string/comment highlighting
-			     nil ; keywords are case sensitive.
-			     ;; This puts _ as a word constituent,
-			     ;; simplifying our keywords significantly
-			     ((?_ . "w"))))
+                             nil ; do not do string/comment highlighting
+                             nil ; keywords are case sensitive.
+                             ;; This puts _ as a word constituent,
+                             ;; simplifying our keywords significantly
+                             ((?_ . "w"))))
   (tlc-version)
   (save-excursion
     (goto-char (point-min))
@@ -308,12 +308,12 @@
       0
     ;; Else calculate indentation based on current line PLUS the context of the prior line
     (let ((i-col (cond
-	          ((and (looking-at
-	                 "\\s-*\\(?:\
+                  ((and (looking-at
+                         "\\s-*\\(?:\
 \\(?:\\(?:%end\\(switch\\|roll\\|with\\|for\\|foreach\\|while\\|function\\)\\)\\>\\)\
 \\|}\\)")
                         (not (tlc--in-multiline-comment)))
-	           -4)
+                   -4)
                   ((and (looking-at "\\s-*\\(%case\\|%default\\)\\>")
                         (not (tlc--in-multiline-comment)))
                    -2)
@@ -322,7 +322,7 @@
                         (not (tlc--in-multiline-comment)))
                    (* -4 (- (match-end 1) (match-beginning 1))))
                   ;;
-	          (t 0)))
+                  (t 0)))
           (is-tlc-if-part (and (looking-at "\\s-*%\\(?:else\\|elseif\\|endif\\)") ;; part of a %if?
                                (not (tlc--in-multiline-comment))))
           (percent-in-multiline-comment (and (looking-at "\\s-*%") (tlc--in-multiline-comment))))
@@ -334,26 +334,27 @@
           (current-indentation)
         (save-excursion
           (tlc--indent-move-up is-tlc-if-part)
-	  (cond ((bobp)
+          (cond ((bobp)
                  (setq i-col (+ i-col (tlc--calc-next-indentation))))
                 ;; '%' line following a "/%" line, if so add 1
-	        ((and percent-in-multiline-comment (looking-at "\\s-*/%"))
+                ((and percent-in-multiline-comment (looking-at "\\s-*/%"))
                  (setq i-col (1+ (current-indentation))))
                 ;; Align %elsif, %else, %endif with corresponding %if?
                 (is-tlc-if-part
                  (setq i-col (current-indentation)))
-	        (t
-	         (setq i-col (+ (current-indentation)
-			        (if (and tlc--indent-because-of-continuation
-				         (or (> 0 i-col)
+                (t
+                 (setq i-col (+ (current-indentation)
+                                (if (and tlc--indent-because-of-continuation
+                                         (or (> 0 i-col)
                                              is-tlc-if-part))
-				    i-col
-			          (+ i-col (tlc--calc-next-indentation)))))
-	         (if (< i-col 0) (setq i-col 0))))
-	  i-col)))))
+                                    i-col
+                                  (+ i-col (tlc--calc-next-indentation)))))
+                 (if (< i-col 0) (setq i-col 0))))
+          i-col)))))
 
 (defun tlc--indent-move-up (is-tlc-if-part)
-  "Move to first prior non-blank line or matching %if,  %else, %endif
+  "Move up for indent.
+Move to first prior non-blank line or matching %if,  %else, %endif
 when IS-TLC-IF-PART is t. Specify IS-TLC-IF-PART as t, if current
   line is %else, %elsif, %endif to align the %if statements."
   (let ((n-if-statements-to-skip 0)  ;; num %if statements to skip over when is-tlc-if-part is t
@@ -478,8 +479,8 @@ EXISTS(\"?\\(?:::\\)?_[A-Z_0-9]+_\"?)\\s-*==\\s-*\\(?:0\\|TLC_FALSE\\)\\|\
   (save-excursion
     (end-of-line)
     (when (> (current-column) 2)
-        (forward-char -3)
-        (looking-at "\\.\\.\\."))))
+      (forward-char -3)
+      (looking-at "\\.\\.\\."))))
 
 (defun tlc--in-multiline-comment ()
   "Return t we are in a multiline comment."
@@ -502,6 +503,6 @@ EXISTS(\"?\\(?:::\\)?_[A-Z_0-9]+_\"?)\\s-*==\\s-*\\(?:0\\|TLC_FALSE\\)\\|\
 
 ;;; tlc.el ends here
 
-;; LocalWords:  Ludlam eludlam galbraith psg debian defun defcustom setq keymap defface grayscale
+;; LocalWords:  Ludlam eludlam galbraith psg debian defun defcustom setq keymap defface grayscale sw
 ;; LocalWords:  IDNUM NUMTLCFILES STRINGOF SYSNAME TLCFILES UINTWHITE repeat:nil prog calc endswitch
-;; LocalWords:  bobp nexti progn alist el stackexchange ppss openfile closefile
+;; LocalWords:  bobp nexti progn alist el stackexchange ppss openfile closefile curr elsif
