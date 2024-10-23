@@ -1,4 +1,4 @@
-;;; matlab-maint.el --- matlab mode maintainer utilities
+;;; matlab-maint.el --- matlab mode maintainer utilities -*- lexical-binding: t -*-
 ;;
 ;; Copyright (C) 2024 Eric Ludlam
 ;;
