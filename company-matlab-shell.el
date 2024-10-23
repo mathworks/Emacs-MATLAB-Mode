@@ -1,4 +1,4 @@
-;;; company-matlab-shell.el --- a matlab-shell-mode completion back-end for MATLAB
+;;; company-matlab-shell.el --- a matlab-shell-mode completion back-end for MATLAB -*- lexical-binding: t -*-
 ;;
 ;; Copyright (C) 2016,2017,2024 Eric Ludlam
 ;; Copyright (C) 2009 David Engster
@@ -84,6 +84,7 @@ The completion substring is to be completed in `matlab-shell', or
 COMMAND is the item to complete.
 ARG and IGNORED are ignored."
   (interactive (list 'interactive))
+  (ignore arg ignored)
   (cl-case command
     ( interactive (if (fboundp 'company-begin-backend) ;; quiet warning when no company
                       (company-begin-backend 'company-matlab-shell)
