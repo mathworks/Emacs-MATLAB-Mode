@@ -27,13 +27,13 @@
 ;;; Code:
 (require 'matlab)
 (require 'matlab-compat)
+
 (require 'comint)
 (require 'server)
 
 (eval-and-compile
   (require 'mlgud)
-  (require 'shell)
-  )
+  (require 'shell))
 
 ;; Silence warnings from company.el
 (declare-function company-mode "company")
@@ -290,7 +290,7 @@ mode.")
 (defvar matlab-shell-mode-map
   (let ((km (make-sparse-keymap 'matlab-shell-mode-map)))
     ;; Mostly use comint mode's map.
-    (matlab-set-keymap-parent km comint-mode-map)
+    (set-keymap-parent km comint-mode-map)
 
     ;; We can jump to errors, so take over this keybinding.
     (substitute-key-definition 'next-error 'matlab-shell-last-error
@@ -866,7 +866,7 @@ Input STR is provided by comint but is unused."
                         (or starting-anchor (point-min))))
         (let* ((err-start (nth 0 ans))
                (err-end (nth 1 ans))
-               (err-file (matlab-string-trim (nth 2 ans)))
+               (err-file (string-trim (nth 2 ans)))
                (err-line (nth 3 ans))
                ;; note (nth 4 ans) is err-col
                (o (make-overlay err-start err-end))

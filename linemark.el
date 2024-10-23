@@ -36,6 +36,8 @@
 (eval-and-compile
   (require 'matlab-compat))
 
+(require 'eieio)
+
 ;;; Code:
 
 (defgroup linemark nil

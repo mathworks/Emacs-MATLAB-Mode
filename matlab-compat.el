@@ -24,46 +24,6 @@
 
 ;;; Code:
 
-;; Keymaps
-(if (fboundp 'set-keymap-parent)
-    (defalias 'matlab-set-keymap-parent 'set-keymap-parent)
-      ;; 19.31 doesn't have set-keymap-parent
-
-  (eval-when-compile
-    (require 'comint))
-  
-  (defun matlab-set-keymap-parent (keymap parent)
-    "Set KEYMAP's parent to be PARENT."
-    (nconc keymap comint-mode-map)))
-
-;; String trim
-(if (locate-library "subr-x")
-    (progn
-      (require 'subr-x)
-      (defalias 'matlab-string-trim 'string-trim)
-      )
-  
-  (defsubst matlab-string-trim (string &optional regexp)
-    "Trim STRING of leading string matching REGEXP.
-
-REGEXP defaults to \"[ \\t\\n\\r]+\"."
-    (let ((out string)
-	  (regexp_ (or regexp "[ \t\n\r]+")))
-      
-      (when (string-match (concat "\\`\\(?:" regexp_ "\\)") out)
-	(setq out (substring out (match-end 0))))
-      
-      (when (string-match (concat "\\(?:" regexp_ "\\)\\'") out)
-	(setq out (substring out 0 (match-beginning 0))))
-      
-      out))
-  )
-
-;; OBARRAYS
-(if (fboundp 'obarray-make)
-    (defalias 'matlab-obarray-make 'obarray-make)
-  (defun matlab-obarray-make (sz) (make-vector sz 0)))
-
 ;; Finding executables
 (defun matlab-find-executable-directory (program)
   "Find the executable PROGRAM on the exec path, following any links.
@@ -87,46 +47,14 @@ Return the base directory it is in."
 ;; Completion Tools
 (defun matlab-display-completion-list (completions common-substring)
   "Method for displaying COMPLETIONS with a COMMON-SUBSTRING."
-  ;; In emacs 24.4 the common-substring is no longer needed.
-  (let ((args (if (or (< emacs-major-version 24)
-                      (and (= emacs-major-version 24) (< emacs-minor-version 4)))
-                  (list completions common-substring)
-                (list completions))))
+  (let ((args (list completions)))
     (apply 'display-completion-list args)))
-
-;; Font lock
-(require 'font-lock)
-(unless (fboundp 'font-lock-ensure)
-  (defalias 'font-lock-ensure 'font-lock-fontify-buffer))
-
-;; CEDET compat if CEDET isn't around
-(condition-case nil
-    (progn
-      (require 'pulse)
-      )
-  (error
-   (defun pulse-momentary-highlight-region (start end &optional face)
-     "Compat impl of pulse command." nil)))
-
-;; EIEIO compatibility
-(condition-case nil
-    (progn
-      (require 'eieio)
-      (unless (fboundp 'cl-defgeneric)
-	;; We are in an antique Emacs that uses the old eieio.
-	(defalias 'cl-defmethod 'defmethod)
-	)
-      (unless (fboundp 'cl-call-next-method)
-	;; We are in an antique Emacs that uses the old eieio.
-	(defalias 'cl-call-next-method 'call-next-method)
-	)
-      )
-  (error (message "EIEIO not available.  Only MATLAB editing enabled.")))
 
 ;;; Finding EmacsClient
 (defun matlab-find-emacsclient ()
-  "Locate the emacsclient correspoinding to the current emacs
-binary defined by `invocation-name' in `invocation-directory'"
+  "Locate the emacsclient corresponding for current Emacs.
+Emacs binary is defined by variable `invocation-name' in variable
+`invocation-directory'"
   (let ((ec "emacsclient"))
     (cond
      ;; Mac
@@ -142,7 +70,7 @@ binary defined by `invocation-name' in `invocation-directory'"
      ((equal system-type 'windows-nt)
       (if (file-exists-p (concat invocation-directory "emacsclientw.exe"))
           (setq ec (concat invocation-directory "emacsclientw.exe"))
-        (error "unable to locate emacsclientw.exe. It should be in %s" invocation-directory)))
+        (error "Unable to locate emacsclientw.exe.  It should be in %s" invocation-directory)))
      ;; Linux or other UNIX system
      (t
       ;; Debian 9 can be setup to have:
@@ -162,14 +90,12 @@ binary defined by `invocation-name' in `invocation-directory'"
     ))
 
 (when (not (fboundp 'string-replace)) ;; string-replace appeared in Emacs 28
-  (defun string-replace (fromstring tostring instring)
+  (defun string-replace (from-string to-string in-string)
     (let ((case-fold-search nil))
-      (replace-regexp-in-string (regexp-quote fromstring) tostring instring t t))))
+      (replace-regexp-in-string (regexp-quote from-string) to-string in-string t t))))
 
 (provide 'matlab-compat)
-
 ;;; matlab-compat.el ends here
 
-;; LocalWords:  el Ludlam eludlam osboxes Ee progn defalias fboundp itimer
-;; LocalWords:  defun boundp defvaralias bol eol defmacro Keymaps keymap comint
-;; LocalWords:  KEYMAP's nconc dolist nm lnk setq
+;; LocalWords:  Ludlam eludlam osboxes defun dolist lnk stringp setq emacsclient ec darwin nt
+;; LocalWords:  emacsclientw usr fboundp

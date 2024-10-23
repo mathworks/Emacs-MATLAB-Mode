@@ -64,7 +64,7 @@
   "List of keywords that are part of code blocks.")
 
 (defconst matlab-keyword-table
-  (let ((ans (matlab-obarray-make 23)))
+  (let ((ans (obarray-make 23)))
     (mapc (lambda (elt) (set (intern (car elt) ans) (cdr elt)))
 	  matlab-block-keyword-list)
     ans)
@@ -1347,7 +1347,7 @@ With ARG, enable gathering stats, and flush old stats."
       (progn (setq matlab-scan-cache-stats nil)
 	     (message "Disable matlab scanner stats gathering."))
     (message "Enable matlab scanner stats gathering.")
-    (setq matlab-scan-cache-stats (matlab-obarray-make 13))))
+    (setq matlab-scan-cache-stats (obarray-make 13))))
 
 (defun matlab-scan-stat-inc (thing)
   "Increment the stat associated with THING."

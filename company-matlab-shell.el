@@ -16,14 +16,16 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;;; Commentary:
+;;
+
 ;;; Code:
 
 (condition-case nil
     (require 'company)
   (error nil))
 
-;;; Commentary:
-;;
+(require 'cl-macs)
 
 (require 'matlab)
 (require 'matlab-shell)
