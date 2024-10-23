@@ -1,4 +1,4 @@
-;;; semanticdb-matlab.el --- Semantic database extensions for MATLAB
+;;; semanticdb-matlab.el --- Semantic database extensions for MATLAB -*- lexical-binding: t -*-
 
 ;;; Copyright (C) 2008, 2012, 2013, 2019 David Engster
 
@@ -108,6 +108,7 @@ Create one of our special tables that can act as an intermediary."
 
 (cl-defmethod semanticdb-file-table ((obj semanticdb-project-database-matlab) filename)
   "From OBJ, return FILENAME's associated table object."
+  (ignore filename)
   ;; NOTE: See not for `semanticdb-get-database-tables'.
   (car (semanticdb-get-database-tables obj))
   )
@@ -117,22 +118,24 @@ Create one of our special tables that can act as an intermediary."
   ;; NOTE: Omniscient databases probably don't want to keep large tabes
   ;;       lolly-gagging about.  Keep internal Emacs tables empty and
   ;;       refer to alternate databases when you need something.
+  (ignore table)
   nil)
 
 (cl-defmethod semanticdb-equivalent-mode ((table semanticdb-table-matlab) &optional buffer)
   "Return non-nil if TABLE's mode is equivalent to BUFFER.
 Equivalent modes are specified by by `semantic-equivalent-major-modes'
 local variable."
+  (ignore table)
   (with-current-buffer buffer
     (eq (or mode-local-active-mode major-mode) 'matlab-mode)))
 
 (cl-defmethod semanticdb-full-filename ((obj semanticdb-table-matlab))
   "Fetch the full filename that OBJ refers to.
 This function is currently a stub."
-;; FIXME
-;; return filename for object - what should we do with builtin functions?
-nil)
-
+  (ignore obj)
+  ;; FIXME
+  ;; return filename for object - what should we do with builtin functions?
+  nil)
 
 ;;; Usage
 ;;
@@ -286,6 +289,7 @@ If TYPE is \\='prefix, NAME is a prefix."
   matlab-mode (point)
   "Return a list of tag classes that are allowed at point.
 If point is nil, the current buffer location is used."
+  (ignore point)
   (cond
    ((looking-at ".+=")
     '(variable type))
@@ -306,6 +310,7 @@ If point is nil, the current buffer location is used."
   ((table semanticdb-table-matlab) name &optional tags)
   "Find all tags named NAME in TABLE.
 Return a list of tags."
+  (ignore table)
   ;; If we have tags, go up.
   (if tags (cl-call-next-method)
     (let (where)
@@ -333,6 +338,7 @@ Return a list of tags."
   "Find all tags with name matching REGEX in TABLE.
 Optional argument TAGS is a list of tags to search.
 Return a list of tags."
+  (ignore table)
   (if tags (cl-call-next-method)
     (let ((files (semanticdb-matlab-find-name regex 'regex)))
       (delq nil
@@ -345,6 +351,7 @@ Return a list of tags."
   "In TABLE, find all occurances of tags matching PREFIX.
 Optional argument TAGS is a list of tags to search.
 Returns a table of all matching tags."
+  (ignore table)
   ;; If we have tags, go up.
   (if tags (cl-call-next-method)
     ;; first, get completions from home-made database...
