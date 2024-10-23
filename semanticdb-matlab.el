@@ -56,7 +56,7 @@
 
 ;;; Classes:
 (defclass semanticdb-table-matlab (semanticdb-search-results-table)
-  ((major-mode :initform matlab-mode)
+  ((major-mode :initform 'matlab-mode)
    )
   "A table for returning search results from MATLAB path.")
 
@@ -66,7 +66,7 @@
    ;; Do not use this if you need a different copy for different projects.
    ;; eieio-singleton
    )
-  ((new-table-class :initform semanticdb-table-matlab
+  ((new-table-class :initform 'semanticdb-table-matlab
 		    :type class
 		    :documentation
 		    "New tables created for this database are of this class.")
@@ -221,8 +221,8 @@ to be called in local `after-save-hook'."
   "Get list of all m-files in DIRS.
 DIRS is a list of directories.  If RECURSIVE, every subdirectory
 will be included in the search.  If EXCLUDE-CLASSES, class
-directories (beginning with '@') will be skipped.  If
-EXCLUDE-PRIVATE, 'private' directories will be skipped."
+directories (beginning with \\='@\\=') will be skipped.  If
+EXCLUDE-PRIVATE, \\='private\\=' directories will be skipped."
   (if dirs
       (let (files)
 	(dolist (dir dirs)
@@ -264,8 +264,8 @@ EXCLUDE-PRIVATE, 'private' directories will be skipped."
 
 (defun semanticdb-matlab-find-name (name &optional type)
   "Find NAME in matlab file names.
-If TYPE is 'regex, NAME is a regular expression.
-If TYPE is 'prefix, NAME is a prefix."
+If TYPE is \\='regex, NAME is a regular expression.
+If TYPE is \\='prefix, NAME is a prefix."
   (semanticdb-matlab-cache-files)
   (let ((files (append (cdr semanticdb-matlab-system-files-cache)
 		       (cdr semanticdb-matlab-user-files-cache)))

@@ -36,18 +36,7 @@
 (eval-and-compile
   (require 'matlab-compat))
 
-(eval-when-compile
-  (require 'cl))
-
 ;;; Code:
-;; Compatibility
-(eval-and-compile
-  ;; `object-name-string' is an obsolete function (as of 24.4); use `eieio-object-name-string' instead.
-  (cond ((fboundp 'eieio-object-name-string)
-         (defalias 'linemark-object-name-string 'eieio-object-name-string))
-        (t
-         (defalias 'linemark-object-name-string 'object-name-string)))
-  )
 
 (defgroup linemark nil
   "Line marking/highlighting."
@@ -142,7 +131,7 @@ the new instantiation."
         (lmg linemark-groups))
     ;; Find an old group.
     (while (and (not foundgroup) lmg)
-      (if (string= name (linemark-object-name-string (car lmg)))
+      (if (string= name (eieio-object-name-string (car lmg)))
           (setq foundgroup (car lmg)))
       (setq lmg (cdr lmg)))
     ;; Which group to use.
@@ -164,7 +153,7 @@ If GROUP, then make sure it also belongs to GROUP."
         (found nil))
     (while (and o (not found))
       (let ((og (overlay-get (car o) 'obj)))
-        (if (and og (linemark-entry-child-p og))
+        (if (and og (linemark-entry--eieio-childp og))
             (progn
               (setq found og)
               (if group
@@ -175,7 +164,7 @@ If GROUP, then make sure it also belongs to GROUP."
 
 (defun linemark-next-in-buffer (group &optional arg wrap)
   "Return the next mark in this buffer belonging to GROUP.
-If ARG, then find that manu marks forward or backward.
+If ARG, then find that many marks forward or backward.
 Optional WRAP argument indicates that we should wrap around the end of
 the buffer."
   (if (not arg) (setq arg 1)) ;; default is one forward
@@ -214,7 +203,7 @@ the buffer."
   "Add a `linemark-entry' to G.
 It will be at location specified by :filename and :line, and :face
 which are property list entries in ARGS.
-Call the new entrie's activate method."
+Call the new entries activate method."
   (let ((file (plist-get args :filename))
         (line (plist-get args :line))
         (face (plist-get args :face)))
@@ -251,12 +240,12 @@ Call the new entrie's activate method."
            args)))
 
 (cl-defmethod linemark-display ((g linemark-group) active-p)
-  "Set object G to be active or inactive."
+  "Set object G to be active or inactive based on ACTIVE-P."
   (mapc (lambda (g) (linemark-display g active-p)) (oref g marks))
   (oset g active active-p))
 
 (cl-defmethod linemark-display ((e linemark-entry) active-p)
-  "Set object E to be active or inactive."
+  "Set object E to be active or inactive based on ACTIVE-P."
   (if active-p
       (with-slots ((file filename)) e
         (if (oref e overlay)
@@ -316,10 +305,10 @@ Call the new entrie's activate method."
 ;; This section sets up a find-file-hook and a kill-buffer-hook
 ;; so that marks that aren't displayed (because the buffer doesn't
 ;; exist) are displayed when said buffer appears, and that overlays
-;; are removed when the buffer buffer goes away.
+;; are removed when the buffer goes away.
 
 (defun linemark-find-file-hook ()
-  "Activate all marks which can benifit from this new buffer."
+  "Activate all linemarks which can benefit from this new buffer."
   (mapcar (lambda (g) (condition-case nil
                           ;; See comment in linemark-add-entry for
                           ;; reasoning on this condition-case.
@@ -333,7 +322,7 @@ Call the new entrie's activate method."
         (to nil))
     (while o
       (setq to (overlay-get (car o) 'obj))
-      (if (and to (linemark-entry-child-p to))
+      (if (and to (linemark-entry--eieio-childp to))
           (linemark-display to nil))
       (setq o (cdr o)))))
 
@@ -423,7 +412,7 @@ Call the new entrie's activate method."
 (defun enable-visual-studio-bookmarks ()
   "Bind the viss bookmark functions to F2 related keys.
 \\<global-map>
-\\[viss-bookmark-toggle]     - To=ggle a bookmark on this line.
+\\[viss-bookmark-toggle]     - Toggle a bookmark on this line.
 \\[viss-bookmark-next-buffer]   - Move to the next bookmark.
 \\[viss-bookmark-prev-buffer]   - Move to the previous bookmark.
 \\[viss-bookmark-clear-all-buffer] - Clear all bookmarks."
@@ -437,3 +426,7 @@ Call the new entrie's activate method."
 (provide 'linemark)
 
 ;;; linemark.el ends here
+
+;; LocalWords:  Ludlam eludlam compat defface defclass initarg initform defun defaultface newgroup
+;; LocalWords:  foundgroup lmg eieio setq cdr og childp progn oref nc ofun funcall defmethod plist
+;; LocalWords:  bolp oset mapc delq linemarks mapcar viss ce prev

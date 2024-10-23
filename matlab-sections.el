@@ -29,7 +29,7 @@
 ;; with "%%" as the first non-empty characters followed by some
 ;; comment strings.
 ;; Consequently, the line that is detected in the above manner is
-;; highlighted by the face `matlab-sections-cellbreak-face'.  By defailt,
+;; highlighted by the face `matlab-sections-cellbreak-face'.  By default,
 ;; this is bold-faced and has an overline above it.
 ;;
 ;; The section that point is on is highlighted by the face
@@ -42,24 +42,24 @@
 ;; moves to another window (defaults to "t").
 ;;
 ;; Finally, the minor-mode provides the following interactive
-;; navigation functions (default keybindings provided within []): 
+;; navigation functions (default keybindings provided within []):
 ;; 1. `matlab-sections-forward-section' : Move point to the beginning of the
-;;    section right below. [C-s-<down>]
+;;    section right below.  [C-s-<down>]
 ;; 2. `matlab-sections-backward-section' : Move point to the end of the section
-;;    right above. [C-s-<up>]
+;;    right above.  [C-s-<up>]
 ;; 3. `matlab-sections-beginning-of-section' : Move point to beginning of
-;;    current section.  Return (point). [C-s-<left>]
+;;    current section.  Return (point).  [C-s-<left>]
 ;; 4. `matlab-sections-end-of-section' : Move point to end of current section.
-;;    Return (point). [C-s-<right>]
+;;    Return (point).  [C-s-<right>]
 ;; 5. `matlab-sections-move-section-up' : Move the contents of the current section
-;;    \"up\", so that it occurs before the previous. [s-<up>]
+;;    \"up\", so that it occurs before the previous.  [s-<up>]
 ;; 6. `matlab-sections-move-section-down' : Move the contents of the current
-;;    section \"down\", so that it occurs after the next. [s-<down>]
+;;    section \"down\", so that it occurs after the next.  [s-<down>]
 ;; 7. `matlab-sections-run-till-point' : Run all the sections from beginning
-;;    till previous section. [s-<return>]
-;; 8. `matlab-sections-mark-section' : Mark the current section. [s-c]
+;;    till previous section.  [s-<return>]
+;; 8. `matlab-sections-mark-section' : Mark the current section.  [s-c]
 ;; (Note that some default keybindings may clash with existing
-;; keyindings in the desktop environment)
+;; keybindings in the desktop environment)
 ;;
 ;; Other than this, there are some utility functions to help
 ;; development.
@@ -68,6 +68,9 @@
 ;; Hisch (currently at: https://github.com/twmr/python-cell.el).
 ;;
 ;;; Code:
+
+(require 'subr-x)
+
 ;;
 ;; Customizable Variables and Faces
 (defgroup matlab-sections nil
@@ -93,7 +96,7 @@
 (defcustom matlab-sections-cellbreak-regexp
   (rx line-start (* space)
       (group "%%" (* (not (any "\n"))) line-end))
-  "Regexp used for detecting the section boundaries of code sectopms."
+  "Regexp used for detecting the section boundaries of code sections."
   :type 'string
   :group 'matlab-sections
   :safe 'stringp)
@@ -266,7 +269,7 @@ Optionally provide argument AGGRESSIVE to specify whether to move
   )
 
 (defun matlab-sections-mark-section ()
-  "Mark the contents of the current section. Replaces `mark-page'."
+  "Mark the contents of the current section.  Replace `mark-page'."
   (interactive)
   (let ((rng (matlab-sections-range-function)))
     (set-mark (car rng))
@@ -275,6 +278,8 @@ Optionally provide argument AGGRESSIVE to specify whether to move
   )
 
 ;; Execution
+
+(declare-function matlab-shell-run-region "matlab-shell.el")
 
 (defun matlab-sections-shell-run-section ()
   "Run the section point is in, in matlab-shell."
@@ -321,7 +326,7 @@ Optionally provide argument AGGRESSIVE to specify whether to move
       (move-overlay overlay (car start-end) (cdr start-end))
     (move-overlay overlay 1 1)))
 
-(defun matlab-sections-setup-sectionhighlight ()
+(defun matlab-sections-setup-section-highlight ()
   "Setup section highlighting."
   ;; In case `kill-all-local-variables' is called.
   (add-hook 'change-major-mode-hook #'matlab-sections-unhighlight nil t)
@@ -332,7 +337,7 @@ Optionally provide argument AGGRESSIVE to specify whether to move
   (add-hook 'post-command-hook #'matlab-sections-highlight nil t))
 
 ;;; Keymap
-(defvar matlab-sections-mode-map  
+(defvar matlab-sections-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-s-<down>") #'matlab-sections-forward-section)
     (define-key map (kbd "C-s-<up>") #'matlab-sections-backward-section)
@@ -343,7 +348,7 @@ Optionally provide argument AGGRESSIVE to specify whether to move
     (define-key map (kbd "s-<return>") #'matlab-sections-run-till-point)
     (define-key map (kbd "s-c") #'matlab-sections-mark-section)
     map)
-  "Key map for matlab-sections minor mode. ")
+  "Key map for matlab-sections minor mode.")
 
 (defalias 'matlab-sections-what-section #'what-page)
 (defalias 'matlab-sections-narrow-to-section #'narrow-to-page)
@@ -354,32 +359,32 @@ Optionally provide argument AGGRESSIVE to specify whether to move
 (define-minor-mode matlab-sections-mode
   "Highlight MATLAB-like sections and navigate between them.
 The minor-mode provides the following interactive navigation
-functions. The default keybindings are provided in square brackets for 
-each: 
+functions.  The default keybindings are provided in square brackets for
+each:
 1. `matlab-sections-forward-section' : Move point to the beginning of the
-   section right below. [C-s-<down>]
+   section right below.  \\[matlab-sections-forward-section]
 2. `matlab-sections-backward-section' : Move point to the end of the section
-   right above. [C-s-<up>]
+   right above.  \\[matlab-sections-backward-section]
 3. `matlab-sections-beginning-of-section' : Move point to beginning of
-   current section.  Return (point). [C-s-<left>]
+   current section.  Return (point).  \\[matlab-sections-beginning-of-section]
 4. `matlab-sections-end-of-section' : Move point to end of current section.
-   Return (point). [C-s-<right>]
+   Return (point).  \\[matlab-sections-end-of-section]
 5. `matlab-sections-move-section-up' : Move the contents of the current section
-   \"up\", so that it occurs before the previous. [s-<up>]
+   \"up\", so that it occurs before the previous.  \\[matlab-sections-move-section-up]
 6. `matlab-sections-move-section-down' : Move the contents of the current
-   section \"down\", so that it occurs after the next. [s-<down>]
+   section \"down\", so that it occurs after the next.  \\[matlab-sections-move-section-down]
 7. `matlab-sections-run-till-point' : Run all the sections from beginning
-   till previous section. [s-<return>]
-8. `matlab-sections-mark-section' : Mark the current section. [s-c]"
+   till previous section.  \\[matlab-sections-run-till-point]
+8. `matlab-sections-mark-section' : Mark the current section.  \\[matlab-sections-mark-section]"
   :init-value nil
   :keymap matlab-sections-mode-map
-  
+
   ;; (let ((arg `((,matlab-sections-cellbreak-regexp 1 'matlab-sections-cellbreak-face prepend))))
   (make-local-variable 'page-delimiter)
   (setq page-delimiter matlab-sections-cellbreak-regexp)
   ;; (font-lock-add-keywords nil arg)
   (when matlab-sections-highlight-section
-    (matlab-sections-setup-sectionhighlight))
+    (matlab-sections-setup-section-highlight))
   ;; (font-lock-flush))
   )
 
@@ -395,3 +400,7 @@ each:
 
 (provide 'matlab-sections)
 ;;; matlab-sections.el ends here
+
+;; LocalWords:  Nidish Narayanaa Balaji nidbid gmail cellbreak Hisch subr defface defcustom booleanp
+;; LocalWords:  stringp dolist defun cdr progn cp dotimes rngc rngp rngn endp begp setq Keymap
+;; LocalWords:  keymap kbd defalias

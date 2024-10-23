@@ -249,7 +249,7 @@ Return argument is:
 			    (apply #'semantic-tag-new-variable (match-string-no-properties 1)
 				   nil nil
 				   attrs)
-			    (list (match-beginning 1) (point-at-eol)))
+			    (list (match-beginning 1) (line-end-position)))
 			   taglist)))
 
 	  (goto-char tmpend)
@@ -735,7 +735,7 @@ cannot derive an argument list for them."
       (semantic-format-tag-prototype-default tag parent color))))
 
 (defun semantic-idle-summary-format-matlab-mode (tag &optional parent color)
-  "Describe TAG and display corresponding MATLAB 'lookfor' doc-string.
+  "Describe TAG and display corresponding MATLAB \\='lookfor\\=' doc-string.
 Optional PARENT and COLOR specify additional details for the tag.
 See `semantic-format-tag-prototype-matlab-mode' for details."
   (let* ((proto (semantic-format-tag-prototype-matlab-mode tag nil color))

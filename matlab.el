@@ -76,7 +76,7 @@
 Enter `matlab-mode' when the first part of a *.m file is not
 Objective-C comments or # characters.  If you want new (empty)
 files to automatically enter `matlab-mode', specify this item as
-t (always).  If you specify \='maybe, new files will enter
+t (always).  If you specify \\='maybe, new files will enter
 `matlab-mode' when you have an existing MATLAB buffer.
 Specifying nil (never) means that new *.m files will not enter
 `matlab-mode', and with default Emacs settings they will enter
@@ -172,10 +172,10 @@ are simply indented by `matlab-continuation-indent-level'."
   "*If non-nil, indent body of function.
 If the global value is nil, do not indent function bodies.
 If the global value is t, always indent function bodies.
-If the global value is \='guess, then the local value will be set to
+If the global value is \\='guess, then the local value will be set to
 either nil or t when the MATLAB mode is started in a buffer based on the
 file's current indentation.
-If the global value is \='MathWorks-Standard, then the local value is not
+If the global value is \\='MathWorks-Standard, then the local value is not
 changed, and functions are indented based on `matlab-functions-have-end'."
   :group 'matlab
   :type '(choice (const :tag "Always" t)
@@ -189,7 +189,7 @@ changed, and functions are indented based on `matlab-functions-have-end'."
 
 (defcustom matlab-functions-have-end 'guess
   "*If non-nil, functions-have-end minor mode is on by default.
-If the value is \='guess, then we guess if a file has end when
+If the value is \\='guess, then we guess if a file has end when
 `matlab-mode' is initialized."
   :group 'matlab
   :type 'boolean)
@@ -247,7 +247,7 @@ If the value is \='guess, then we guess if a file has end when
 
 (defun matlab-guess-script-type ()
   "Guess the type of script this `matlab-mode' file is.
-Returns one of \='empty, \='script, \='function, \='class."
+Returns one of \\='empty, \\='script, \\='function, \\='class."
   (setq
    matlab-last-script-type-guess
    (cond
@@ -283,7 +283,7 @@ Returns one of \='empty, \='script, \='function, \='class."
   "Do functions have end statements based on buffer content?
 Look at the contents of the current buffer and decide if functions
 have end.  If the current value of `matlab-functions-have-end' is
-\='guess, look @ the buffer.  If the value is t, then return that.
+\\='guess, look @ the buffer.  If the value is t, then return that.
 Specify NO-NAVIGATE to avoid searching."
   (if (eq matlab-functions-have-end 'guess)
       ;; Lets guess what we think the answer is.
@@ -1333,12 +1333,19 @@ All Key Bindings:
   ;; and font-lock for comments/strings.
   (matlab-syntax-setup)
   (matlab-scan-setup)
+<<<<<<< HEAD
   (when (and (not noninteractive)
              (>= emacs-major-version 28))
     ;; matlab-section == "matlab %% sections" and has some cost, thus don't activate in batch mode.
     ;; matlab-section with emacs 27, upon loading a *.m files gives
     ;; File mode specification error: (invalid-function (start-end (matlab-section-range-function)))
     (matlab-sections-mode-enable)) ;; Enabling section-mode here. Would a hook be better?
+=======
+  (when (not noninteractive)
+    ;; matlab-cell == "matlab %% sections" and has some cost, thus don't activate in batch mode.
+    ;; Enabling cell-mode here. Would a hook be better?
+    (matlab-cell-mode-enable))
+>>>>>>> default
 
   ;; Indentation setup.
   (setq indent-tabs-mode nil)
@@ -1934,7 +1941,7 @@ When in `noninteractive mode', return NONINTERACTIVE-DEFAULT"
 (defun matlab-calculate-indentation (&optional lvl2)
   "Calculate out the indentation of the current line.
 Return a list of descriptions for this line.  Return format is:
- \='(TYPE DEPTHNUMBER)
+ \\='(TYPE DEPTHNUMBER)
 where TYPE is one of (comment, code, function, blockstart, blockmid,
 blockendless, blockend) DEPTHNUMBER is how many characters to indent
 this line.

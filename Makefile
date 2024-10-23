@@ -88,8 +88,8 @@ tests: .tests.tstamp
 clean:
 	$(RM) $(LOADDEFS)
 	$(RM) *.elc
-	$(RM) *.tstamp
-	$(RM) -r .tstamp
+	find . -name .git -prune -o -name "*.tstamp" -exec $(RM) {} \;
+	find . -name .git -prune -o -name "*~" -exec $(RM) {} \;
 
 #--------------------------------#
 # Test various versions of Emacs #
@@ -149,7 +149,7 @@ check-emacs-versions: $(CHECK_TARGETS)
 
 .PHONY: list-files-for-release
 list-files-for-release:
-	@/usr/bin/ls -1 *.el | grep -v matlab-autoload.el
+	@/usr/bin/ls -1 *.el | grep -v -P '(matlab-autoload.el|matlab-maint.el)'
 	@/usr/bin/ls bin/*.sh
 	@find toolbox -name '*.m' -print
 
