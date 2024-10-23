@@ -1,4 +1,4 @@
-;;; matlab-shell-gud.el --- GUD support in matlab-shell.
+;;; matlab-shell-gud.el --- GUD support in matlab-shell. -*- lexical-binding: t -*-
 ;;
 ;; Copyright (C) 2024 Eric Ludlam
 ;;
@@ -143,6 +143,7 @@ Disable this option if the tooltips are too slow in your setup."
   "Argument message for starting matlab file.
 I don't think I have to do anything, but I'm not sure.
 FILE is ignored, and ARGS is returned."
+  (ignore file)
   args)
 
 (defun gud-matlab-find-file (f)
@@ -238,7 +239,7 @@ FILE is ignored, and ARGS is returned."
                          (m1 (string-match "dbhotlink()%%%\n" matlab-shell-gud--marker-acc))
                          (expr-start (match-end 0))
                          (expression (substring matlab-shell-gud--marker-acc expr-start expr-end)))
-
+                    (ignore m1)
                     (when (> (length expression) 0)
                       (condition-case ERR
                           (let ((forms (read expression)))
@@ -526,25 +527,24 @@ Must be bound to event E."
   "Choose the stack the under the cursor.
 Visit the file presented in that stack frame."
   (interactive)
-  (let ((topic nil) (fun nil) (p (point)))
-    (save-excursion
-      (beginning-of-line)
-      (forward-char 10)
-      (let* ((sf (get-text-property (point) 'object))
-             (f (oref sf file))
-             (l (oref sf line))
-             (buff (find-file-noselect f t)))
-        (display-buffer
-         buff
-         '((display-buffer-reuse-window display-buffer-use-some-window)
-           (inhibit-same-window . t))
-         )
-        (let ((win (selected-window)))
-          (select-window (get-buffer-window buff))
-          (goto-char (point-min))
-          (forward-line (1- l))
-          (select-window win))
-        ))))
+  (save-excursion
+    (beginning-of-line)
+    (forward-char 10)
+    (let* ((sf (get-text-property (point) 'object))
+           (f (oref sf file))
+           (l (oref sf line))
+           (buff (find-file-noselect f t)))
+      (display-buffer
+       buff
+       '((display-buffer-reuse-window display-buffer-use-some-window)
+         (inhibit-same-window . t))
+       )
+      (let ((win (selected-window)))
+        (select-window (get-buffer-window buff))
+        (goto-char (point-min))
+        (forward-line (1- l))
+        (select-window win))
+      )))
 
 ;;; Breakpoint Trackers
 ;;
@@ -612,7 +612,9 @@ LONGESTNAME specifies the how long the longest name we can expect is."
   )
 
 (defun mlg-del-breakpoint (file fcn line)
-  "Add a visible breakpoint to FILE FCN at LINE."
+  "Add a visible breakpoint to FILE at LINE.
+FCN is ignored."
+  (ignore fcn)
   (let ((BPS matlab-gud-visible-breakpoints)
         (NBPS nil))
     (while BPS
@@ -794,26 +796,24 @@ Must be bound to event E."
   "Choose the breakpoint the under the cursor.
 Visit the file presented in that breakpoint frame."
   (interactive)
-  (let ((topic nil) (fun nil) (p (point)))
-    (save-excursion
-      (beginning-of-line)
-      (forward-char 10)
-      (let* ((sf (get-text-property (point) 'object))
-             (f (oref sf file))
-             (l (oref sf line))
-             (buff (find-file-noselect f t)))
-        (display-buffer
-         buff
-         '((display-buffer-reuse-window display-buffer-use-some-window)
-           (inhibit-same-window . t))
-         )
-        (let ((win (selected-window)))
-          (select-window (get-buffer-window buff))
-          (goto-char (point-min))
-          (forward-line (1- l))
-          (select-window win))
-        ))))
-
+  (save-excursion
+    (beginning-of-line)
+    (forward-char 10)
+    (let* ((sf (get-text-property (point) 'object))
+           (f (oref sf file))
+           (l (oref sf line))
+           (buff (find-file-noselect f t)))
+      (display-buffer
+       buff
+       '((display-buffer-reuse-window display-buffer-use-some-window)
+         (inhibit-same-window . t))
+       )
+      (let ((win (selected-window)))
+        (select-window (get-buffer-window buff))
+        (goto-char (point-min))
+        (forward-line (1- l))
+        (select-window win))
+      )))
 
 ;;; K prompt state and hooks.
 ;;
@@ -1107,7 +1107,7 @@ if it looks like a function call, it will return nil."
 
 ;;; matlab-shell-gud.el ends here
 
-;; LocalWords:  el Ludlam eludlam emacsvm eieio defcustom keymap dolist subjob
+;; LocalWords:  el Ludlam eludlam emacsvm eieio defcustom keymap dolist subjob mlgud kbd SPC
 ;; LocalWords:  cdr netshell defmacro defun fboundp ebstop ebclear ebstatus
 ;; LocalWords:  ebstack boundp setq realfname progn aset buf noselect dbhotlink
 ;; LocalWords:  COMINT errortext dbhlcmd comint endprompt mello mlg EMACSCAP
