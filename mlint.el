@@ -1,4 +1,4 @@
-;;; mlint.el --- run mlint in a MATLAB buffer
+;;; mlint.el --- run mlint in a MATLAB buffer -*- lexical-binding: t -*-
 
 ;; Author: Eric M. Ludlam <eludlam@mathworks.com>
 ;; Maintainer: Eric M. Ludlam <eludlam@mathworks.com>
@@ -35,14 +35,6 @@
 
 (eval-when-compile
   (require 'font-lock))
-
-(eval-and-compile
-  ;; `object-name-string' is an obsolete function (as of 24.4); use `eieio-object-name-string' instead.
-  (cond ((fboundp 'eieio-object-name-string)
-         (defalias 'mlint-object-name-string 'eieio-object-name-string))
-        (t
-         (defalias 'mlint-object-name-string 'object-name-string)))
-  )
 
 ;; If we can't find an mlint program this fcn will be needed.
 (autoload 'matlab-mode-determine-matlabroot "matlab-shell" "\
@@ -224,9 +216,8 @@ Argument STRING is the text to interpret."
       (let ((i (string-to-number string)))
         (cons i i)))))
 
-(defun mlint-run (&optional buffer)
-  "Run mlint on BUFFER and return a list of issues.
-If BUFFER is nil, use the current buffer."
+(defun mlint-run ()
+  "Run mlint on BUFFER and return a list of issues."
   (when (and (file-exists-p (buffer-file-name)) mlint-program)
     (if (not (file-executable-p mlint-program))
         (progn
@@ -234,7 +225,6 @@ If BUFFER is nil, use the current buffer."
           (sit-for 2)
           nil)
       (let* ((fn (file-name-nondirectory (buffer-file-name (current-buffer))))
-             (dd default-directory)
              (buffer-mlint-program mlint-program)
              (dd default-directory)
              (show-mlint-warnings matlab-show-mlint-warnings)
@@ -380,7 +370,7 @@ Do not permit multiple groups with the same name."
          (foundgroup nil)
          (lmg linemark-groups))
     (while (and (not foundgroup) lmg)
-      (if (string= name (mlint-object-name-string (car lmg)))
+      (if (string= name (eieio-object-name-string (car lmg)))
           (setq foundgroup (car lmg)))
       (setq lmg (cdr lmg)))
     (if foundgroup
@@ -408,9 +398,10 @@ Different warnings are handled by different classes."
 It will be at location FILE and LINE, and use optional FACE.
 Call the new entry's activate method.
 Optional ARGS specifies details about the entry."
+  (ignore g)
   (let* ((f (plist-get args :filename))
          (l (plist-get args :line))
-         (wc (plist-get args :warningcode))
+         ;; (wc (plist-get args :warningcode))
          (c (mlint-warningid->class (plist-get args :warningid)))
          )
     (when (stringp f) (setq f (file-name-nondirectory f)))
@@ -498,6 +489,7 @@ Subclasses fulfill the duty of actually fixing the code."
 (cl-defmethod mlint-fix-entry ((e mlint-lm-entry))
   "This entry E cannot fix warnings, so throw an error.
 Subclasses fulfill the duty of actually fixing the code."
+  (ignore e)
   (error "Don't know how to fix warning"))
 
 ;;; Specialized classes
@@ -535,6 +527,7 @@ Subclasses fulfill the duty of actually fixing the code."
                                           &rest fields)
   "Calculate the new fix description for THIS.
 Optional argument FIELDS are the initialization arguments."
+  (ignore fields)
   ;; After basic initialization, update the fix description.
   (oset this fix-description
         (concat (oref-default this fix-description)
@@ -543,6 +536,7 @@ Optional argument FIELDS are the initialization arguments."
 (cl-defmethod mlint-fix-entry ((ent mlint-lm-replace-focus))
   "For ENT, replace the focus area with :new-text."
   (let ((pos (cl-call-next-method)))
+    (ignore pos)
     (save-excursion
       (goto-char (point))
       (insert (oref ent new-text)))))
@@ -561,6 +555,7 @@ Extracts the replacement for the deprecated symbol from the warning message.")
   "Calculate the \\='new text\\=' for THIS instance.
 Optional argument FIELDS are the initialization arguments."
   ;; After basic initialization, update the new text field.
+  (ignore fields)
   (let* ((warn (oref this warning))
          (junk (string-match "Use \\(\\w+\\) instead" warn))
          (newfcn (when junk (downcase (substring warn (match-beginning 1) (match-end 1))))))
@@ -579,6 +574,7 @@ Optional argument FIELDS are the initialization arguments."
 (cl-defmethod initialize-instance :after ((this mlint-lm-function-name) &rest fields)
   "Compute the \\='new text\\=' for THIS to be the file name from the message.
 Optional arguments FIELDS are the initialization arguments."
+  (ignore fields)
   (let* ((warn (oref this warning))
          (junk (or (string-match "file name: '\\([a-zA-z][a-zA-z0-9]+\\)'" warn)
                    (string-match "do not agree: '\\([a-zA-z][a-zA-z0-9]+\\)'" warn)
@@ -641,6 +637,7 @@ Optional arguments FIELDS are the initialization arguments."
 
 (cl-defmethod mlint-fix-entry ((ent mlint-lm-quiet))
   "For ENT, add semi-colon to end of this line."
+  (ignore ent)
   (save-excursion
     (matlab-end-of-command)
     (insert ";"))
@@ -900,9 +897,7 @@ Highlight problems and/or cross-function variables."
 Must be bound to event E."
   (interactive "e")
   (let ((repos nil)
-        (ipos nil)
-        (startpos (point))
-        )
+        (ipos nil))
     (save-excursion
       (mouse-set-point e)
       (setq ipos (point))
