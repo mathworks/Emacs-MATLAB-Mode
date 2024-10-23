@@ -1,4 +1,4 @@
-;;; matlab-mode.el --- Major mode for MATLAB(R) dot-m files
+;;; matlab-mode.el --- Major mode for MATLAB(R) dot-m files -*- lexical-binding: t -*-
 
 ;; Copyright (C) 1997-2024 Eric M. Ludlam
 ;; Copyright (C) 1991-1997 Matthew R. Wette
