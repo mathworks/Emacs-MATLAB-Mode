@@ -1,4 +1,4 @@
-;;; matlab-complete.el --- Simple completion tool for matlab-mode
+;;; matlab-complete.el --- Simple completion tool for matlab-mode -*- lexical-binding: t -*-
 ;;
 ;; Copyright (C) 2019, 2024 Eric Ludlam
 ;;
@@ -435,7 +435,7 @@ The last type of semantic used while completing things.")
 ;;;###autoload
 (defun matlab-complete-symbol (&optional arg)
   "Complete a partially typed symbol in a MATLAB mode buffer.
-Optional argument ARG ."
+Optional argument ARG is ignored."
   (interactive "P")
   (if (and (featurep 'matlab-shell) (matlab-shell-active-p) matlab-shell-ask-MATLAB-for-completions)
       ;; Use MATLAB shell if active and asking for completions is enabled.
@@ -449,6 +449,7 @@ Optional argument ARG ."
 Use `completion-in-region' to support the completion behavior.
 ARG is ignored."
   (interactive "P")
+  (ignore arg) ;; TODO - eliminate or use arg
   ;; Try to do completion with the shell
   (matlab-navigation-syntax
     (let* ((common-substr-start-pt nil)
