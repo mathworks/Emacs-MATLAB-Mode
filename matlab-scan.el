@@ -1,4 +1,4 @@
-;;; matlab-scan.el --- Tools for contextually scanning a MATLAB buffer
+;;; matlab-scan.el --- Tools for contextually scanning a MATLAB buffer -*- lexical-binding: t -*-
 ;;
 ;; Copyright (C) 2024 Eric Ludlam
 ;;
@@ -239,7 +239,6 @@ in a single call using fastest methods."
 	   (paren-delta (- (car pps) (car ppsend)))
 	   (ec-type nil)
 	   (ec-col nil)
-	   (cont-from-prev nil)
 	   (symval nil)
 	  )
 
@@ -339,25 +338,23 @@ in a single call using fastest methods."
       (list ltype stype pt indent start paren-depth
 	    paren-inner-char paren-inner-col paren-inner-point
 	    paren-outer-char paren-outer-point paren-delta
-	    ec-type ec-col
-	    ;;cont-from-prev
-	    )
+	    ec-type ec-col)
       )))
 
 ;;; Accessor Utilities for LEVEL 1
 ;;
 ;; Use these to query a context for a piece of data
-(defmacro matlab-with-context-line (__context &rest forms)
-  "Save excursion, and move point to the line specified by __CONTEXT FORMS.
-Takes a lvl1 or lvl2 context.
-Returns the value from the last part of forms."
+(defmacro matlab-with-context-line (code-context &rest forms)
+  "Save excursion, and move point to the line specified by CODE-CONTEXT.
+Takes a lvl1 or lvl2 CODE-CONTEXT.
+Returns the value from the last part of FORMS."
   (declare (indent 1) (debug (form &rest form)))
   `(save-excursion
-     ;; The CAR of a LVL2 is a LVL1.  If __context is LVL1, then
+     ;; The CAR of a LVL2 is a LVL1.  If code-context is LVL1, then
      ;; the car-safe will return nil
-     (goto-char (nth mlf-point (if (consp (car ,__context))
-				   (car ,__context)
-				 ,__context)))
+     (goto-char (nth mlf-point (if (consp (car ,code-context))
+				   (car ,code-context)
+				 ,code-context)))
      ,@forms))
 
 (defsubst matlab-line-point (lvl1)
@@ -504,7 +501,7 @@ START and END are buffer locations around the found name.
 If the current line is not a declaration, return nil LVL1."
   (unless lvl1 (setq lvl1 (matlab-compute-line-context 1)))
   (when (matlab-line-declaration-p lvl1)
-    (let (type name start end)
+    (let (type start end)
       (matlab-navigation-syntax
 	(matlab-with-context-line lvl1
 	  (cond
@@ -617,20 +614,16 @@ in the returned list for quick access."
 
   (save-excursion
     (let ((prev-lvl1 t)
-	  (prev-lvl2 t)
 	  (prev-cmd-begin t)
 	  (prev-nonempty t)
 	  (prev-code1 t)
 	  (prev-block1 t)
-	  (prev-fcn1 t)
-	  (tmp nil)
-	  )
+	  (prev-fcn1 t))
 
       ;; copy data from previous2.
       (if previous2
 	  (progn
 	    (setq prev-lvl1 t
-		  prev-lvl2 t
 		  prev-cmd-begin (nth mlf-previous-command-beginning previous2)
 		  prev-nonempty (nth mlf-previous-nonempty previous2)
 		  prev-code1 (nth mlf-previous-code previous2)
@@ -652,8 +645,7 @@ in the returned list for quick access."
 
       ;; prev line can be nil if at beginning of buffer.
       (if (not prev-lvl1)
-	  (setq prev-lvl2 nil
-		prev-cmd-begin nil
+	  (setq prev-cmd-begin nil
 		prev-nonempty nil
 		prev-code1 nil
 		prev-block1 nil
@@ -1309,9 +1301,9 @@ Make sure the cache doesn't exceed max size."
 (defun matlab-scan-before-change-fcn (start end &optional length)
   "Function run in after change hooks.
 Options: START END LENGTH."
+  (ignore end length)
   ;;(setq matlab-scan-temporal-cache nil))
-  (let ((pt (point))
-	(cache matlab-scan-temporal-cache)
+  (let ((cache matlab-scan-temporal-cache)
 	(newcache nil))
     ;; Flush whole lines.
     (save-excursion
@@ -1426,8 +1418,6 @@ If optional NODISP, then don't display, just return the msg."
 					 ((= outerp-char ?\[) ?\])
 					 ((= outerp-char ?\{) ?\})
 					 (t ??)))))
-	   (outerparenopen "")
-	   (outerparenclose "")
 	   (extraopen "")
 	   (extraclose "")
 	   )
@@ -1487,5 +1477,5 @@ If optional NODISP, then don't display, just return the msg."
 ;; LocalWords:  consp endpt parens tmp bobp setcdr nthcdr setcar nonemptymiss codemiss cmdbegin
 ;; LocalWords:  decls classdefs boc bcs lvlwalk eobp parentblock bolp prevblock providedstate
 ;; LocalWords:  thiskeyword blockstate currentstate noerror bonustest funcall bgn newcache flushskip
-;; LocalWords:  mapatoms mapconcat printfcn princ nodisp innerparenstr outerp outerparenopen
-;; LocalWords:  outerparenclose extraopen extraclose ucs
+;; LocalWords:  mapatoms mapconcat printfcn princ nodisp innerparenstr outerp
+;; LocalWords:  extraopen extraclose ucs
