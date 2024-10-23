@@ -1,4 +1,4 @@
-;;; matlab-topic.el --- Help browsing via Emacs buffers.
+;;; matlab-topic.el --- Help browsing via Emacs buffers -*- lexical-binding: t -*-
 ;;
 ;; Copyright (C) 2024 Eric Ludlam
 ;;
