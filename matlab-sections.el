@@ -29,7 +29,7 @@
 ;; with "%%" as the first non-empty characters followed by some
 ;; comment strings.
 ;; Consequently, the line that is detected in the above manner is
-;; highlighted by the face `matlab-sections-cellbreak-face'.  By default,
+;; highlighted by the face `matlab-sections-section-break-face'.  By default,
 ;; this is bold-faced and has an overline above it.
 ;;
 ;; The section that point is on is highlighted by the face
@@ -82,7 +82,7 @@
   "Default face for highlighting the current section in matlab-sections minor mode."
   :group 'matlab-sections)
 
-(defface matlab-sections-cellbreak-face
+(defface matlab-sections-section-break-face
   '((t :weight bold :overline t))
   "Default face for the section separation line in matlab-sections minor mode."
   :group 'matlab-sections)
@@ -93,7 +93,7 @@
   :group 'matlab-sections
   :safe 'booleanp)
 
-(defcustom matlab-sections-cellbreak-regexp
+(defcustom matlab-sections-section-break-regexp
   (rx line-start (* space)
       (group "%%" (* (not (any "\n"))) line-end))
   "Regexp used for detecting the section boundaries of code sections."
@@ -137,13 +137,13 @@ It should return nil if there's no region to be highlighted."
   (save-match-data
     (let ((r-start (save-excursion
 		     (progn (end-of-line)
-			    (if (re-search-backward matlab-sections-cellbreak-regexp nil t)
+			    (if (re-search-backward matlab-sections-section-break-regexp nil t)
 				(progn (goto-char (match-beginning 0))
 				       (point))
 			      (point-min)))))
 	  (r-end (save-excursion
 		   (progn (end-of-line)
-			  (if (re-search-forward matlab-sections-cellbreak-regexp nil t)
+			  (if (re-search-forward matlab-sections-section-break-regexp nil t)
 			      (progn (goto-char (match-beginning 0))
 				     (point))
 			    (point-max))))))
@@ -203,7 +203,7 @@ Optionally provide argument AGGRESSIVE to specify whether to move
 	       (not aggressive))
 	  (goto-char endp)
 	(goto-char endp)
-    (if (re-search-forward matlab-sections-cellbreak-regexp nil t)
+    (if (re-search-forward matlab-sections-section-break-regexp nil t)
 	(progn (end-of-line)
 	       (forward-char 1))
       (goto-char (point-max)))
@@ -227,7 +227,7 @@ Optionally provide argument AGGRESSIVE to specify whether to move
 	(goto-char begp)
 	(forward-char -1)
 	(beginning-of-line)
-	(and (save-excursion (re-search-backward matlab-sections-cellbreak-regexp
+	(and (save-excursion (re-search-backward matlab-sections-section-break-regexp
 						 nil t))
 	     (= (match-beginning 0) (save-excursion
 				      (forward-char -1) (beginning-of-line) (point)))
@@ -235,7 +235,7 @@ Optionally provide argument AGGRESSIVE to specify whether to move
 
 	(if (> (point) (point-min))
 	    (forward-char -1))
-	(if (re-search-backward matlab-sections-cellbreak-regexp nil t)
+	(if (re-search-backward matlab-sections-section-break-regexp nil t)
 	    (progn (goto-char (match-end 0))
 		   (end-of-line)
 		   (forward-char 1))
@@ -248,7 +248,7 @@ Optionally provide argument AGGRESSIVE to specify whether to move
   (interactive)
 
   (end-of-line)
-  (if (re-search-backward matlab-sections-cellbreak-regexp nil t)
+  (if (re-search-backward matlab-sections-section-break-regexp nil t)
       (progn (goto-char (match-end 0))
 	     (end-of-line)
 	     (forward-char 1))
@@ -261,7 +261,7 @@ Optionally provide argument AGGRESSIVE to specify whether to move
   (interactive)
 
   (end-of-line)
-  (if (re-search-forward matlab-sections-cellbreak-regexp nil t)
+  (if (re-search-forward matlab-sections-section-break-regexp nil t)
       (progn (goto-char (match-beginning 0))
 	     (forward-char -1))
     (goto-char (point-max)))
@@ -379,9 +379,9 @@ each:
   :init-value nil
   :keymap matlab-sections-mode-map
 
-  ;; (let ((arg `((,matlab-sections-cellbreak-regexp 1 'matlab-sections-cellbreak-face prepend))))
+  ;; (let ((arg `((,matlab-sections-section-break-regexp 1 'matlab-sections-section-break-face prepend))))
   (make-local-variable 'page-delimiter)
-  (setq page-delimiter matlab-sections-cellbreak-regexp)
+  (setq page-delimiter matlab-sections-section-break-regexp)
   ;; (font-lock-add-keywords nil arg)
   (when matlab-sections-highlight-section
     (matlab-sections-setup-section-highlight))
