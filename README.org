@@ -103,6 +103,26 @@ file. MATLAB Editor or an external text editor. If you always want to use Emacs 
 editor even when running MATLAB outside of emacs, select Text editor and set it to the appropriate
 'emacsclient -n' command.
 
+** The code-sections are not highlighted properly. What do I do?
+
+There can be several reasons for this. One reason would be if you are
+using syntax highlighting from a different package (such as
+tree-sitter) which is over-riding the font-lock provided by
+matlab-mode.
+
+In this case, add the following hook to your config:
+#+begin_src emacs-lisp
+  (add-hook 'matlab-sections-mode-hook
+  	  (lambda () (interactive)
+              (font-lock-add-keywords
+  	     nil
+  	     `((,matlab-sections-section-break-regexp
+                  1 'matlab-sections-section-break-face prepend)))
+              (font-lock-flush)))
+#+end_src
+Ensure that this is included after matlab-mode as well as your syntax
+highlighter are initialized in your config. 
+
 * History
 
 matlab-mode has a history dating back many years. Older contributions can be found in

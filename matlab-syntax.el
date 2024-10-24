@@ -328,7 +328,7 @@ Called when comments found in `matlab--scan-line-for-unterminated-string'."
     ;; cellbreak comment.
     (cond ((and (< (nth 8 pps) (point-max))
 		(= (char-after (1+ (nth 8 pps))) ?\%))
-	   'matlab-cellbreak-face)
+	   'matlab-sections-section-break-face)
 	  ((and (< (nth 8 pps) (point-max))
 		(= (char-after (1+ (nth 8 pps))) ?\#))
 	   'matlab-pragma-face)

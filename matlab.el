@@ -721,9 +721,6 @@ point, but it will be restored for them."
 (defvar matlab-cross-function-variable-face 'matlab-cross-function-variable-face
   "Self reference for cross-function variables.")
 
-(defvar matlab-cellbreak-face 'matlab-cellbreak-face
-  "Self reference for cellbreaks.")
-
 (defvar matlab-math-face 'matlab-math-face
   "Self reference for math.")
 
@@ -756,12 +753,6 @@ point, but it will be restored for them."
   "*Face to use for cross-function variables."
   :group 'matlab)
 
-(defface matlab-cellbreak-face
-  '((t :inherit font-lock-comment-face
-       :overline t
-       :bold t))
-  "*Face to use for cellbreak %% lines.")
-
 (defface matlab-ignored-comment-face
   '((t :inherit font-lock-comment-face
        :slant italic))
@@ -771,12 +762,12 @@ Ignored comments are lines that start with '% $$$'  or '%^'.")
 (defface matlab-pragma-face
   '((t :inherit font-lock-comment-face
        :bold t))
-  "*Face to use for cellbreak %% lines.")
+  "*Face to use for cellbreak %% lines.") ;; TODO: Wrong docstring?
 
 (defface matlab-math-face
   '((t :inherit font-lock-constant-face
        :slant italic))
-  "*Face to use for cellbreak %% lines.")
+  "*Face to use for cellbreak %% lines.") ;; TODO: Wrong docstring?
 
 ;;; Font Lock MLINT data highlighting
 
@@ -1681,32 +1672,11 @@ Accounts for nested functions."
       ;; If that end wasn't a decl, scan upward.
       (matlab--scan-block-backward-up-until 'decl))))
 
-;; TODO - Can be rewritten to use functions from matlab-sections.el ;;;;;;;;;;;;;;;;;;;
 (defun matlab-add-log-current-defun ()
   "Return a text string representing the current block.
 Tries to return the current defun.  If not, look for a
 code section block with a name."
-  (or (matlab-current-defun) (matlab-current-code-section)))
-
-(defun matlab-current-code-section ()
-  "Return the name of the current code section.
-The name is any text after the %% and any whitespace."
-  (save-excursion
-    (forward-page -1)
-    (let ((lvl1 (matlab-compute-line-context 1))
-          start)
-      (when (and (matlab-line-comment-p lvl1)
-                 (eq (matlab-line-comment-style lvl1) 'code-section-start))
-        ;; We are in a code section start, get the content
-        (goto-char (matlab-line-point lvl1))
-        (skip-chars-forward "% \t.,*" (line-end-position))
-        (setq start (point))
-        (end-of-line 1)
-        (skip-chars-backward " \t*" start)
-        (buffer-substring-no-properties start (point))
-        ))
-    ))
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (or (matlab-current-defun) (matlab-sections-what-section)))
 
 (defun matlab-current-defun ()
   "Return the name of the current function."
