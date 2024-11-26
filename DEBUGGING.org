@@ -20,7 +20,9 @@ To isolate problems, it's often good to run stock Emacs with matlab-mode:
     # If you want to run a specific version of MATLAB, /matlab-install/bin/matlab:
     env MATLABPATH=  PATH=/matlab-install/bin:$PATH  emacs -Q -L $M -l $M/matlab-autoload.el
 
-    #+end_src
+    # If you want to exercise org mode matlab code block evaluation
+    env MATLABPATH=  PATH=/matlab-install/bin:$PATH  emacs -Q -L $M -l $M/matlab-autoload.el "--eval=(customize-set-variable 'org-babel-load-languages '((matlab . t)))"
+  #+end_src
 
 Notice that we are creating an empty startup.m and removing the MATLABPATH environment
 variable. This ensures you are running MATLAB with an unaltered environment. Problems with the

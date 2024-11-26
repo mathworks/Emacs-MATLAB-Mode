@@ -7,7 +7,7 @@
 
 [[https://mathworks.com][MathWorks]] MATLAB® and [[https://www.gnu.org/software/emacs/][GNU Emacs]] integration:
 
-1. matlab-mode for editing *.m files.
+1. matlab-mode for editing ~*.m~ files.
 
    - Edit MATLAB code with syntax highlighting and smart indentation.
    - Lint MATLAB code with fix-it's using the MATLAB Code Analyzer.
@@ -16,7 +16,22 @@
 
    - matlab-shell uses company-mode for completions.
 
-3. tlc-mode for editing *.tlc files. The Target Language Compiler (TLC) part of Simulink® Coder™.
+3. MATLAB and [[http://orgmode.org]] for creation of scientific papers, theses, and documents.
+
+   - Org enables [[https://en.wikipedia.org/wiki/Literate_programming][literate programming]] which directly supports reproducible research by allowing
+     scientists and engineers to write code along with detailed explanations in natural language.
+
+   - You author code plus natural language descriptive text in ~*.org~ files. When you evaluate
+     MATLAB or other language code blocks within the ~*.org~ files, org inserts the results back
+     into the ~*.org~ file.
+
+   - You can combine multiple ~*.org~ files into one final document, thus enabling larger scientific
+     documents.
+
+   - See [[file:examples/matlab-and-org-mode][./examples/matlab-and-org-mode/]] to get started. This directory contains a [[file:examples/matlab-and-org-mode/matlab-and-org-mode.pdf][PDF]] generated from
+     [[file:examples/matlab-and-org-mode/matlab-and-org-mode.org][./examples/matlab-and-org-mode/matlab-and-org-mode.org]].
+
+4. tlc-mode for editing ~*.tlc~ files. The Target Language Compiler (TLC) is part of Simulink® Coder™.
 
 * Installation
 

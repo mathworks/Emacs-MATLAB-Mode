@@ -26,7 +26,7 @@
 ;;
 ;;     (put 'flycheck-emacs-lisp-load-path 'safe-local-variable #'listp)
 
-((emacs-lisp-mode . ((flycheck-emacs-lisp-load-path . ("."))
+((emacs-lisp-mode . ((flycheck-emacs-lisp-load-path . ("." ".."))
                      ;; Use spaces when TAB key is pressed, which helps with editors that have
                      ;; different TAB stops.
                      (indent-tabs-mode . nil)

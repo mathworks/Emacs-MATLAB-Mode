@@ -1,0 +1,111 @@
+* Org mode and the python engine 
+
+You need to install the python engine for matlab. Please note that the
+python version of your distribution must be compatible with the matlab
+version installed. For example python 3.12 (shipped with Ubuntu 24.04)
+is only compatible with Matlab 2024.
+
+For example 
+ #+begin_src notranslate                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+  cd usr/local/MATLAB/R2024b/extern/engines/python                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+ sudo python3 setup.py install                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+#+end_src                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+- install jupyter etc                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+#+begin_src notranslate                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+sudo apt-get install python3-setuptools                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+/usr/bib/python3 -m pip install --user jupyter                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+sudo apt-get remove python3-pexpect                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+/usr/bib/python3 -m pip install --user pexpect                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+/usr/bin/python3 -m pip install --user matlabkernel                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+#+end_src                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+
+You need to install via the emacs package system ob-ipython
+(or directly in [[git@github.com:dinojr/ob-ipython.git][ob-ipython]]
+
+Also note, depending on your python version, you might consider
+ob-ipython with a slightly different client.py file, found 
+in [[git@github.com:dinojr/ob-ipython.git][ob-ipython-fork]]
+
+* Start the python engine
+
+Run
+#+begin_src 
+/usr/bin/python3
+in the python prompt:
+import matlab.engine
+eng = matlab.engine.start_matlab()
+the eng command needs some time to run. 
+When finished run now 
+eng.quit()
+#+end_src
+
+#+BEGIN_SRC emacs-lisp
+(setq org-confirm-babel-evaluate nil)   ;don't prompt me to confirm everytime I want to evaluate a block
+;;; display/update images in the buffer after I evaluate
+(add-hook 'org-babel-after-execute-hook 'org-display-inline-images 'append)
+    
+(add-to-list 'org-src-lang-modes '("matlab" . matlab))
+(setq python-shell-interpreter "python3")
+;; set default headers for convenience
+(setq org-babel-default-header-args:matlab
+      '((:results . "output replace")
+	(:session . "matlab")
+	(:kernel . "matlab")
+	(:exports . "code")
+	(:cache .   "no")
+	(:noweb . "no")
+	(:hlines . "no")
+	(:tangle . "no")))
+(defalias 'org-babel-execute:matlab 'org-babel-execute:ipython)
+(defalias 'org-babel-prep-session:matlab 'org-babel-prep-session:ipython)
+(defalias 'org-babel-matlab-initiate-session 'org-babel-ipython-initiate-session)
+#+END_SRC
+#+RESULTS:
+: org-babel-matlab-initiate-session
+
+* Run some examples 
+
+** A simple example
+Then use the following example
+
+#+begin_src matlab :results output latex :exports results  :eval never-export :wrap latex
+x = [1, 2, 3, 4, 5];
+fprintf('|%d', x)
+#+end_src
+
+#+RESULTS:
+#+begin_latex
+|1|2|3|4|5
+#+end_latex
+
+
+** A more advanced example 
+
+#+begin_src matlab   :results output raw :exports results  :eval never-export 
+al=1-0.99;
+l=norminv(1-al/2,0,1);
+n=53;
+p0=15/53;
+q0=1-15/53;
+err=sqrt((p0*q0)/n);
+ic=l*err;
+disp('\begin{align*}')
+fprintf('p_0&=\\frac{15}{53}=%g\\\\ \n',p0)
+fprintf('\\lambda_p &=%g\\\\ \n',l)
+fprintf('p_{0}&\\pm \\lambda_{1-\\frac{\\alpha }{2}}\\sqrt{\\frac{p_{0}(1-p_{0})}{n}}=% g \\pm %g\\cdot %g\\\\ \n',p0,l,err)
+fprintf('p_{0}&\\pm \\lambda_{1-\\frac{\\alpha }{2}}\\sqrt{\\frac{p_{0}(1-p_{0})}{n}}=%g \\pm %g \n',p0,ic)
+disp('\end{align*}')
+#+end_src
+
+#+RESULTS:
+\begin{align*}
+p_0&=\frac{15}{53}=0.283019\\
+\lambda_p &=2.57583\\
+p_{0}&\pm \lambda_{1-\frac{\alpha }{2}}\sqrt{\frac{p_{0}(1-p_{0})}{n}}= 0.283019 \pm 2.57583\cdot 0.0618762\\
+p_{0}&\pm \lambda_{1-\frac{\alpha }{2}}\sqrt{\frac{p_{0}(1-p_{0})}{n}}=0.283019 \pm 0.159383
+\end{align*}
+
+

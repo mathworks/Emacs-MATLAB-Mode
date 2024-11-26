@@ -1,0 +1,17 @@
+*.ac
+*.in
+*.m4
+*.hgignore
+*.hgtags
+*.spec
+.elpaignore
+.dir-locals.el
+ChangeLog.old1
+ChangeLog.old2
+CONTRIBUTING.org
+DEBUGGING.org
+SECURITY.md
+Makefile
+examples
+matlab-maint.el
+tests

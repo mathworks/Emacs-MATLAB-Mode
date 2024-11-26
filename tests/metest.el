@@ -1,4 +1,4 @@
-;;; metest.el --- Testing suite for MATLAB Emacs
+;;; metest.el --- Testing suite for MATLAB Emacs -*- lexical-binding: t -*-
 ;;
 ;; Copyright (C) 2019-2024 Eric Ludlam
 ;;
@@ -36,10 +36,10 @@
 (require 'matlab-complete)
 
 (defun metest-all-syntax-tests ()
-  "Run all the syntax tests in this file."
+  "Run all the syntax test cases in this file."
   (setq debug-on-error t)
   (matlab-scan-stat-reset) ;; Enable scanner statistics logging.
-  
+
   (metest-log-init)
 
   (setq-default matlab-indent-function-body 'guess) ;; Force the guess system to be exercised.
@@ -53,35 +53,38 @@
 
   ;; Randomize indentation first before indenting
   ;; to force the indenter to make changes and give
-  ;; the cahce and performance a harder problem.
+  ;; the cache and performance a harder problem.
   (metest-indents-randomize-files)
   (metest-run 'metest-indents-test)
 
   ;; Parsing and completion are high level tools
   (metest-run 'metest-complete-test)
 
+  (metest-check-version)
+
   (metest-log-report (metest-log-write))
 
   (matlab-scan-stats-print)
-  )
+
+  (metest-fill-paragraph))
 
 (defun metest-run (test)
   "Run and time TEST."
   (let* ((config (symbol-value test))
-	 (name (if (stringp config) config (car config)))
-	 (files (or (cdr-safe config) '("")))
-	 (strlen (apply 'max (mapcar 'length files))))
+         (name (if (stringp config) config (car config)))
+         (files (or (cdr-safe config) '("")))
+         (strlen (apply 'max (mapcar 'length files))))
     (message ">> Starting %s loop on %S" name files)
     (dolist (F files)
       (princ (format (concat "<< %s %-" (number-to-string strlen) "s ") name F) 'external-debugging-output)
       (let ((old debug-on-error)
-	    (out (progn (setq debug-on-error nil)
-			(metest-timeit test F))))
-	(setq debug-on-error old)
-	(when (listp out)
-	  (princ (format "passed: %s  %.2f s\n" (cdr out) (car out)) 'external-debugging-output)
-	  )
-	))
+            (out (progn (setq debug-on-error nil)
+                        (metest-timeit test F))))
+        (setq debug-on-error old)
+        (when (listp out)
+          (princ (format "passed: %s  %.2f s\n" (cdr out) (car out)) 'external-debugging-output)
+          )
+        ))
     (message "")))
 
 (defvar metest-test-error nil)
@@ -91,8 +94,8 @@
   `(condition-case err
        ,@forms
      (error (cond (metest-test-error (error (car (cdr err))))
-		  (t (metest-error "Lisp: %s" (error-message-string err))))
-	    0)
+                  (t (metest-error "Lisp: %s" (error-message-string err))))
+            0)
      ))
 
 (defvar met-end-detect-files '("empty.m" "stringtest.m" "mfuncnoend.m" "mfuncnoendblock.m" "mfuncends.m" "mclass.m" "mfuncspacey.m" "mfuncnoendindent.m" "mfuncnofuncindent.m")
@@ -100,37 +103,36 @@
 
 (defvar metest-end-detect-test (cons "END detection" met-end-detect-files))
 (defun metest-end-detect-test (F)
-  "Run a test to make sure we correctly detect the state of managing 'end'."
+  "Run test F to make sure we correctly detect the state of managing 'end'."
   (let ((buf (metest-find-file F))
-	(ret nil)
-	(cnt 0))
+        (ret nil))
     (with-current-buffer buf
       (goto-char (point-min))
       ;;(message ">> Checking END detection in %S" (current-buffer))
       (if (re-search-forward "%%%\\s-*\\(\\w+\\)\\s-+\\(\\w+\\)\\s-+\\(\\w+\\)$" nil t)
-	  (let ((st-expect (intern (match-string-no-properties 1)))
-		(end-expect (intern (match-string-no-properties 2)))
-		(indent-expect (intern (match-string-no-properties 3)))
-		(st-actual (matlab-guess-script-type))
-		(end-actual (matlab-do-functions-have-end-p))
-		(indent-actual (matlab-indent-function-body-p))
-		)
-	    (unless (eq st-actual st-expect)
-	      (metest-error "Script type detection failure: Expected %s but found %s"
-			    st-expect st-actual))
-	    (unless (eq end-actual end-expect)
-	      (metest-error "Script end detection failure: Expected %s but found %s"
-			    end-expect end-actual))
-	    (unless (eq indent-actual indent-expect)
-	      (metest-error "Script indent detection failure: Expected %s but found %s"
-			    indent-expect indent-actual))
-	      
-	    (setq ret (list "script[" st-actual "]  end[" end-actual "]  indent-p[" indent-actual "]"))
-	    ;;(message "<< Script type and end detection passed: %s, %s" st-actual end-actual)
-	    )
-	;; No expected values found in the file.
-	(metest-error "Test file did not include expected script-type cookie")
-	))
+          (let ((st-expect (intern (match-string-no-properties 1)))
+                (end-expect (intern (match-string-no-properties 2)))
+                (indent-expect (intern (match-string-no-properties 3)))
+                (st-actual (matlab-guess-script-type))
+                (end-actual (matlab-do-functions-have-end-p))
+                (indent-actual (matlab-indent-function-body-p))
+                )
+            (unless (eq st-actual st-expect)
+              (metest-error "Script type detection failure: Expected %s but found %s"
+                            st-expect st-actual))
+            (unless (eq end-actual end-expect)
+              (metest-error "Script end detection failure: Expected %s but found %s"
+                            end-expect end-actual))
+            (unless (eq indent-actual indent-expect)
+              (metest-error "Script indent detection failure: Expected %s but found %s"
+                            indent-expect indent-actual))
+
+            (setq ret (list "script[" st-actual "]  end[" end-actual "]  indent-p[" indent-actual "]"))
+            ;;(message "<< Script type and end detection passed: %s, %s" st-actual end-actual)
+            )
+        ;; No expected values found in the file.
+        (metest-error "Test file did not include expected script-type cookie")
+        ))
     ret))
 
 (defvar met-stringtest-files '("stringtest.m")
@@ -138,260 +140,262 @@
 
 (defvar metest-comment-string-syntax-test (cons "string/comment detection" met-stringtest-files))
 (defun metest-comment-string-syntax-test (F)
-  "Run a test to make sure string nd comment highlighting work."
-    (let ((buf (metest-find-file F))
-	  (cnt 0)
-	  (noninteractive nil) ;; fake out font lock
-	  )
-      (with-current-buffer buf
-	(goto-char (point-min))
+  "Run test F to make sure string nd comment highlighting work."
+  (let ((buf (metest-find-file F))
+        (cnt 0)
+        (noninteractive nil) ;; fake out font lock
+        )
+    (with-current-buffer buf
+      (goto-char (point-min))
 
-	(let ((md (match-data)))
-	  ;; Force font lock to throw catchable errors.
-	  (font-lock-mode 1)
-	  (font-lock-flush (point-min) (point-max))
-	  (font-lock-ensure (point-min) (point-max))
-	  (font-lock-fontify-region (point-min) (point-max))
+      (let ((md (match-data)))
+        (ignore md) ;; see commented out code below
+        ;; Force font lock to throw catchable errors.
+        (font-lock-mode 1)
+        (font-lock-flush (point-min) (point-max))
+        (font-lock-ensure (point-min) (point-max))
+        (font-lock-fontify-region (point-min) (point-max))
 
-	  ;; FL test 1: make sure font lock is on and match data didn't change.
-	  (unless font-lock-mode
-	    (metest-error "Font Lock failed to turn on."))
-	  ;;(unless (equal md (match-data))
-	  ;;  (metest-error "Font Locking transmuted the match data"))
-	  (when (not (get-text-property 2 'fontified))
-	    (metest-error "Font Lock Failure: can't run test because font lock failed to fontify region."))
-	  )
-	    
-	
-	;;(message ">> Starting string/comment detect loop in %S" (current-buffer))
-	(while (re-search-forward "#\\([cCisSvVebdr]\\)#" nil t)
-	  (let* ((md  (match-data))
-		 (pt  (match-end 1))
-		 (mc  (match-string-no-properties 1))
-		 (fnt (get-text-property pt 'face))
-		 (lv1 (matlab-compute-line-context 1))
-		 (bc  (metest-condition-case-error-msg (matlab-line-block-comment-start lv1)))
-		 (qd  (metest-condition-case-error-msg (matlab-cursor-comment-string-context)))
-		 )
-	    (goto-char pt)
-	    
-	    ;; Test 1 - what are we?
-	    (unless (or (and (string= "b" mc) (and bc (eq 'comment qd)))
-			(and (string= "v" mc) (eq 'charvector qd))
-			(and (string= "V" mc) (eq 'charvector qd))
-			(and (string= "s" mc) (eq 'string qd))
-			(and (string= "S" mc) (eq 'string qd))
-			(and (string= "c" mc) (eq 'comment qd))
-			(and (string= "C" mc) (eq 'comment qd))
-			(and (string= "i" mc) (eq 'comment qd))
-			(and (string= "e" mc) (eq 'ellipsis qd))
-			(and (string= "d" mc) (eq 'commanddual qd))
-			(and (string= "r" mc) (eq nil qd))
-			)
-	      (metest-error "Syntax Test Failure @ char %d: Expected %s but found %S"
-			    pt
-			    (cond ((string= mc "b") "block comment")
-				  ((string= mc "v") "charvector")
-				  ((string= mc "V") "charvector")
-				  ((string= mc "s") "string")
-				  ((string= mc "S") "string")
-				  ((string= mc "c") "comment")
-				  ((string= mc "C") "comment")
-				  ((string= mc "i") "comment")
-				  ((string= mc "e") "ellipsis")
-				  ((string= mc "d") "commanddual")
-				  ((string= mc "r") "normal code")
-				  (t "unknown test token"))
-			    qd))
-	    ;; Test 2 - is match-data unchanged?
-	    (unless (equal md (match-data))
-	      (metest-error "Syntax checking transmuted the match data"))
+        ;; FL test 1: make sure font lock is on and match data didn't change.
+        (unless font-lock-mode
+          (metest-error "Font Lock failed to turn on"))
+        ;;(unless (equal md (match-data))
+        ;;  (metest-error "Font Locking transmuted the match data"))
+        (when (not (get-text-property 2 'fontified))
+          (metest-error "Font Lock Failure: can't run test because font lock failed to fontify region"))
+        )
 
-	    ;; FL test 2 - Is the matched location fontified correctly?
-	    (when (consp fnt) (setq fnt (car fnt)))
-	    (unless (or (and (string= "b" mc) (eq fnt 'font-lock-comment-face))
-			(and (string= "v" mc) (eq fnt 'font-lock-string-face))
-			(and (string= "V" mc) (eq fnt 'matlab-unterminated-string-face))
-			(and (string= "s" mc) (eq fnt 'font-lock-string-face))
-			(and (string= "S" mc) (eq fnt 'matlab-unterminated-string-face))
-			(and (string= "c" mc) (eq fnt 'font-lock-comment-face))
-			(and (string= "C" mc) (eq fnt 'matlab-sections-section-break-face))
-			(and (string= "i" mc) (eq fnt 'matlab-ignored-comment-face))
-			(and (string= "e" mc) (eq fnt 'font-lock-comment-face))
-			(and (string= "d" mc) (eq fnt 'matlab-commanddual-string-face))
-			(and (string= "r" mc) (eq fnt nil))
-			)
-	      (metest-error "Font Lock Failure @ char %d: Expected %s but found %S"
-			    pt
-			    (cond ((string= mc "b") "comment face")
-				  ((string= mc "v") "string face")
-				  ((string= mc "V") "unterminated string face")
-				  ((string= mc "s") "string face")
-				  ((string= mc "S") "unterminated string face")
-				  ((string= mc "c") "comment face")
-				  ((string= mc "C") "section-break face")
-				  ((string= mc "i") "ignored comment face")
-				  ((string= mc "e") "comment face")
-				  ((string= mc "d") "commanddual string face")
-				  ((string= mc "r") "regular code / no face")
-				  (t "unknown test token"))
-			    (get-text-property pt 'face)))
-	    ;; Track
-	    (setq cnt (1+ cnt))
-	    ))
-	(kill-buffer buf))
-      
-      (list cnt "tests")))
-  
+
+      ;;(message ">> Starting string/comment detect loop in %S" (current-buffer))
+      (while (re-search-forward "#\\([cCisSvVebdr]\\)#" nil t)
+        (let* ((md  (match-data))
+               (pt  (match-end 1))
+               (mc  (match-string-no-properties 1))
+               (fnt (get-text-property pt 'face))
+               (lv1 (matlab-compute-line-context 1))
+               (bc  (metest-condition-case-error-msg (matlab-line-block-comment-start lv1)))
+               (qd  (metest-condition-case-error-msg (matlab-cursor-comment-string-context)))
+               )
+          (goto-char pt)
+
+          ;; Test 1 - what are we?
+          (unless (or (and (string= "b" mc) (and bc (eq 'comment qd)))
+                      (and (string= "v" mc) (eq 'charvector qd))
+                      (and (string= "V" mc) (eq 'charvector qd))
+                      (and (string= "s" mc) (eq 'string qd))
+                      (and (string= "S" mc) (eq 'string qd))
+                      (and (string= "c" mc) (eq 'comment qd))
+                      (and (string= "C" mc) (eq 'comment qd))
+                      (and (string= "i" mc) (eq 'comment qd))
+                      (and (string= "e" mc) (eq 'ellipsis qd))
+                      (and (string= "d" mc) (eq 'commanddual qd))
+                      (and (string= "r" mc) (eq nil qd))
+                      )
+            (metest-error "Syntax Test Failure @ char %d: Expected %s but found %S"
+                          pt
+                          (cond ((string= mc "b") "block comment")
+                                ((string= mc "v") "charvector")
+                                ((string= mc "V") "charvector")
+                                ((string= mc "s") "string")
+                                ((string= mc "S") "string")
+                                ((string= mc "c") "comment")
+                                ((string= mc "C") "comment")
+                                ((string= mc "i") "comment")
+                                ((string= mc "e") "ellipsis")
+                                ((string= mc "d") "commanddual")
+                                ((string= mc "r") "normal code")
+                                (t "unknown test token"))
+                          qd))
+          ;; Test 2 - is match-data unchanged?
+          (unless (equal md (match-data))
+            (metest-error "Syntax checking transmuted the match data"))
+
+          ;; FL test 2 - Is the matched location fontified correctly?
+          (when (consp fnt) (setq fnt (car fnt)))
+          (unless (or (and (string= "b" mc) (eq fnt 'font-lock-comment-face))
+                      (and (string= "v" mc) (eq fnt 'font-lock-string-face))
+                      (and (string= "V" mc) (eq fnt 'matlab-unterminated-string-face))
+                      (and (string= "s" mc) (eq fnt 'font-lock-string-face))
+                      (and (string= "S" mc) (eq fnt 'matlab-unterminated-string-face))
+                      (and (string= "c" mc) (eq fnt 'font-lock-comment-face))
+                      (and (string= "C" mc) (eq fnt 'matlab-sections-section-break-face))
+                      (and (string= "i" mc) (eq fnt 'matlab-ignored-comment-face))
+                      (and (string= "e" mc) (eq fnt 'font-lock-comment-face))
+                      (and (string= "d" mc) (eq fnt 'matlab-commanddual-string-face))
+                      (and (string= "r" mc) (eq fnt nil))
+                      )
+            (metest-error "Font Lock Failure @ char %d: Expected %s but found %S"
+                          pt
+                          (cond ((string= mc "b") "comment face")
+                                ((string= mc "v") "string face")
+                                ((string= mc "V") "unterminated string face")
+                                ((string= mc "s") "string face")
+                                ((string= mc "S") "unterminated string face")
+                                ((string= mc "c") "comment face")
+                                ((string= mc "C") "section-break face")
+                                ((string= mc "i") "ignored comment face")
+                                ((string= mc "e") "comment face")
+                                ((string= mc "d") "commanddual string face")
+                                ((string= mc "r") "regular code / no face")
+                                (t "unknown test token"))
+                          (get-text-property pt 'face)))
+          ;; Track
+          (setq cnt (1+ cnt))
+          ))
+      (kill-buffer buf))
+
+    (list cnt "tests")))
+
 (defvar met-sexptest-files '("expressions.m" "mclass.m" "blocks.m")
   "List of files for running syntactic expression tests.")
 
 (defvar metest-sexp-counting-test (cons "sexp counting" met-sexptest-files))
 (defun metest-sexp-counting-test (F)
-  "Run a test to make sure string and comment highlighting work."
-    (let ((buf (metest-find-file F))
-	  (cnt 0))
-      (with-current-buffer buf
-	(goto-char (point-min))
-	;;(message ">> Starting sexp counting loop in %S" (current-buffer))
-	(while (re-search-forward "#\\([0-9]\\)#" nil t)
-	  (save-excursion
-	    (goto-char (match-beginning 0))
-	    (skip-chars-backward " %")	; skip comment part
-	    (let* ((num (string-to-number (match-string 1))))
-	      (save-restriction
-		(narrow-to-region (point-at-bol) (point))
-		(metest-condition-case-error-msg
-		 (matlab-move-simple-sexp-internal (- num)))
-		(skip-chars-backward " \t;.=%")
-		(if (not (eq (point) (point-min)))
-		    (save-restriction
-		      (widen)
-		      (metest-error "Backward Sexp miscount tried %d, point %d, min %d"
-			num (point) (point-at-bol))))
-		(skip-chars-forward " \t;.=%")
-		(matlab-move-simple-sexp-internal num)
-		(skip-chars-forward " \t\n;.=%")
-		(if (not (eq (point) (point-max)))
-		    (save-restriction
-		      (widen)
-		      (metest-error "Forward Sexp miscount tried %d, point %d, dest %d"
-			num (point) (point-at-eol)))))
-	      ))
-	  (end-of-line)
-	  (setq cnt (1+ cnt))))
-      (kill-buffer buf)
-      (list cnt "tests")))
+  "Run test F to make sure string and comment highlighting work."
+  (let ((buf (metest-find-file F))
+        (cnt 0))
+    (with-current-buffer buf
+      (goto-char (point-min))
+      ;;(message ">> Starting sexp counting loop in %S" (current-buffer))
+      (while (re-search-forward "#\\([0-9]\\)#" nil t)
+        (save-excursion
+          (goto-char (match-beginning 0))
+          (skip-chars-backward " %")  ; skip comment part
+          (let* ((num (string-to-number (match-string 1))))
+            (save-restriction
+              (narrow-to-region (point-at-bol) (point))
+              (metest-condition-case-error-msg
+               (matlab-move-simple-sexp-internal (- num)))
+              (skip-chars-backward " \t;.=%")
+              (if (not (eq (point) (point-min)))
+                  (save-restriction
+                    (widen)
+                    (metest-error "Backward Sexp miscount tried %d, point %d, min %d"
+                                  num (point) (point-at-bol))))
+              (skip-chars-forward " \t;.=%")
+              (matlab-move-simple-sexp-internal num)
+              (skip-chars-forward " \t\n;.=%")
+              (if (not (eq (point) (point-max)))
+                  (save-restriction
+                    (widen)
+                    (metest-error "Forward Sexp miscount tried %d, point %d, dest %d"
+                                  num (point) (point-at-eol)))))
+            ))
+        (end-of-line)
+        (setq cnt (1+ cnt))))
+    (kill-buffer buf)
+    (list cnt "tests")))
 
 (defvar metest-sexp-traversal-test (cons "sexp block traversal" met-sexptest-files))
 (defun metest-sexp-traversal-test (F)
-  "Run a test to make sure high level block navigation works."
-    (let ((buf (metest-find-file F))
-	  (cnt 0))
-      (with-current-buffer buf
-	(goto-char (point-min))
-	;;(message ">> Starting sexp traversal loop in %S" (current-buffer))
-	(while (re-search-forward ">>\\([0-9]+\\)" nil t)
-	  (let* ((num (string-to-number (match-string 1)))
-		 (num2 0)
-		 (begin nil))
-	    (skip-chars-forward " \n\t;%")
-	    (setq begin (point))
-	    (metest-condition-case-error-msg (matlab--scan-block-forward))
-	    (save-excursion
-	      (skip-chars-forward " \n\t;%")
-	      (if (not (looking-at "<<\\([0-9]+\\)"))
-		  (metest-error "Failed to find matching test end token for %d"
-				num)
-		(setq num2 (string-to-number (match-string 1)))
-		(when (/= num num2)
-		  (metest-error "Failed to match correct test token. Start is %d, end is %d"
-				num num2))))
-	    (metest-condition-case-error-msg (matlab--scan-block-backward))
-	    (when (/= (point) begin)
-	      (metest-error "Failed to reverse navigate sexp for %d"
-			    num))
-	    )
-	  (end-of-line)
-	  (setq cnt (1+ cnt))))
-      (kill-buffer buf)
-      (list cnt "test")))
+  "Run test F to make sure high level block navigation works."
+  (let ((buf (metest-find-file F))
+        (cnt 0))
+    (with-current-buffer buf
+      (goto-char (point-min))
+      ;;(message ">> Starting sexp traversal loop in %S" (current-buffer))
+      (while (re-search-forward ">>\\([0-9]+\\)" nil t)
+        (let* ((num (string-to-number (match-string 1)))
+               (num2 0)
+               (begin nil))
+          (skip-chars-forward " \n\t;%")
+          (setq begin (point))
+          (metest-condition-case-error-msg (matlab--scan-block-forward))
+          (save-excursion
+            (skip-chars-forward " \n\t;%")
+            (if (not (looking-at "<<\\([0-9]+\\)"))
+                (metest-error "Failed to find matching test end token for %d"
+                              num)
+              (setq num2 (string-to-number (match-string 1)))
+              (when (/= num num2)
+                (metest-error "Failed to match correct test token.  Start is %d, end is %d"
+                              num num2))))
+          (metest-condition-case-error-msg (matlab--scan-block-backward))
+          (when (/= (point) begin)
+            (metest-error "Failed to reverse navigate sexp for %d"
+                          num))
+          )
+        (end-of-line)
+        (setq cnt (1+ cnt))))
+    (kill-buffer buf)
+    (list cnt "test")))
 
 
 (defvar met-indents-files '("indents.m" "continuations.m" "mclass.m" "blocks.m" "mfuncends.m" "mfuncnoendblock.m" "mclass_cont.m" "mfuncnofuncindent.m")
   "List of files for running syntactic indentation tests.")
 
 (defun metest-indents-randomize-files ()
-  "Randomize the indentation in the inents test files."
+  "Randomize the indentation in the indent levels test files."
   (interactive)
   (message "<< Flattening indentation ...")
   (let ((matlab-scan-temporal-cache nil)) ;; disable cache for file load
     (dolist (F met-indents-files)
       (with-current-buffer (metest-find-file F)
-	(goto-char (point-min))
-	(while (not (eobp))
-	  (beginning-of-line)
-	  (if (looking-at "^\\s-*$")
-	      (matlab--change-indentation 0)
-	    (matlab--change-indentation 3)) ;;(random 13)?
-	  (forward-line 1)
-	  )
-	;; And don't delete - leave it to find for the next test.
-	;; but we do want to restart the mode and force a re-guess of the file type.
-	(matlab-mode)
-	))))
+        (goto-char (point-min))
+        (while (not (eobp))
+          (beginning-of-line)
+          (if (looking-at "^\\s-*$")
+              (matlab--change-indentation 0)
+            (matlab--change-indentation 3)) ;;(random 13)?
+          (forward-line 1)
+          )
+        ;; And don't delete - leave it to find for the next test.
+        ;; but we do want to restart the mode and force a re-guess of the file type.
+        (matlab-mode)
+        ))))
 
 (defvar metest-indents-test (cons "indenting" met-indents-files))
 (defvar metest-indent-counts 0)
 (defun metest-indents-test (F)
-  "Run a test to make sure high level block navigation works."
+  "Run test F to make sure high level block navigation works."
   (with-current-buffer (metest-find-file F)
     (goto-char (point-min))
     (let ((metest-indent-counts 0)
-	  (matlab--change-indentation-override #'metest-indents-test-hook-fcn))
+          (matlab--change-indentation-override #'metest-indents-test-hook-fcn))
       (metest-condition-case-error-msg
        (matlab-indent-region (point-min) (point-max) nil t))
       (kill-buffer (current-buffer))
       (list metest-indent-counts "tests"))))
 
 (defun metest-indents-test-hook-fcn (indent)
-  "Hook fcn used to capture indents from `indent-region'."
+  "Hook fcn used to capture indent level from `indent-region'.
+INDENT is expected indent level."
   (save-excursion
     (beginning-of-line)
 
     (when (re-search-forward "!!\\([0-9]+\\)" (point-at-eol) t)
       (let ((num (string-to-number (match-string 1))))
-	(setq metest-indent-counts (1+ metest-indent-counts))
-	(when (not (eq num indent))
-	  (metest-error "Indentation computed is %s, expected %s"
-			indent num))))
+        (setq metest-indent-counts (1+ metest-indent-counts))
+        (when (not (eq num indent))
+          (metest-error "Indentation computed is %s, expected %s"
+                        indent num))))
 
     ;; Now do the indent in case a bad indent will trigger a bug later.
     (matlab--change-indentation indent)
     ))
 
 (defconst met-kw-font-alist '(( "kw" . font-lock-keyword-face )
-			      ( "ty" . font-lock-type-face )
-			      ( "fn" . font-lock-function-name-face )
-			      ( "vn" . font-lock-variable-name-face )
-			      ( "vc" . (font-lock-variable-name-face
-					matlab-cross-function-variable-face) )
-			      ( "cn" . font-lock-constant-face )
-			      ( "co" . font-lock-comment-face )
-			      ( "st" . font-lock-string-face )
-			      ( "bi" . font-lock-builtin-face )
+                              ( "ty" . font-lock-type-face )
+                              ( "fn" . font-lock-function-name-face )
+                              ( "vn" . font-lock-variable-name-face )
+                              ( "vc" . (font-lock-variable-name-face
+                                        matlab-cross-function-variable-face) )
+                              ( "cn" . font-lock-constant-face )
+                              ( "co" . font-lock-comment-face )
+                              ( "st" . font-lock-string-face )
+                              ( "bi" . font-lock-builtin-face )
 
-			      ( "cb" . matlab-sections-section-break-face )
-			      ( "ig" . matlab-ignored-comment-face )
-			      ( "pr" . matlab-pragma-face )
-			      ( "cd" . matlab-commanddual-string-face )
-			      ( "us" . matlab-unterminated-string-face )
-			      ( "ma" . matlab-math-face )
-			      ( "si" . matlab-simulink-keyword-face )
+                              ( "cb" . matlab-sections-section-break-face )
+                              ( "ig" . matlab-ignored-comment-face )
+                              ( "pr" . matlab-pragma-face )
+                              ( "cd" . matlab-commanddual-string-face )
+                              ( "us" . matlab-unterminated-string-face )
+                              ( "ma" . matlab-math-face )
+                              ( "si" . matlab-simulink-keyword-face )
 
-			      ( "bo" . bold )
-			      ( "df" . nil )
-			      )
+                              ( "bo" . bold )
+                              ( "df" . nil )
+                              )
   "List of testing keywords and associated faces.")
 
 
@@ -399,45 +403,45 @@
   "List of files for running font completion tests.")
 
 (defvar met-complete-tools '((var . matlab-find-recent-variable)
-			     (fcn . matlab-find-user-functions)
-			     )
+                             (fcn . matlab-find-user-functions)
+                             )
   "List of tools that generate completions.")
 
 (defvar metest-complete-test (cons "completion" met-complete-files))
 (defun metest-complete-test (F)
-  "Test the completion tools in matlab-complete.el"
-    (let ((buf (metest-find-file F))
-	  exp act
-	  (cnt 0))
-      (with-current-buffer buf
-	(goto-char (point-min))
+  "Test the completion tools on F in matlab-complete.el."
+  (let ((buf (metest-find-file F))
+        exp
+        (cnt 0))
+    (with-current-buffer buf
+      (goto-char (point-min))
 
-	(while (re-search-forward "%\\s-*@@" nil t)
-	  (setq exp (read (buffer-substring-no-properties (point) (scan-sexps (point) 1))))
-	  ;; Move to end of previous line, and try to do a complete
-	  (matlab-with-context-line (matlab-previous-code-line (matlab-compute-line-context 2))
-	    (end-of-line)
-	    (let* ((prefix (buffer-substring-no-properties
-			    (save-excursion (forward-word -1) (point))
-			    (point)))
-		   (sem (matlab-lattr-semantics prefix))
-		   )
-	      ;; Did we get the expected semantics of this location?
-	      (when (not (eq sem (car exp)))
-		(metest-error "Completion Semantic Missmatch: Expected %s but found %s" (car exp) sem))
+      (while (re-search-forward "%\\s-*@@" nil t)
+        (setq exp (read (buffer-substring-no-properties (point) (scan-sexps (point) 1))))
+        ;; Move to end of previous line, and try to do a complete
+        (matlab-with-context-line (matlab-previous-code-line (matlab-compute-line-context 2))
+          (end-of-line)
+          (let* ((prefix (buffer-substring-no-properties
+                          (save-excursion (forward-word -1) (point))
+                          (point)))
+                 (sem (matlab-lattr-semantics prefix))
+                 )
+            ;; Did we get the expected semantics of this location?
+            (when (not (eq sem (car exp)))
+              (metest-error "Completion Semantic Mismatch: Expected %s but found %s" (car exp) sem))
 
-	      (let* ((expR (nthcdr 2 exp))
-		     (fcn (assoc (nth 1 exp) met-complete-tools))
-		     (act (funcall (cdr fcn) prefix)))
-		(when (not (equal act expR))
-		  (metest-error "Completion Missmatch: Expected %S but found %S using function %S"
-				expR act fcn))
-		)
-	      ))
-	  (setq cnt (1+ cnt))
-	  ;; Skip this match, find the next.
-	  (end-of-line)))
-      (list cnt "tests")))
+            (let* ((expR (nthcdr 2 exp))
+                   (fcn (assoc (nth 1 exp) met-complete-tools))
+                   (act (funcall (cdr fcn) prefix)))
+              (when (not (equal act expR))
+                (metest-error "Completion Mismatch: Expected %S but found %S using function %S"
+                              expR act fcn))
+              )
+            ))
+        (setq cnt (1+ cnt))
+        ;; Skip this match, find the next.
+        (end-of-line)))
+    (list cnt "tests")))
 
 
 (defvar met-fontlock-files '("fontlock.m" "mclass.m" "blocks.m")
@@ -445,65 +449,132 @@
 
 (defvar metest-fontlock-test (cons "font lock" met-fontlock-files))
 (defun metest-fontlock-test (F)
-  "Run the semantic parsing test to make sure the parse works."
-    (let ((buf (metest-find-file F))
-	  (noninteractive nil) ;; fake out font lock
-	  (cnt 0) (fntcnt 0))
-      (with-current-buffer buf
+  "Run the semantic parsing test F to make sure the parse works."
+  (let ((buf (metest-find-file F))
+        (noninteractive nil) ;; fake out font lock
+        (cnt 0) (fntcnt 0))
+    (with-current-buffer buf
 
-	(goto-char (point-min))
+      (goto-char (point-min))
 
-	(let ((md (match-data)))
-	  ;; Force font lock to throw catchable errors.
-	  (font-lock-mode 1)
-	  (font-lock-flush (point-min) (point-max))
-	  (font-lock-ensure (point-min) (point-max))
-	  (font-lock-fontify-region (point-min) (point-max))
+      (let ((md (match-data)))
+        (ignore md) ;; see commented out code below
+        ;; Force font lock to throw catchable errors.
+        (font-lock-mode 1)
+        (font-lock-flush (point-min) (point-max))
+        (font-lock-ensure (point-min) (point-max))
+        (font-lock-fontify-region (point-min) (point-max))
 
-	  ;; FL test 1: make sure font lock is on and match data didn't change.
-	  (unless font-lock-mode
-	    (metest-error "Font Lock failed to turn on."))
-	  ;;(unless (equal md (match-data))
-	  ;;  (metest-error "Font Locking transmuted the match data"))
-	  (when (not (get-text-property 2 'fontified))
-	    (metest-error "Font Lock Failure: can't run test because font lock failed to fontify region."))
-	  )
+        ;; FL test 1: make sure font lock is on and match data didn't change.
+        (unless font-lock-mode
+          (metest-error "Font Lock failed to turn on"))
+        ;;(unless (equal md (match-data))
+        ;;  (metest-error "Font Locking transmuted the match data"))
+        (when (not (get-text-property 2 'fontified))
+          (metest-error "Font Lock Failure: can't run test because font lock failed to fontify region"))
+        )
 
-	;; Lines that start with %^ comments are FL keyword test features.
-	;; Find the line, then look for every ^ and find it's column and match
-	;; to previous line's column.
-	(while (re-search-forward "^\\s-*%\\(?: \\$\\$\\$\\)?\\^" nil t)
-	  (let ((next (point-at-eol))
-		(prevstart (save-excursion (forward-line -1) (point-at-bol)))
-		)
-	    (while (re-search-forward "\\^\\(\\w\\w\\)\\>" (point-at-eol) t)
-	      (let* ((col (- (match-beginning 0) (point-at-bol)))
-		     (fk  (match-string-no-properties 1))
-		     (pt (+ prevstart col))
-		     (fnt (get-text-property pt 'face))
-		     (fnt1 (if (consp fnt) (car fnt) fnt))
-		     (fnt2 (if (consp fnt) (nth 1 fnt) nil))
-		     (exp (cdr (assoc fk met-kw-font-alist))))
+      ;; Lines that start with %^ comments are FL keyword test features.
+      ;; Find the line, then look for every ^ and find it's column and match
+      ;; to previous line's column.
+      (while (re-search-forward "^\\s-*%\\(?: \\$\\$\\$\\)?\\^" nil t)
+        (let ((next (point-at-eol))
+              (prevstart (save-excursion (forward-line -1) (point-at-bol)))
+              )
+          (while (re-search-forward "\\^\\(\\w\\w\\)\\>" (point-at-eol) t)
+            (let* ((col (- (match-beginning 0) (point-at-bol)))
+                   (fk  (match-string-no-properties 1))
+                   (pt (+ prevstart col))
+                   (fnt (get-text-property pt 'face))
+                   (fnt1 (if (consp fnt) (car fnt) fnt))
+                   (fnt2 (if (consp fnt) (nth 1 fnt) nil))
+                   (exp (cdr (assoc fk met-kw-font-alist))))
 
-		(cond
-		 ((consp exp)
-		  (when (not (eq (car exp) fnt1))
-		    (metest-error "Bad font layer 1 found @ col %d: Expected %S but found %S"
-				  col (car exp) fnt1))
-		  (when (not (eq (nth 1 exp) fnt2))
-		    (metest-error "Bad font layer 2 found @ col %d: Expected %S but found %S"
-				  col (nth 1 exp) fnt2)))
-		 (t
-		  (when (not (eq exp fnt1))
-		    (metest-error "Bad font found @ col %d: Expected %S but found %S"
-				  col exp fnt))))
+              (cond
+               ((consp exp)
+                (when (not (eq (car exp) fnt1))
+                  (metest-error "Bad font layer 1 found @ col %d: Expected %S but found %S"
+                                col (car exp) fnt1))
+                (when (not (eq (nth 1 exp) fnt2))
+                  (metest-error "Bad font layer 2 found @ col %d: Expected %S but found %S"
+                                col (nth 1 exp) fnt2)))
+               (t
+                (when (not (eq exp fnt1))
+                  (metest-error "Bad font found @ col %d: Expected %S but found %S"
+                                col exp fnt))))
 
-		(setq fntcnt (1+ fntcnt))
-		))
-	    (goto-char next)
-	    (setq cnt (1+ cnt))))
+              (setq fntcnt (1+ fntcnt))
+              ))
+          (goto-char next)
+          (setq cnt (1+ cnt))))
 
-	(list cnt "lines with " fntcnt "fonts tested"))))
+      (list cnt "lines with " fntcnt "fonts tested"))))
+
+
+(defun metest-fill-paragraph (&optional m-file)
+  "Fill-paragraph on ./fill-paragraph/*.m and compare with *.m.expected.txt.
+For debugging, you can specify a M-FILE to test.
+For example: (metest-fill-paragraph \"fill-paragraph/FILE.m\"))"
+  (let ((m-files (if m-file
+                     `(,(file-truename m-file))
+                   (directory-files "fill-paragraph" t "\\.m$"))))
+    (dolist (m-file m-files)
+      (save-excursion
+        (message "--> start metest-fill-paragraph %s" m-file)
+        (find-file m-file)
+
+        ;; M-q after first character on each line, and also M-q after the "%" on each line if present
+        ;; Also M-q on empty lines
+        (while (not (eobp))
+          (if (re-search-forward "[^ \t\n\r]" (line-end-position) t)
+              ;; fill an point after first character on line
+              (progn
+                (fill-paragraph)
+                (set-buffer-modified-p nil)
+                ;; Also fill after the comment if there's one
+                (when (and (goto-char (line-beginning-position))
+                           (re-search-forward "[^ \t\n\r]" (line-end-position) t)
+                           (not (progn
+                                  (goto-char (1- (point)))
+                                  (looking-at "%")))
+                           (re-search-forward "%" (line-end-position) t))
+                  (fill-paragraph)))
+            ;; else fill on an empty line
+            (fill-paragraph)
+            (set-buffer-modified-p nil))
+          (forward-line))
+
+        ;; Get result, kill buffer, and compare result with expected result
+        (let* ((got-result (buffer-substring-no-properties (point-min) (point-max)))
+               (m-file-expected (concat m-file ".expected.txt"))
+               (expected-result (with-temp-buffer
+                                  (when (file-exists-p m-file-expected)
+                                    (insert-file-contents m-file-expected)
+                                    (buffer-substring-no-properties (point-min) (point-max))))))
+          (kill-this-buffer)
+          (when (not (string= got-result expected-result))
+            (let ((got-result-file (concat m-file-expected "~")))
+              (with-temp-file got-result-file (insert got-result)) ;; save got-result-file
+              (user-error (concat "Test: %s\n"
+                                  "after fill-paragraph on comments doesn't match\n"
+                                  "%s\n"
+                                  "See the result we got in\n"
+                                  "%s")
+                                  m-file m-file-expected got-result-file)))))))
+  (message "--> metest-fill-paragraph SUCCESS"))
+
+(defun metest-check-version ()
+  "Validate matlab-mode version numbers are consistent."
+  (let ((package-version (with-temp-buffer
+                           (insert-file-contents "../matlab-mode.el")
+                           (when (not (re-search-forward
+                                       "^;; Version: \\([0-9]+\\.[0-9]+\\)[ \t]*$" nil t))
+                             (user-error "Failed to find version in ../matlab-mode.el"))
+                           (match-string 1))))
+    (when (not (string= package-version matlab-mode-version))
+      (user-error "Version from matlab-mode.el \";; Version: %s\" != matlab-mode-version %s"
+                  package-version matlab-mode-version))))
+
 
 ;;; UTILS
 ;;
@@ -518,31 +589,31 @@ Do error checking to provide easier debugging."
 
 (defvar metest-error-context-lines 4)
 (defun metest-error (&rest args)
-  "Produce an err with standardized file/line prefix."
+  "Produce an error using ARGS with standardized file/line prefix."
   (declare (indent 1))
   (let* ((lineno (line-number-at-pos))
-	 (fname (file-name-nondirectory (buffer-file-name)))
-	 (pre (format "\n%s:%d: Error: " fname lineno))
-	 (post (apply 'format args))
-	 (prelines (min lineno metest-error-context-lines)))
+         (fname (file-name-nondirectory (buffer-file-name)))
+         (pre (format "\n%s:%d: Error: " fname lineno))
+         (post (apply 'format args))
+         (prelines (min lineno metest-error-context-lines)))
     (message "\n--vv buffer snip: %s vv--" fname)
     (save-excursion
       (forward-line (- prelines))
       (while (> prelines 0)
-	(message "|%s" (buffer-substring-no-properties (point-at-bol) (point-at-eol)))
-	(forward-line 1)
-	(setq prelines (1- prelines)))
+        (message "|%s" (buffer-substring-no-properties (point-at-bol) (point-at-eol)))
+        (forward-line 1)
+        (setq prelines (1- prelines)))
       (message ">%s" (buffer-substring-no-properties (point-at-bol) (point-at-eol)))
       (forward-line 1)
       (while (and (> metest-error-context-lines prelines) (not (eobp)))
-	(message "|%s" (buffer-substring-no-properties (point-at-bol) (point-at-eol)))
-	(forward-line 1)
-	(setq prelines (1+ prelines))))
+        (message "|%s" (buffer-substring-no-properties (point-at-bol) (point-at-eol)))
+        (forward-line 1)
+        (setq prelines (1+ prelines))))
     (message "---^^ buffer snip ^^---")
     (setq metest-test-error t)
     (error (concat pre post))))
 
-;;; Logging prormance data for the tests
+;;; Logging performance data for the tests
 ;;
 (defvar metest-log-file "metest_timing_log.dat"
   "File to store timing data to.")
@@ -561,14 +632,14 @@ Do error checking to provide easier debugging."
     (substring str 7 -5)))
 
 (defun metest-log-write ()
-  "Write dta into our log file."
+  "Write data into our log file."
   (save-current-buffer
     (set-buffer (find-file-noselect metest-log-file))
     (let ((LOG (reverse metest-time-log)))
       (when (= (point-min) (point-max))
-	;; Initialize the new buffer
-	(insert "Time\t")
-	(insert (mapconcat (lambda (log) (metest-shorten (car log))) LOG "\t")))
+        ;; Initialize the new buffer
+        (insert "Time\t")
+        (insert (mapconcat (lambda (log) (metest-shorten (car log))) LOG "\t")))
       ;; Insert our measurements
       (goto-char (point-max))
       (newline)
@@ -582,9 +653,9 @@ Do error checking to provide easier debugging."
       )))
 
 (defun metest-log-report (baseline)
-  "Report via message what happened during the test suite."
+  "Report via message what happened during the test suite for BASELINE."
   (let ((log (reverse metest-time-log))
-	(base (cdr baseline)))
+        (base (cdr baseline)))
     (princ "Baseln\tRun\tImprovement\tTest\n")
     (while (and log base)
       (princ (format "%.4f\t" (car base)))
@@ -593,22 +664,29 @@ Do error checking to provide easier debugging."
       (princ (metest-shorten (car (car log))))
       (princ "\n")
       (setq log (cdr log)
-	    base (cdr base)))
+            base (cdr base)))
     ))
 
 (defun metest-timeit (fcn &optional file)
-  "Time running FCN and save result in LOGFILE.
-Use this to track perforamnce improvements during development automatically."
+  "Time running FCN and save result in FILE.
+Use this to track performance improvements during development automatically."
   (let* ((start (current-time))
-	 (out (funcall fcn file))
-	 (end (current-time))
-	 (diff (float-time (time-subtract end start))))
+         (out (funcall fcn file))
+         (end (current-time))
+         (diff (float-time (time-subtract end start))))
     (if (eq fcn (car-safe (car-safe metest-time-log)))
-	;; Same fcn, append our number
-	(setcdr (car metest-time-log) (+ diff (cdr (car metest-time-log))))
+        ;; Same fcn, append our number
+        (setcdr (car metest-time-log) (+ diff (cdr (car metest-time-log))))
       (push (cons fcn diff) metest-time-log))
     (cons diff out)))
 
 (provide 'metest)
 
 ;;; metest.el ends here
+
+;; LocalWords:  Ludlam lf testfile defun setq fontlock sexp stringp cdr mapcar dolist princ progn
+;; LocalWords:  timeit listp defmacro stringtest mfuncnoend mfuncnoendblock mfuncends mclass
+;; LocalWords:  mfuncspacey mfuncnoendindent mfuncnofuncindent buf cnt md fontify fontified Vebdr
+;; LocalWords:  fnt lv bc qd charvector commanddual consp sexptest bol dest eol defconst alist ty fn
+;; LocalWords:  vn vc cn cb ig bo df sexps sem lattr nthcdr funcall fntcnt prevstart fk noselect
+;; LocalWords:  lineno fname nondirectory prelines vv eobp dat mapconcat Baseln setcdr

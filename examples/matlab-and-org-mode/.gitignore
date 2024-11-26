@@ -1,1 +1,7 @@
 *.log
+
+# ltximg directory is created by org which can occur when viewing LaTeX equations
+ltximg
+
+# Created when exporting org files to PDF
+*.tex

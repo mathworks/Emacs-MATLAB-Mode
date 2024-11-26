@@ -26,9 +26,13 @@ haven't gotten to yet!
   background or understanding of the issue; make sure you are clear and complete in your
   description.
 
-- *Work in your own public fork:* If you choose to make a contribution, you should [[https://docs.github.com/en/get-started/quickstart/fork-a-repo][fork the repository]].
-  This creates an editable copy on GitHub where you can write, test, and refine your
-  changes.  We suggest that you keep your changes small and focused on the issue you submitted.
+- *Work in your own public fork:* If you choose to make a
+  contribution, you should [[https://docs.github.com/en/get-started/quickstart/fork-a-repo][fork the repository]]. This creates an
+  editable copy on GitHub where you can write, test, and refine your
+  changes. We suggest that you keep your changes small and focused on
+  the issue you submitted. We would also appreciate if you create a
+  new (lightweight) branch for your changes, and please make sure that
+  the branch name is not already used in the original repository.
 
 - *Sign a Contributor License Agreement (CLA):* We require that all outside contributors sign a [[https://en.wikipedia.org/wiki/Contributor_License_Agreement][CLA]]
   before we can accept your contribution.  When you create a pull request (see below), we'll reach
@@ -63,4 +67,19 @@ haven't gotten to yet!
 
 *Again, thanks for contributing, and we look forward to your issues and pull requests!*
 
-# LocalWords:  showall md LF flycheck Sure's
+* Maintainers
+
+Maintainers (those with write access) can either use branches, forks, or commit directly
+to the primary ~default~ branch.
+
+1. Branches. For work that involves contributions from multiple people, branches are preferred.
+
+2. Forks. Forks could be used where you are the primary coder and you would like another maintainer
+   to look at your changes. When ready you create a pull request and the other maintainer will put
+   your changes on the ~default~ branch.
+
+3. Direct commits. For simple stuff, maintainers can directly submit to the ~default~ branch.
+
+[[oub@mat.ucm.es][Uwe Brauer]] is the primary maintainer and tries to look at all significant changes. He however prefers direct commits or branches.
+
+# LocalWords:  showall md LF flycheck Sure's oub ucm Uwe Brauer

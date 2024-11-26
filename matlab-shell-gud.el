@@ -962,13 +962,15 @@ Debug commands are:
     (when (boundp 'tool-bar-map)            ; not --without-x
       (kill-local-variable 'tool-bar-map))))
 
+(defun matlab-shell-gud-minor-mode-activator ()
+  "Activate gud in matlab-shell when in MATLAB mode."
+  (when (eq major-mode 'matlab-mode)
+    (matlab-shell-gud-minor-mode 1)))
+
 ;;;###autoload
 (define-globalized-minor-mode global-matlab-shell-gud-minor-mode
   matlab-shell-gud-minor-mode
-  (lambda ()
-    "Should we turn on in this buffer? Only if in a MATLAB mode."
-    (when (eq major-mode 'matlab-mode)
-      (matlab-shell-gud-minor-mode 1)))
+  matlab-shell-gud-minor-mode-activator
   :group 'matlab-shell)
 
 ;;; MATLAB SHELL Inactive GUD Minor Mode
@@ -1020,13 +1022,15 @@ Debug commands are:
   (interactive)
   (describe-minor-mode 'matlab-shell-gud-minor-mode))
 
+(defun matlab-shell-gud-minor-mode-deactivator ()
+  "Deactivate gud in matlab-shell when in MATLAB mode."
+  (when (eq major-mode 'matlab-mode)
+    (matlab-shell-inactive-gud-minor-mode 1)))
+
 ;;;###autoload
 (define-globalized-minor-mode global-matlab-shell-inactive-gud-minor-mode
   matlab-shell-inactive-gud-minor-mode
-  (lambda ()
-    "Should we turn on in this buffer? Only if in a MATLAB mode."
-    (when (eq major-mode 'matlab-mode)
-      (matlab-shell-inactive-gud-minor-mode 1)))
+  matlab-shell-gud-minor-mode-deactivator
   :group 'matlab-shell)
 
 (defvar tooltip-use-echo-area) ;; quiet warning

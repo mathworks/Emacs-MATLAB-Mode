@@ -9,8 +9,8 @@
 ;; Created: 04 Jan 91
 ;; Keywords: MATLAB(R)
 ;; Package-Requires: ((emacs "27.2"))
-;; Version: 6.0
-
+;; Version: 6.2
+;; URL: https://github.com/mathworks/Emacs-MATLAB-Mode
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;; This file is free software: you can redistribute it and/or modify
@@ -47,9 +47,6 @@
 ;; blocks of code from the buffer you are editing.
 
 ;;; Code:
-
-(defconst matlab-mode-version "6.0"
-  "Current version of MATLAB(R) mode.")
 
 (require 'matlab)
 

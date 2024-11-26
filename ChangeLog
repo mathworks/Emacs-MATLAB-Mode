@@ -1,3 +1,82 @@
+2024-11-17 17:28  Uwe Brauer  <oub@mat.ucm.es>
+
+	* matlab-mode.el: Update to version 6.2
+
+	* matlab.el (matlab-mode-version): Update to version 6.2
+
+2024-11-11 John Ciolfi <john.ciolfi.32@gmail.com>
+	* matlab.el: fixed matlab-fill-paragraph.
+          - Now M-q (fill-paragraph) calls matlab-fill-paragaraph will fill comments
+            and leave code untouched.
+	  - Removed non-standard and buggy
+	     matlab-fill-comment-line
+	     matlab-fill-region
+	     matlab-join-comment-lines
+	* tests/metests.el - Added metest-fill-paragraph
+	* tests/fill-paragraph/* files used by metest-fill-paragraph
+
+2024-11-13 17:24  Uwe Brauer  <oub@mat.ucm.es>
+
+	* CONTRIBUTING.org (Maintainers): Change: Forks should--> Forks
+	could. Moreover Uwe Brauer prefers direct commits or the creation
+	of branches. Also recommend for forks, to create a new, branch.
+
+2024-11-07 17:39  Uwe Brauer  <oub@mat.ucm.es>
+
+	* matlab.el (matlab-mode-version): Increase to 6.1 to indicate
+	that feature (from the org-mode branch) have been included.
+
+2024-11-04 John Ciolfi <ciolfi@mathworks.com>
+	Fix a matlab org mode issues
+
+	1. If the matlab shell isn't running and an org-mode matlab code block is evaluated, org babel will
+	   start it using `matlab-shell', then it was sending the code to be evaluated to the shell without
+	   waiting for the shell to be ready. This was causing startup messages to appear in the result
+	   of the evaluation. Now, we wait for the shell to start and the results are as expected without
+	   the startup messages.
+
+	2. If the matlab shell is busy and you evaluate a matlab code block, you now get a message that
+	   it is busy.
+
+	3. Fix ":result output" matlab code blocks. Previously, these code blocks would contain both
+	   the input matlab code being evaluated and the results displayed in the MATLAB shell. Now
+	   the ":results output" matlab code blocks only contain the displayed results.
+
+	4. Fix ":results output latex" matlab code blocks. Fix is the same as (3).
+
+	5. Added tests for the output code blocks.
+
+
+
+2024-11-06 John Ciolfi <ciolfi@mathworks.com>
+	* matlab-ccount.el: display how many code characters in MATLAB *.m files.
+	This was created by Eric Ludlam.
+
+2024-10-29 John Ciolfi <ciolfi@mathworks.com>
+	Improved org-mode integration. Now, org evaluation of matlab code blocks
+	works "out-of-the-box".
+
+	In addition, the new intergation fixes issues where evaluation of
+	verbatim matlab code blocks was using dlmwrite which is an
+	obsolete MATLAB functions. The example has been updated to also
+	illustrate how to scale images and get colored PDF's.
+
+	When upgrading, check your ~/.emacs for
+	  - (defun matlab-org-session-advice ...)
+	  - (defun matlab-org-fixup-print ...)
+	  - (defun org-export-dispatch-no-babel-advice ...)
+	  - (eval-after-load 'ox ...)
+	  - (eval-after-load "org" ...)
+	and remove these.
+
+	This commit also tests the evaluation of matlab verbatim and
+	graphics code blocks.  I validated Emacs 27, 28, and 29 work with
+	MATLAB R2024a and R2024b on Linux Debian 12.
+
+2024-10-25 18:45  Uwe Brauer  <oub@mat.ucm.es>
+	* matlab.el (matlab-fill-paragraph-fill-fix): Add «best»
+	matlab-fill-paragraph from the fill-fix branch: commit 0f305501f26d
+
 2024-10-22 22:55  Nidish Narayanaa Balaji <nidbid@gmail.com>
 
 	* matlab-sections.el: Renamed matlab-cell.el to matlab-sections.el.

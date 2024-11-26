@@ -54,7 +54,12 @@ endif
 $(LOADDEFS): | .clean.tstamp
 	$(EMACS) $(EMACSFLAGS) $(addprefix -L ,$(LOADPATH)) $(BATCH_UPDATE)
 
+CHECK_FOR_LEXICAL_BINDING = \
+	@awk 'NR==1 && !/-*- lexical-binding: t -*-/ { \
+	      print ARGV[1] ":1: error: -*- lexical-binding: t -*- missing"; exit 1}'
+
 %.elc: %.el | $(LOADDEFS)
+	$(CHECK_FOR_LEXICAL_BINDING) $<
 	$(EMACS) $(EMACSFLAGS) $(addprefix -L ,$(LOADPATH)) -f batch-byte-compile $<
 
 $(ELC): $(LOADDEFS) $(MAKEFILE_LIST) | .clean.tstamp
@@ -74,7 +79,10 @@ endif
 .PHONY: tests
 tests: .tests.tstamp
 
-.tests.tstamp: $(LOADDEFS) $(ELC)
+# Any file could be used by the tests
+ALL_FILES = $(wildcard */* */* */*/* */*/*/* */*/*/*/*)
+
+.tests.tstamp: $(LOADDEFS) $(ELC) $(ALL_FILES)
 	$(MAKE) -C tests
 	@touch $@
 

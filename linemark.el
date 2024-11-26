@@ -1,4 +1,4 @@
-;;; linemark.el --- Manage groups of lines with marks.
+;;; linemark.el --- Manage groups of lines with marks. -*- lexical-binding: t -*-
 ;;
 ;; Author: Eric M. Ludlam <eludlam@mathworks.com>
 ;; Maintainer: Eric M. Ludlam <eludlam@mathworks.com>
@@ -236,6 +236,7 @@ Call the new entries activate method."
 
 (cl-defmethod linemark-new-entry ((g linemark-group) &rest args)
   "Create a new entry for G using init ARGS."
+  (ignore g)
   (let ((f (plist-get args :filename))
         (l (plist-get args :line)))
     (apply 'linemark-entry (format "%s %d" f l)

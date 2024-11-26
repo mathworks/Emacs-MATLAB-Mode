@@ -1,6 +1,6 @@
 ;;; matlab-shell.el --- Run MATLAB in an inferior process -*- lexical-binding: t -*-
 ;;
-;; Copyright (C) 2024 Eric Ludlam
+;; Copyright 2019-2024 Eric Ludlam
 ;;
 ;; Author: Eric Ludlam <zappo@gnu.org>
 ;;
@@ -470,7 +470,7 @@ This name will have *'s surrounding it.")
   "Track visibility of MATLAB prompt in MATLAB Shell.")
 
 (defun matlab-shell-active-p ()
-  "Return t if the MATLAB shell is active."
+  "Return the MATLAB shell buffer if it active, else nil."
   (let ((msbn (get-buffer (concat "*" matlab-shell-buffer-name "*"))))
     (if msbn
         (with-current-buffer msbn
@@ -1691,6 +1691,51 @@ This uses the lookfor command to find viable commands."
   (or (matlab-shell-active-p)
       (error "You need to run the command `matlab-shell' to do that!")))
 
+(defun matlab-shell-busy-checker (action &optional output-start-char)
+  "If MATLAB shell prompt is busy, perform ACTION.
+If ACTION is \\='error-if-busy, and the MATLAB shell is active and busy, an
+error is produced.  If the shell is not active, no error is produced.
+
+If ACTION is \\='wait-for-prompt, then the MATLAB shell must be
+active and if it's busy, we'll wait for the prompt to appear.  If
+optional OUTPUT-START-CHAR is specified, then `point' must move
+past that."
+  (let ((msbn (matlab-shell-active-p)))
+    (cond
+
+     ((eq action 'error-if-busy)
+      (when msbn
+        (with-current-buffer (get-buffer msbn)
+          (when (and matlab-prompt-seen
+                     (not (matlab-on-empty-prompt-p)))
+            (error "%s is busy; please retry when the MATLAB shell is waiting for input" msbn)))))
+
+     ((eq action 'wait-for-prompt)
+
+      (when (not msbn)
+        (error "The MATLAB shell buffer does not exist"))
+
+      ;; Note, this function is leveraged by org-mode babel matlab code block evaluation.  In this
+      ;; context, the current buffer is not the MATLAB shell buffer.
+      (with-current-buffer (get-buffer msbn)
+        (goto-char (point-max))
+
+        ;; Turn on C-g by using with-local-quit. This is needed to prevent message:
+        ;;  "Blocking call to accept-process-output with quit inhibited!! [115 times]"
+        ;; when using `company-matlab-shell' for TAB completions.
+        (with-local-quit
+          (let ((notimeout t))
+            (while (or (and output-start-char (>= output-start-char (point)))
+                       (or (not matlab-prompt-seen) ;; not past the startup hooks
+                           (not (matlab-on-empty-prompt-p)))
+                       notimeout)
+              (setq notimeout
+                    (accept-process-output (get-buffer-process (current-buffer)) .1))
+              (goto-char (point-max)))))))
+
+     (t
+      (error "Invalid action, %s" action)))))
+
 (defun matlab-shell-collect-command-output (command)
   "If there is a MATLAB shell, run the MATLAB COMMAND and return it's output.
 It's output is returned as a string with no face properties.  The text output
@@ -1738,24 +1783,13 @@ indication that it ran."
                  ;; Starting point depends on if we echo or not.
                  (if matlab-shell-echoes
                      (+ pos 1 (string-width command)) ; 1 is newline
-                   pos))
-                (notimeout t)
-                )
+                   pos)))
             ;; Note, comint-simple-send in emacs 24.4 appends a newline and code below assumes
             ;; one prompt indicates command completed, so don't append a newline.
             (comint-simple-send (get-buffer-process (current-buffer)) command)
             ;; Wait for the command to finish, by looking for new prompt.
             (goto-char (point-max))
-            ;; Turn on C-g by using with-local-quit. This is needed to prevent message:
-            ;;  "Blocking call to accept-process-output with quit inhibited!! [115 times]"
-            ;; when using `company-matlab-shell' for TAB completions.
-            (with-local-quit
-              (while (or (>= output-start-char (point))
-                         (not (matlab-on-empty-prompt-p))
-                         notimeout)
-                (setq notimeout
-                      (accept-process-output (get-buffer-process (current-buffer)) .1))
-                (goto-char (point-max))))
+            (matlab-shell-busy-checker 'wait-for-prompt output-start-char)
 
             ;; Get result of command into str
             (goto-char pos)
@@ -1889,7 +1923,7 @@ return nil."
                      (matlab-shell-class-mref-to-file mref t)))
     ;; Copied from old code, not sure what it matches.
     (lambda (mref) (when (string-match ">" mref)
-                     (concat (substring fileref 0 (match-beginning 0)) ".m")))
+                     (concat (substring mref 0 (match-beginning 0)) ".m")))
     ;; Ask matlab where it came from.  Keep last b/c expensive, or won't
     ;; work if ML is busy.
     (lambda (mref) (car (matlab-shell-mref-which-fcn mref)))

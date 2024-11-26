@@ -1,4 +1,4 @@
-;;; matlab-compat.el --- Compatibility Code
+;;; matlab-compat.el --- Compatibility Code -*- lexical-binding: t -*-
 ;;
 ;; Copyright (C) 2024 Eric Ludlam
 ;;
@@ -47,6 +47,7 @@ Return the base directory it is in."
 ;; Completion Tools
 (defun matlab-display-completion-list (completions common-substring)
   "Method for displaying COMPLETIONS with a COMMON-SUBSTRING."
+  (ignore common-substring)
   (let ((args (list completions)))
     (apply 'display-completion-list args)))
 

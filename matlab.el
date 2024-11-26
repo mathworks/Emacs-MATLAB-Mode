@@ -5,9 +5,8 @@
 ;; Maintainer: Eric M. Ludlam <eludlam@mathworks.com>
 ;; Created: 04 Jan 91
 ;; Keywords: MATLAB(R)
-;; Version:
 
-(defconst matlab-mode-version "6.0"
+(defconst matlab-mode-version "6.2"
   "Current version of MATLAB(R) mode.")
 
 ;;
@@ -51,9 +50,10 @@
 ;;; Code:
 
 (require 'matlab-compat)
-(require 'matlab-syntax)
+(require 'matlab-org)
 (require 'matlab-scan)
 (require 'matlab-sections)
+(require 'matlab-syntax)
 
 (require 'derived)
 (require 'easymenu)
@@ -529,9 +529,7 @@ point, but it will be restored for them."
     (define-key km [(meta e)] 'matlab-end-of-command)
     ;; Insert, Fill stuff
     (define-key km [(control c) (control c)] 'matlab-insert-map-fcn)
-    (define-key km [(control c) (control f)] 'matlab-fill-comment-line)
     (define-key km [(control c) (control j)] 'matlab-justify-line)
-    (define-key km [(control c) (control q)] 'matlab-fill-region)
     ;; Comment Stuff
     (define-key km "%" 'matlab-electric-comment)
     (define-key km "^" 'matlab-electric-comment)
@@ -598,11 +596,7 @@ point, but it will be restored for them."
      )
     ("Format"
      ["Justify Line" matlab-justify-line t]
-     ["Fill Region" matlab-fill-region t]
-     ["Fill Comment Paragraph" matlab-fill-paragraph
-      (save-excursion (matlab-comment-on-line))]
-     ["Join Comment" matlab-join-comment-lines
-      (save-excursion (matlab-comment-on-line))]
+     ["Fill Comment" fill-paragraph]
      ["Comment Region" matlab-comment-region t]
      ["Uncomment Region" matlab-uncomment-region t])
     ("Debug"
@@ -1270,8 +1264,6 @@ This will also enter `matlab-mode' for empty files *.m files when
 \\<matlab-mode-map>
 Convenient editing commands are:
  \\[matlab-comment-region]   - Comment/Uncomment out a region of code.
- \\[matlab-fill-comment-line] - Fill the current comment line.
- \\[matlab-fill-region] - Fill code and comments in region.
  \\[matlab-complete-symbol]   - Symbol completion of matlab symbols\
 based on the local syntax.
 
@@ -2624,69 +2616,6 @@ filling which will automatically insert `...' and the end of a line."
             (goto-char m)))
          ))))
 
-(defun matlab-join-comment-lines ()
-  "Join current comment line to the next comment line."
-  ;; New w/ V2.0: This used to join the previous line, but I could find
-  ;; no editors that had a "join" that did that.  I modified join to have
-  ;; a behaviour I thought more inline with other editors.
-  (interactive)
-  (end-of-line)
-  (if (looking-at "\n[ \t]*%")
-      (replace-match " " t t nil)
-    (error "No following comment to join with")))
-
-(defun matlab-fill-region (beg-region end-region &optional justify-flag)
-  "Fill the region between BEG-REGION and END-REGION.
-Non-nil JUSTIFY-FLAG means justify comment lines as well."
-  (interactive "*r\nP")
-  (let ((end-reg-mk (make-marker)))
-    (set-marker end-reg-mk end-region)
-    (goto-char beg-region)
-    (beginning-of-line)
-    (while (< (point) end-reg-mk)
-      ;; This function must also leave the point at the end of the
-      ;; justified line.
-      (matlab-fill-paragraph justify-flag)
-      (forward-line 1)
-      (beginning-of-line))))
-
-(defconst matlab-cline-start-skip "[ \t]*%[ \t]*"
-  "*The regular expression for skipping comment start.")
-
-(defun matlab-fill-comment-line (&optional justify)
-  "Fill the current comment line.
-With optional argument, JUSTIFY the comment as well."
-  (interactive)
-  (if (not (matlab-comment-on-line))
-      (error "No comment to fill"))
-  (beginning-of-line)
-  ;; First, find the beginning of this comment...
-  (while (and (looking-at matlab-cline-start-skip)
-              (not (bobp)))
-    (forward-line -1)
-    (beginning-of-line))
-  (if (not (looking-at matlab-cline-start-skip))
-      (forward-line 1))
-  ;; Now scan to the end of this comment so we have our outer bounds,
-  ;; and narrow to that region.
-  (save-restriction
-    (narrow-to-region (point)
-                      (save-excursion
-                        (while (and (looking-at matlab-cline-start-skip)
-                                    (not (save-excursion (end-of-line) (eobp))))
-                          (forward-line 1)
-                          (beginning-of-line))
-                        (if (not (looking-at matlab-cline-start-skip))
-                            (forward-line -1))
-                        (end-of-line)
-                        (point)))
-    ;; Find the fill prefix...
-    (matlab-comment-on-line)
-    (looking-at "%[ \t]*")
-    (let ((fill-prefix (concat (make-string (current-column) ? )
-                               (match-string 0))))
-      (fill-region (point-min) (point-max) justify))))
-
 (defun matlab-justify-line ()
   "Delete space on end of line and justify."
   (interactive)
@@ -2695,83 +2624,15 @@ With optional argument, JUSTIFY the comment as well."
     (delete-horizontal-space)
     (justify-current-line)))
 
-(defun matlab-fill-paragraph (arg)
+(defun matlab-fill-paragraph (&optional justify)
   "When in a comment, fill the current paragraph.
 Paragraphs are always assumed to be in a comment.
-ARG is passed to `fill-paragraph' and will justify the text."
+JUSTIFY is passed to `fill-comment-paragraph'."
   (interactive "P")
-  (cond ((or (matlab-line-comment-p (matlab-compute-line-context 1))
-             (and (matlab-cursor-in-comment)
-                  (not (matlab-line-ellipsis-p (matlab-compute-line-context 1)))))
-         ;; We are in a comment, lets fill the paragraph with some
-         ;; nice regular expressions.
-         ;; Code section start/end markers of %% also separate paragraphs
-         (let ((paragraph-separate "%%\\|%[a-zA-Z]\\|%[ \t]*$\\|[ \t]*$")
-               (paragraph-start "%[a-zA-Z]\\|%[ \t]*$\\|[ \t]*$\\|%\\s-*\\*")
-               (paragraph-ignore-fill-prefix nil)
-               (start (save-excursion (matlab-scan-beginning-of-command)
-                                      (if (looking-at "%%")
-                                          (progn (end-of-line)
-                                                 (forward-char 1)))
-                                      (line-beginning-position)))
-               (end (save-excursion (matlab-scan-end-of-command)))
-               (fill-prefix nil))
-           (matlab-set-comm-fill-prefix)
-           (save-restriction
-             ;; Ben North fixed to handle comment at the end of
-             ;; a buffer.
-             (narrow-to-region start (min (point-max) (+ end 1)))
-             (fill-paragraph arg))))
-        ((let ((lvl  (matlab-compute-line-context 1)))
-           (not (or (matlab-line-comment-p lvl) (matlab-line-empty-p lvl))))
-         ;; Ok, lets get the outer bounds of this command, then
-         ;; completely refill it using the smart line breaking code.
-         (save-restriction
-           (narrow-to-region (save-excursion
-                               (matlab-scan-beginning-of-command)
-                               (beginning-of-line)
-                               (point))
-                             (save-excursion
-                               (matlab-scan-end-of-command)))
-           ;; Remove all line breaks
-           (goto-char (point-min))
-           (while (and (re-search-forward "$" nil t)
-                       (not (eobp)))
-             (delete-horizontal-space)
-             ;; Blow away continuation marks
-             (if (matlab-line-ellipsis-p (matlab-compute-line-context 1))
-                 (progn
-                   (goto-char (match-beginning 0))
-                   (forward-char 1)
-                   (delete-region (point) (line-end-position))))
-             ;; Zap the CR
-             (if (not (eobp)) (delete-char 1))
-             ;; Clean up whitespace
-             (delete-horizontal-space)
-             ;; Clean up trailing comments
-             (if (and (looking-at "% *")
-                      (matlab-cursor-in-comment))
-                 (progn
-                   (delete-char 1)
-                   (delete-horizontal-space)))
-             (insert " "))
-           ;; Now fill till we are done
-           (goto-char (point-max))
-           (while (or (> (current-column) (+ fill-column matlab-fill-fudge))
-                      (> (current-column) matlab-fill-fudge-hard-maximum))
-             (if (= (point)
-                    (progn
-                      (matlab-auto-fill)
-                      (point)))
-                 (error "Fill algorithm failed!"))
-             (if arg (save-excursion
-                       (forward-line -1)
-                       (matlab-justify-line))))
-           (if arg (save-excursion
-                     (forward-line -1)
-                     (matlab-justify-line)))))
-        (t
-         (message "Paragraph Fill not supported in this context."))))
+  (when (nth 4 (syntax-ppss)) ;; In comment?
+    (fill-comment-paragraph justify))
+  t)
+    
 
 
 ;;; Show Paren Mode support ==================================================
