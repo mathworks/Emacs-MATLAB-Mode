@@ -23,7 +23,7 @@
 ;; NOTE: What is referred to as "sections" herein were previously
 ;; referred to as code cells.
 ;;
-;; This creates a minor mode called `matlab-sections-mode' that adds
+;; This creates a minor mode called `matlab-sections-minor-mode' that adds
 ;; utilities for working with code sections in matlab code.  The basic mechanic
 ;; is to redefine the page-delimiter (locally) to any line that starts
 ;; with "%%" as the first non-empty characters followed by some
@@ -101,7 +101,7 @@
   :group 'matlab-sections
   :safe 'stringp)
 
-(defvar matlab-sections-mode)
+(defvar matlab-sections-minor-mode)
 
 (defvar matlab-sections-overlay nil
   "Overlay used by matlab-sections mode to highlight the current section.")
@@ -122,7 +122,7 @@
   "Non-nil means the matlab-sections mode highlight appears in all windows.
 Otherwise matlab-sections mode will highlight only in the selected
 window.  Setting this variable takes effect the next time you use
-the command `matlab-sections-mode' to turn matlab-sections mode on."
+the command `matlab-sections-minor-mode' to turn matlab-sections mode on."
   :type 'boolean
   :group 'matlab-sections)
 
@@ -301,11 +301,20 @@ Optionally provide argument AGGRESSIVE to specify whether to move
 	  (matlab-sections-forward-section)
 	  (matlab-sections-end-of-section))))))
 
+;;; Enable/Disable sections mode automatically
+;;;###autoload
+(defun matlab-sections-auto-enable-on-script-type-fcn (scripttype)
+  "Activate or deactivate sctions mode based on changes to the script type."
+  (if (and (not noninteractive) (eq scripttype 'script))
+      ;; "matlab %% sections" and has some cost, thus don't activate in batch mode.
+      (matlab-sections-mode-enable)
+    (matlab-sections-mode-disable)))
+
 ;;; Section Highlighting
 
 (defun matlab-sections-highlight ()
   "Activate the matlab-sections overlay on the current line."
-  (if matlab-sections-mode  ; Might be changed outside the mode function.
+  (if matlab-sections-minor-mode  ; Might be changed outside the mode function.
       (progn
 	(unless matlab-sections-overlay
 	  (setq matlab-sections-overlay (make-overlay 1 1)) ; to be moved
@@ -337,7 +346,7 @@ Optionally provide argument AGGRESSIVE to specify whether to move
   (add-hook 'post-command-hook #'matlab-sections-highlight nil t))
 
 ;;; Keymap
-(defvar matlab-sections-mode-map
+(defvar matlab-sections-minor-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-s-<down>") #'matlab-sections-forward-section)
     (define-key map (kbd "C-s-<up>") #'matlab-sections-backward-section)
@@ -356,7 +365,7 @@ Optionally provide argument AGGRESSIVE to specify whether to move
 ;;; Minor mode:
 
 ;;;###autoload
-(define-minor-mode matlab-sections-mode
+(define-minor-mode matlab-sections-minor-mode
   "Highlight MATLAB-like sections and navigate between them.
 The minor-mode provides the following interactive navigation
 functions.  The default keybindings are provided in square brackets for
@@ -377,7 +386,7 @@ each:
    till previous section.  \\[matlab-sections-run-till-point]
 8. `matlab-sections-mark-section' : Mark the current section.  \\[matlab-sections-mark-section]"
   :init-value nil
-  :keymap matlab-sections-mode-map
+  :keymap matlab-sections-minor-mode-map
 
   ;; (let ((arg `((,matlab-sections-section-break-regexp 1 'matlab-sections-section-break-face prepend))))
   (make-local-variable 'page-delimiter)
@@ -391,12 +400,12 @@ each:
 ;;;###autoload
 (defun matlab-sections-mode-enable ()
   "Enable matlab-sections-mode."
-  (matlab-sections-mode 1))
+  (matlab-sections-minor-mode 1))
 
 ;;;###autoload
 (defun matlab-sections-mode-disable ()
   "Disable matlab-sections-mode."
-  (matlab-sections-mode 0))
+  (matlab-sections-minor-mode 0))
 
 (provide 'matlab-sections)
 ;;; matlab-sections.el ends here
