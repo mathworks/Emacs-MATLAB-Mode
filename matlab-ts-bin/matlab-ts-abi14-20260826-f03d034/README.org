@@ -1,0 +1,14 @@
+# File: matlab-ts-bin/matlab-ts-abi14-20260826-f03d034/README.org
+
+This corresponds v1.3.1, commit f03d034 from
+https://github.com/acristoffers/tree-sitter-matlab
+
+Source for the builds has been copied to ./src. To build the source, see
+[[file:../README.org][../README.org]]. Note, the src is under the MIT license which is a GPL
+compatible license, see https://www.gnu.org/licenses/license-list.html#GPLCompatibleLicenses.
+
+- matlab-ts-abi14-20260826-f03d034/glnxa64/libtree-sitter-matlab.so/libtree-sitter-matlab.so was created on deb11-64
+- matlab-ts-abi14-20260826-f03d034/maca64/libtree-sitter-matlab.dylib/libtree-sitter-matlab.dylib was created on maca13-64
+- matlab-ts-abi14-20260826-f03d034/maci64/libtree-sitter-matlab.dylib/libtree-sitter-matlab.dylib was created on maci13-64
+- matlab-ts-abi14-20260826-f03d034/win64/libtree-sitter-matlab.dll/libtree-sitter-matlab.dll was created on win64
+

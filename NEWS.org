@@ -3,6 +3,16 @@
 
 # Copyright (C) 2025-2026 Free Software Foundation, Inc.
 
+* Release 8.2.1 Sep-15-2026
+
+Updated to use tree-sitter-matlab grammar to v1.3.1 commit f03d034 from
+https://github.com/acristoffers/tree-sitter-matlab
+
+This address a CRLF (\r\n) issue.  The MATLAB editor on Windows uses CRLF whereas on Unix LF is
+used.  Fix: treat CRLF as one line ending after a line continuation consume_whitespaces_once stopped
+right after the carriage return, so in files with CRLF endings the continuation token ended at
+"...\r" and the lexer then hit a bare newline where the continuation should have swallowed it.
+
 * Release 8.2.0 Apr-19-2026
 
 1. matlab-ts-mode: structural changes to electric indent for improved performance
@@ -602,4 +612,4 @@ See older history [[https://github.com/mathworks/Emacs-MATLAB-Mode/blob/2ff6f962
 
 # LocalWords:  showall ELPA MELPA fontification fontify sexp SPC LSP builtins MLint flycheck lsp
 # LocalWords:  netshell emacsinit imenu matlabls netsell sourceforge MMM YYYY emacsrunregion libtree
-# LocalWords:  SLIB abi ce da utils fcf Untabify treesit
+# LocalWords:  SLIB abi ce da utils fcf Untabify treesit CRLF LF
