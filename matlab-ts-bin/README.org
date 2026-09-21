@@ -50,17 +50,53 @@ where
        cc -fPIC -O -c -I. parser.c
        cc -fPIC -O -c -I. scanner.c
        cc -fPIC -shared parser.o scanner.o -o ../maca64/libtree-sitter-matlab.dylib
+
+       # Remove hardcoded absolute path from the *.dylib. This is not necessarily needed by Emacs because
+       # dylib is dynamically loaded. It is needed if people want to use this library in other executables
+       # with explicit linking when using rpath linker option: -Wl,-rpath,ABS_MATLAB_DYLIB_DIR (where
+       # ABS_MATLAB_DYLIB_DIR is where libtree-sitter-matlab.dylib is placed).
+
+       cd ../maca64
+
+       # The Mac embeds the loader instructions in the executables, which we can see via:loader uses via:
+       otool -l libtree-sitter-matlab.dylib > otool_l_initial.tmp.txt
+
+       # Using otool -L we see the paths of the library that the dylib uses, which is an absolute path
+       # (where the library lives), /abs/path/to/libtree-sitter-matlab.dylib
+       otool -L libtree-sitter-matlab.dylib
+
+       # Every macOS dynamic library has a built-in ID string, in our case an absolute file path that
+       # dictates where other applications should look for it at runtime. install_name_tool -id lets you
+       # rewrite this embedded path, to use relative, @rpath:
+       install_name_tool -id "@rpath/libtree-sitter-matlab.dylib" libtree-sitter-matlab.dylib
+
+       # Now tell the dynamic linker (dyld) where to look for @rpath reference by leveraging @loader_path
+       # which is relative to the directory containing the library currently being loaded.
+       # See the dyld man page for @loader_path information.
+       install_name_tool -add_rpath "@loader_path/." libtree-sitter-matlab.dylib
+
+       # Check via otool -L libtree-sitter-matlab.dylib which should display something like
+       # libtree-sitter-matlab.dylib:
+       # 	@rpath/libtree-sitter-matlab.dylib (compatibility version 0.0.0, current version 0.0.0)
+       # 	/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1319.0.0)
+       otool -L libtree-sitter-matlab.dylib
+
+       # View the embedded RPATH search directories using below which should display something like
+       #       cmd LC_RPATH
+       #   cmdsize 32
+       #      path @loader_path/. (offset 12)
+       otool -l libtree-sitter-matlab.dylib | tee otool_l_updated.tmp.txt | grep -A 2 LC_RPATH
+
+       # Loader instruction diff
+       diff -u otool_l_initial.tmp.txt  otool_l_updated.tmp.txt 
+
+       # cleanup
+       rm *.tmp.txt
      #+end_src
 
-   + maci64 :: MacOS running on x86_64 (=uname -m=). Note MATLAB release, R2025b, is the last release
-     that supports Intel/AMD based MacOS systems.
-
-     #+begin_src bash
-       cd ./matlab-ts-abiNN/YYYYMMDD-SHA1/src
-       cc -fPIC -O -c -I. parser.c
-       cc -fPIC -O -c -I. scanner.c
-       cc -fPIC -shared parser.o scanner.o -o ../maci64/libtree-sitter-matlab.dylib
-     #+end_src
+   + maci64 :: MacOS running on x86_64 (=uname -m=). Note MATLAB release, R2025b, is the last
+     release that supports Intel/AMD based MacOS systems.  Follow the same steps as maca64,
+     replacing maca64 with maci64.
 
    + win64 :: Microsoft Windows running on Intel/AMD (=echo %PROCESSOR_ARCHITECTURE%= is AMD64 in a
      Command Window)
@@ -77,4 +113,4 @@ flexible.  This convention lets us deploy based on commits rather than release n
 We also save the source in a src directory under each build subdirectory.
 
 # LocalWords:  showall logdone inlineimages latexpreview usepackage parskip svg abi NN YYYYMMDD SHA
-# LocalWords:  uname maca maci MSYS libtree dylib VC vcvars
+# LocalWords:  uname maca maci MSYS libtree dylib VC vcvars otool rpath dyld tmp usr cmdsize Wl

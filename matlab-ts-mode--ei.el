@@ -1,6 +1,6 @@
 ;; matlab-ts-mode--ei.el --- MATLAB electric indent -*- lexical-binding: t -*-
 
-;; Version: 8.2.1
+;; Version: 8.2.2
 ;; URL: https://github.com/mathworks/Emacs-MATLAB-Mode
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;;
